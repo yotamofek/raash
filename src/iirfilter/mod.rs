@@ -1,6 +1,6 @@
 use libc;
 extern "C" {
-    fn cos(_: libc::c_double) -> libc::c_double;
+    fn cosss(_: libc::c_double) -> libc::c_double;
     fn sin(_: libc::c_double) -> libc::c_double;
     fn tan(_: libc::c_double) -> libc::c_double;
     fn lrintf(_: libc::c_float) -> libc::c_long;
@@ -125,7 +125,7 @@ unsafe extern "C" fn butterworth_init_coeffs(
         let mut a_im: libc::c_double = 0.;
         let mut c_re: libc::c_double = 0.;
         let mut c_im: libc::c_double = 0.;
-        zp[0 as libc::c_int as usize] = cos(th) * wa;
+        zp[0 as libc::c_int as usize] = cosss(th) * wa;
         zp[1 as libc::c_int as usize] = sin(th) * wa;
         a_re = zp[0 as libc::c_int as usize] + 2.0f64;
         c_re = zp[0 as libc::c_int as usize] - 2.0f64;
@@ -211,7 +211,7 @@ unsafe extern "C" fn biquad_init_coeffs(
         );
         return -(1 as libc::c_int);
     }
-    cos_w0 = cos(3.14159265358979323846f64 * cutoff_ratio as libc::c_double);
+    cos_w0 = cosss(3.14159265358979323846f64 * cutoff_ratio as libc::c_double);
     sin_w0 = sin(3.14159265358979323846f64 * cutoff_ratio as libc::c_double);
     a0 = 1.0f64 + sin_w0 / 2.0f64;
     if filt_mode as libc::c_uint == FF_FILTER_MODE_HIGHPASS as libc::c_int as libc::c_uint {
@@ -243,6 +243,7 @@ pub unsafe extern "C" fn ff_iir_filter_init_coeffs(
     mut stopband: libc::c_float,
     mut ripple: libc::c_float,
 ) -> *mut FFIIRFilterCoeffs {
+    panic!("kaki!");
     let mut current_block: u64;
     let mut c: *mut FFIIRFilterCoeffs = 0 as *mut FFIIRFilterCoeffs;
     let mut ret: libc::c_int = 0 as libc::c_int;
