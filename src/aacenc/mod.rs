@@ -8,6 +8,8 @@
     unused_mut
 )]
 
+use std::{mem, ptr};
+
 use c2rust_bitfields::BitfieldStruct;
 
 use crate::aacenctab::{
@@ -20,7 +22,6 @@ extern "C" {
     pub type AVBuffer;
     pub type AVCodecDescriptor;
     pub type AVCodecInternal;
-    fn abort() -> !;
     fn av_channel_layout_describe(
         channel_layout: *const AVChannelLayout,
         buf: *mut libc::c_char,
@@ -34,14 +35,12 @@ extern "C" {
     fn fabsf(_: libc::c_float) -> libc::c_float;
     fn fabs(_: libc::c_double) -> libc::c_double;
     fn avpriv_float_dsp_alloc(strict: libc::c_int) -> *mut AVFloatDSPContext;
-    fn memset(_: *mut libc::c_void, _: libc::c_int, _: libc::c_ulong) -> *mut libc::c_void;
     fn strlen(_: *const libc::c_char) -> libc::c_ulong;
     fn av_mallocz(size: size_t) -> *mut libc::c_void;
     fn av_calloc(nmemb: size_t, size: size_t) -> *mut libc::c_void;
     fn av_freep(ptr: *mut libc::c_void);
     fn av_log(avcl: *mut libc::c_void, level: libc::c_int, fmt: *const libc::c_char, _: ...);
     fn av_default_item_name(ctx: *mut libc::c_void) -> *const libc::c_char;
-    fn memcpy(_: *mut libc::c_void, _: *const libc::c_void, _: libc::c_ulong) -> *mut libc::c_void;
     fn ff_alloc_packet(
         avctx: *mut AVCodecContext,
         avpkt: *mut AVPacket,
@@ -158,17 +157,7 @@ unsafe extern "C" fn flush_put_bits(mut s: *mut PutBitContext) {
         (*s).bit_buf <<= (*s).bit_left;
     }
     while (*s).bit_left < BUF_BITS {
-        if !((*s).buf_ptr < (*s).buf_end) {
-            av_log(
-                0 as *mut libc::c_void,
-                0 as libc::c_int,
-                b"Assertion %s failed at %s:%d\n\0" as *const u8 as *const libc::c_char,
-                b"s->buf_ptr < s->buf_end\0" as *const u8 as *const libc::c_char,
-                b"libavcodec/put_bits.h\0" as *const u8 as *const libc::c_char,
-                150 as libc::c_int,
-            );
-            abort();
-        }
+        assert!((*s).buf_ptr < (*s).buf_end);
         let fresh0 = (*s).buf_ptr;
         (*s).buf_ptr = ((*s).buf_ptr).offset(1);
         *fresh0 = ((*s).bit_buf >> BUF_BITS - 8 as libc::c_int) as uint8_t;
@@ -2938,11 +2927,7 @@ pub unsafe extern "C" fn ff_quantize_band_cost_cache_init(mut s: *mut AACEncCont
         ((*s).quantize_band_cost_cache_generation).wrapping_add(1);
     (*s).quantize_band_cost_cache_generation;
     if (*s).quantize_band_cost_cache_generation as libc::c_int == 0 as libc::c_int {
-        memset(
-            ((*s).quantize_band_cost_cache).as_mut_ptr() as *mut libc::c_void,
-            0 as libc::c_int,
-            ::core::mem::size_of::<[[AACQuantizeBandCostCacheEntry; 128]; 256]>() as libc::c_ulong,
-        );
+        (*s).quantize_band_cost_cache = [[AACQuantizeBandCostCacheEntry::default(); 128]; 256];
         (*s).quantize_band_cost_cache_generation = 1 as libc::c_int as uint16_t;
     }
 }
@@ -3001,11 +2986,10 @@ unsafe extern "C" fn apply_long_start_window(
         lwindow,
         1024 as libc::c_int,
     );
-    memcpy(
-        out.offset(1024 as libc::c_int as isize) as *mut libc::c_void,
-        audio.offset(1024 as libc::c_int as isize) as *const libc::c_void,
-        (::core::mem::size_of::<libc::c_float>() as libc::c_ulong)
-            .wrapping_mul(448 as libc::c_int as libc::c_ulong),
+    ptr::copy_nonoverlapping(
+        audio.offset(1024 as libc::c_int as isize),
+        out.offset(1024 as libc::c_int as isize),
+        448,
     );
     ((*fdsp).vector_fmul_reverse).expect("non-null function pointer")(
         out.offset(1024 as libc::c_int as isize)
@@ -3016,12 +3000,11 @@ unsafe extern "C" fn apply_long_start_window(
         swindow,
         128 as libc::c_int,
     );
-    memset(
+    ptr::write_bytes(
         out.offset(1024 as libc::c_int as isize)
-            .offset(576 as libc::c_int as isize) as *mut libc::c_void,
-        0 as libc::c_int,
-        (::core::mem::size_of::<libc::c_float>() as libc::c_ulong)
-            .wrapping_mul(448 as libc::c_int as libc::c_ulong),
+            .offset(576 as libc::c_int as isize),
+        0,
+        448,
     );
 }
 unsafe extern "C" fn apply_long_stop_window(
@@ -3042,23 +3025,17 @@ unsafe extern "C" fn apply_long_stop_window(
             ff_sine_128.as_mut_ptr()
         };
     let mut out: *mut libc::c_float = ((*sce).ret_buf).as_mut_ptr();
-    memset(
-        out as *mut libc::c_void,
-        0 as libc::c_int,
-        (::core::mem::size_of::<libc::c_float>() as libc::c_ulong)
-            .wrapping_mul(448 as libc::c_int as libc::c_ulong),
-    );
+    ptr::write_bytes(out, 0, 448);
     ((*fdsp).vector_fmul).expect("non-null function pointer")(
         out.offset(448 as libc::c_int as isize),
         audio.offset(448 as libc::c_int as isize),
         swindow,
         128 as libc::c_int,
     );
-    memcpy(
-        out.offset(576 as libc::c_int as isize) as *mut libc::c_void,
-        audio.offset(576 as libc::c_int as isize) as *const libc::c_void,
-        (::core::mem::size_of::<libc::c_float>() as libc::c_ulong)
-            .wrapping_mul(448 as libc::c_int as libc::c_ulong),
+    ptr::copy_nonoverlapping(
+        audio.offset(576 as libc::c_int as isize),
+        out.offset(576 as libc::c_int as isize),
+        448,
     );
     ((*fdsp).vector_fmul_reverse).expect("non-null function pointer")(
         out.offset(1024 as libc::c_int as isize),
@@ -3181,17 +3158,8 @@ unsafe extern "C" fn apply_window_and_mdct(
             i += 128 as libc::c_int;
         }
     }
-    memcpy(
-        audio as *mut libc::c_void,
-        audio.offset(1024 as libc::c_int as isize) as *const libc::c_void,
-        (::core::mem::size_of::<libc::c_float>() as libc::c_ulong)
-            .wrapping_mul(1024 as libc::c_int as libc::c_ulong),
-    );
-    memcpy(
-        ((*sce).pcoeffs).as_mut_ptr() as *mut libc::c_void,
-        ((*sce).coeffs).as_mut_ptr() as *const libc::c_void,
-        ::core::mem::size_of::<[INTFLOAT; 1024]>() as libc::c_ulong,
-    );
+    ptr::copy_nonoverlapping(audio.offset(1024 as libc::c_int as isize), audio, 1024);
+    (*sce).pcoeffs = (*sce).coeffs;
 }
 unsafe extern "C" fn put_ics_info(
     mut s: *mut AACEncContext,
@@ -3535,18 +3503,7 @@ unsafe extern "C" fn encode_scale_factors(
                     10680521327981672866 => {}
                     _ => {
                         diff += 60 as libc::c_int;
-                        if !(diff >= 0 as libc::c_int && diff <= 120 as libc::c_int) {
-                            av_log(
-                                0 as *mut libc::c_void,
-                                0 as libc::c_int,
-                                b"Assertion %s failed at %s:%d\n\0" as *const u8
-                                    as *const libc::c_char,
-                                b"diff >= 0 && diff <= 120\0" as *const u8 as *const libc::c_char,
-                                b"libavcodec/aacenc.c\0" as *const u8 as *const libc::c_char,
-                                684 as libc::c_int,
-                            );
-                            abort();
-                        }
+                        assert!(diff >= 0 as libc::c_int && diff <= 120 as libc::c_int);
                         put_bits(
                             &mut (*s).pb,
                             ff_aac_scalefactor_bits[diff as usize] as libc::c_int,
@@ -3760,33 +3717,27 @@ unsafe extern "C" fn copy_input_samples(mut s: *mut AACEncContext, mut frame: *c
     let mut channel_map: *const uint8_t = (*s).reorder_map;
     ch = 0 as libc::c_int;
     while ch < (*s).channels {
-        memcpy(
+        ptr::copy_nonoverlapping(
             &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize))
-                .offset(1024 as libc::c_int as isize) as *mut libc::c_float
-                as *mut libc::c_void,
+                .offset(2048 as libc::c_int as isize) as *mut libc::c_float,
             &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize))
-                .offset(2048 as libc::c_int as isize) as *mut libc::c_float
-                as *const libc::c_void,
-            (1024 as libc::c_int as libc::c_ulong)
-                .wrapping_mul(::core::mem::size_of::<libc::c_float>() as libc::c_ulong),
+                .offset(1024 as libc::c_int as isize) as *mut libc::c_float,
+            1024,
         );
         if !frame.is_null() {
-            memcpy(
-                &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize))
-                    .offset(2048 as libc::c_int as isize) as *mut libc::c_float
-                    as *mut libc::c_void,
+            ptr::copy_nonoverlapping(
                 *((*frame).extended_data).offset(*channel_map.offset(ch as isize) as isize)
-                    as *const libc::c_void,
-                ((*frame).nb_samples as libc::c_ulong)
-                    .wrapping_mul(::core::mem::size_of::<libc::c_float>() as libc::c_ulong),
+                    as *mut libc::c_float,
+                &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize))
+                    .offset(2048 as libc::c_int as isize),
+                (*frame).nb_samples as usize,
             );
         }
-        memset(
+        ptr::write_bytes(
             &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize)).offset(end as isize)
-                as *mut libc::c_float as *mut libc::c_void,
-            0 as libc::c_int,
-            ((3072 as libc::c_int - end) as libc::c_ulong)
-                .wrapping_mul(::core::mem::size_of::<libc::c_float>() as libc::c_ulong),
+                as *mut libc::c_float,
+            0,
+            (3072 as libc::c_int - end) as usize,
         );
         ch += 1;
         ch;
@@ -4049,11 +4000,7 @@ unsafe extern "C" fn aac_encode_frame(
         }
         start_ch = 0 as libc::c_int;
         target_bits = 0 as libc::c_int;
-        memset(
-            chan_el_counter.as_mut_ptr() as *mut libc::c_void,
-            0 as libc::c_int,
-            ::core::mem::size_of::<[libc::c_int; 4]>() as libc::c_ulong,
-        );
+        chan_el_counter.fill(0);
         i = 0 as libc::c_int;
         while i < *((*s).chan_map).offset(0 as libc::c_int as isize) as libc::c_int {
             let mut wi_0: *mut FFPsyWindowInfo = windows.as_mut_ptr().offset(start_ch as isize);
@@ -4066,16 +4013,8 @@ unsafe extern "C" fn aac_encode_frame(
             };
             cpe = &mut *((*s).cpe).offset(i as isize) as *mut ChannelElement;
             (*cpe).common_window = 0 as libc::c_int;
-            memset(
-                ((*cpe).is_mask).as_mut_ptr() as *mut libc::c_void,
-                0 as libc::c_int,
-                ::core::mem::size_of::<[uint8_t; 128]>() as libc::c_ulong,
-            );
-            memset(
-                ((*cpe).ms_mask).as_mut_ptr() as *mut libc::c_void,
-                0 as libc::c_int,
-                ::core::mem::size_of::<[uint8_t; 128]>() as libc::c_ulong,
-            );
+            (*cpe).is_mask.fill(0);
+            (*cpe).ms_mask.fill(0);
             put_bits(&mut (*s).pb, 3 as libc::c_int, tag as BitBuf);
             let fresh3 = chan_el_counter[tag as usize];
             chan_el_counter[tag as usize] = chan_el_counter[tag as usize] + 1;
@@ -4087,21 +4026,9 @@ unsafe extern "C" fn aac_encode_frame(
                 coeffs[ch as usize] = ((*sce).coeffs).as_mut_ptr();
                 (*sce).ics.predictor_present = 0 as libc::c_int;
                 (*sce).ics.ltp.present = 0 as libc::c_int as int8_t;
-                memset(
-                    ((*sce).ics.ltp.used).as_mut_ptr() as *mut libc::c_void,
-                    0 as libc::c_int,
-                    ::core::mem::size_of::<[int8_t; 40]>() as libc::c_ulong,
-                );
-                memset(
-                    ((*sce).ics.prediction_used).as_mut_ptr() as *mut libc::c_void,
-                    0 as libc::c_int,
-                    ::core::mem::size_of::<[uint8_t; 41]>() as libc::c_ulong,
-                );
-                memset(
-                    &mut (*sce).tns as *mut TemporalNoiseShaping as *mut libc::c_void,
-                    0 as libc::c_int,
-                    ::core::mem::size_of::<TemporalNoiseShaping>() as libc::c_ulong,
-                );
+                (*sce).ics.ltp.used.fill(0);
+                (*sce).ics.prediction_used.fill(0);
+                (*sce).tns = TemporalNoiseShaping::default();
                 w = 0 as libc::c_int;
                 while w < 128 as libc::c_int {
                     if (*sce).band_type[w as usize] as libc::c_uint
@@ -4246,11 +4173,7 @@ unsafe extern "C" fn aac_encode_frame(
                 {
                     ((*(*s).coder).search_for_ms).expect("non-null function pointer")(s, cpe);
                 } else if (*cpe).common_window != 0 {
-                    memset(
-                        ((*cpe).ms_mask).as_mut_ptr() as *mut libc::c_void,
-                        1 as libc::c_int,
-                        ::core::mem::size_of::<[uint8_t; 128]>() as libc::c_ulong,
-                    );
+                    (*cpe).ms_mask.fill(1);
                 }
                 apply_mid_side_stereo(cpe);
             }
@@ -4404,11 +4327,7 @@ unsafe extern "C" fn aac_encode_frame(
                     cpe = &mut *((*s).cpe).offset(i as isize) as *mut ChannelElement;
                     ch = 0 as libc::c_int;
                     while ch < chans {
-                        memcpy(
-                            ((*cpe).ch[ch as usize].coeffs).as_mut_ptr() as *mut libc::c_void,
-                            ((*cpe).ch[ch as usize].pcoeffs).as_mut_ptr() as *const libc::c_void,
-                            ::core::mem::size_of::<[INTFLOAT; 1024]>() as libc::c_ulong,
-                        );
+                        (*cpe).ch[ch as usize].coeffs = (*cpe).ch[ch as usize].pcoeffs;
                         ch += 1;
                         ch;
                     }

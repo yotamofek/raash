@@ -2056,7 +2056,7 @@ pub struct Pulse {
     pub pos: [libc::c_int; 4],
     pub amp: [libc::c_int; 4],
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
 pub struct TemporalNoiseShaping {
     pub present: libc::c_int,
@@ -2513,7 +2513,7 @@ pub struct AACEncContext {
 pub struct C2RustUnnamed_3 {
     pub samples: *mut libc::c_float,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
 pub struct AACQuantizeBandCostCacheEntry {
     pub rd: libc::c_float,
