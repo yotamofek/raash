@@ -98,7 +98,7 @@ pub(crate) unsafe fn av_tx_uninit(ctx: *mut *mut AVTXContext) {
     av_freep(ctx as *mut libc::c_void);
 }
 #[cold]
-unsafe fn ff_tx_null_init(
+unsafe extern "C" fn ff_tx_null_init(
     s: *mut AVTXContext,
     _cd: *const FFTXCodelet,
     _flags: uint64_t,
@@ -118,7 +118,7 @@ unsafe fn ff_tx_null_init(
     }
     0 as libc::c_int
 }
-unsafe fn ff_tx_null(
+unsafe extern "C" fn ff_tx_null(
     _s: *mut AVTXContext,
     mut _out: *mut libc::c_void,
     mut _in: *mut libc::c_void,
@@ -157,18 +157,7 @@ static mut ff_tx_null_def: FFTXCodelet = unsafe {
             nb_factors: 0,
             min_len: 1 as libc::c_int,
             max_len: 1 as libc::c_int,
-            init: Some(
-                ff_tx_null_init
-                    as unsafe fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        uint64_t,
-                        *mut FFTXCodeletOptions,
-                        libc::c_int,
-                        libc::c_int,
-                        *const libc::c_void,
-                    ) -> libc::c_int,
-            ),
+            init: Some(ff_tx_null_init),
             uninit: None,
             cpu_flags: 0 as libc::c_int,
             prio: FF_TX_PRIO_MAX as libc::c_int,

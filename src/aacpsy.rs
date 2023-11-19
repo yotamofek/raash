@@ -347,7 +347,7 @@ unsafe fn ath(mut f: libc::c_float, mut add: libc::c_float) -> libc::c_float {
             * f as libc::c_double) as libc::c_float
 }
 #[cold]
-unsafe fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
+unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
     let mut pctx: *mut AacPsyContext = std::ptr::null_mut::<AacPsyContext>();
     let mut bark: libc::c_float = 0.;
     let mut i: libc::c_int = 0;
@@ -1982,7 +1982,7 @@ unsafe fn psy_3gpp_analyze_channel(
     }
     (*pch).prev_band = (*pch).band;
 }
-unsafe fn psy_3gpp_analyze(
+unsafe extern "C" fn psy_3gpp_analyze(
     mut ctx: *mut FFPsyContext,
     mut channel: libc::c_int,
     mut coeffs: *mut *const libc::c_float,
@@ -2003,7 +2003,7 @@ unsafe fn psy_3gpp_analyze(
     }
 }
 #[cold]
-unsafe fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
+unsafe extern "C" fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
     let mut pctx: *mut AacPsyContext = (*apc).model_priv_data as *mut AacPsyContext;
     // TODO: leaks 🚿
     if !pctx.is_null() {
@@ -2039,7 +2039,7 @@ unsafe fn lame_apply_block_type(
     (*wi).window_type[0 as libc::c_int as usize] = (*ctx).next_window_seq as libc::c_int;
     (*ctx).next_window_seq = blocktype as WindowSequence;
 }
-unsafe fn psy_lame_window(
+unsafe extern "C" fn psy_lame_window(
     mut ctx: *mut FFPsyContext,
     mut _audio: *const libc::c_float,
     mut la: *const libc::c_float,
@@ -2208,27 +2208,10 @@ pub(crate) static mut ff_aac_psy_model: FFPsyModel = unsafe {
     {
         FFPsyModel {
             name: b"3GPP TS 26.403-inspired model\0" as *const u8 as *const libc::c_char,
-            init: Some(psy_3gpp_init as unsafe fn(*mut FFPsyContext) -> libc::c_int),
-            window: Some(
-                psy_lame_window
-                    as unsafe fn(
-                        *mut FFPsyContext,
-                        *const libc::c_float,
-                        *const libc::c_float,
-                        libc::c_int,
-                        libc::c_int,
-                    ) -> FFPsyWindowInfo,
-            ),
-            analyze: Some(
-                psy_3gpp_analyze
-                    as unsafe fn(
-                        *mut FFPsyContext,
-                        libc::c_int,
-                        *mut *const libc::c_float,
-                        *const FFPsyWindowInfo,
-                    ) -> (),
-            ),
-            end: Some(psy_3gpp_end as unsafe fn(*mut FFPsyContext) -> ()),
+            init: Some(psy_3gpp_init),
+            window: Some(psy_lame_window),
+            analyze: Some(psy_3gpp_analyze),
+            end: Some(psy_3gpp_end),
         }
     }
 };

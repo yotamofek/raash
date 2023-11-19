@@ -281,7 +281,7 @@ unsafe fn compress_coeffs(
     1 as libc::c_int
 }
 
-pub(crate) unsafe fn ff_aac_encode_tns_info(
+pub(crate) unsafe extern "C" fn ff_aac_encode_tns_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -356,7 +356,7 @@ pub(crate) unsafe fn ff_aac_encode_tns_info(
     }
 }
 
-pub(crate) unsafe fn ff_aac_apply_tns(
+pub(crate) unsafe extern "C" fn ff_aac_apply_tns(
     mut _s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -463,7 +463,7 @@ unsafe fn quantize_coefs(
     }
 }
 
-pub(crate) unsafe fn ff_aac_search_for_tns(
+pub(crate) unsafe extern "C" fn ff_aac_search_for_tns(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {

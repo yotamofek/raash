@@ -227,7 +227,7 @@ pub(crate) unsafe fn ff_iir_filter_init_state(order: libc::c_int) -> *mut FFIIRF
     s
 }
 
-unsafe fn iir_filter_flt(
+unsafe extern "C" fn iir_filter_flt(
     c: *const FFIIRFilterCoeffs,
     s: *mut FFIIRFilterState,
     size: libc::c_int,
@@ -418,16 +418,5 @@ pub(crate) unsafe fn ff_iir_filter_free_coeffsp(coeffsp: *mut *mut FFIIRFilterCo
 }
 
 pub(crate) unsafe fn ff_iir_filter_init(f: *mut FFIIRFilterContext) {
-    (*f).filter_flt = Some(
-        iir_filter_flt
-            as unsafe fn(
-                *const FFIIRFilterCoeffs,
-                *mut FFIIRFilterState,
-                libc::c_int,
-                *const libc::c_float,
-                ptrdiff_t,
-                *mut libc::c_float,
-                ptrdiff_t,
-            ) -> (),
-    );
+    (*f).filter_flt = Some(iir_filter_flt);
 }

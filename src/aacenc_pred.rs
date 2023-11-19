@@ -230,7 +230,7 @@ unsafe fn reset_predictor_group(mut sce: *mut SingleChannelElement, mut group_nu
     }
 }
 
-pub(crate) unsafe fn ff_aac_apply_main_pred(
+pub(crate) unsafe extern "C" fn ff_aac_apply_main_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -295,7 +295,7 @@ unsafe fn update_counters(
     0 as libc::c_int
 }
 
-pub(crate) unsafe fn ff_aac_adjust_common_pred(
+pub(crate) unsafe extern "C" fn ff_aac_adjust_common_pred(
     mut s: *mut AACEncContext,
     mut cpe: *mut ChannelElement,
 ) {
@@ -480,7 +480,7 @@ unsafe fn update_pred_resets(mut sce: *mut SingleChannelElement) {
     };
 }
 
-pub(crate) unsafe fn ff_aac_search_for_pred(
+pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -713,7 +713,7 @@ pub(crate) unsafe fn ff_aac_search_for_pred(
     (*sce).ics.predictor_present = (count != 0) as libc::c_int;
 }
 
-pub(crate) unsafe fn ff_aac_encode_main_pred(
+pub(crate) unsafe extern "C" fn ff_aac_encode_main_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {

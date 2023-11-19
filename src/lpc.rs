@@ -64,7 +64,7 @@ unsafe fn compute_ref_coefs(
     }
 }
 
-unsafe fn lpc_apply_welch_window_c(
+unsafe extern "C" fn lpc_apply_welch_window_c(
     mut data: *const int32_t,
     len: ptrdiff_t,
     mut w_data: *mut libc::c_double,
@@ -108,7 +108,7 @@ unsafe fn lpc_apply_welch_window_c(
         i;
     }
 }
-unsafe fn lpc_compute_autocorr_c(
+unsafe extern "C" fn lpc_compute_autocorr_c(
     data: *const libc::c_double,
     len: ptrdiff_t,
     lag: libc::c_int,
@@ -287,13 +287,8 @@ pub(crate) unsafe fn ff_lpc_init(
         (max_order + 4 as libc::c_int - 1 as libc::c_int & !(4 as libc::c_int - 1 as libc::c_int))
             as isize,
     );
-    (*s).lpc_apply_welch_window = Some(
-        lpc_apply_welch_window_c as unsafe fn(*const int32_t, ptrdiff_t, *mut libc::c_double) -> (),
-    );
-    (*s).lpc_compute_autocorr = Some(
-        lpc_compute_autocorr_c
-            as unsafe fn(*const libc::c_double, ptrdiff_t, libc::c_int, *mut libc::c_double) -> (),
-    );
+    (*s).lpc_apply_welch_window = Some(lpc_apply_welch_window_c);
+    (*s).lpc_compute_autocorr = Some(lpc_compute_autocorr_c);
     0 as libc::c_int
 }
 

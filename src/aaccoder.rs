@@ -676,7 +676,7 @@ unsafe fn ff_pns_bits(
         5 as libc::c_int
     }
 }
-unsafe fn search_for_quantizers_twoloop(
+unsafe extern "C" fn search_for_quantizers_twoloop(
     mut avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
@@ -2564,7 +2564,7 @@ unsafe fn search_for_quantizers_twoloop(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe fn codebook_trellis_rate(
+unsafe extern "C" fn codebook_trellis_rate(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut win: libc::c_int,
@@ -3989,7 +3989,7 @@ pub(crate) unsafe fn ff_quantize_and_encode_band_cost(
     )
 }
 #[inline]
-unsafe fn quantize_and_encode_band(
+unsafe extern "C" fn quantize_and_encode_band(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -4021,7 +4021,7 @@ unsafe fn quantize_and_encode_band(
         std::ptr::null_mut::<libc::c_float>(),
     );
 }
-unsafe fn encode_window_bands_info(
+unsafe extern "C" fn encode_window_bands_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut win: libc::c_int,
@@ -4228,7 +4228,7 @@ unsafe fn encode_window_bands_info(
         i;
     }
 }
-unsafe fn set_special_band_scalefactors(
+unsafe extern "C" fn set_special_band_scalefactors(
     mut _s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -4317,7 +4317,7 @@ unsafe fn set_special_band_scalefactors(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe fn search_for_quantizers_anmr(
+unsafe extern "C" fn search_for_quantizers_anmr(
     mut _avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
@@ -4606,7 +4606,7 @@ unsafe fn search_for_quantizers_anmr(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe fn search_for_quantizers_fast(
+unsafe extern "C" fn search_for_quantizers_fast(
     mut avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
@@ -5147,7 +5147,7 @@ unsafe fn search_for_quantizers_fast(
         }
     }
 }
-unsafe fn search_for_pns(
+unsafe extern "C" fn search_for_pns(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
@@ -5842,7 +5842,7 @@ unsafe fn search_for_pns(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe fn mark_pns(
+unsafe extern "C" fn mark_pns(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
@@ -6354,7 +6354,7 @@ unsafe fn mark_pns(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
+unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut start: libc::c_int = 0 as libc::c_int;
     let mut i: libc::c_int = 0;
     let mut w: libc::c_int = 0;
@@ -6710,368 +6710,74 @@ pub(crate) static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
     [
         {
             AACCoefficientsEncoder {
-                search_for_quantizers: Some(
-                    search_for_quantizers_anmr
-                        as unsafe fn(
-                            *mut AVCodecContext,
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_float,
-                        ) -> (),
-                ),
-                encode_window_bands_info: Some(
-                    encode_window_bands_info
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_float,
-                        ) -> (),
-                ),
-                quantize_and_encode_band: Some(
-                    quantize_and_encode_band
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut PutBitContext,
-                            *const libc::c_float,
-                            *mut libc::c_float,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_float,
-                            libc::c_int,
-                        ) -> (),
-                ),
+                search_for_quantizers: Some(search_for_quantizers_anmr),
+                encode_window_bands_info: Some(encode_window_bands_info),
+                quantize_and_encode_band: Some(quantize_and_encode_band),
                 encode_tns_info: Some(ff_aac_encode_tns_info),
-                encode_ltp_info: Some(
-                    ff_aac_encode_ltp_info
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                        ) -> (),
-                ),
-                encode_main_pred: Some(
-                    ff_aac_encode_main_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                adjust_common_pred: Some(
-                    ff_aac_adjust_common_pred
-                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                adjust_common_ltp: Some(
-                    ff_aac_adjust_common_ltp
-                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                apply_main_pred: Some(
-                    ff_aac_apply_main_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                apply_tns_filt: Some(
-                    ff_aac_apply_tns
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                update_ltp: Some(
-                    ff_aac_update_ltp
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                ltp_insert_new_frame: Some(
-                    ff_aac_ltp_insert_new_frame as unsafe fn(*mut AACEncContext) -> (),
-                ),
-                set_special_band_scalefactors: Some(
-                    set_special_band_scalefactors
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                search_for_pns: Some(
-                    search_for_pns
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
-                ),
-                mark_pns: Some(
-                    mark_pns
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
-                ),
-                search_for_tns: Some(
-                    ff_aac_search_for_tns
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                search_for_ltp: Some(
-                    ff_aac_search_for_ltp
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                        ) -> (),
-                ),
-                search_for_ms: Some(
-                    search_for_ms as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                search_for_is: Some(
-                    ff_aac_search_for_is
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut ChannelElement,
-                        ) -> (),
-                ),
-                search_for_pred: Some(
-                    ff_aac_search_for_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
+                encode_ltp_info: Some(ff_aac_encode_ltp_info),
+                encode_main_pred: Some(ff_aac_encode_main_pred),
+                adjust_common_pred: Some(ff_aac_adjust_common_pred),
+                adjust_common_ltp: Some(ff_aac_adjust_common_ltp),
+                apply_main_pred: Some(ff_aac_apply_main_pred),
+                apply_tns_filt: Some(ff_aac_apply_tns),
+                update_ltp: Some(ff_aac_update_ltp),
+                ltp_insert_new_frame: Some(ff_aac_ltp_insert_new_frame),
+                set_special_band_scalefactors: Some(set_special_band_scalefactors),
+                search_for_pns: Some(search_for_pns),
+                mark_pns: Some(mark_pns),
+                search_for_tns: Some(ff_aac_search_for_tns),
+                search_for_ltp: Some(ff_aac_search_for_ltp),
+                search_for_ms: Some(search_for_ms),
+                search_for_is: Some(ff_aac_search_for_is),
+                search_for_pred: Some(ff_aac_search_for_pred),
             }
         },
         {
             AACCoefficientsEncoder {
-                search_for_quantizers: Some(
-                    search_for_quantizers_twoloop
-                        as unsafe fn(
-                            *mut AVCodecContext,
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_float,
-                        ) -> (),
-                ),
-                encode_window_bands_info: Some(
-                    codebook_trellis_rate
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_float,
-                        ) -> (),
-                ),
-                quantize_and_encode_band: Some(
-                    quantize_and_encode_band
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut PutBitContext,
-                            *const libc::c_float,
-                            *mut libc::c_float,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_float,
-                            libc::c_int,
-                        ) -> (),
-                ),
-                encode_tns_info: Some(
-                    ff_aac_encode_tns_info
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                encode_ltp_info: Some(
-                    ff_aac_encode_ltp_info
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                        ) -> (),
-                ),
-                encode_main_pred: Some(
-                    ff_aac_encode_main_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                adjust_common_pred: Some(
-                    ff_aac_adjust_common_pred
-                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                adjust_common_ltp: Some(
-                    ff_aac_adjust_common_ltp
-                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                apply_main_pred: Some(
-                    ff_aac_apply_main_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                apply_tns_filt: Some(
-                    ff_aac_apply_tns
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                update_ltp: Some(
-                    ff_aac_update_ltp
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                ltp_insert_new_frame: Some(
-                    ff_aac_ltp_insert_new_frame as unsafe fn(*mut AACEncContext) -> (),
-                ),
-                set_special_band_scalefactors: Some(
-                    set_special_band_scalefactors
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                search_for_pns: Some(
-                    search_for_pns
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
-                ),
-                mark_pns: Some(
-                    mark_pns
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
-                ),
-                search_for_tns: Some(
-                    ff_aac_search_for_tns
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                search_for_ltp: Some(
-                    ff_aac_search_for_ltp
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                        ) -> (),
-                ),
-                search_for_ms: Some(
-                    search_for_ms as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                search_for_is: Some(
-                    ff_aac_search_for_is
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut ChannelElement,
-                        ) -> (),
-                ),
-                search_for_pred: Some(
-                    ff_aac_search_for_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
+                search_for_quantizers: Some(search_for_quantizers_twoloop),
+                encode_window_bands_info: Some(codebook_trellis_rate),
+                quantize_and_encode_band: Some(quantize_and_encode_band),
+                encode_tns_info: Some(ff_aac_encode_tns_info),
+                encode_ltp_info: Some(ff_aac_encode_ltp_info),
+                encode_main_pred: Some(ff_aac_encode_main_pred),
+                adjust_common_pred: Some(ff_aac_adjust_common_pred),
+                adjust_common_ltp: Some(ff_aac_adjust_common_ltp),
+                apply_main_pred: Some(ff_aac_apply_main_pred),
+                apply_tns_filt: Some(ff_aac_apply_tns),
+                update_ltp: Some(ff_aac_update_ltp),
+                ltp_insert_new_frame: Some(ff_aac_ltp_insert_new_frame),
+                set_special_band_scalefactors: Some(set_special_band_scalefactors),
+                search_for_pns: Some(search_for_pns),
+                mark_pns: Some(mark_pns),
+                search_for_tns: Some(ff_aac_search_for_tns),
+                search_for_ltp: Some(ff_aac_search_for_ltp),
+                search_for_ms: Some(search_for_ms),
+                search_for_is: Some(ff_aac_search_for_is),
+                search_for_pred: Some(ff_aac_search_for_pred),
             }
         },
         {
             AACCoefficientsEncoder {
-                search_for_quantizers: Some(
-                    search_for_quantizers_fast
-                        as unsafe fn(
-                            *mut AVCodecContext,
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_float,
-                        ) -> (),
-                ),
-                encode_window_bands_info: Some(
-                    codebook_trellis_rate
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_float,
-                        ) -> (),
-                ),
-                quantize_and_encode_band: Some(
-                    quantize_and_encode_band
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut PutBitContext,
-                            *const libc::c_float,
-                            *mut libc::c_float,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_int,
-                            libc::c_float,
-                            libc::c_int,
-                        ) -> (),
-                ),
-                encode_tns_info: Some(
-                    ff_aac_encode_tns_info
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                encode_ltp_info: Some(
-                    ff_aac_encode_ltp_info
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                        ) -> (),
-                ),
-                encode_main_pred: Some(
-                    ff_aac_encode_main_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                adjust_common_pred: Some(
-                    ff_aac_adjust_common_pred
-                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                adjust_common_ltp: Some(
-                    ff_aac_adjust_common_ltp
-                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                apply_main_pred: Some(
-                    ff_aac_apply_main_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                apply_tns_filt: Some(
-                    ff_aac_apply_tns
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                update_ltp: Some(
-                    ff_aac_update_ltp
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                ltp_insert_new_frame: Some(
-                    ff_aac_ltp_insert_new_frame as unsafe fn(*mut AACEncContext) -> (),
-                ),
-                set_special_band_scalefactors: Some(
-                    set_special_band_scalefactors
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                search_for_pns: Some(
-                    search_for_pns
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
-                ),
-                mark_pns: Some(
-                    mark_pns
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
-                ),
-                search_for_tns: Some(
-                    ff_aac_search_for_tns
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
-                search_for_ltp: Some(
-                    ff_aac_search_for_ltp
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                            libc::c_int,
-                        ) -> (),
-                ),
-                search_for_ms: Some(
-                    search_for_ms as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
-                ),
-                search_for_is: Some(
-                    ff_aac_search_for_is
-                        as unsafe fn(
-                            *mut AACEncContext,
-                            *mut AVCodecContext,
-                            *mut ChannelElement,
-                        ) -> (),
-                ),
-                search_for_pred: Some(
-                    ff_aac_search_for_pred
-                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
-                ),
+                search_for_quantizers: Some(search_for_quantizers_fast),
+                encode_window_bands_info: Some(codebook_trellis_rate),
+                quantize_and_encode_band: Some(quantize_and_encode_band),
+                encode_tns_info: Some(ff_aac_encode_tns_info),
+                encode_ltp_info: Some(ff_aac_encode_ltp_info),
+                encode_main_pred: Some(ff_aac_encode_main_pred),
+                adjust_common_pred: Some(ff_aac_adjust_common_pred),
+                adjust_common_ltp: Some(ff_aac_adjust_common_ltp),
+                apply_main_pred: Some(ff_aac_apply_main_pred),
+                apply_tns_filt: Some(ff_aac_apply_tns),
+                update_ltp: Some(ff_aac_update_ltp),
+                ltp_insert_new_frame: Some(ff_aac_ltp_insert_new_frame),
+                set_special_band_scalefactors: Some(set_special_band_scalefactors),
+                search_for_pns: Some(search_for_pns),
+                mark_pns: Some(mark_pns),
+                search_for_tns: Some(ff_aac_search_for_tns),
+                search_for_ltp: Some(ff_aac_search_for_ltp),
+                search_for_ms: Some(search_for_ms),
+                search_for_is: Some(ff_aac_search_for_is),
+                search_for_pred: Some(ff_aac_search_for_pred),
             }
         },
     ]

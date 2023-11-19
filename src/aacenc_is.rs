@@ -312,7 +312,7 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
     is_error
 }
 
-pub(crate) unsafe fn ff_aac_search_for_is(
+pub(crate) unsafe extern "C" fn ff_aac_search_for_is(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut cpe: *mut ChannelElement,

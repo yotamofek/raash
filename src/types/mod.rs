@@ -100,7 +100,7 @@ pub struct AVRational {
 #[repr(C)]
 pub struct AVFloatDSPContext {
     pub vector_fmul: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut libc::c_float,
             *const libc::c_float,
             *const libc::c_float,
@@ -108,19 +108,39 @@ pub struct AVFloatDSPContext {
         ) -> (),
     >,
     pub vector_fmac_scalar: Option<
-        unsafe fn(*mut libc::c_float, *const libc::c_float, libc::c_float, libc::c_int) -> (),
+        unsafe extern "C" fn(
+            *mut libc::c_float,
+            *const libc::c_float,
+            libc::c_float,
+            libc::c_int,
+        ) -> (),
     >,
     pub vector_dmac_scalar: Option<
-        unsafe fn(*mut libc::c_double, *const libc::c_double, libc::c_double, libc::c_int) -> (),
+        unsafe extern "C" fn(
+            *mut libc::c_double,
+            *const libc::c_double,
+            libc::c_double,
+            libc::c_int,
+        ) -> (),
     >,
     pub vector_fmul_scalar: Option<
-        unsafe fn(*mut libc::c_float, *const libc::c_float, libc::c_float, libc::c_int) -> (),
+        unsafe extern "C" fn(
+            *mut libc::c_float,
+            *const libc::c_float,
+            libc::c_float,
+            libc::c_int,
+        ) -> (),
     >,
     pub vector_dmul_scalar: Option<
-        unsafe fn(*mut libc::c_double, *const libc::c_double, libc::c_double, libc::c_int) -> (),
+        unsafe extern "C" fn(
+            *mut libc::c_double,
+            *const libc::c_double,
+            libc::c_double,
+            libc::c_int,
+        ) -> (),
     >,
     pub vector_fmul_window: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut libc::c_float,
             *const libc::c_float,
             *const libc::c_float,
@@ -129,7 +149,7 @@ pub struct AVFloatDSPContext {
         ) -> (),
     >,
     pub vector_fmul_add: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut libc::c_float,
             *const libc::c_float,
             *const libc::c_float,
@@ -138,7 +158,7 @@ pub struct AVFloatDSPContext {
         ) -> (),
     >,
     pub vector_fmul_reverse: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut libc::c_float,
             *const libc::c_float,
             *const libc::c_float,
@@ -146,11 +166,16 @@ pub struct AVFloatDSPContext {
         ) -> (),
     >,
     pub butterflies_float:
-        Option<unsafe fn(*mut libc::c_float, *mut libc::c_float, libc::c_int) -> ()>,
-    pub scalarproduct_float:
-        Option<unsafe fn(*const libc::c_float, *const libc::c_float, libc::c_int) -> libc::c_float>,
+        Option<unsafe extern "C" fn(*mut libc::c_float, *mut libc::c_float, libc::c_int) -> ()>,
+    pub scalarproduct_float: Option<
+        unsafe extern "C" fn(
+            *const libc::c_float,
+            *const libc::c_float,
+            libc::c_int,
+        ) -> libc::c_float,
+    >,
     pub vector_dmul: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut libc::c_double,
             *const libc::c_double,
             *const libc::c_double,
@@ -529,17 +554,18 @@ pub struct AVClass {
     pub log_level_offset_offset: libc::c_int,
     pub parent_log_context_offset: libc::c_int,
     pub category: AVClassCategory,
-    pub get_category: Option<unsafe fn(*mut libc::c_void) -> AVClassCategory>,
+    pub get_category: Option<unsafe extern "C" fn(*mut libc::c_void) -> AVClassCategory>,
     pub query_ranges: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut *mut AVOptionRanges,
             *mut libc::c_void,
             *const libc::c_char,
             libc::c_int,
         ) -> libc::c_int,
     >,
-    pub child_next: Option<unsafe fn(*mut libc::c_void, *mut libc::c_void) -> *mut libc::c_void>,
-    pub child_class_iterate: Option<unsafe fn(*mut *mut libc::c_void) -> *const AVClass>,
+    pub child_next:
+        Option<unsafe extern "C" fn(*mut libc::c_void, *mut libc::c_void) -> *mut libc::c_void>,
+    pub child_class_iterate: Option<unsafe extern "C" fn(*mut *mut libc::c_void) -> *const AVClass>,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -1373,7 +1399,7 @@ pub struct AVCodecContext {
     pub gop_size: libc::c_int,
     pub pix_fmt: AVPixelFormat,
     pub draw_horiz_band: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AVCodecContext,
             *const AVFrame,
             *mut libc::c_int,
@@ -1382,7 +1408,8 @@ pub struct AVCodecContext {
             libc::c_int,
         ) -> (),
     >,
-    pub get_format: Option<unsafe fn(*mut AVCodecContext, *const AVPixelFormat) -> AVPixelFormat>,
+    pub get_format:
+        Option<unsafe extern "C" fn(*mut AVCodecContext, *const AVPixelFormat) -> AVPixelFormat>,
     pub max_b_frames: libc::c_int,
     pub b_quant_factor: libc::c_float,
     pub b_quant_offset: libc::c_float,
@@ -1439,7 +1466,7 @@ pub struct AVCodecContext {
     pub audio_service_type: AVAudioServiceType,
     pub request_sample_fmt: AVSampleFormat,
     pub get_buffer2:
-        Option<unsafe fn(*mut AVCodecContext, *mut AVFrame, libc::c_int) -> libc::c_int>,
+        Option<unsafe extern "C" fn(*mut AVCodecContext, *mut AVFrame, libc::c_int) -> libc::c_int>,
     pub qcompress: libc::c_float,
     pub qblur: libc::c_float,
     pub qmin: libc::c_int,
@@ -1474,9 +1501,9 @@ pub struct AVCodecContext {
     pub thread_type: libc::c_int,
     pub active_thread_type: libc::c_int,
     pub execute: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AVCodecContext,
-            Option<unsafe fn(*mut AVCodecContext, *mut libc::c_void) -> libc::c_int>,
+            Option<unsafe extern "C" fn(*mut AVCodecContext, *mut libc::c_void) -> libc::c_int>,
             *mut libc::c_void,
             *mut libc::c_int,
             libc::c_int,
@@ -1484,10 +1511,10 @@ pub struct AVCodecContext {
         ) -> libc::c_int,
     >,
     pub execute2: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AVCodecContext,
             Option<
-                unsafe fn(
+                unsafe extern "C" fn(
                     *mut AVCodecContext,
                     *mut libc::c_void,
                     libc::c_int,
@@ -1536,8 +1563,9 @@ pub struct AVCodecContext {
     pub discard_damaged_percentage: libc::c_int,
     pub max_samples: int64_t,
     pub export_side_data: libc::c_int,
-    pub get_encode_buffer:
-        Option<unsafe fn(*mut AVCodecContext, *mut AVPacket, libc::c_int) -> libc::c_int>,
+    pub get_encode_buffer: Option<
+        unsafe extern "C" fn(*mut AVCodecContext, *mut AVPacket, libc::c_int) -> libc::c_int,
+    >,
     pub ch_layout: AVChannelLayout,
     pub frame_num: int64_t,
 }
@@ -1602,15 +1630,15 @@ pub struct FFCodec {
     pub caps_internal_cb_type: [u8; 4],
     pub priv_data_size: libc::c_int,
     pub update_thread_context:
-        Option<unsafe fn(*mut AVCodecContext, *const AVCodecContext) -> libc::c_int>,
+        Option<unsafe extern "C" fn(*mut AVCodecContext, *const AVCodecContext) -> libc::c_int>,
     pub update_thread_context_for_user:
-        Option<unsafe fn(*mut AVCodecContext, *const AVCodecContext) -> libc::c_int>,
+        Option<unsafe extern "C" fn(*mut AVCodecContext, *const AVCodecContext) -> libc::c_int>,
     pub defaults: *const FFCodecDefault,
-    pub init_static_data: Option<unsafe fn(*mut FFCodec) -> ()>,
+    pub init_static_data: Option<unsafe extern "C" fn(*mut FFCodec) -> ()>,
     pub init: Option<unsafe extern "C" fn(*mut AVCodecContext) -> libc::c_int>,
     pub cb: C2RustUnnamed_1,
-    pub close: Option<unsafe fn(*mut AVCodecContext) -> libc::c_int>,
-    pub flush: Option<unsafe fn(*mut AVCodecContext) -> ()>,
+    pub close: Option<unsafe extern "C" fn(*mut AVCodecContext) -> libc::c_int>,
+    pub flush: Option<unsafe extern "C" fn(*mut AVCodecContext) -> ()>,
     pub bsfs: *const libc::c_char,
     pub hw_configs: *const *const AVCodecHWConfigInternal,
     pub codec_tags: *const uint32_t,
@@ -1753,16 +1781,24 @@ pub const AV_TX_FLOAT_MDCT: AVTXType = 1;
 pub const AV_TX_INT32_FFT: AVTXType = 4;
 pub const AV_TX_DOUBLE_FFT: AVTXType = 2;
 pub const AV_TX_FLOAT_FFT: AVTXType = 0;
-pub type av_tx_fn =
-    Option<unsafe fn(*mut AVTXContext, *mut libc::c_void, *mut libc::c_void, ptrdiff_t) -> ()>;
+pub type av_tx_fn = Option<
+    unsafe extern "C" fn(*mut AVTXContext, *mut libc::c_void, *mut libc::c_void, ptrdiff_t) -> (),
+>;
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct PSDSPContext {
-    pub add_squares: Option<unsafe fn(*mut INTFLOAT, *const [INTFLOAT; 2], libc::c_int) -> ()>,
-    pub mul_pair_single:
-        Option<unsafe fn(*mut [INTFLOAT; 2], *mut [INTFLOAT; 2], *mut INTFLOAT, libc::c_int) -> ()>,
+    pub add_squares:
+        Option<unsafe extern "C" fn(*mut INTFLOAT, *const [INTFLOAT; 2], libc::c_int) -> ()>,
+    pub mul_pair_single: Option<
+        unsafe extern "C" fn(
+            *mut [INTFLOAT; 2],
+            *mut [INTFLOAT; 2],
+            *mut INTFLOAT,
+            libc::c_int,
+        ) -> (),
+    >,
     pub hybrid_analysis: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [INTFLOAT; 2],
             *mut [INTFLOAT; 2],
             *const [[INTFLOAT; 2]; 8],
@@ -1771,7 +1807,7 @@ pub struct PSDSPContext {
         ) -> (),
     >,
     pub hybrid_analysis_ileave: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [[INTFLOAT; 2]; 32],
             *mut [[INTFLOAT; 64]; 38],
             libc::c_int,
@@ -1779,7 +1815,7 @@ pub struct PSDSPContext {
         ) -> (),
     >,
     pub hybrid_synthesis_deint: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [[INTFLOAT; 64]; 38],
             *mut [[INTFLOAT; 2]; 32],
             libc::c_int,
@@ -1787,7 +1823,7 @@ pub struct PSDSPContext {
         ) -> (),
     >,
     pub decorrelate: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [INTFLOAT; 2],
             *mut [INTFLOAT; 2],
             *mut [[INTFLOAT; 2]; 37],
@@ -1799,7 +1835,7 @@ pub struct PSDSPContext {
         ) -> (),
     >,
     pub stereo_interpolate: [Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [INTFLOAT; 2],
             *mut [INTFLOAT; 2],
             *mut [INTFLOAT; 4],
@@ -1855,16 +1891,18 @@ pub struct PSContext {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct SBRDSPContext {
-    pub sum64x5: Option<unsafe fn(*mut INTFLOAT) -> ()>,
-    pub sum_square: Option<unsafe fn(*mut [INTFLOAT; 2], libc::c_int) -> AAC_FLOAT>,
-    pub neg_odd_64: Option<unsafe fn(*mut INTFLOAT) -> ()>,
-    pub qmf_pre_shuffle: Option<unsafe fn(*mut INTFLOAT) -> ()>,
-    pub qmf_post_shuffle: Option<unsafe fn(*mut [INTFLOAT; 2], *const INTFLOAT) -> ()>,
-    pub qmf_deint_neg: Option<unsafe fn(*mut INTFLOAT, *const INTFLOAT) -> ()>,
-    pub qmf_deint_bfly: Option<unsafe fn(*mut INTFLOAT, *const INTFLOAT, *const INTFLOAT) -> ()>,
-    pub autocorrelate: Option<unsafe fn(*const [INTFLOAT; 2], *mut [[AAC_FLOAT; 2]; 2]) -> ()>,
+    pub sum64x5: Option<unsafe extern "C" fn(*mut INTFLOAT) -> ()>,
+    pub sum_square: Option<unsafe extern "C" fn(*mut [INTFLOAT; 2], libc::c_int) -> AAC_FLOAT>,
+    pub neg_odd_64: Option<unsafe extern "C" fn(*mut INTFLOAT) -> ()>,
+    pub qmf_pre_shuffle: Option<unsafe extern "C" fn(*mut INTFLOAT) -> ()>,
+    pub qmf_post_shuffle: Option<unsafe extern "C" fn(*mut [INTFLOAT; 2], *const INTFLOAT) -> ()>,
+    pub qmf_deint_neg: Option<unsafe extern "C" fn(*mut INTFLOAT, *const INTFLOAT) -> ()>,
+    pub qmf_deint_bfly:
+        Option<unsafe extern "C" fn(*mut INTFLOAT, *const INTFLOAT, *const INTFLOAT) -> ()>,
+    pub autocorrelate:
+        Option<unsafe extern "C" fn(*const [INTFLOAT; 2], *mut [[AAC_FLOAT; 2]; 2]) -> ()>,
     pub hf_gen: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [INTFLOAT; 2],
             *const [INTFLOAT; 2],
             *const INTFLOAT,
@@ -1875,7 +1913,7 @@ pub struct SBRDSPContext {
         ) -> (),
     >,
     pub hf_g_filt: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [INTFLOAT; 2],
             *const [[INTFLOAT; 2]; 40],
             *const AAC_FLOAT,
@@ -1884,7 +1922,7 @@ pub struct SBRDSPContext {
         ) -> (),
     >,
     pub hf_apply_noise: [Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [INTFLOAT; 2],
             *const AAC_FLOAT,
             *const AAC_FLOAT,
@@ -1934,10 +1972,11 @@ pub struct AACContext {
     pub warned_71_wide: libc::c_uint,
     pub warned_gain_control: libc::c_int,
     pub warned_he_aac_mono: libc::c_int,
-    pub imdct_and_windowing: Option<unsafe fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
-    pub apply_ltp: Option<unsafe fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
+    pub imdct_and_windowing:
+        Option<unsafe extern "C" fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
+    pub apply_ltp: Option<unsafe extern "C" fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
     pub apply_tns: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut INTFLOAT,
             *mut TemporalNoiseShaping,
             *mut IndividualChannelStream,
@@ -1945,17 +1984,17 @@ pub struct AACContext {
         ) -> (),
     >,
     pub windowing_and_mdct_ltp: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AACContext,
             *mut INTFLOAT,
             *mut INTFLOAT,
             *mut IndividualChannelStream,
         ) -> (),
     >,
-    pub update_ltp: Option<unsafe fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
-    pub vector_pow43: Option<unsafe fn(*mut libc::c_int, libc::c_int) -> ()>,
+    pub update_ltp: Option<unsafe extern "C" fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
+    pub vector_pow43: Option<unsafe extern "C" fn(*mut libc::c_int, libc::c_int) -> ()>,
     pub subband_scale: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut libc::c_int,
             *mut libc::c_int,
             libc::c_int,
@@ -2165,7 +2204,7 @@ pub struct SpectralBandReplication {
 #[repr(C)]
 pub struct AACSBRContext {
     pub sbr_lf_gen: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AACContext,
             *mut SpectralBandReplication,
             *mut [[INTFLOAT; 2]; 40],
@@ -2174,7 +2213,7 @@ pub struct AACSBRContext {
         ) -> libc::c_int,
     >,
     pub sbr_hf_assemble: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut [[INTFLOAT; 2]; 64],
             *const [[INTFLOAT; 2]; 40],
             *mut SpectralBandReplication,
@@ -2183,7 +2222,7 @@ pub struct AACSBRContext {
         ) -> (),
     >,
     pub sbr_x_gen: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut SpectralBandReplication,
             *mut [[INTFLOAT; 64]; 38],
             *const [[INTFLOAT; 2]; 64],
@@ -2193,7 +2232,7 @@ pub struct AACSBRContext {
         ) -> libc::c_int,
     >,
     pub sbr_hf_inverse_filter: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut SBRDSPContext,
             *mut [INTFLOAT; 2],
             *mut [INTFLOAT; 2],
@@ -2354,9 +2393,9 @@ pub struct C2RustUnnamed_2 {
 #[repr(C)]
 pub struct FFPsyModel {
     pub name: *const libc::c_char,
-    pub init: Option<unsafe fn(*mut FFPsyContext) -> libc::c_int>,
+    pub init: Option<unsafe extern "C" fn(*mut FFPsyContext) -> libc::c_int>,
     pub window: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut FFPsyContext,
             *const libc::c_float,
             *const libc::c_float,
@@ -2365,14 +2404,14 @@ pub struct FFPsyModel {
         ) -> FFPsyWindowInfo,
     >,
     pub analyze: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut FFPsyContext,
             libc::c_int,
             *mut *const libc::c_float,
             *const FFPsyWindowInfo,
         ) -> (),
     >,
-    pub end: Option<unsafe fn(*mut FFPsyContext) -> ()>,
+    pub end: Option<unsafe extern "C" fn(*mut FFPsyContext) -> ()>,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -2381,9 +2420,10 @@ pub struct LLSModel {
     pub coeff: [[libc::c_double; 32]; 32],
     pub variance: [libc::c_double; 32],
     pub indep_count: libc::c_int,
-    pub update_lls: Option<unsafe fn(*mut LLSModel, *const libc::c_double) -> ()>,
-    pub evaluate_lls:
-        Option<unsafe fn(*mut LLSModel, *const libc::c_double, libc::c_int) -> libc::c_double>,
+    pub update_lls: Option<unsafe extern "C" fn(*mut LLSModel, *const libc::c_double) -> ()>,
+    pub evaluate_lls: Option<
+        unsafe extern "C" fn(*mut LLSModel, *const libc::c_double, libc::c_int) -> libc::c_double,
+    >,
 }
 
 impl Default for LLSModel {
@@ -2414,9 +2454,15 @@ pub struct LPCContext {
     pub windowed_buffer: *mut libc::c_double,
     pub windowed_samples: *mut libc::c_double,
     pub lpc_apply_welch_window:
-        Option<unsafe fn(*const int32_t, ptrdiff_t, *mut libc::c_double) -> ()>,
-    pub lpc_compute_autocorr:
-        Option<unsafe fn(*const libc::c_double, ptrdiff_t, libc::c_int, *mut libc::c_double) -> ()>,
+        Option<unsafe extern "C" fn(*const int32_t, ptrdiff_t, *mut libc::c_double) -> ()>,
+    pub lpc_compute_autocorr: Option<
+        unsafe extern "C" fn(
+            *const libc::c_double,
+            ptrdiff_t,
+            libc::c_int,
+            *mut libc::c_double,
+        ) -> (),
+    >,
     pub lls_models: [LLSModel; 2],
 }
 pub type AACCoder = libc::c_uint;
@@ -2472,9 +2518,10 @@ pub struct AACEncContext {
     pub scoefs: [libc::c_float; 1024],
     pub quantize_band_cost_cache_generation: uint16_t,
     pub quantize_band_cost_cache: [[AACQuantizeBandCostCacheEntry; 128]; 256],
-    pub abs_pow34: Option<unsafe fn(*mut libc::c_float, *const libc::c_float, libc::c_int) -> ()>,
+    pub abs_pow34:
+        Option<unsafe extern "C" fn(*mut libc::c_float, *const libc::c_float, libc::c_int) -> ()>,
     pub quant_bands: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut libc::c_int,
             *const libc::c_float,
             *const libc::c_float,
@@ -2506,7 +2553,7 @@ pub struct AACQuantizeBandCostCacheEntry {
 #[repr(C)]
 pub struct AACCoefficientsEncoder {
     pub search_for_quantizers: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AVCodecContext,
             *mut AACEncContext,
             *mut SingleChannelElement,
@@ -2514,7 +2561,7 @@ pub struct AACCoefficientsEncoder {
         ) -> (),
     >,
     pub encode_window_bands_info: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AACEncContext,
             *mut SingleChannelElement,
             libc::c_int,
@@ -2523,7 +2570,7 @@ pub struct AACCoefficientsEncoder {
         ) -> (),
     >,
     pub quantize_and_encode_band: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AACEncContext,
             *mut PutBitContext,
             *const libc::c_float,
@@ -2535,29 +2582,51 @@ pub struct AACCoefficientsEncoder {
             libc::c_int,
         ) -> (),
     >,
-    pub encode_tns_info: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub encode_ltp_info:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement, libc::c_int) -> ()>,
-    pub encode_main_pred: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub adjust_common_pred: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
-    pub adjust_common_ltp: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
-    pub apply_main_pred: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub apply_tns_filt: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub update_ltp: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub ltp_insert_new_frame: Option<unsafe fn(*mut AACEncContext) -> ()>,
+    pub encode_tns_info:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub encode_ltp_info: Option<
+        unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement, libc::c_int) -> (),
+    >,
+    pub encode_main_pred:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub adjust_common_pred:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
+    pub adjust_common_ltp:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
+    pub apply_main_pred:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub apply_tns_filt:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub update_ltp:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub ltp_insert_new_frame: Option<unsafe extern "C" fn(*mut AACEncContext) -> ()>,
     pub set_special_band_scalefactors:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub search_for_pns:
-        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut SingleChannelElement) -> ()>,
-    pub mark_pns:
-        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut SingleChannelElement) -> ()>,
-    pub search_for_tns: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub search_for_ltp:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement, libc::c_int) -> ()>,
-    pub search_for_ms: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
-    pub search_for_is:
-        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut ChannelElement) -> ()>,
-    pub search_for_pred: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub search_for_pns: Option<
+        unsafe extern "C" fn(
+            *mut AACEncContext,
+            *mut AVCodecContext,
+            *mut SingleChannelElement,
+        ) -> (),
+    >,
+    pub mark_pns: Option<
+        unsafe extern "C" fn(
+            *mut AACEncContext,
+            *mut AVCodecContext,
+            *mut SingleChannelElement,
+        ) -> (),
+    >,
+    pub search_for_tns:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub search_for_ltp: Option<
+        unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement, libc::c_int) -> (),
+    >,
+    pub search_for_ms: Option<unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
+    pub search_for_is: Option<
+        unsafe extern "C" fn(*mut AACEncContext, *mut AVCodecContext, *mut ChannelElement) -> (),
+    >,
+    pub search_for_pred:
+        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -2763,7 +2832,7 @@ pub struct FFPsyPreprocessContext {
 #[repr(C)]
 pub struct FFIIRFilterContext {
     pub filter_flt: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *const FFIIRFilterCoeffs,
             *mut FFIIRFilterState,
             libc::c_int,
@@ -2845,7 +2914,7 @@ pub struct FFTXCodelet {
     pub min_len: libc::c_int,
     pub max_len: libc::c_int,
     pub init: Option<
-        unsafe fn(
+        unsafe extern "C" fn(
             *mut AVTXContext,
             *const FFTXCodelet,
             uint64_t,
@@ -2855,7 +2924,7 @@ pub struct FFTXCodelet {
             *const libc::c_void,
         ) -> libc::c_int,
     >,
-    pub uninit: Option<unsafe fn(*mut AVTXContext) -> libc::c_int>,
+    pub uninit: Option<unsafe extern "C" fn(*mut AVTXContext) -> libc::c_int>,
     pub cpu_flags: libc::c_int,
     pub prio: libc::c_int,
 }

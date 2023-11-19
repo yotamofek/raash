@@ -8,6 +8,7 @@
     unused_mut
 )]
 
+use std::ffi::CStr;
 use std::ptr;
 
 use crate::aaccoder::ff_aac_coders;
@@ -40,7 +41,6 @@ extern "C" {
         chl1: *const AVChannelLayout,
     ) -> libc::c_int;
     fn avpriv_float_dsp_alloc(strict: libc::c_int) -> *mut AVFloatDSPContext;
-    fn strlen(_: *const libc::c_char) -> libc::c_ulong;
     fn av_mallocz(size: size_t) -> *mut libc::c_void;
     fn av_calloc(nmemb: size_t, size: size_t) -> *mut libc::c_void;
     fn av_freep(ptr: *mut libc::c_void);
@@ -502,7 +502,7 @@ static mut aacenc_profiles: [libc::c_int; 4] = [
     128 as libc::c_int,
 ];
 #[inline]
-unsafe fn abs_pow34_v(
+unsafe extern "C" fn abs_pow34_v(
     mut out: *mut libc::c_float,
     mut in_0: *const libc::c_float,
     size: libc::c_int,
@@ -517,7 +517,7 @@ unsafe fn abs_pow34_v(
     }
 }
 #[inline]
-unsafe fn quantize_bands(
+unsafe extern "C" fn quantize_bands(
     mut out: *mut libc::c_int,
     mut in_0: *const libc::c_float,
     mut scaled: *const libc::c_float,
@@ -2706,10 +2706,10 @@ unsafe extern "C" fn put_pce(mut pb: *mut PutBitContext, mut avctx: *mut AVCodec
     let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
     let mut pce: *mut AACPCEInfo = &mut (*s).pce;
     let bitexact: libc::c_int = (*avctx).flags & (1 as libc::c_int) << 23 as libc::c_int;
-    let mut aux_data: *const libc::c_char = if bitexact != 0 {
-        b"Lavc\0" as *const u8 as *const libc::c_char
+    let mut aux_data = if bitexact != 0 {
+        c"Lavc"
     } else {
-        b"Lavc60.33.100\0" as *const u8 as *const libc::c_char
+        c"Lavc60.33.100"
     };
     put_bits(pb, 4 as libc::c_int, 0 as libc::c_int as BitBuf);
     put_bits(pb, 2 as libc::c_int, (*avctx).profile as BitBuf);
@@ -2762,8 +2762,10 @@ unsafe extern "C" fn put_pce(mut pb: *mut PutBitContext, mut avctx: *mut AVCodec
         i;
     }
     align_put_bits(pb);
-    put_bits(pb, 8 as libc::c_int, strlen(aux_data) as BitBuf);
-    ff_put_string(pb, aux_data, 0 as libc::c_int);
+    put_bits(pb, 8 as libc::c_int, aux_data.to_bytes().len() as BitBuf);
+    for c in aux_data.to_bytes() {
+        put_bits(pb, 8, *c as u32);
+    }
 }
 unsafe extern "C" fn put_audio_specific_config(mut avctx: *mut AVCodecContext) -> libc::c_int {
     let mut pb: PutBitContext = PutBitContext {
@@ -3550,11 +3552,11 @@ unsafe extern "C" fn encode_individual_channel(
     encode_spectral_coeffs(s, sce);
     0 as libc::c_int
 }
-unsafe extern "C" fn put_bitstream_info(mut s: *mut AACEncContext, mut name: *const libc::c_char) {
+unsafe extern "C" fn put_bitstream_info(mut s: *mut AACEncContext, mut name: &CStr) {
     let mut i: libc::c_int = 0;
     let mut namelen: libc::c_int = 0;
     let mut padbits: libc::c_int = 0;
-    namelen = (strlen(name)).wrapping_add(2 as libc::c_int as libc::c_ulong) as libc::c_int;
+    namelen = name.to_bytes().len().wrapping_add(2) as libc::c_int;
     put_bits(
         &mut (*s).pb,
         3 as libc::c_int,
@@ -3584,7 +3586,7 @@ unsafe extern "C" fn put_bitstream_info(mut s: *mut AACEncContext, mut name: *co
         put_bits(
             &mut (*s).pb,
             8 as libc::c_int,
-            *name.offset(i as isize) as BitBuf,
+            name.to_bytes()[i as usize] as BitBuf,
         );
         i += 1;
         i;
@@ -3884,7 +3886,7 @@ unsafe extern "C" fn aac_encode_frame(
             == 1 as libc::c_int as libc::c_long
             && (*avctx).flags & (1 as libc::c_int) << 23 as libc::c_int == 0
         {
-            put_bitstream_info(s, b"Lavc60.33.100\0" as *const u8 as *const libc::c_char);
+            put_bitstream_info(s, c"Lavc60.33.100");
         }
         start_ch = 0 as libc::c_int;
         target_bits = 0 as libc::c_int;
@@ -4251,7 +4253,7 @@ unsafe extern "C" fn aac_encode_frame(
     0 as libc::c_int
 }
 #[cold]
-unsafe fn aac_encode_end(mut avctx: *mut AVCodecContext) -> libc::c_int {
+unsafe extern "C" fn aac_encode_end(mut avctx: *mut AVCodecContext) -> libc::c_int {
     let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
     av_log(
         avctx as *mut libc::c_void,
