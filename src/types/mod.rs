@@ -1,3 +1,5 @@
+#![warn(dead_code)]
+
 use c2rust_bitfields::BitfieldStruct;
 
 extern "C" {
