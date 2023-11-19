@@ -1,68 +1,63 @@
-use ::libc;
-extern "C" {
-    fn sinf(_: libc::c_float) -> libc::c_float;
-    fn pthread_once(
-        __once_control: *mut pthread_once_t,
-        __init_routine: Option<unsafe extern "C" fn() -> ()>,
-    ) -> libc::c_int;
-}
-pub type pthread_once_t = libc::c_int;
+use std::sync::Once;
+
+use crate::common::*;
+
 #[no_mangle]
 pub static mut ff_sine_4096: [libc::c_float; 4096] = [0.; 4096];
-static mut init_sine_window_once: [pthread_once_t; 9] = [
-    0 as libc::c_int,
-    0 as libc::c_int,
-    0 as libc::c_int,
-    0 as libc::c_int,
-    0 as libc::c_int,
-    0 as libc::c_int,
-    0 as libc::c_int,
-    0 as libc::c_int,
-    0 as libc::c_int,
+static mut init_sine_window_once: [Once; 9] = [
+    Once::new(),
+    Once::new(),
+    Once::new(),
+    Once::new(),
+    Once::new(),
+    Once::new(),
+    Once::new(),
+    Once::new(),
+    Once::new(),
 ];
-unsafe extern "C" fn init_ff_sine_window_5() {
+unsafe fn init_ff_sine_window_5() {
     ff_sine_window_init(
         ff_sine_windows[5 as libc::c_int as usize],
         (1 as libc::c_int) << 5 as libc::c_int,
     );
 }
-unsafe extern "C" fn init_ff_sine_window_6() {
+unsafe fn init_ff_sine_window_6() {
     ff_sine_window_init(
         ff_sine_windows[6 as libc::c_int as usize],
         (1 as libc::c_int) << 6 as libc::c_int,
     );
 }
-unsafe extern "C" fn init_ff_sine_window_7() {
+unsafe fn init_ff_sine_window_7() {
     ff_sine_window_init(
         ff_sine_windows[7 as libc::c_int as usize],
         (1 as libc::c_int) << 7 as libc::c_int,
     );
 }
-unsafe extern "C" fn init_ff_sine_window_8() {
+unsafe fn init_ff_sine_window_8() {
     ff_sine_window_init(
         ff_sine_windows[8 as libc::c_int as usize],
         (1 as libc::c_int) << 8 as libc::c_int,
     );
 }
-unsafe extern "C" fn init_ff_sine_window_9() {
+unsafe fn init_ff_sine_window_9() {
     ff_sine_window_init(
         ff_sine_windows[9 as libc::c_int as usize],
         (1 as libc::c_int) << 9 as libc::c_int,
     );
 }
-unsafe extern "C" fn init_ff_sine_window_10() {
+unsafe fn init_ff_sine_window_10() {
     ff_sine_window_init(
         ff_sine_windows[10 as libc::c_int as usize],
         (1 as libc::c_int) << 10 as libc::c_int,
     );
 }
-unsafe extern "C" fn init_ff_sine_window_11() {
+unsafe fn init_ff_sine_window_11() {
     ff_sine_window_init(
         ff_sine_windows[11 as libc::c_int as usize],
         (1 as libc::c_int) << 11 as libc::c_int,
     );
 }
-unsafe extern "C" fn init_ff_sine_window_12() {
+unsafe fn init_ff_sine_window_12() {
     ff_sine_window_init(
         ff_sine_windows[12 as libc::c_int as usize],
         (1 as libc::c_int) << 12 as libc::c_int,
@@ -105,7 +100,7 @@ pub static mut ff_sine_windows: [*mut libc::c_float; 14] = unsafe {
 pub static mut ff_sine_8192: [libc::c_float; 8192] = [0.; 8192];
 #[no_mangle]
 #[cold]
-pub unsafe extern "C" fn ff_sine_window_init(mut window: *mut libc::c_float, mut n: libc::c_int) {
+pub unsafe fn ff_sine_window_init(mut window: *mut libc::c_float, mut n: libc::c_int) {
     let mut i: libc::c_int = 0;
     i = 0 as libc::c_int;
     while i < n {
@@ -120,30 +115,26 @@ pub unsafe extern "C" fn ff_sine_window_init(mut window: *mut libc::c_float, mut
 }
 #[no_mangle]
 #[cold]
-pub unsafe extern "C" fn ff_init_ff_sine_windows(mut index: libc::c_int) {
-    pthread_once(
-        &mut *init_sine_window_once
-            .as_mut_ptr()
-            .offset((index - 5 as libc::c_int) as isize),
-        sine_window_init_func_array[(index - 5 as libc::c_int) as usize],
-    );
+pub(crate) unsafe fn ff_init_ff_sine_windows(mut index: libc::c_int) {
+    init_sine_window_once[(index - 5 as libc::c_int) as usize]
+        .call_once(|| sine_window_init_func_array[(index - 5 as libc::c_int) as usize].unwrap()());
 }
-unsafe extern "C" fn init_ff_sine_window_13() {
+unsafe fn init_ff_sine_window_13() {
     ff_sine_window_init(
         ff_sine_windows[13 as libc::c_int as usize],
         (1 as libc::c_int) << 13 as libc::c_int,
     );
 }
-static mut sine_window_init_func_array: [Option<unsafe extern "C" fn() -> ()>; 9] = unsafe {
+static mut sine_window_init_func_array: [Option<unsafe fn() -> ()>; 9] = unsafe {
     [
-        Some(init_ff_sine_window_5 as unsafe extern "C" fn() -> ()),
-        Some(init_ff_sine_window_6 as unsafe extern "C" fn() -> ()),
-        Some(init_ff_sine_window_7 as unsafe extern "C" fn() -> ()),
-        Some(init_ff_sine_window_8 as unsafe extern "C" fn() -> ()),
-        Some(init_ff_sine_window_9 as unsafe extern "C" fn() -> ()),
-        Some(init_ff_sine_window_10 as unsafe extern "C" fn() -> ()),
-        Some(init_ff_sine_window_11 as unsafe extern "C" fn() -> ()),
-        Some(init_ff_sine_window_12 as unsafe extern "C" fn() -> ()),
-        Some(init_ff_sine_window_13 as unsafe extern "C" fn() -> ()),
+        Some(init_ff_sine_window_5 as unsafe fn() -> ()),
+        Some(init_ff_sine_window_6 as unsafe fn() -> ()),
+        Some(init_ff_sine_window_7 as unsafe fn() -> ()),
+        Some(init_ff_sine_window_8 as unsafe fn() -> ()),
+        Some(init_ff_sine_window_9 as unsafe fn() -> ()),
+        Some(init_ff_sine_window_10 as unsafe fn() -> ()),
+        Some(init_ff_sine_window_11 as unsafe fn() -> ()),
+        Some(init_ff_sine_window_12 as unsafe fn() -> ()),
+        Some(init_ff_sine_window_13 as unsafe fn() -> ()),
     ]
 };

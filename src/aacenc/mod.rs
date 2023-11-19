@@ -27,6 +27,7 @@ use crate::mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates;
 use crate::psymodel::{
     ff_psy_end, ff_psy_init, ff_psy_preprocess, ff_psy_preprocess_end, ff_psy_preprocess_init,
 };
+use crate::sinewin::{ff_sine_1024, ff_sine_128};
 use crate::types::*;
 
 extern "C" {
@@ -56,8 +57,6 @@ extern "C" {
         string: *const libc::c_char,
         terminate_string: libc::c_int,
     );
-    static mut ff_sine_128: [libc::c_float; 128];
-    static mut ff_sine_1024: [libc::c_float; 1024];
     fn av_tx_init(
         ctx: *mut *mut AVTXContext,
         tx: *mut av_tx_fn,

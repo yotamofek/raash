@@ -10,11 +10,8 @@
 
 use std::sync::Once;
 
-use crate::{kbdwin::avpriv_kbd_window_init, types::*};
+use crate::{kbdwin::avpriv_kbd_window_init, sinewin::ff_init_ff_sine_windows, types::*};
 
-extern "C" {
-    fn ff_init_ff_sine_windows(index: libc::c_int);
-}
 #[no_mangle]
 pub static mut ff_aac_pow2sf_tab: [libc::c_float; 428] = [0.; 428];
 #[no_mangle]
