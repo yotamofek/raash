@@ -1,9 +1,7 @@
 use crate::{common::*, types::*};
 use ::libc;
-extern "C" {
-    fn memset(_: *mut libc::c_void, _: libc::c_int, _: libc::c_ulong) -> *mut libc::c_void;
-}
-unsafe extern "C" fn update_lls(mut m: *mut LLSModel, mut var: *const libc::c_double) {
+
+unsafe fn update_lls(mut m: *mut LLSModel, mut var: *const libc::c_double) {
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
     i = 0 as libc::c_int;
@@ -19,8 +17,8 @@ unsafe extern "C" fn update_lls(mut m: *mut LLSModel, mut var: *const libc::c_do
         i;
     }
 }
-#[no_mangle]
-pub unsafe extern "C" fn avpriv_solve_lls(
+
+pub(crate) unsafe fn avpriv_solve_lls(
     mut m: *mut LLSModel,
     mut threshold: libc::c_double,
     mut min_order: libc::c_ushort,
@@ -141,17 +139,11 @@ unsafe extern "C" fn evaluate_lls(
     }
     return out;
 }
-#[no_mangle]
-#[cold]
-pub unsafe extern "C" fn avpriv_init_lls(mut m: *mut LLSModel, mut indep_count: libc::c_int) {
-    memset(
-        m as *mut libc::c_void,
-        0 as libc::c_int,
-        ::core::mem::size_of::<LLSModel>() as libc::c_ulong,
-    );
+
+pub(crate) unsafe fn avpriv_init_lls(mut m: *mut LLSModel, mut indep_count: libc::c_int) {
+    (*m) = LLSModel::default();
     (*m).indep_count = indep_count;
-    (*m).update_lls =
-        Some(update_lls as unsafe extern "C" fn(*mut LLSModel, *const libc::c_double) -> ());
+    (*m).update_lls = Some(update_lls);
     (*m).evaluate_lls = Some(
         evaluate_lls
             as unsafe extern "C" fn(

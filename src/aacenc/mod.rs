@@ -22,6 +22,7 @@ use crate::aactab::{
     ff_swb_offset_128, ff_tns_max_bands_1024, ff_tns_max_bands_128,
 };
 use crate::common::*;
+use crate::lpc::{ff_lpc_end, ff_lpc_init};
 use crate::mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates;
 use crate::psymodel::{
     ff_psy_end, ff_psy_init, ff_psy_preprocess, ff_psy_preprocess_end, ff_psy_preprocess_init,
@@ -76,13 +77,6 @@ extern "C" {
         duration: *mut int64_t,
     );
     fn ff_af_queue_close(afq: *mut AudioFrameQueue);
-    fn ff_lpc_init(
-        s: *mut LPCContext,
-        blocksize: libc::c_int,
-        max_order: libc::c_int,
-        lpc_type: FFLPCType,
-    ) -> libc::c_int;
-    fn ff_lpc_end(s: *mut LPCContext);
 }
 #[inline(always)]
 unsafe extern "C" fn av_clipf_c(

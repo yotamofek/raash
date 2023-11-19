@@ -8,28 +8,20 @@
     unused_mut
 )]
 
-use crate::{common::*, types::*};
+use crate::{
+    aacpsy::ff_aac_psy_model,
+    common::*,
+    iirfilter::{
+        ff_iir_filter_free_coeffsp, ff_iir_filter_free_statep, ff_iir_filter_init,
+        ff_iir_filter_init_coeffs, ff_iir_filter_init_state,
+    },
+    types::*,
+};
 
 use std::{
     alloc::{alloc, alloc_zeroed, Layout},
     ptr,
 };
-extern "C" {
-    fn ff_iir_filter_init(f: *mut FFIIRFilterContext);
-    fn ff_iir_filter_init_coeffs(
-        avc: *mut libc::c_void,
-        filt_type: IIRFilterType,
-        filt_mode: IIRFilterMode,
-        order: libc::c_int,
-        cutoff_ratio: libc::c_float,
-        stopband: libc::c_float,
-        ripple: libc::c_float,
-    ) -> *mut FFIIRFilterCoeffs;
-    fn ff_iir_filter_init_state(order: libc::c_int) -> *mut FFIIRFilterState;
-    fn ff_iir_filter_free_coeffsp(coeffs: *mut *mut FFIIRFilterCoeffs);
-    fn ff_iir_filter_free_statep(state: *mut *mut FFIIRFilterState);
-    static ff_aac_psy_model: FFPsyModel;
-}
 
 #[no_mangle]
 #[cold]

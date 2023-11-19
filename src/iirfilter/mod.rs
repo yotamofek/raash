@@ -3,7 +3,7 @@ use std::alloc::{alloc, alloc_zeroed, Layout};
 use crate::{common::*, types::*};
 
 extern "C" {
-    fn lrintf(_: libc::c_float) -> libc::c_long;
+    // fn lrintf(_: libc::c_float) -> libc::c_long;
 }
 
 #[inline(always)]

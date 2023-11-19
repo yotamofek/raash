@@ -7,15 +7,13 @@
     unused_assignments,
     unused_mut
 )]
+use std::alloc::alloc;
+use std::alloc::Layout;
+
+use crate::avutil::mathematics::av_bessel_i0;
 use crate::common::*;
 use crate::types::*;
 
-extern "C" {
-    fn lrint(_: libc::c_double) -> libc::c_long;
-    fn av_bessel_i0(x: libc::c_double) -> libc::c_double;
-    fn av_malloc(size: size_t) -> *mut libc::c_void;
-    fn av_free(ptr: *mut libc::c_void);
-}
 #[cold]
 unsafe extern "C" fn kbd_window_init(
     mut float_window: *mut libc::c_float,
@@ -31,10 +29,11 @@ unsafe extern "C" fn kbd_window_init(
     let mut temp: *mut libc::c_double = (if n <= 1024 as libc::c_int {
         temp_small.as_mut_ptr() as *mut libc::c_void
     } else {
-        av_malloc(
-            ((n / 2 as libc::c_int + 1 as libc::c_int) as libc::c_ulong)
-                .wrapping_mul(::core::mem::size_of::<libc::c_double>() as libc::c_ulong),
+        alloc(
+            Layout::array::<libc::c_double>((n / 2 as libc::c_int + 1 as libc::c_int) as usize)
+                .unwrap(),
         )
+        .cast()
     }) as *mut libc::c_double;
     let mut alpha2: libc::c_double = 4 as libc::c_int as libc::c_double
         * (alpha as libc::c_double * 3.14159265358979323846f64 / n as libc::c_double)
@@ -79,7 +78,8 @@ unsafe extern "C" fn kbd_window_init(
         i;
     }
     if temp != temp_small.as_mut_ptr() {
-        av_free(temp as *mut libc::c_void);
+        // TODO: this leaks 🚿
+        // av_free(temp as *mut libc::c_void);
     }
     return 0 as libc::c_int;
 }

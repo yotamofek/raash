@@ -57,3 +57,15 @@ pub(crate) fn exp2(n: libc::c_double) -> libc::c_double {
 pub(crate) fn pow(n: libc::c_double, i: libc::c_double) -> libc::c_double {
     n.powf(i)
 }
+pub(crate) fn llabs(n: libc::c_longlong) -> libc::c_longlong {
+    n.abs()
+}
+
+pub(crate) fn lrintf(n: libc::c_float) -> libc::c_long {
+    // TODO: is this correct???
+    n as libc::c_long
+}
+pub(crate) fn lrint(n: libc::c_double) -> libc::c_long {
+    // TODO: is this correct???
+    n as libc::c_long
+}

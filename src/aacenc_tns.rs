@@ -8,17 +8,9 @@
     unused_mut
 )]
 
+use crate::lpc::ff_lpc_calc_ref_coefs_f;
 use crate::types::*;
 
-extern "C" {
-    fn ff_lpc_calc_ref_coefs_f(
-        s: *mut LPCContext,
-        samples: *const libc::c_float,
-        len: libc::c_int,
-        order: libc::c_int,
-        ref_0: *mut libc::c_double,
-    ) -> libc::c_double;
-}
 #[inline(always)]
 unsafe extern "C" fn av_clip_c(
     mut a: libc::c_int,

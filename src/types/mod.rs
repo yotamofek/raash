@@ -2419,10 +2419,23 @@ pub struct LLSModel {
     pub coeff: [[libc::c_double; 32]; 32],
     pub variance: [libc::c_double; 32],
     pub indep_count: libc::c_int,
-    pub update_lls: Option<unsafe extern "C" fn(*mut LLSModel, *const libc::c_double) -> ()>,
+    pub update_lls: Option<unsafe fn(*mut LLSModel, *const libc::c_double) -> ()>,
     pub evaluate_lls: Option<
         unsafe extern "C" fn(*mut LLSModel, *const libc::c_double, libc::c_int) -> libc::c_double,
     >,
+}
+
+impl Default for LLSModel {
+    fn default() -> Self {
+        Self {
+            covariance: [[0.; 36]; 36],
+            coeff: Default::default(),
+            variance: Default::default(),
+            indep_count: Default::default(),
+            update_lls: Default::default(),
+            evaluate_lls: Default::default(),
+        }
+    }
 }
 pub type FFLPCType = libc::c_int;
 pub const FF_LPC_TYPE_NB: FFLPCType = 4;
