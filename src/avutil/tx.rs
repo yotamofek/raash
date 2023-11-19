@@ -1,7 +1,10 @@
 #![deny(dead_code)]
 
 use crate::types::*;
-use std::ptr;
+use std::{
+    alloc::{alloc, alloc_zeroed, Layout},
+    ptr,
+};
 
 use ::libc;
 extern "C" {
@@ -14,8 +17,6 @@ extern "C" {
         size: *mut libc::c_uint,
         min_size: size_t,
     ) -> *mut libc::c_void;
-    fn av_mallocz(size: size_t) -> *mut libc::c_void;
-    fn av_malloc(size: size_t) -> *mut libc::c_void;
     fn av_freep(ptr: *mut libc::c_void);
     fn av_free(ptr: *mut libc::c_void);
 }
@@ -619,10 +620,7 @@ unsafe fn ff_tx_init_subtx(
     //     i;
     // }
     if ((*s).sub).is_null() {
-        sub = av_mallocz(
-            (4 as libc::c_int as libc::c_ulong)
-                .wrapping_mul(::core::mem::size_of::<AVTXContext>() as libc::c_ulong),
-        ) as *mut AVTXContext;
+        sub = alloc_zeroed(Layout::array::<AVTXContext>(4).unwrap()).cast();
         (*s).sub = sub;
         if sub.is_null() {
             ret = -(12 as libc::c_int);
@@ -665,11 +663,7 @@ unsafe fn ff_tx_init_subtx(
                             == FF_TX_MAP_NONE as libc::c_int as libc::c_uint
                     {
                         (*sctx).map =
-                            av_malloc((len as libc::c_ulong).wrapping_mul(::core::mem::size_of::<
-                                libc::c_int,
-                            >(
-                            )
-                                as libc::c_ulong)) as *mut libc::c_int;
+                            alloc(Layout::array::<libc::c_int>(len as usize).unwrap()).cast();
                         if ((*sctx).map).is_null() {
                             ret = -(12 as libc::c_int);
                             current_block = 7391434065428304855;
@@ -686,11 +680,7 @@ unsafe fn ff_tx_init_subtx(
                         && (*opts).map_dir as libc::c_uint != (*sctx).map_dir as libc::c_uint
                     {
                         let mut tmp: *mut libc::c_int =
-                            av_malloc((len as libc::c_ulong).wrapping_mul(::core::mem::size_of::<
-                                libc::c_int,
-                            >(
-                            )
-                                as libc::c_ulong)) as *mut libc::c_int;
+                            alloc(Layout::array::<libc::c_int>(len as usize).unwrap()).cast();
                         if tmp.is_null() {
                             ret = -(12 as libc::c_int);
                             current_block = 7391434065428304855;

@@ -1,5 +1,5 @@
 #![feature(extern_types)]
-#![allow(clippy::eq_op)]
+#![allow(clippy::eq_op, clippy::precedence)]
 
 mod aaccoder;
 mod aacenc;
