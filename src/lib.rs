@@ -13,6 +13,9 @@ mod aactab;
 mod common;
 mod iirfilter;
 mod kbdwin;
+mod lpc;
 mod mpeg4audio_sample_rates;
 mod psymodel;
 mod types;
+
+mod avutil;

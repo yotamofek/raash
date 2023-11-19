@@ -16,7 +16,6 @@ use crate::types::*;
 use crate::{aacenc_is::*, aacenc_ltp::*, aacenc_pred::*, aacenc_tns::*, aactab::*};
 
 extern "C" {
-    pub type FFPsyPreprocessContext;
     static ff_log2_tab: [uint8_t; 256];
 }
 #[derive(Copy, Clone)]

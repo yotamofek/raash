@@ -12,17 +12,23 @@ use std::{mem, ptr};
 
 use c2rust_bitfields::BitfieldStruct;
 
+use crate::aaccoder::ff_aac_coders;
 use crate::aacenctab::{
     ff_aac_swb_size_1024, ff_aac_swb_size_1024_len, ff_aac_swb_size_128, ff_aac_swb_size_128_len,
 };
+use crate::aactab::{
+    ff_aac_float_common_init, ff_aac_kbd_long_1024, ff_aac_kbd_short_128, ff_aac_num_swb_1024,
+    ff_aac_num_swb_128, ff_aac_scalefactor_bits, ff_aac_scalefactor_code, ff_swb_offset_1024,
+    ff_swb_offset_128, ff_tns_max_bands_1024, ff_tns_max_bands_128,
+};
 use crate::common::*;
 use crate::mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates;
+use crate::psymodel::{
+    ff_psy_end, ff_psy_init, ff_psy_preprocess, ff_psy_preprocess_end, ff_psy_preprocess_init,
+};
 use crate::types::*;
+
 extern "C" {
-    pub type AVDictionary;
-    pub type AVBuffer;
-    pub type AVCodecDescriptor;
-    pub type AVCodecInternal;
     fn av_channel_layout_describe(
         channel_layout: *const AVChannelLayout,
         buf: *mut libc::c_char,
@@ -61,28 +67,7 @@ extern "C" {
         flags: uint64_t,
     ) -> libc::c_int;
     fn av_tx_uninit(ctx: *mut *mut AVTXContext);
-    static mut ff_aac_kbd_long_1024: [libc::c_float; 1024];
-    static mut ff_aac_kbd_short_128: [libc::c_float; 128];
-    fn ff_aac_float_common_init();
-    static ff_aac_num_swb_1024: [uint8_t; 0];
-    static ff_aac_num_swb_128: [uint8_t; 0];
-    static ff_aac_scalefactor_code: [uint32_t; 121];
-    static ff_aac_scalefactor_bits: [uint8_t; 121];
-    static ff_swb_offset_1024: [*const uint16_t; 13];
-    static ff_swb_offset_128: [*const uint16_t; 13];
-    static ff_tns_max_bands_1024: [uint8_t; 13];
-    static ff_tns_max_bands_128: [uint8_t; 13];
     fn ff_af_queue_init(avctx: *mut AVCodecContext, afq: *mut AudioFrameQueue);
-    fn ff_psy_init(
-        ctx: *mut FFPsyContext,
-        avctx: *mut AVCodecContext,
-        num_lens: libc::c_int,
-        bands: *mut *const uint8_t,
-        num_bands: *const libc::c_int,
-        num_groups: libc::c_int,
-        group_map: *const uint8_t,
-    ) -> libc::c_int;
-    fn ff_psy_end(ctx: *mut FFPsyContext);
     fn ff_af_queue_add(afq: *mut AudioFrameQueue, f: *const AVFrame) -> libc::c_int;
     fn ff_af_queue_remove(
         afq: *mut AudioFrameQueue,
@@ -90,15 +75,7 @@ extern "C" {
         pts: *mut int64_t,
         duration: *mut int64_t,
     );
-    fn ff_psy_preprocess_init(avctx: *mut AVCodecContext) -> *mut FFPsyPreprocessContext;
-    fn ff_psy_preprocess(
-        ctx: *mut FFPsyPreprocessContext,
-        audio: *mut *mut libc::c_float,
-        channels: libc::c_int,
-    );
-    fn ff_psy_preprocess_end(ctx: *mut FFPsyPreprocessContext);
     fn ff_af_queue_close(afq: *mut AudioFrameQueue);
-    static ff_aac_coders: [AACCoefficientsEncoder; 0];
     fn ff_lpc_init(
         s: *mut LPCContext,
         blocksize: libc::c_int,

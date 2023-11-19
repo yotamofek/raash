@@ -8,13 +8,9 @@
     unused_mut
 )]
 
-use crate::{common::*, psymodel::ff_psy_find_group, types::*};
+use std::alloc::{alloc_zeroed, Layout};
 
-extern "C" {
-    fn av_mallocz(size: size_t) -> *mut libc::c_void;
-    fn av_calloc(nmemb: size_t, size: size_t) -> *mut libc::c_void;
-    fn av_freep(ptr: *mut libc::c_void);
-}
+use crate::{common::*, psymodel::ff_psy_find_group, types::*};
 
 pub type C2RustUnnamed_1 = libc::c_uint;
 pub const PSY_3GPP_AH_ACTIVE: C2RustUnnamed_1 = 2;
@@ -807,7 +803,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
     if bandwidth <= 0 as libc::c_int {
         return -(22 as libc::c_int);
     }
-    (*ctx).model_priv_data = av_mallocz(::core::mem::size_of::<AacPsyContext>() as libc::c_ulong);
+    (*ctx).model_priv_data = alloc_zeroed(Layout::new::<AacPsyContext>()).cast();
     if ((*ctx).model_priv_data).is_null() {
         return -(12 as libc::c_int);
     }
@@ -928,12 +924,13 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
         j += 1;
         j;
     }
-    (*pctx).ch = av_calloc(
-        (*(*ctx).avctx).ch_layout.nb_channels as size_t,
-        ::core::mem::size_of::<AacPsyChannel>() as libc::c_ulong,
-    ) as *mut AacPsyChannel;
+    (*pctx).ch = alloc_zeroed(
+        Layout::array::<AacPsyChannel>((*(*ctx).avctx).ch_layout.nb_channels as usize).unwrap(),
+    )
+    .cast();
     if ((*pctx).ch).is_null() {
-        av_freep(&mut (*ctx).model_priv_data as *mut *mut libc::c_void as *mut libc::c_void);
+        // TODO: leaks 🚿
+        // av_freep(&mut (*ctx).model_priv_data as *mut *mut libc::c_void as *mut libc::c_void);
         return -(12 as libc::c_int);
     }
     lame_window_init(pctx, (*ctx).avctx);
@@ -2088,10 +2085,11 @@ unsafe extern "C" fn psy_3gpp_analyze(
 #[cold]
 unsafe extern "C" fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
     let mut pctx: *mut AacPsyContext = (*apc).model_priv_data as *mut AacPsyContext;
+    // TODO: leaks 🚿
     if !pctx.is_null() {
-        av_freep(&mut (*pctx).ch as *mut *mut AacPsyChannel as *mut libc::c_void);
+        // av_freep(&mut (*pctx).ch as *mut *mut AacPsyChannel as *mut libc::c_void);
     }
-    av_freep(&mut (*apc).model_priv_data as *mut *mut libc::c_void as *mut libc::c_void);
+    // av_freep(&mut (*apc).model_priv_data as *mut *mut libc::c_void as *mut libc::c_void);
 }
 unsafe extern "C" fn lame_apply_block_type(
     mut ctx: *mut AacPsyChannel,
