@@ -10,24 +10,13 @@
 
 use std::ptr;
 
+use ilog::IntLog;
+
 use crate::aacenc::ff_quantize_band_cost_cache_init;
 use crate::common::*;
 use crate::types::*;
 use crate::{aacenc_is::*, aacenc_ltp::*, aacenc_pred::*, aacenc_tns::*, aactab::*};
 
-extern "C" {
-    static ff_log2_tab: [uint8_t; 256];
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct AACPCEInfo {
-    pub layout: AVChannelLayout,
-    pub num_ele: [libc::c_int; 4],
-    pub pairing: [[libc::c_int; 8]; 3],
-    pub index: [[libc::c_int; 8]; 4],
-    pub config_map: [uint8_t; 16],
-    pub reorder_map: [uint8_t; 16],
-}
 pub type quantize_and_encode_band_func = Option<
     unsafe extern "C" fn(
         *mut AACEncContext,
@@ -76,17 +65,19 @@ unsafe extern "C" fn ff_sqrf(mut a: libc::c_float) -> libc::c_float {
 }
 #[inline(always)]
 unsafe extern "C" fn ff_log2_c(mut v: libc::c_uint) -> libc::c_int {
-    let mut n: libc::c_int = 0 as libc::c_int;
-    if v & 0xffff0000 as libc::c_uint != 0 {
-        v >>= 16 as libc::c_int;
-        n += 16 as libc::c_int;
-    }
-    if v & 0xff00 as libc::c_int as libc::c_uint != 0 {
-        v >>= 8 as libc::c_int;
-        n += 8 as libc::c_int;
-    }
-    n += ff_log2_tab[v as usize] as libc::c_int;
-    return n;
+    // TODO: is this (the cast) correct??
+    v.log2() as libc::c_int
+    // let mut n: libc::c_int = 0 as libc::c_int;
+    // if v & 0xffff0000 as libc::c_uint != 0 {
+    //     v >>= 16 as libc::c_int;
+    //     n += 16 as libc::c_int;
+    // }
+    // if v & 0xff00 as libc::c_int as libc::c_uint != 0 {
+    //     v >>= 8 as libc::c_int;
+    //     n += 8 as libc::c_int;
+    // }
+    // n += ff_log2_tab[v as usize] as libc::c_int;
+    // return n;
 }
 #[inline(always)]
 unsafe extern "C" fn av_clip_c(

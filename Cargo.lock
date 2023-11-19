@@ -23,6 +23,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ilog"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9d6896d5a5d605a3b80da159ccc5a6e1fad346b4d2c1ad51046e22536b9a362"
+
+[[package]]
 name = "libc"
 version = "0.2.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -51,6 +57,7 @@ name = "rsaac"
 version = "0.1.0"
 dependencies = [
  "c2rust-bitfields",
+ "ilog",
  "libc",
 ]
 

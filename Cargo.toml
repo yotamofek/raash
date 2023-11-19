@@ -8,4 +8,5 @@ crate-type = ["staticlib"]
 
 [dependencies]
 c2rust-bitfields = "0.18.0"
+ilog = "1.0.1"
 libc = "0.2.150"

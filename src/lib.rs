@@ -16,6 +16,7 @@ mod kbdwin;
 mod lpc;
 mod mpeg4audio_sample_rates;
 mod psymodel;
+mod sinewin;
 mod types;
 
 mod avutil;

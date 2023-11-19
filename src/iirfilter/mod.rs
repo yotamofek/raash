@@ -2,12 +2,8 @@ use std::alloc::{alloc, alloc_zeroed, Layout};
 
 use crate::{common::*, types::*};
 
-extern "C" {
-    // fn lrintf(_: libc::c_float) -> libc::c_long;
-}
-
 #[inline(always)]
-unsafe extern "C" fn av_clip_int16_c(mut a: libc::c_int) -> int16_t {
+unsafe fn av_clip_int16_c(mut a: libc::c_int) -> int16_t {
     if (a as libc::c_uint).wrapping_add(0x8000 as libc::c_uint)
         & !(0xffff as libc::c_int) as libc::c_uint
         != 0
@@ -18,7 +14,7 @@ unsafe extern "C" fn av_clip_int16_c(mut a: libc::c_int) -> int16_t {
     };
 }
 #[cold]
-unsafe extern "C" fn butterworth_init_coeffs(
+unsafe fn butterworth_init_coeffs(
     mut avc: *mut libc::c_void,
     mut c: *mut FFIIRFilterCoeffs,
     mut filt_mode: IIRFilterMode,
@@ -124,7 +120,7 @@ unsafe extern "C" fn butterworth_init_coeffs(
     return 0 as libc::c_int;
 }
 #[cold]
-unsafe extern "C" fn biquad_init_coeffs(
+unsafe fn biquad_init_coeffs(
     mut avc: *mut libc::c_void,
     mut c: *mut FFIIRFilterCoeffs,
     mut filt_mode: IIRFilterMode,
@@ -163,9 +159,9 @@ unsafe extern "C" fn biquad_init_coeffs(
         lrintf((x1 / (*c).gain as libc::c_double) as libc::c_float) as libc::c_int;
     return 0 as libc::c_int;
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_iir_filter_init_coeffs(
+pub(crate) unsafe fn ff_iir_filter_init_coeffs(
     mut avc: *mut libc::c_void,
     mut filt_type: IIRFilterType,
     mut filt_mode: IIRFilterMode,
@@ -174,7 +170,6 @@ pub unsafe extern "C" fn ff_iir_filter_init_coeffs(
     mut stopband: libc::c_float,
     mut ripple: libc::c_float,
 ) -> *mut FFIIRFilterCoeffs {
-    panic!("kaki!");
     let mut current_block: u64;
     let mut c: *mut FFIIRFilterCoeffs = 0 as *mut FFIIRFilterCoeffs;
     let mut ret: libc::c_int = 0 as libc::c_int;
