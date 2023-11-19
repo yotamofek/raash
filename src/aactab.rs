@@ -12,16 +12,15 @@ use std::sync::Once;
 
 use crate::{kbdwin::avpriv_kbd_window_init, sinewin::ff_init_ff_sine_windows, types::*};
 
-#[no_mangle]
-pub static mut ff_aac_pow2sf_tab: [libc::c_float; 428] = [0.; 428];
-#[no_mangle]
-pub static mut ff_aac_pow34sf_tab: [libc::c_float; 428] = [0.; 428];
-#[no_mangle]
-pub static mut ff_aac_kbd_long_1024: [libc::c_float; 1024] = [0.; 1024];
-#[no_mangle]
-pub static mut ff_aac_kbd_short_128: [libc::c_float; 128] = [0.; 128];
+pub(crate) static mut ff_aac_pow2sf_tab: [libc::c_float; 428] = [0.; 428];
+
+pub(crate) static mut ff_aac_pow34sf_tab: [libc::c_float; 428] = [0.; 428];
+
+pub(crate) static mut ff_aac_kbd_long_1024: [libc::c_float; 1024] = [0.; 1024];
+
+pub(crate) static mut ff_aac_kbd_short_128: [libc::c_float; 128] = [0.; 128];
 #[cold]
-unsafe extern "C" fn aac_tableinit() {
+unsafe fn aac_tableinit() {
     static mut exp2_lut: [libc::c_float; 16] = [
         1.00000000000000000000f64 as libc::c_float,
         1.044_273_782_427_413_8_f64 as libc::c_float,
@@ -65,7 +64,7 @@ unsafe extern "C" fn aac_tableinit() {
     }
 }
 #[cold]
-unsafe extern "C" fn aac_float_common_init() {
+unsafe fn aac_float_common_init() {
     aac_tableinit();
     avpriv_kbd_window_init(
         ff_aac_kbd_long_1024.as_mut_ptr(),
@@ -80,14 +79,14 @@ unsafe extern "C" fn aac_float_common_init() {
     ff_init_ff_sine_windows(10 as libc::c_int);
     ff_init_ff_sine_windows(7 as libc::c_int);
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_aac_float_common_init() {
+pub(crate) unsafe fn ff_aac_float_common_init() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| aac_float_common_init());
 }
-#[no_mangle]
-pub static mut ff_aac_num_swb_1024: [uint8_t; 13] = [
+
+pub(crate) static mut ff_aac_num_swb_1024: [uint8_t; 13] = [
     41 as libc::c_int as uint8_t,
     41 as libc::c_int as uint8_t,
     47 as libc::c_int as uint8_t,
@@ -102,8 +101,8 @@ pub static mut ff_aac_num_swb_1024: [uint8_t; 13] = [
     40 as libc::c_int as uint8_t,
     40 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_num_swb_960: [uint8_t; 13] = [
+
+pub(crate) static mut ff_aac_num_swb_960: [uint8_t; 13] = [
     40 as libc::c_int as uint8_t,
     40 as libc::c_int as uint8_t,
     46 as libc::c_int as uint8_t,
@@ -118,8 +117,8 @@ pub static mut ff_aac_num_swb_960: [uint8_t; 13] = [
     40 as libc::c_int as uint8_t,
     40 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_num_swb_512: [uint8_t; 13] = [
+
+pub(crate) static mut ff_aac_num_swb_512: [uint8_t; 13] = [
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
@@ -134,8 +133,8 @@ pub static mut ff_aac_num_swb_512: [uint8_t; 13] = [
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_num_swb_480: [uint8_t; 13] = [
+
+pub(crate) static mut ff_aac_num_swb_480: [uint8_t; 13] = [
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
@@ -150,8 +149,8 @@ pub static mut ff_aac_num_swb_480: [uint8_t; 13] = [
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_num_swb_128: [uint8_t; 13] = [
+
+pub(crate) static mut ff_aac_num_swb_128: [uint8_t; 13] = [
     12 as libc::c_int as uint8_t,
     12 as libc::c_int as uint8_t,
     12 as libc::c_int as uint8_t,
@@ -166,8 +165,8 @@ pub static mut ff_aac_num_swb_128: [uint8_t; 13] = [
     15 as libc::c_int as uint8_t,
     15 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_num_swb_120: [uint8_t; 13] = [
+
+pub(crate) static mut ff_aac_num_swb_120: [uint8_t; 13] = [
     12 as libc::c_int as uint8_t,
     12 as libc::c_int as uint8_t,
     12 as libc::c_int as uint8_t,
@@ -182,8 +181,8 @@ pub static mut ff_aac_num_swb_120: [uint8_t; 13] = [
     15 as libc::c_int as uint8_t,
     15 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_pred_sfb_max: [uint8_t; 13] = [
+
+pub(crate) static mut ff_aac_pred_sfb_max: [uint8_t; 13] = [
     33 as libc::c_int as uint8_t,
     33 as libc::c_int as uint8_t,
     38 as libc::c_int as uint8_t,
@@ -198,8 +197,8 @@ pub static mut ff_aac_pred_sfb_max: [uint8_t; 13] = [
     34 as libc::c_int as uint8_t,
     34 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_scalefactor_code: [uint32_t; 121] = [
+
+pub(crate) static mut ff_aac_scalefactor_code: [uint32_t; 121] = [
     0x3ffe8 as libc::c_int as uint32_t,
     0x3ffe6 as libc::c_int as uint32_t,
     0x3ffe7 as libc::c_int as uint32_t,
@@ -322,8 +321,8 @@ pub static mut ff_aac_scalefactor_code: [uint32_t; 121] = [
     0x7fff4 as libc::c_int as uint32_t,
     0x7fff3 as libc::c_int as uint32_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_scalefactor_bits: [uint8_t; 121] = [
+
+pub(crate) static mut ff_aac_scalefactor_bits: [uint8_t; 121] = [
     18 as libc::c_int as uint8_t,
     18 as libc::c_int as uint8_t,
     18 as libc::c_int as uint8_t,
@@ -2972,8 +2971,8 @@ static mut bits11: [uint8_t; 289] = [
     9 as libc::c_int as uint8_t,
     5 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_spectral_codes: [*const uint16_t; 11] = unsafe {
+
+pub(crate) static mut ff_aac_spectral_codes: [*const uint16_t; 11] = unsafe {
     [
         codes1.as_ptr(),
         codes2.as_ptr(),
@@ -2988,8 +2987,8 @@ pub static mut ff_aac_spectral_codes: [*const uint16_t; 11] = unsafe {
         codes11.as_ptr(),
     ]
 };
-#[no_mangle]
-pub static mut ff_aac_spectral_bits: [*const uint8_t; 11] = unsafe {
+
+pub(crate) static mut ff_aac_spectral_bits: [*const uint8_t; 11] = unsafe {
     [
         bits1.as_ptr(),
         bits2.as_ptr(),
@@ -3004,8 +3003,8 @@ pub static mut ff_aac_spectral_bits: [*const uint8_t; 11] = unsafe {
         bits11.as_ptr(),
     ]
 };
-#[no_mangle]
-pub static mut ff_aac_spectral_sizes: [uint16_t; 11] = [
+
+pub(crate) static mut ff_aac_spectral_sizes: [uint16_t; 11] = [
     81 as libc::c_int as uint16_t,
     81 as libc::c_int as uint16_t,
     81 as libc::c_int as uint16_t,
@@ -4884,8 +4883,8 @@ static mut codebook_vector10: [libc::c_float; 578] = [
     64.0f32,
     64.0f32,
 ];
-#[no_mangle]
-pub static mut ff_aac_codebook_vectors: [*const libc::c_float; 11] = unsafe {
+
+pub(crate) static mut ff_aac_codebook_vectors: [*const libc::c_float; 11] = unsafe {
     [
         codebook_vector0.as_ptr(),
         codebook_vector0.as_ptr(),
@@ -5628,8 +5627,8 @@ static mut codebook_vector10_idx: [uint16_t; 289] = [
     0x21f0 as libc::c_int as uint16_t,
     0x2300 as libc::c_int as uint16_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_codebook_vector_vals: [*const libc::c_float; 11] = unsafe {
+
+pub(crate) static mut ff_aac_codebook_vector_vals: [*const libc::c_float; 11] = unsafe {
     [
         codebook_vector0_vals.as_ptr(),
         codebook_vector0_vals.as_ptr(),
@@ -5644,8 +5643,8 @@ pub static mut ff_aac_codebook_vector_vals: [*const libc::c_float; 11] = unsafe 
         codebook_vector10_vals.as_ptr(),
     ]
 };
-#[no_mangle]
-pub static mut ff_aac_codebook_vector_idx: [*const uint16_t; 11] = unsafe {
+
+pub(crate) static mut ff_aac_codebook_vector_idx: [*const uint16_t; 11] = unsafe {
     [
         codebook_vector02_idx.as_ptr(),
         codebook_vector02_idx.as_ptr(),
@@ -6676,8 +6675,8 @@ static mut swb_offset_120_8: [uint16_t; 16] = [
     108 as libc::c_int as uint16_t,
     120 as libc::c_int as uint16_t,
 ];
-#[no_mangle]
-pub static mut ff_swb_offset_1024: [*const uint16_t; 13] = unsafe {
+
+pub(crate) static mut ff_swb_offset_1024: [*const uint16_t; 13] = unsafe {
     [
         swb_offset_1024_96.as_ptr(),
         swb_offset_1024_96.as_ptr(),
@@ -6694,8 +6693,8 @@ pub static mut ff_swb_offset_1024: [*const uint16_t; 13] = unsafe {
         swb_offset_1024_8.as_ptr(),
     ]
 };
-#[no_mangle]
-pub static mut ff_swb_offset_960: [*const uint16_t; 13] = unsafe {
+
+pub(crate) static mut ff_swb_offset_960: [*const uint16_t; 13] = unsafe {
     [
         swb_offset_960_96.as_ptr(),
         swb_offset_960_96.as_ptr(),
@@ -6712,8 +6711,8 @@ pub static mut ff_swb_offset_960: [*const uint16_t; 13] = unsafe {
         swb_offset_960_8.as_ptr(),
     ]
 };
-#[no_mangle]
-pub static mut ff_swb_offset_512: [*const uint16_t; 13] = unsafe {
+
+pub(crate) static mut ff_swb_offset_512: [*const uint16_t; 13] = unsafe {
     [
         0 as *const uint16_t,
         0 as *const uint16_t,
@@ -6730,8 +6729,8 @@ pub static mut ff_swb_offset_512: [*const uint16_t; 13] = unsafe {
         0 as *const uint16_t,
     ]
 };
-#[no_mangle]
-pub static mut ff_swb_offset_480: [*const uint16_t; 13] = unsafe {
+
+pub(crate) static mut ff_swb_offset_480: [*const uint16_t; 13] = unsafe {
     [
         0 as *const uint16_t,
         0 as *const uint16_t,
@@ -6748,8 +6747,8 @@ pub static mut ff_swb_offset_480: [*const uint16_t; 13] = unsafe {
         0 as *const uint16_t,
     ]
 };
-#[no_mangle]
-pub static mut ff_swb_offset_128: [*const uint16_t; 13] = unsafe {
+
+pub(crate) static mut ff_swb_offset_128: [*const uint16_t; 13] = unsafe {
     [
         swb_offset_128_96.as_ptr(),
         swb_offset_128_96.as_ptr(),
@@ -6766,8 +6765,8 @@ pub static mut ff_swb_offset_128: [*const uint16_t; 13] = unsafe {
         swb_offset_128_8.as_ptr(),
     ]
 };
-#[no_mangle]
-pub static mut ff_swb_offset_120: [*const uint16_t; 13] = unsafe {
+
+pub(crate) static mut ff_swb_offset_120: [*const uint16_t; 13] = unsafe {
     [
         swb_offset_120_96.as_ptr(),
         swb_offset_120_96.as_ptr(),
@@ -6784,8 +6783,8 @@ pub static mut ff_swb_offset_120: [*const uint16_t; 13] = unsafe {
         swb_offset_120_8.as_ptr(),
     ]
 };
-#[no_mangle]
-pub static mut ff_tns_max_bands_1024: [uint8_t; 13] = [
+
+pub(crate) static mut ff_tns_max_bands_1024: [uint8_t; 13] = [
     31 as libc::c_int as uint8_t,
     31 as libc::c_int as uint8_t,
     34 as libc::c_int as uint8_t,
@@ -6800,8 +6799,8 @@ pub static mut ff_tns_max_bands_1024: [uint8_t; 13] = [
     39 as libc::c_int as uint8_t,
     39 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_tns_max_bands_512: [uint8_t; 13] = [
+
+pub(crate) static mut ff_tns_max_bands_512: [uint8_t; 13] = [
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
@@ -6816,8 +6815,8 @@ pub static mut ff_tns_max_bands_512: [uint8_t; 13] = [
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_tns_max_bands_480: [uint8_t; 13] = [
+
+pub(crate) static mut ff_tns_max_bands_480: [uint8_t; 13] = [
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
@@ -6832,8 +6831,8 @@ pub static mut ff_tns_max_bands_480: [uint8_t; 13] = [
     0 as libc::c_int as uint8_t,
     0 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_tns_max_bands_128: [uint8_t; 13] = [
+
+pub(crate) static mut ff_tns_max_bands_128: [uint8_t; 13] = [
     9 as libc::c_int as uint8_t,
     9 as libc::c_int as uint8_t,
     10 as libc::c_int as uint8_t,
@@ -6848,8 +6847,8 @@ pub static mut ff_tns_max_bands_128: [uint8_t; 13] = [
     14 as libc::c_int as uint8_t,
     14 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_eld_window_512: [libc::c_float; 1920] = [
+
+pub(crate) static mut ff_aac_eld_window_512: [libc::c_float; 1920] = [
     0.00338834f64 as libc::c_float,
     0.00567745f64 as libc::c_float,
     0.00847677f64 as libc::c_float,
@@ -8771,8 +8770,8 @@ pub static mut ff_aac_eld_window_512: [libc::c_float; 1920] = [
     -0.00108377f64 as libc::c_float,
     -0.00106989f64 as libc::c_float,
 ];
-#[no_mangle]
-pub static mut ff_aac_eld_window_512_fixed: [libc::c_int; 1920] = [
+
+pub(crate) static mut ff_aac_eld_window_512_fixed: [libc::c_int; 1920] = [
     0x3783ba as libc::c_int,
     0x5d04f4 as libc::c_int,
     0x8ae226 as libc::c_int,
@@ -10694,8 +10693,8 @@ pub static mut ff_aac_eld_window_512_fixed: [libc::c_int; 1920] = [
     0xffee3e57 as libc::c_uint as libc::c_int,
     0xffee788e as libc::c_uint as libc::c_int,
 ];
-#[no_mangle]
-pub static mut ff_aac_eld_window_480: [libc::c_float; 1800] = [
+
+pub(crate) static mut ff_aac_eld_window_480: [libc::c_float; 1800] = [
     0.00101191f64 as libc::c_float,
     0.00440397f64 as libc::c_float,
     0.00718669f64 as libc::c_float,
@@ -12497,8 +12496,8 @@ pub static mut ff_aac_eld_window_480: [libc::c_float; 1800] = [
     -0.00107448f64 as libc::c_float,
     -0.00105995f64 as libc::c_float,
 ];
-#[no_mangle]
-pub static mut ff_aac_eld_window_480_fixed: [libc::c_int; 1800] = [
+
+pub(crate) static mut ff_aac_eld_window_480_fixed: [libc::c_int; 1800] = [
     0x109442 as libc::c_int,
     0x482797 as libc::c_int,
     0x75bf2a as libc::c_int,

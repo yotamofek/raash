@@ -8,9 +8,7 @@
     unused_mut
 )]
 
-use std::{ptr};
-
-
+use std::ptr;
 
 use crate::aaccoder::ff_aac_coders;
 use crate::aacenctab::{
@@ -178,7 +176,6 @@ unsafe extern "C" fn align_put_bits(mut s: *mut PutBitContext) {
 }
 static mut aac_normal_chan_layouts: [AVChannelLayout; 7] = [
     {
-        
         AVChannelLayout {
             order: AV_CHANNEL_ORDER_NATIVE,
             nb_channels: 1 as libc::c_int,
@@ -189,7 +186,6 @@ static mut aac_normal_chan_layouts: [AVChannelLayout; 7] = [
         }
     },
     {
-        
         AVChannelLayout {
             order: AV_CHANNEL_ORDER_NATIVE,
             nb_channels: 2 as libc::c_int,
@@ -202,7 +198,6 @@ static mut aac_normal_chan_layouts: [AVChannelLayout; 7] = [
         }
     },
     {
-        
         AVChannelLayout {
             order: AV_CHANNEL_ORDER_NATIVE,
             nb_channels: 3 as libc::c_int,
@@ -216,7 +211,6 @@ static mut aac_normal_chan_layouts: [AVChannelLayout; 7] = [
         }
     },
     {
-        
         AVChannelLayout {
             order: AV_CHANNEL_ORDER_NATIVE,
             nb_channels: 4 as libc::c_int,
@@ -231,7 +225,6 @@ static mut aac_normal_chan_layouts: [AVChannelLayout; 7] = [
         }
     },
     {
-        
         AVChannelLayout {
             order: AV_CHANNEL_ORDER_NATIVE,
             nb_channels: 5 as libc::c_int,
@@ -247,7 +240,6 @@ static mut aac_normal_chan_layouts: [AVChannelLayout; 7] = [
         }
     },
     {
-        
         AVChannelLayout {
             order: AV_CHANNEL_ORDER_NATIVE,
             nb_channels: 6 as libc::c_int,
@@ -264,7 +256,6 @@ static mut aac_normal_chan_layouts: [AVChannelLayout; 7] = [
         }
     },
     {
-        
         AVChannelLayout {
             order: AV_CHANNEL_ORDER_NATIVE,
             nb_channels: 8 as libc::c_int,
@@ -511,7 +502,7 @@ static mut aacenc_profiles: [libc::c_int; 4] = [
     128 as libc::c_int,
 ];
 #[inline]
-unsafe extern "C" fn abs_pow34_v(
+unsafe fn abs_pow34_v(
     mut out: *mut libc::c_float,
     mut in_0: *const libc::c_float,
     size: libc::c_int,
@@ -526,7 +517,7 @@ unsafe extern "C" fn abs_pow34_v(
     }
 }
 #[inline]
-unsafe extern "C" fn quantize_bands(
+unsafe fn quantize_bands(
     mut out: *mut libc::c_int,
     mut in_0: *const libc::c_float,
     mut scaled: *const libc::c_float,
@@ -555,10 +546,8 @@ unsafe extern "C" fn quantize_bands(
 }
 static mut aac_pce_configs: [AACPCEInfo; 29] = [
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 1 as libc::c_int,
@@ -621,10 +610,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 2 as libc::c_int,
@@ -688,10 +675,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 3 as libc::c_int,
@@ -756,10 +741,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 3 as libc::c_int,
@@ -828,10 +811,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 3 as libc::c_int,
@@ -900,10 +881,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 4 as libc::c_int,
@@ -973,10 +952,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 4 as libc::c_int,
@@ -1046,10 +1023,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 5 as libc::c_int,
@@ -1120,10 +1095,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 4 as libc::c_int,
@@ -1193,10 +1166,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 4 as libc::c_int,
@@ -1266,10 +1237,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 5 as libc::c_int,
@@ -1340,10 +1309,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 6 as libc::c_int,
@@ -1415,10 +1382,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 5 as libc::c_int,
@@ -1489,10 +1454,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 6 as libc::c_int,
@@ -1564,10 +1527,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 6 as libc::c_int,
@@ -1639,10 +1600,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 6 as libc::c_int,
@@ -1716,10 +1675,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 6 as libc::c_int,
@@ -1791,10 +1748,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 7 as libc::c_int,
@@ -1867,10 +1822,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 7 as libc::c_int,
@@ -1943,10 +1896,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 7 as libc::c_int,
@@ -2021,10 +1972,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 7 as libc::c_int,
@@ -2097,10 +2046,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 7 as libc::c_int,
@@ -2175,10 +2122,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 8 as libc::c_int,
@@ -2252,10 +2197,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 8 as libc::c_int,
@@ -2331,10 +2274,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 8 as libc::c_int,
@@ -2410,10 +2351,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 8 as libc::c_int,
@@ -2487,10 +2426,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 9 as libc::c_int,
@@ -2565,10 +2502,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 10 as libc::c_int,
@@ -2646,10 +2581,8 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
         }
     },
     {
-        
         AACPCEInfo {
             layout: {
-                
                 AVChannelLayout {
                     order: AV_CHANNEL_ORDER_NATIVE,
                     nb_channels: 16 as libc::c_int,
@@ -3545,7 +3478,10 @@ unsafe extern "C" fn encode_spectral_coeffs(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe extern "C" fn avoid_clipping(mut _s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
+unsafe extern "C" fn avoid_clipping(
+    mut _s: *mut AACEncContext,
+    mut sce: *mut SingleChannelElement,
+) {
     let mut start: libc::c_int = 0;
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
@@ -4730,29 +4666,13 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> libc::c_
         FF_LPC_TYPE_LEVINSON,
     );
     (*s).random_state = 0x1f2e3d4c as libc::c_int;
-    (*s).abs_pow34 = Some(
-        abs_pow34_v
-            as unsafe extern "C" fn(*mut libc::c_float, *const libc::c_float, libc::c_int) -> (),
-    );
-    (*s).quant_bands = Some(
-        quantize_bands
-            as unsafe extern "C" fn(
-                *mut libc::c_int,
-                *const libc::c_float,
-                *const libc::c_float,
-                libc::c_int,
-                libc::c_int,
-                libc::c_int,
-                libc::c_float,
-                libc::c_float,
-            ) -> (),
-    );
+    (*s).abs_pow34 = Some(abs_pow34_v);
+    (*s).quant_bands = Some(quantize_bands);
     ff_af_queue_init(avctx, &mut (*s).afq);
     0 as libc::c_int
 }
 static mut aacenc_options: [AVOption; 22] = [
     {
-        
         AVOption {
             name: b"aac_coder\0" as *const u8 as *const libc::c_char,
             help: b"Coding algorithm\0" as *const u8 as *const libc::c_char,
@@ -4768,7 +4688,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"anmr\0" as *const u8 as *const libc::c_char,
             help: b"ANMR method\0" as *const u8 as *const libc::c_char,
@@ -4784,7 +4703,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"twoloop\0" as *const u8 as *const libc::c_char,
             help: b"Two loop searching method\0" as *const u8 as *const libc::c_char,
@@ -4800,7 +4718,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"fast\0" as *const u8 as *const libc::c_char,
             help: b"Default fast search\0" as *const u8 as *const libc::c_char,
@@ -4816,7 +4733,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_ms\0" as *const u8 as *const libc::c_char,
             help: b"Force M/S stereo coding\0" as *const u8 as *const libc::c_char,
@@ -4832,7 +4748,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_is\0" as *const u8 as *const libc::c_char,
             help: b"Intensity stereo coding\0" as *const u8 as *const libc::c_char,
@@ -4848,7 +4763,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_pns\0" as *const u8 as *const libc::c_char,
             help: b"Perceptual noise substitution\0" as *const u8 as *const libc::c_char,
@@ -4864,7 +4778,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_tns\0" as *const u8 as *const libc::c_char,
             help: b"Temporal noise shaping\0" as *const u8 as *const libc::c_char,
@@ -4880,7 +4793,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_ltp\0" as *const u8 as *const libc::c_char,
             help: b"Long term prediction\0" as *const u8 as *const libc::c_char,
@@ -4896,7 +4808,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_pred\0" as *const u8 as *const libc::c_char,
             help: b"AAC-Main prediction\0" as *const u8 as *const libc::c_char,
@@ -4912,7 +4823,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_pce\0" as *const u8 as *const libc::c_char,
             help: b"Forces the use of PCEs\0" as *const u8 as *const libc::c_char,
@@ -4928,7 +4838,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_main\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -4944,7 +4853,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_low\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -4960,7 +4868,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_ssr\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -4976,7 +4883,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_ltp\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -4992,7 +4898,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_he\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -5008,7 +4913,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_he_v2\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -5024,7 +4928,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_ld\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -5040,7 +4943,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"aac_eld\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -5056,7 +4958,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"mpeg2_aac_low\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -5072,7 +4973,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: b"mpeg2_aac_he\0" as *const u8 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -5088,7 +4988,6 @@ static mut aacenc_options: [AVOption; 22] = [
         }
     },
     {
-        
         AVOption {
             name: 0 as *const libc::c_char,
             help: 0 as *const libc::c_char,
@@ -5104,13 +5003,9 @@ static mut aacenc_options: [AVOption; 22] = [
 ];
 static mut aacenc_class: AVClass = unsafe {
     {
-        
         AVClass {
             class_name: b"AAC encoder\0" as *const u8 as *const libc::c_char,
-            item_name: Some(
-                av_default_item_name
-                    as unsafe extern "C" fn(*mut libc::c_void) -> *const libc::c_char,
-            ),
+            item_name: Some(av_default_item_name),
             option: aacenc_options.as_ptr(),
             version: (58 as libc::c_int) << 16 as libc::c_int
                 | (32 as libc::c_int) << 8 as libc::c_int
@@ -5127,14 +5022,12 @@ static mut aacenc_class: AVClass = unsafe {
 };
 static mut aac_encode_defaults: [FFCodecDefault; 2] = [
     {
-        
         FFCodecDefault {
             key: b"b\0" as *const u8 as *const libc::c_char,
             value: b"0\0" as *const u8 as *const libc::c_char,
         }
     },
     {
-        
         FFCodecDefault {
             key: 0 as *const libc::c_char,
             value: 0 as *const libc::c_char,
@@ -5182,7 +5075,6 @@ unsafe extern "C" fn run_static_initializers() {
         let mut init = FFCodec {
             caps_internal_cb_type: [0; 4],
             p: {
-                
                 AVCodec {
                     name: b"aac\0" as *const u8 as *const libc::c_char,
                     long_name: b"AAC (Advanced Audio Coding)\0" as *const u8 as *const libc::c_char,
@@ -5208,17 +5100,9 @@ unsafe extern "C" fn run_static_initializers() {
             update_thread_context_for_user: None,
             defaults: aac_encode_defaults.as_ptr(),
             init_static_data: None,
-            init: Some(aac_encode_init as unsafe extern "C" fn(*mut AVCodecContext) -> libc::c_int),
+            init: Some(aac_encode_init),
             cb: C2RustUnnamed_1 {
-                encode: Some(
-                    aac_encode_frame
-                        as unsafe extern "C" fn(
-                            *mut AVCodecContext,
-                            *mut AVPacket,
-                            *const AVFrame,
-                            *mut libc::c_int,
-                        ) -> libc::c_int,
-                ),
+                encode: Some(aac_encode_frame),
             },
             close: Some(aac_encode_end),
             flush: None,

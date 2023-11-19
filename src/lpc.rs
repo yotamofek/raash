@@ -7,9 +7,9 @@ use std::ptr;
 use crate::common::*;
 use crate::types::*;
 
-pub type LPC_TYPE = libc::c_double;
+pub(crate) type LPC_TYPE = libc::c_double;
 #[inline]
-unsafe extern "C" fn compute_ref_coefs(
+unsafe fn compute_ref_coefs(
     autoc: *const LPC_TYPE,
     max_order: libc::c_int,
     ref_0: *mut LPC_TYPE,
@@ -64,7 +64,7 @@ unsafe extern "C" fn compute_ref_coefs(
     }
 }
 
-unsafe extern "C" fn lpc_apply_welch_window_c(
+unsafe fn lpc_apply_welch_window_c(
     mut data: *const int32_t,
     len: ptrdiff_t,
     mut w_data: *mut libc::c_double,
@@ -108,7 +108,7 @@ unsafe extern "C" fn lpc_apply_welch_window_c(
         i;
     }
 }
-unsafe extern "C" fn lpc_compute_autocorr_c(
+unsafe fn lpc_compute_autocorr_c(
     data: *const libc::c_double,
     len: ptrdiff_t,
     lag: libc::c_int,
@@ -142,34 +142,6 @@ unsafe extern "C" fn lpc_compute_autocorr_c(
         }
         *autoc.offset(j as isize) = sum;
     }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ff_lpc_calc_ref_coefs(
-    s: *mut LPCContext,
-    samples: *const int32_t,
-    order: libc::c_int,
-    ref_0: *mut libc::c_double,
-) -> libc::c_int {
-    let mut autoc: [libc::c_double; 33] = [0.; 33];
-    ((*s).lpc_apply_welch_window).expect("non-null function pointer")(
-        samples,
-        (*s).blocksize as ptrdiff_t,
-        (*s).windowed_samples,
-    );
-    ((*s).lpc_compute_autocorr).expect("non-null function pointer")(
-        (*s).windowed_samples,
-        (*s).blocksize as ptrdiff_t,
-        order,
-        autoc.as_mut_ptr(),
-    );
-    compute_ref_coefs(
-        autoc.as_mut_ptr(),
-        order,
-        ref_0,
-        std::ptr::null_mut::<LPC_TYPE>(),
-    );
-    order
 }
 
 pub(crate) unsafe fn ff_lpc_calc_ref_coefs_f(
@@ -316,23 +288,17 @@ pub(crate) unsafe fn ff_lpc_init(
             as isize,
     );
     (*s).lpc_apply_welch_window = Some(
-        lpc_apply_welch_window_c
-            as unsafe extern "C" fn(*const int32_t, ptrdiff_t, *mut libc::c_double) -> (),
+        lpc_apply_welch_window_c as unsafe fn(*const int32_t, ptrdiff_t, *mut libc::c_double) -> (),
     );
     (*s).lpc_compute_autocorr = Some(
         lpc_compute_autocorr_c
-            as unsafe extern "C" fn(
-                *const libc::c_double,
-                ptrdiff_t,
-                libc::c_int,
-                *mut libc::c_double,
-            ) -> (),
+            as unsafe fn(*const libc::c_double, ptrdiff_t, libc::c_int, *mut libc::c_double) -> (),
     );
     0 as libc::c_int
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_lpc_end(_s: *mut LPCContext) {
+pub(crate) unsafe fn ff_lpc_end(_s: *mut LPCContext) {
     // TODO: this leaks 🚿
     // av_freep(&mut (*s).windowed_buffer as *mut *mut libc::c_double as *mut libc::c_void);
 }

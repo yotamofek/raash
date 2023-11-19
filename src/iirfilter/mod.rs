@@ -2,17 +2,6 @@ use std::alloc::{alloc, alloc_zeroed, Layout};
 
 use crate::{common::*, types::*};
 
-#[inline(always)]
-unsafe fn av_clip_int16_c(a: libc::c_int) -> int16_t {
-    if (a as libc::c_uint).wrapping_add(0x8000 as libc::c_uint)
-        & !(0xffff as libc::c_int) as libc::c_uint
-        != 0
-    {
-        (a >> 31 as libc::c_int ^ 0x7fff as libc::c_int) as int16_t
-    } else {
-        a as int16_t
-    }
-}
 #[cold]
 unsafe fn butterworth_init_coeffs(
     _avc: *mut libc::c_void,
@@ -223,9 +212,9 @@ pub(crate) unsafe fn ff_iir_filter_init_coeffs(
     ff_iir_filter_free_coeffsp(&mut c);
     std::ptr::null_mut::<FFIIRFilterCoeffs>()
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_iir_filter_init_state(order: libc::c_int) -> *mut FFIIRFilterState {
+pub(crate) unsafe fn ff_iir_filter_init_state(order: libc::c_int) -> *mut FFIIRFilterState {
     // TODO: is this correct?
     let s: *mut FFIIRFilterState =
         alloc_zeroed(Layout::array::<libc::c_float>(order as usize).unwrap()).cast();
@@ -237,181 +226,8 @@ pub unsafe extern "C" fn ff_iir_filter_init_state(order: libc::c_int) -> *mut FF
     // ) as *mut FFIIRFilterState;
     s
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_iir_filter(
-    c: *const FFIIRFilterCoeffs,
-    s: *mut FFIIRFilterState,
-    size: libc::c_int,
-    src: *const int16_t,
-    sstep: ptrdiff_t,
-    dst: *mut int16_t,
-    dstep: ptrdiff_t,
-) {
-    if (*c).order == 2 as libc::c_int {
-        let mut i: libc::c_int = 0;
-        let mut src0: *const int16_t = src;
-        let mut dst0: *mut int16_t = dst;
-        i = 0 as libc::c_int;
-        while i < size {
-            let in_0: libc::c_float = *src0 as libc::c_int as libc::c_float * (*c).gain
-                + *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
-                    * *((*c).cy).offset(0 as libc::c_int as isize)
-                + *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
-                    * *((*c).cy).offset(1 as libc::c_int as isize);
-            *dst0 = av_clip_int16_c(lrintf(
-                *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
-                    + in_0
-                    + *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
-                        * *((*c).cx).offset(1 as libc::c_int as isize) as libc::c_float,
-            ) as libc::c_int);
-            *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize) =
-                *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize);
-            *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize) = in_0;
-            src0 = src0.offset(sstep as isize);
-            dst0 = dst0.offset(dstep as isize);
-            i += 1;
-            i;
-        }
-    } else if (*c).order == 4 as libc::c_int {
-        let mut i_0: libc::c_int = 0;
-        let mut src0_0: *const int16_t = src;
-        let mut dst0_0: *mut int16_t = dst;
-        i_0 = 0 as libc::c_int;
-        while i_0 < size {
-            let mut in_1: libc::c_float = 0.;
-            let mut res: libc::c_float = 0.;
-            in_1 = *src0_0 as libc::c_int as libc::c_float * (*c).gain
-                + *((*c).cy).offset(0 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
-                + *((*c).cy).offset(1 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
-                + *((*c).cy).offset(2 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize)
-                + *((*c).cy).offset(3 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize);
-            res = (*((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize) + in_1)
-                * 1 as libc::c_int as libc::c_float
-                + (*((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
-                    + *((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize))
-                    * 4 as libc::c_int as libc::c_float
-                + *((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize)
-                    * 6 as libc::c_int as libc::c_float;
-            *dst0_0 = av_clip_int16_c(lrintf(res) as libc::c_int);
-            *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize) = in_1;
-            src0_0 = src0_0.offset(sstep as isize);
-            dst0_0 = dst0_0.offset(dstep as isize);
-            in_1 = *src0_0 as libc::c_int as libc::c_float * (*c).gain
-                + *((*c).cy).offset(0 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
-                + *((*c).cy).offset(1 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize)
-                + *((*c).cy).offset(2 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize)
-                + *((*c).cy).offset(3 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize);
-            res = (*((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize) + in_1)
-                * 1 as libc::c_int as libc::c_float
-                + (*((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize)
-                    + *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize))
-                    * 4 as libc::c_int as libc::c_float
-                + *((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize)
-                    * 6 as libc::c_int as libc::c_float;
-            *dst0_0 = av_clip_int16_c(lrintf(res) as libc::c_int);
-            *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize) = in_1;
-            src0_0 = src0_0.offset(sstep as isize);
-            dst0_0 = dst0_0.offset(dstep as isize);
-            in_1 = *src0_0 as libc::c_int as libc::c_float * (*c).gain
-                + *((*c).cy).offset(0 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize)
-                + *((*c).cy).offset(1 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize)
-                + *((*c).cy).offset(2 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
-                + *((*c).cy).offset(3 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize);
-            res = (*((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize) + in_1)
-                * 1 as libc::c_int as libc::c_float
-                + (*((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize)
-                    + *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize))
-                    * 4 as libc::c_int as libc::c_float
-                + *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
-                    * 6 as libc::c_int as libc::c_float;
-            *dst0_0 = av_clip_int16_c(lrintf(res) as libc::c_int);
-            *((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize) = in_1;
-            src0_0 = src0_0.offset(sstep as isize);
-            dst0_0 = dst0_0.offset(dstep as isize);
-            in_1 = *src0_0 as libc::c_int as libc::c_float * (*c).gain
-                + *((*c).cy).offset(0 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize)
-                + *((*c).cy).offset(1 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
-                + *((*c).cy).offset(2 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
-                + *((*c).cy).offset(3 as libc::c_int as isize)
-                    * *((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize);
-            res = (*((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize) + in_1)
-                * 1 as libc::c_int as libc::c_float
-                + (*((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
-                    + *((*s).x).as_mut_ptr().offset(2 as libc::c_int as isize))
-                    * 4 as libc::c_int as libc::c_float
-                + *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
-                    * 6 as libc::c_int as libc::c_float;
-            *dst0_0 = av_clip_int16_c(lrintf(res) as libc::c_int);
-            *((*s).x).as_mut_ptr().offset(3 as libc::c_int as isize) = in_1;
-            src0_0 = src0_0.offset(sstep as isize);
-            dst0_0 = dst0_0.offset(dstep as isize);
-            i_0 += 4 as libc::c_int;
-        }
-    } else {
-        let mut i_1: libc::c_int = 0;
-        let mut src0_1: *const int16_t = src;
-        let mut dst0_1: *mut int16_t = dst;
-        i_1 = 0 as libc::c_int;
-        while i_1 < size {
-            let mut j: libc::c_int = 0;
-            let mut in_2: libc::c_float = 0.;
-            let mut res_0: libc::c_float = 0.;
-            in_2 = *src0_1 as libc::c_int as libc::c_float * (*c).gain;
-            j = 0 as libc::c_int;
-            while j < (*c).order {
-                in_2 += *((*c).cy).offset(j as isize) * *((*s).x).as_mut_ptr().offset(j as isize);
-                j += 1;
-                j;
-            }
-            res_0 = *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
-                + in_2
-                + *((*s).x)
-                    .as_mut_ptr()
-                    .offset(((*c).order >> 1 as libc::c_int) as isize)
-                    * *((*c).cx).offset(((*c).order >> 1 as libc::c_int) as isize) as libc::c_float;
-            j = 1 as libc::c_int;
-            while j < (*c).order >> 1 as libc::c_int {
-                res_0 += (*((*s).x).as_mut_ptr().offset(j as isize)
-                    + *((*s).x).as_mut_ptr().offset(((*c).order - j) as isize))
-                    * *((*c).cx).offset(j as isize) as libc::c_float;
-                j += 1;
-                j;
-            }
-            j = 0 as libc::c_int;
-            while j < (*c).order - 1 as libc::c_int {
-                *((*s).x).as_mut_ptr().offset(j as isize) = *((*s).x)
-                    .as_mut_ptr()
-                    .offset((j + 1 as libc::c_int) as isize);
-                j += 1;
-                j;
-            }
-            *dst0_1 = av_clip_int16_c(lrintf(res_0) as libc::c_int);
-            *((*s).x)
-                .as_mut_ptr()
-                .offset(((*c).order - 1 as libc::c_int) as isize) = in_2;
-            src0_1 = src0_1.offset(sstep as isize);
-            dst0_1 = dst0_1.offset(dstep as isize);
-            i_1 += 1;
-            i_1;
-        }
-    };
-}
-unsafe extern "C" fn iir_filter_flt(
+
+unsafe fn iir_filter_flt(
     c: *const FFIIRFilterCoeffs,
     s: *mut FFIIRFilterState,
     size: libc::c_int,
@@ -582,16 +398,16 @@ unsafe extern "C" fn iir_filter_flt(
         }
     };
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_iir_filter_free_statep(_state: *mut *mut FFIIRFilterState) {
+pub(crate) unsafe fn ff_iir_filter_free_statep(_state: *mut *mut FFIIRFilterState) {
     // TODO: leaks 🚿
 
     // av_freep(state as *mut libc::c_void);
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_iir_filter_free_coeffsp(coeffsp: *mut *mut FFIIRFilterCoeffs) {
+pub(crate) unsafe fn ff_iir_filter_free_coeffsp(coeffsp: *mut *mut FFIIRFilterCoeffs) {
     let coeffs: *mut FFIIRFilterCoeffs = *coeffsp;
     // TODO: leaks 🚿
     if !coeffs.is_null() {
@@ -600,11 +416,11 @@ pub unsafe extern "C" fn ff_iir_filter_free_coeffsp(coeffsp: *mut *mut FFIIRFilt
     }
     // av_freep(coeffsp as *mut libc::c_void);
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_iir_filter_init(f: *mut FFIIRFilterContext) {
+
+pub(crate) unsafe fn ff_iir_filter_init(f: *mut FFIIRFilterContext) {
     (*f).filter_flt = Some(
         iir_filter_flt
-            as unsafe extern "C" fn(
+            as unsafe fn(
                 *const FFIIRFilterCoeffs,
                 *mut FFIIRFilterState,
                 libc::c_int,

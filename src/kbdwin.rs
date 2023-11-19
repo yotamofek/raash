@@ -15,7 +15,7 @@ use crate::common::*;
 use crate::types::*;
 
 #[cold]
-unsafe extern "C" fn kbd_window_init(
+unsafe fn kbd_window_init(
     mut float_window: *mut libc::c_float,
     mut int_window: *mut libc::c_int,
     mut alpha: libc::c_float,
@@ -83,18 +83,18 @@ unsafe extern "C" fn kbd_window_init(
     }
     0 as libc::c_int
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn avpriv_kbd_window_init(
+pub(crate) unsafe fn avpriv_kbd_window_init(
     mut window: *mut libc::c_float,
     mut alpha: libc::c_float,
     mut n: libc::c_int,
 ) -> libc::c_int {
     kbd_window_init(window, std::ptr::null_mut::<libc::c_int>(), alpha, n)
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn avpriv_kbd_window_init_fixed(
+pub(crate) unsafe fn avpriv_kbd_window_init_fixed(
     mut window: *mut int32_t,
     mut alpha: libc::c_float,
     mut n: libc::c_int,

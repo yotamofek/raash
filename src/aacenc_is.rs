@@ -14,11 +14,11 @@ use crate::common::*;
 use crate::types::*;
 
 #[inline]
-unsafe extern "C" fn pos_pow34(mut a: libc::c_float) -> libc::c_float {
+unsafe fn pos_pow34(mut a: libc::c_float) -> libc::c_float {
     sqrtf(a * sqrtf(a))
 }
 #[inline]
-unsafe extern "C" fn find_max_val(
+unsafe fn find_max_val(
     mut group_len: libc::c_int,
     mut swb_size: libc::c_int,
     mut scaled: *const libc::c_float,
@@ -44,7 +44,7 @@ unsafe extern "C" fn find_max_val(
     maxval
 }
 #[inline]
-unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_int) -> libc::c_int {
+unsafe fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_int) -> libc::c_int {
     let mut Q34: libc::c_float = ff_aac_pow34sf_tab
         [(200 as libc::c_int - sf + 140 as libc::c_int - 36 as libc::c_int) as usize];
     let mut qmaxval: libc::c_int = 0;
@@ -61,10 +61,7 @@ unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_in
     cb
 }
 #[inline]
-unsafe extern "C" fn ff_init_nextband_map(
-    mut sce: *const SingleChannelElement,
-    mut nextband: *mut uint8_t,
-) {
+unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut uint8_t) {
     let mut prevband: libc::c_uchar = 0 as libc::c_int as libc::c_uchar;
     let mut w: libc::c_int = 0;
     let mut g: libc::c_int = 0;
@@ -94,7 +91,7 @@ unsafe extern "C" fn ff_init_nextband_map(
     *nextband.offset(prevband as isize) = prevband;
 }
 #[inline]
-unsafe extern "C" fn ff_sfdelta_can_remove_band(
+unsafe fn ff_sfdelta_can_remove_band(
     mut sce: *const SingleChannelElement,
     mut nextband: *const uint8_t,
     mut prev_sf: libc::c_int,
@@ -106,7 +103,7 @@ unsafe extern "C" fn ff_sfdelta_can_remove_band(
         as libc::c_int
 }
 #[inline]
-unsafe extern "C" fn quantize_band_cost(
+unsafe fn quantize_band_cost(
     mut s: *mut AACEncContext,
     mut in_0: *const libc::c_float,
     mut scaled: *const libc::c_float,
@@ -133,8 +130,8 @@ unsafe extern "C" fn quantize_band_cost(
         energy,
     )
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_is_encoding_err(
+
+pub(crate) unsafe fn ff_aac_is_encoding_err(
     mut s: *mut AACEncContext,
     mut cpe: *mut ChannelElement,
     mut start: libc::c_int,
@@ -183,7 +180,6 @@ pub unsafe extern "C" fn ff_aac_is_encoding_err(
     let mut dist1: libc::c_float = 0.0f32;
     let mut dist2: libc::c_float = 0.0f32;
     let mut is_error: AACISError = {
-        
         AACISError {
             pass: 0 as libc::c_int,
             phase: 0,
@@ -315,8 +311,8 @@ pub unsafe extern "C" fn ff_aac_is_encoding_err(
     is_error.ener01 = ener01;
     is_error
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_search_for_is(
+
+pub(crate) unsafe fn ff_aac_search_for_is(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut cpe: *mut ChannelElement,

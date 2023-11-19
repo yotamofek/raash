@@ -7,8 +7,8 @@
     unused_assignments,
     unused_mut
 )]
-pub type __uint8_t = libc::c_uchar;
-pub type uint8_t = __uint8_t;
+pub(crate) type __uint8_t = libc::c_uchar;
+pub(crate) type uint8_t = __uint8_t;
 static mut swb_size_128_96: [uint8_t; 12] = [
     4 as libc::c_int as uint8_t,
     4 as libc::c_int as uint8_t,
@@ -436,8 +436,8 @@ static mut swb_size_1024_8: [uint8_t; 40] = [
     64 as libc::c_int as uint8_t,
     80 as libc::c_int as uint8_t,
 ];
-#[no_mangle]
-pub static mut ff_aac_swb_size_128: [*const uint8_t; 13] = unsafe {
+
+pub(crate) static mut ff_aac_swb_size_128: [*const uint8_t; 13] = unsafe {
     [
         swb_size_128_96.as_ptr(),
         swb_size_128_96.as_ptr(),
@@ -454,8 +454,8 @@ pub static mut ff_aac_swb_size_128: [*const uint8_t; 13] = unsafe {
         swb_size_128_8.as_ptr(),
     ]
 };
-#[no_mangle]
-pub static mut ff_aac_swb_size_1024: [*const uint8_t; 13] = unsafe {
+
+pub(crate) static mut ff_aac_swb_size_1024: [*const uint8_t; 13] = unsafe {
     [
         swb_size_1024_96.as_ptr(),
         swb_size_1024_96.as_ptr(),
@@ -472,11 +472,11 @@ pub static mut ff_aac_swb_size_1024: [*const uint8_t; 13] = unsafe {
         swb_size_1024_8.as_ptr(),
     ]
 };
-#[no_mangle]
+
 pub(crate) static mut ff_aac_swb_size_128_len: libc::c_int = 0;
-#[no_mangle]
+
 pub(crate) static mut ff_aac_swb_size_1024_len: libc::c_int = 0;
-unsafe extern "C" fn run_static_initializers() {
+unsafe fn run_static_initializers() {
     ff_aac_swb_size_128_len = (::core::mem::size_of::<[*const uint8_t; 13]>() as libc::c_ulong)
         .wrapping_div(::core::mem::size_of::<*const uint8_t>() as libc::c_ulong)
         as libc::c_int;
@@ -488,4 +488,4 @@ unsafe extern "C" fn run_static_initializers() {
 #[cfg_attr(target_os = "linux", link_section = ".init_array")]
 #[cfg_attr(target_os = "windows", link_section = ".CRT$XIB")]
 #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-static INIT_ARRAY: [unsafe extern "C" fn(); 1] = [run_static_initializers];
+static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];

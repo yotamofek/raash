@@ -15,16 +15,15 @@ use crate::common::*;
 use crate::types::*;
 
 #[inline(always)]
-unsafe extern "C" fn av_clip_uintp2_c(mut a: libc::c_int, mut p: libc::c_int) -> libc::c_uint {
+unsafe fn av_clip_uintp2_c(mut a: libc::c_int, mut p: libc::c_int) -> libc::c_uint {
     if a & !(((1 as libc::c_int) << p) - 1 as libc::c_int) != 0 {
-        (!a >> 31 as libc::c_int & ((1 as libc::c_int) << p) - 1 as libc::c_int)
-            as libc::c_uint
+        (!a >> 31 as libc::c_int & ((1 as libc::c_int) << p) - 1 as libc::c_int) as libc::c_uint
     } else {
         a as libc::c_uint
     }
 }
 #[inline(always)]
-unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
+unsafe fn av_bswap32(mut x: uint32_t) -> uint32_t {
     (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
         | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
         << 16 as libc::c_int
@@ -33,11 +32,7 @@ unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
 }
 static mut BUF_BITS: libc::c_int = 0;
 #[inline]
-unsafe extern "C" fn put_bits_no_assert(
-    mut s: *mut PutBitContext,
-    mut n: libc::c_int,
-    mut value: BitBuf,
-) {
+unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
     let mut bit_buf: BitBuf = 0;
     let mut bit_left: libc::c_int = 0;
     bit_buf = (*s).bit_buf;
@@ -64,11 +59,11 @@ unsafe extern "C" fn put_bits_no_assert(
     (*s).bit_left = bit_left;
 }
 #[inline]
-unsafe extern "C" fn put_bits(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
+unsafe fn put_bits(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
     put_bits_no_assert(s, n, value);
 }
 #[inline]
-unsafe extern "C" fn quantize_band_cost(
+unsafe fn quantize_band_cost(
     mut s: *mut AACEncContext,
     mut in_0: *const libc::c_float,
     mut scaled: *const libc::c_float,
@@ -96,7 +91,7 @@ unsafe extern "C" fn quantize_band_cost(
     )
 }
 #[inline]
-unsafe extern "C" fn quant_array_idx(
+unsafe fn quant_array_idx(
     val: libc::c_float,
     mut arr: *const libc::c_float,
     num: libc::c_int,
@@ -127,8 +122,8 @@ static mut ltp_coef: [INTFLOAT; 8] = [
     1.194601f64 as libc::c_float,
     1.369533f64 as libc::c_float,
 ];
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_encode_ltp_info(
+
+pub(crate) unsafe fn ff_aac_encode_ltp_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut common_window: libc::c_int,
@@ -168,8 +163,8 @@ pub unsafe extern "C" fn ff_aac_encode_ltp_info(
         i;
     }
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_ltp_insert_new_frame(mut s: *mut AACEncContext) {
+
+pub(crate) unsafe fn ff_aac_ltp_insert_new_frame(mut s: *mut AACEncContext) {
     let mut i: libc::c_int = 0;
     let mut ch: libc::c_int = 0;
     let mut tag: libc::c_int = 0;
@@ -210,7 +205,7 @@ pub unsafe extern "C" fn ff_aac_ltp_insert_new_frame(mut s: *mut AACEncContext) 
         i;
     }
 }
-unsafe extern "C" fn get_lag(
+unsafe fn get_lag(
     mut buf: *mut libc::c_float,
     mut new: *const libc::c_float,
     mut ltp: *mut LongTermPrediction,
@@ -259,10 +254,7 @@ unsafe extern "C" fn get_lag(
     (*ltp).coef_idx = quant_array_idx(max_ratio, ltp_coef.as_ptr(), 8 as libc::c_int);
     (*ltp).coef = ltp_coef[(*ltp).coef_idx as usize];
 }
-unsafe extern "C" fn generate_samples(
-    mut buf: *mut libc::c_float,
-    mut ltp: *mut LongTermPrediction,
-) {
+unsafe fn generate_samples(mut buf: *mut libc::c_float, mut ltp: *mut LongTermPrediction) {
     let mut i: libc::c_int = 0;
     let mut samples_num: libc::c_int = 2048 as libc::c_int;
     if (*ltp).lag == 0 {
@@ -284,8 +276,8 @@ unsafe extern "C" fn generate_samples(
         (2048 as libc::c_int - i) as usize,
     );
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_update_ltp(
+
+pub(crate) unsafe fn ff_aac_update_ltp(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -304,8 +296,8 @@ pub unsafe extern "C" fn ff_aac_update_ltp(
     get_lag(pred_signal, samples, &mut (*sce).ics.ltp);
     generate_samples(pred_signal, &mut (*sce).ics.ltp);
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_adjust_common_ltp(
+
+pub(crate) unsafe fn ff_aac_adjust_common_ltp(
     mut _s: *mut AACEncContext,
     mut cpe: *mut ChannelElement,
 ) {
@@ -348,8 +340,8 @@ pub unsafe extern "C" fn ff_aac_adjust_common_ltp(
     (*sce0).ics.ltp.present = (count != 0) as libc::c_int as int8_t;
     (*sce0).ics.predictor_present = (count != 0) as libc::c_int;
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_search_for_ltp(
+
+pub(crate) unsafe fn ff_aac_search_for_ltp(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut _common_window: libc::c_int,
@@ -528,7 +520,7 @@ pub unsafe extern "C" fn ff_aac_search_for_ltp(
         }
     }
 }
-unsafe extern "C" fn run_static_initializers() {
+unsafe fn run_static_initializers() {
     BUF_BITS = (8 as libc::c_int as libc::c_ulong)
         .wrapping_mul(::core::mem::size_of::<BitBuf>() as libc::c_ulong)
         as libc::c_int;
@@ -537,4 +529,4 @@ unsafe extern "C" fn run_static_initializers() {
 #[cfg_attr(target_os = "linux", link_section = ".init_array")]
 #[cfg_attr(target_os = "windows", link_section = ".CRT$XIB")]
 #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-static INIT_ARRAY: [unsafe extern "C" fn(); 1] = [run_static_initializers];
+static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];

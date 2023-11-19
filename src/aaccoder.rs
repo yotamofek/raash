@@ -17,8 +17,8 @@ use crate::common::*;
 use crate::types::*;
 use crate::{aacenc_is::*, aacenc_ltp::*, aacenc_pred::*, aacenc_tns::*, aactab::*};
 
-pub type quantize_and_encode_band_func = Option<
-    unsafe extern "C" fn(
+pub(crate) type quantize_and_encode_band_func = Option<
+    unsafe fn(
         *mut AACEncContext,
         *mut PutBitContext,
         *const libc::c_float,
@@ -35,36 +35,36 @@ pub type quantize_and_encode_band_func = Option<
 >;
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub union C2RustUnnamed_2 {
-    pub u: libc::c_uint,
-    pub s: libc::c_int,
+pub(crate) union C2RustUnnamed_2 {
+    pub(crate) u: libc::c_uint,
+    pub(crate) s: libc::c_int,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct TrellisBandCodingPath {
-    pub prev_idx: libc::c_int,
-    pub cost: libc::c_float,
-    pub run: libc::c_int,
+pub(crate) struct TrellisBandCodingPath {
+    pub(crate) prev_idx: libc::c_int,
+    pub(crate) cost: libc::c_float,
+    pub(crate) run: libc::c_int,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct BandCodingPath {
-    pub prev_idx: libc::c_int,
-    pub cost: libc::c_float,
-    pub run: libc::c_int,
+pub(crate) struct BandCodingPath {
+    pub(crate) prev_idx: libc::c_int,
+    pub(crate) cost: libc::c_float,
+    pub(crate) run: libc::c_int,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct TrellisPath {
-    pub cost: libc::c_float,
-    pub prev: libc::c_int,
+pub(crate) struct TrellisPath {
+    pub(crate) cost: libc::c_float,
+    pub(crate) prev: libc::c_int,
 }
 #[inline]
-unsafe extern "C" fn ff_sqrf(mut a: libc::c_float) -> libc::c_float {
+unsafe fn ff_sqrf(mut a: libc::c_float) -> libc::c_float {
     a * a
 }
 #[inline(always)]
-unsafe extern "C" fn ff_log2_c(mut v: libc::c_uint) -> libc::c_int {
+unsafe fn ff_log2_c(mut v: libc::c_uint) -> libc::c_int {
     // TODO: is this (the cast) correct??
     v.log2() as libc::c_int
     // let mut n: libc::c_int = 0 as libc::c_int;
@@ -80,7 +80,7 @@ unsafe extern "C" fn ff_log2_c(mut v: libc::c_uint) -> libc::c_int {
     // return n;
 }
 #[inline(always)]
-unsafe extern "C" fn av_clip_c(
+unsafe fn av_clip_c(
     mut a: libc::c_int,
     mut amin: libc::c_int,
     mut amax: libc::c_int,
@@ -94,7 +94,7 @@ unsafe extern "C" fn av_clip_c(
     }
 }
 #[inline(always)]
-unsafe extern "C" fn av_clip_uint8_c(mut a: libc::c_int) -> uint8_t {
+unsafe fn av_clip_uint8_c(mut a: libc::c_int) -> uint8_t {
     if a & !(0xff as libc::c_int) != 0 {
         (!a >> 31 as libc::c_int) as uint8_t
     } else {
@@ -102,7 +102,7 @@ unsafe extern "C" fn av_clip_uint8_c(mut a: libc::c_int) -> uint8_t {
     }
 }
 #[inline(always)]
-unsafe extern "C" fn av_clip_uintp2_c(mut a: libc::c_int, mut p: libc::c_int) -> libc::c_uint {
+unsafe fn av_clip_uintp2_c(mut a: libc::c_int, mut p: libc::c_int) -> libc::c_uint {
     if a & !(((1 as libc::c_int) << p) - 1 as libc::c_int) != 0 {
         (!a >> 31 as libc::c_int & ((1 as libc::c_int) << p) - 1 as libc::c_int) as libc::c_uint
     } else {
@@ -110,11 +110,11 @@ unsafe extern "C" fn av_clip_uintp2_c(mut a: libc::c_int, mut p: libc::c_int) ->
     }
 }
 #[inline(always)]
-unsafe extern "C" fn av_mod_uintp2_c(mut a: libc::c_uint, mut p: libc::c_uint) -> libc::c_uint {
+unsafe fn av_mod_uintp2_c(mut a: libc::c_uint, mut p: libc::c_uint) -> libc::c_uint {
     a & ((1 as libc::c_uint) << p).wrapping_sub(1 as libc::c_int as libc::c_uint)
 }
 #[inline(always)]
-unsafe extern "C" fn av_clipf_c(
+unsafe fn av_clipf_c(
     mut a: libc::c_float,
     mut amin: libc::c_float,
     mut amax: libc::c_float,
@@ -129,7 +129,7 @@ unsafe extern "C" fn av_clipf_c(
 }
 static mut BUF_BITS: libc::c_int = 0;
 #[inline]
-unsafe extern "C" fn put_sbits(mut pb: *mut PutBitContext, mut n: libc::c_int, mut value: int32_t) {
+unsafe fn put_sbits(mut pb: *mut PutBitContext, mut n: libc::c_int, mut value: int32_t) {
     put_bits(
         pb,
         n,
@@ -137,15 +137,11 @@ unsafe extern "C" fn put_sbits(mut pb: *mut PutBitContext, mut n: libc::c_int, m
     );
 }
 #[inline]
-unsafe extern "C" fn put_bits(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
+unsafe fn put_bits(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
     put_bits_no_assert(s, n, value);
 }
 #[inline]
-unsafe extern "C" fn put_bits_no_assert(
-    mut s: *mut PutBitContext,
-    mut n: libc::c_int,
-    mut value: BitBuf,
-) {
+unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
     let mut bit_buf: BitBuf = 0;
     let mut bit_left: libc::c_int = 0;
     bit_buf = (*s).bit_buf;
@@ -172,7 +168,7 @@ unsafe extern "C" fn put_bits_no_assert(
     (*s).bit_left = bit_left;
 }
 #[inline(always)]
-unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
+unsafe fn av_bswap32(mut x: uint32_t) -> uint32_t {
     (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
         | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
         << 16 as libc::c_int
@@ -345,16 +341,12 @@ static mut aac_maxval_cb: [libc::c_uchar; 14] = [
     11 as libc::c_int as libc::c_uchar,
 ];
 #[inline]
-unsafe extern "C" fn quant(
-    mut coef: libc::c_float,
-    Q: libc::c_float,
-    rounding: libc::c_float,
-) -> libc::c_int {
+unsafe fn quant(mut coef: libc::c_float, Q: libc::c_float, rounding: libc::c_float) -> libc::c_int {
     let mut a: libc::c_float = coef * Q;
     (sqrtf(a * sqrtf(a)) + rounding) as libc::c_int
 }
 #[inline]
-unsafe extern "C" fn find_max_val(
+unsafe fn find_max_val(
     mut group_len: libc::c_int,
     mut swb_size: libc::c_int,
     mut scaled: *const libc::c_float,
@@ -380,7 +372,7 @@ unsafe extern "C" fn find_max_val(
     maxval
 }
 #[inline]
-unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_int) -> libc::c_int {
+unsafe fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_int) -> libc::c_int {
     let mut Q34: libc::c_float = ff_aac_pow34sf_tab
         [(200 as libc::c_int - sf + 140 as libc::c_int - 36 as libc::c_int) as usize];
     let mut qmaxval: libc::c_int = 0;
@@ -397,7 +389,7 @@ unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_in
     cb
 }
 #[inline]
-unsafe extern "C" fn find_form_factor(
+unsafe fn find_form_factor(
     mut group_len: libc::c_int,
     mut swb_size: libc::c_int,
     mut thresh: libc::c_float,
@@ -468,7 +460,7 @@ unsafe extern "C" fn find_form_factor(
     }
 }
 #[inline]
-unsafe extern "C" fn coef2minsf(mut coef: libc::c_float) -> uint8_t {
+unsafe fn coef2minsf(mut coef: libc::c_float) -> uint8_t {
     av_clip_uint8_c(
         (log2f(coef) * 4 as libc::c_int as libc::c_float - 69 as libc::c_int as libc::c_float
             + 140 as libc::c_int as libc::c_float
@@ -476,15 +468,15 @@ unsafe extern "C" fn coef2minsf(mut coef: libc::c_float) -> uint8_t {
     )
 }
 #[inline(always)]
-unsafe extern "C" fn ff_fast_powf(mut x: libc::c_float, mut y: libc::c_float) -> libc::c_float {
+unsafe fn ff_fast_powf(mut x: libc::c_float, mut y: libc::c_float) -> libc::c_float {
     expf(logf(x) * y)
 }
 #[inline(always)]
-unsafe extern "C" fn bval2bmax(mut b: libc::c_float) -> libc::c_float {
+unsafe fn bval2bmax(mut b: libc::c_float) -> libc::c_float {
     0.001f32 + 0.0035f32 * (b * b * b) / (15.5f32 * 15.5f32 * 15.5f32)
 }
 #[inline]
-unsafe extern "C" fn ff_sfdelta_can_remove_band(
+unsafe fn ff_sfdelta_can_remove_band(
     mut sce: *const SingleChannelElement,
     mut nextband: *const uint8_t,
     mut prev_sf: libc::c_int,
@@ -496,7 +488,7 @@ unsafe extern "C" fn ff_sfdelta_can_remove_band(
         as libc::c_int
 }
 #[inline]
-unsafe extern "C" fn coef2maxsf(mut coef: libc::c_float) -> uint8_t {
+unsafe fn coef2maxsf(mut coef: libc::c_float) -> uint8_t {
     av_clip_uint8_c(
         (log2f(coef) * 4 as libc::c_int as libc::c_float
             + 6 as libc::c_int as libc::c_float
@@ -505,7 +497,7 @@ unsafe extern "C" fn coef2maxsf(mut coef: libc::c_float) -> uint8_t {
     )
 }
 #[inline(always)]
-unsafe extern "C" fn lcg_random(mut previous_val: libc::c_uint) -> libc::c_int {
+unsafe fn lcg_random(mut previous_val: libc::c_uint) -> libc::c_int {
     let mut v: C2RustUnnamed_2 = C2RustUnnamed_2 {
         u: previous_val
             .wrapping_mul(1664525 as libc::c_uint)
@@ -514,10 +506,7 @@ unsafe extern "C" fn lcg_random(mut previous_val: libc::c_uint) -> libc::c_int {
     v.s
 }
 #[inline]
-unsafe extern "C" fn ff_init_nextband_map(
-    mut sce: *const SingleChannelElement,
-    mut nextband: *mut uint8_t,
-) {
+unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut uint8_t) {
     let mut prevband: libc::c_uchar = 0 as libc::c_int as libc::c_uchar;
     let mut w: libc::c_int = 0;
     let mut g: libc::c_int = 0;
@@ -547,7 +536,7 @@ unsafe extern "C" fn ff_init_nextband_map(
     *nextband.offset(prevband as isize) = prevband;
 }
 #[inline]
-unsafe extern "C" fn ff_sfdelta_can_replace(
+unsafe fn ff_sfdelta_can_replace(
     mut sce: *const SingleChannelElement,
     mut nextband: *const uint8_t,
     mut prev_sf: libc::c_int,
@@ -561,7 +550,7 @@ unsafe extern "C" fn ff_sfdelta_can_replace(
         as libc::c_int
 }
 #[inline]
-unsafe extern "C" fn quantize_band_cost_cached(
+unsafe fn quantize_band_cost_cached(
     mut s: *mut AACEncContext,
     mut w: libc::c_int,
     mut g: libc::c_int,
@@ -612,7 +601,7 @@ unsafe extern "C" fn quantize_band_cost_cached(
     (*entry).rd
 }
 #[inline]
-unsafe extern "C" fn quantize_band_cost(
+unsafe fn quantize_band_cost(
     mut s: *mut AACEncContext,
     mut in_0: *const libc::c_float,
     mut scaled: *const libc::c_float,
@@ -640,7 +629,7 @@ unsafe extern "C" fn quantize_band_cost(
     )
 }
 #[inline]
-unsafe extern "C" fn quantize_band_cost_bits(
+unsafe fn quantize_band_cost_bits(
     mut s: *mut AACEncContext,
     mut in_0: *const libc::c_float,
     mut scaled: *const libc::c_float,
@@ -673,7 +662,7 @@ unsafe extern "C" fn quantize_band_cost_bits(
     auxbits
 }
 #[inline]
-unsafe extern "C" fn ff_pns_bits(
+unsafe fn ff_pns_bits(
     mut sce: *mut SingleChannelElement,
     mut w: libc::c_int,
     mut g: libc::c_int,
@@ -687,7 +676,7 @@ unsafe extern "C" fn ff_pns_bits(
         5 as libc::c_int
     }
 }
-unsafe extern "C" fn search_for_quantizers_twoloop(
+unsafe fn search_for_quantizers_twoloop(
     mut avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
@@ -2575,7 +2564,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe extern "C" fn codebook_trellis_rate(
+unsafe fn codebook_trellis_rate(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut win: libc::c_int,
@@ -2820,7 +2809,7 @@ unsafe extern "C" fn codebook_trellis_rate(
     }
 }
 #[inline(always)]
-unsafe extern "C" fn quantize_and_encode_band_cost_template(
+unsafe fn quantize_and_encode_band_cost_template(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3052,7 +3041,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_template(
     cost
 }
 #[inline]
-unsafe extern "C" fn quantize_and_encode_band_cost_NONE(
+unsafe fn quantize_and_encode_band_cost_NONE(
     mut _s: *mut AACEncContext,
     mut _pb: *mut PutBitContext,
     mut _in_0: *const libc::c_float,
@@ -3068,7 +3057,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_NONE(
 ) -> libc::c_float {
     0.0f32
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_ZERO(
+unsafe fn quantize_and_encode_band_cost_ZERO(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3108,7 +3097,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ZERO(
         0.4054f32,
     )
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_SQUAD(
+unsafe fn quantize_and_encode_band_cost_SQUAD(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3148,7 +3137,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_SQUAD(
         0.4054f32,
     )
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_UQUAD(
+unsafe fn quantize_and_encode_band_cost_UQUAD(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3188,7 +3177,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_UQUAD(
         0.4054f32,
     )
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_SPAIR(
+unsafe fn quantize_and_encode_band_cost_SPAIR(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3228,7 +3217,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_SPAIR(
         0.4054f32,
     )
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_UPAIR(
+unsafe fn quantize_and_encode_band_cost_UPAIR(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3268,7 +3257,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_UPAIR(
         0.4054f32,
     )
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_ESC(
+unsafe fn quantize_and_encode_band_cost_ESC(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3308,7 +3297,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ESC(
         0.4054f32,
     )
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_ESC_RTZ(
+unsafe fn quantize_and_encode_band_cost_ESC_RTZ(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3348,7 +3337,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ESC_RTZ(
         0.1054f32,
     )
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_NOISE(
+unsafe fn quantize_and_encode_band_cost_NOISE(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3388,7 +3377,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_NOISE(
         0.4054f32,
     )
 }
-unsafe extern "C" fn quantize_and_encode_band_cost_STEREO(
+unsafe fn quantize_and_encode_band_cost_STEREO(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -3432,7 +3421,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
     [
         Some(
             quantize_and_encode_band_cost_ZERO
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3449,7 +3438,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_SQUAD
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3466,7 +3455,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_SQUAD
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3483,7 +3472,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_UQUAD
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3500,7 +3489,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_UQUAD
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3517,7 +3506,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_SPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3534,7 +3523,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_SPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3551,7 +3540,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_UPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3568,7 +3557,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_UPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3585,7 +3574,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_UPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3602,7 +3591,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_UPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3619,7 +3608,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_ESC
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3636,7 +3625,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_NONE
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3653,7 +3642,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_NOISE
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3670,7 +3659,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_STEREO
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3687,7 +3676,7 @@ static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16
         ),
         Some(
             quantize_and_encode_band_cost_STEREO
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3708,7 +3697,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
     [
         Some(
             quantize_and_encode_band_cost_ZERO
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3725,7 +3714,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_SQUAD
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3742,7 +3731,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_SQUAD
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3759,7 +3748,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_UQUAD
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3776,7 +3765,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_UQUAD
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3793,7 +3782,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_SPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3810,7 +3799,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_SPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3827,7 +3816,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_UPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3844,7 +3833,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_UPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3861,7 +3850,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_UPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3878,7 +3867,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_UPAIR
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3895,7 +3884,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_ESC_RTZ
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3912,7 +3901,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_NONE
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3929,7 +3918,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_NOISE
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3946,7 +3935,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_STEREO
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3963,7 +3952,7 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
         Some(
             quantize_and_encode_band_cost_STEREO
-                as unsafe extern "C" fn(
+                as unsafe fn(
                     *mut AACEncContext,
                     *mut PutBitContext,
                     *const libc::c_float,
@@ -3980,8 +3969,8 @@ static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func
         ),
     ]
 };
-#[no_mangle]
-pub unsafe extern "C" fn ff_quantize_and_encode_band_cost(
+
+pub(crate) unsafe fn ff_quantize_and_encode_band_cost(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -4000,7 +3989,7 @@ pub unsafe extern "C" fn ff_quantize_and_encode_band_cost(
     )
 }
 #[inline]
-unsafe extern "C" fn quantize_and_encode_band(
+unsafe fn quantize_and_encode_band(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const libc::c_float,
@@ -4032,7 +4021,7 @@ unsafe extern "C" fn quantize_and_encode_band(
         std::ptr::null_mut::<libc::c_float>(),
     );
 }
-unsafe extern "C" fn encode_window_bands_info(
+unsafe fn encode_window_bands_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut win: libc::c_int,
@@ -4239,7 +4228,7 @@ unsafe extern "C" fn encode_window_bands_info(
         i;
     }
 }
-unsafe extern "C" fn set_special_band_scalefactors(
+unsafe fn set_special_band_scalefactors(
     mut _s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -4328,7 +4317,7 @@ unsafe extern "C" fn set_special_band_scalefactors(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe extern "C" fn search_for_quantizers_anmr(
+unsafe fn search_for_quantizers_anmr(
     mut _avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
@@ -4617,7 +4606,7 @@ unsafe extern "C" fn search_for_quantizers_anmr(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe extern "C" fn search_for_quantizers_fast(
+unsafe fn search_for_quantizers_fast(
     mut avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
@@ -5158,7 +5147,7 @@ unsafe extern "C" fn search_for_quantizers_fast(
         }
     }
 }
-unsafe extern "C" fn search_for_pns(
+unsafe fn search_for_pns(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
@@ -5853,7 +5842,7 @@ unsafe extern "C" fn search_for_pns(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe extern "C" fn mark_pns(
+unsafe fn mark_pns(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
@@ -6365,7 +6354,7 @@ unsafe extern "C" fn mark_pns(
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
 }
-unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
+unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut start: libc::c_int = 0 as libc::c_int;
     let mut i: libc::c_int = 0;
     let mut w: libc::c_int = 0;
@@ -6716,14 +6705,14 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
         w += (*sce0).ics.group_len[w as usize] as libc::c_int;
     }
 }
-#[no_mangle]
-pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
+
+pub(crate) static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
     [
         {
             AACCoefficientsEncoder {
                 search_for_quantizers: Some(
                     search_for_quantizers_anmr
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AVCodecContext,
                             *mut AACEncContext,
                             *mut SingleChannelElement,
@@ -6732,7 +6721,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 encode_window_bands_info: Some(
                     encode_window_bands_info
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
@@ -6742,7 +6731,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 quantize_and_encode_band: Some(
                     quantize_and_encode_band
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut PutBitContext,
                             *const libc::c_float,
@@ -6757,7 +6746,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 encode_tns_info: Some(ff_aac_encode_tns_info),
                 encode_ltp_info: Some(
                     ff_aac_encode_ltp_info
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
@@ -6765,53 +6754,38 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 encode_main_pred: Some(
                     ff_aac_encode_main_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 adjust_common_pred: Some(
                     ff_aac_adjust_common_pred
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 adjust_common_ltp: Some(
                     ff_aac_adjust_common_ltp
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 apply_main_pred: Some(
                     ff_aac_apply_main_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 apply_tns_filt: Some(
                     ff_aac_apply_tns
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 update_ltp: Some(
                     ff_aac_update_ltp
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 ltp_insert_new_frame: Some(
-                    ff_aac_ltp_insert_new_frame as unsafe extern "C" fn(*mut AACEncContext) -> (),
+                    ff_aac_ltp_insert_new_frame as unsafe fn(*mut AACEncContext) -> (),
                 ),
                 set_special_band_scalefactors: Some(
                     set_special_band_scalefactors
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 search_for_pns: Some(
                     search_for_pns
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut SingleChannelElement,
@@ -6819,7 +6793,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 mark_pns: Some(
                     mark_pns
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut SingleChannelElement,
@@ -6827,26 +6801,22 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 search_for_tns: Some(
                     ff_aac_search_for_tns
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 search_for_ltp: Some(
                     ff_aac_search_for_ltp
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
                         ) -> (),
                 ),
                 search_for_ms: Some(
-                    search_for_ms
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                    search_for_ms as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 search_for_is: Some(
                     ff_aac_search_for_is
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut ChannelElement,
@@ -6854,10 +6824,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 search_for_pred: Some(
                     ff_aac_search_for_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
             }
         },
@@ -6865,7 +6832,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
             AACCoefficientsEncoder {
                 search_for_quantizers: Some(
                     search_for_quantizers_twoloop
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AVCodecContext,
                             *mut AACEncContext,
                             *mut SingleChannelElement,
@@ -6874,7 +6841,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 encode_window_bands_info: Some(
                     codebook_trellis_rate
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
@@ -6884,7 +6851,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 quantize_and_encode_band: Some(
                     quantize_and_encode_band
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut PutBitContext,
                             *const libc::c_float,
@@ -6898,14 +6865,11 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 encode_tns_info: Some(
                     ff_aac_encode_tns_info
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 encode_ltp_info: Some(
                     ff_aac_encode_ltp_info
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
@@ -6913,53 +6877,38 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 encode_main_pred: Some(
                     ff_aac_encode_main_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 adjust_common_pred: Some(
                     ff_aac_adjust_common_pred
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 adjust_common_ltp: Some(
                     ff_aac_adjust_common_ltp
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 apply_main_pred: Some(
                     ff_aac_apply_main_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 apply_tns_filt: Some(
                     ff_aac_apply_tns
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 update_ltp: Some(
                     ff_aac_update_ltp
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 ltp_insert_new_frame: Some(
-                    ff_aac_ltp_insert_new_frame as unsafe extern "C" fn(*mut AACEncContext) -> (),
+                    ff_aac_ltp_insert_new_frame as unsafe fn(*mut AACEncContext) -> (),
                 ),
                 set_special_band_scalefactors: Some(
                     set_special_band_scalefactors
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 search_for_pns: Some(
                     search_for_pns
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut SingleChannelElement,
@@ -6967,7 +6916,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 mark_pns: Some(
                     mark_pns
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut SingleChannelElement,
@@ -6975,26 +6924,22 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 search_for_tns: Some(
                     ff_aac_search_for_tns
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 search_for_ltp: Some(
                     ff_aac_search_for_ltp
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
                         ) -> (),
                 ),
                 search_for_ms: Some(
-                    search_for_ms
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                    search_for_ms as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 search_for_is: Some(
                     ff_aac_search_for_is
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut ChannelElement,
@@ -7002,10 +6947,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 search_for_pred: Some(
                     ff_aac_search_for_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
             }
         },
@@ -7013,7 +6955,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
             AACCoefficientsEncoder {
                 search_for_quantizers: Some(
                     search_for_quantizers_fast
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AVCodecContext,
                             *mut AACEncContext,
                             *mut SingleChannelElement,
@@ -7022,7 +6964,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 encode_window_bands_info: Some(
                     codebook_trellis_rate
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
@@ -7032,7 +6974,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 quantize_and_encode_band: Some(
                     quantize_and_encode_band
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut PutBitContext,
                             *const libc::c_float,
@@ -7046,14 +6988,11 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 encode_tns_info: Some(
                     ff_aac_encode_tns_info
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 encode_ltp_info: Some(
                     ff_aac_encode_ltp_info
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
@@ -7061,53 +7000,38 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 encode_main_pred: Some(
                     ff_aac_encode_main_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 adjust_common_pred: Some(
                     ff_aac_adjust_common_pred
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 adjust_common_ltp: Some(
                     ff_aac_adjust_common_ltp
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 apply_main_pred: Some(
                     ff_aac_apply_main_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 apply_tns_filt: Some(
                     ff_aac_apply_tns
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 update_ltp: Some(
                     ff_aac_update_ltp
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 ltp_insert_new_frame: Some(
-                    ff_aac_ltp_insert_new_frame as unsafe extern "C" fn(*mut AACEncContext) -> (),
+                    ff_aac_ltp_insert_new_frame as unsafe fn(*mut AACEncContext) -> (),
                 ),
                 set_special_band_scalefactors: Some(
                     set_special_band_scalefactors
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 search_for_pns: Some(
                     search_for_pns
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut SingleChannelElement,
@@ -7115,7 +7039,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 mark_pns: Some(
                     mark_pns
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut SingleChannelElement,
@@ -7123,26 +7047,22 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 search_for_tns: Some(
                     ff_aac_search_for_tns
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
                 search_for_ltp: Some(
                     ff_aac_search_for_ltp
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut SingleChannelElement,
                             libc::c_int,
                         ) -> (),
                 ),
                 search_for_ms: Some(
-                    search_for_ms
-                        as unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> (),
+                    search_for_ms as unsafe fn(*mut AACEncContext, *mut ChannelElement) -> (),
                 ),
                 search_for_is: Some(
                     ff_aac_search_for_is
-                        as unsafe extern "C" fn(
+                        as unsafe fn(
                             *mut AACEncContext,
                             *mut AVCodecContext,
                             *mut ChannelElement,
@@ -7150,16 +7070,13 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
                 ),
                 search_for_pred: Some(
                     ff_aac_search_for_pred
-                        as unsafe extern "C" fn(
-                            *mut AACEncContext,
-                            *mut SingleChannelElement,
-                        ) -> (),
+                        as unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> (),
                 ),
             }
         },
     ]
 };
-unsafe extern "C" fn run_static_initializers() {
+unsafe fn run_static_initializers() {
     BUF_BITS = (8 as libc::c_int as libc::c_ulong)
         .wrapping_mul(::core::mem::size_of::<BitBuf>() as libc::c_ulong)
         as libc::c_int;
@@ -7168,4 +7085,4 @@ unsafe extern "C" fn run_static_initializers() {
 #[cfg_attr(target_os = "linux", link_section = ".init_array")]
 #[cfg_attr(target_os = "windows", link_section = ".CRT$XIB")]
 #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-static INIT_ARRAY: [unsafe extern "C" fn(); 1] = [run_static_initializers];
+static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];

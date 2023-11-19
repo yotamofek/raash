@@ -12,76 +12,76 @@ use std::alloc::{alloc_zeroed, Layout};
 
 use crate::{common::*, psymodel::ff_psy_find_group, types::*};
 
-pub type C2RustUnnamed_1 = libc::c_uint;
-pub const PSY_3GPP_AH_ACTIVE: C2RustUnnamed_1 = 2;
-pub const PSY_3GPP_AH_INACTIVE: C2RustUnnamed_1 = 1;
-pub const PSY_3GPP_AH_NONE: C2RustUnnamed_1 = 0;
+pub(crate) type C2RustUnnamed_1 = libc::c_uint;
+pub(crate) const PSY_3GPP_AH_ACTIVE: C2RustUnnamed_1 = 2;
+pub(crate) const PSY_3GPP_AH_INACTIVE: C2RustUnnamed_1 = 1;
+pub(crate) const PSY_3GPP_AH_NONE: C2RustUnnamed_1 = 0;
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct AacPsyBand {
-    pub energy: libc::c_float,
-    pub thr: libc::c_float,
-    pub thr_quiet: libc::c_float,
-    pub nz_lines: libc::c_float,
-    pub active_lines: libc::c_float,
-    pub pe: libc::c_float,
-    pub pe_const: libc::c_float,
-    pub norm_fac: libc::c_float,
-    pub avoid_holes: libc::c_int,
+pub(crate) struct AacPsyBand {
+    pub(crate) energy: libc::c_float,
+    pub(crate) thr: libc::c_float,
+    pub(crate) thr_quiet: libc::c_float,
+    pub(crate) nz_lines: libc::c_float,
+    pub(crate) active_lines: libc::c_float,
+    pub(crate) pe: libc::c_float,
+    pub(crate) pe_const: libc::c_float,
+    pub(crate) norm_fac: libc::c_float,
+    pub(crate) avoid_holes: libc::c_int,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct AacPsyChannel {
-    pub band: [AacPsyBand; 128],
-    pub prev_band: [AacPsyBand; 128],
-    pub win_energy: libc::c_float,
-    pub iir_state: [libc::c_float; 2],
-    pub next_grouping: uint8_t,
-    pub next_window_seq: WindowSequence,
-    pub attack_threshold: libc::c_float,
-    pub prev_energy_subshort: [libc::c_float; 24],
-    pub prev_attack: libc::c_int,
+pub(crate) struct AacPsyChannel {
+    pub(crate) band: [AacPsyBand; 128],
+    pub(crate) prev_band: [AacPsyBand; 128],
+    pub(crate) win_energy: libc::c_float,
+    pub(crate) iir_state: [libc::c_float; 2],
+    pub(crate) next_grouping: uint8_t,
+    pub(crate) next_window_seq: WindowSequence,
+    pub(crate) attack_threshold: libc::c_float,
+    pub(crate) prev_energy_subshort: [libc::c_float; 24],
+    pub(crate) prev_attack: libc::c_int,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct AacPsyCoeffs {
-    pub ath: libc::c_float,
-    pub barks: libc::c_float,
-    pub spread_low: [libc::c_float; 2],
-    pub spread_hi: [libc::c_float; 2],
-    pub min_snr: libc::c_float,
+pub(crate) struct AacPsyCoeffs {
+    pub(crate) ath: libc::c_float,
+    pub(crate) barks: libc::c_float,
+    pub(crate) spread_low: [libc::c_float; 2],
+    pub(crate) spread_hi: [libc::c_float; 2],
+    pub(crate) min_snr: libc::c_float,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct AacPsyContext {
-    pub chan_bitrate: libc::c_int,
-    pub frame_bits: libc::c_int,
-    pub fill_level: libc::c_int,
-    pub pe: C2RustUnnamed_2,
-    pub psy_coef: [[AacPsyCoeffs; 64]; 2],
-    pub ch: *mut AacPsyChannel,
-    pub global_quality: libc::c_float,
+pub(crate) struct AacPsyContext {
+    pub(crate) chan_bitrate: libc::c_int,
+    pub(crate) frame_bits: libc::c_int,
+    pub(crate) fill_level: libc::c_int,
+    pub(crate) pe: C2RustUnnamed_2,
+    pub(crate) psy_coef: [[AacPsyCoeffs; 64]; 2],
+    pub(crate) ch: *mut AacPsyChannel,
+    pub(crate) global_quality: libc::c_float,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct C2RustUnnamed_2 {
-    pub min: libc::c_float,
-    pub max: libc::c_float,
-    pub previous: libc::c_float,
-    pub correction: libc::c_float,
+pub(crate) struct C2RustUnnamed_2 {
+    pub(crate) min: libc::c_float,
+    pub(crate) max: libc::c_float,
+    pub(crate) previous: libc::c_float,
+    pub(crate) correction: libc::c_float,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct PsyLamePreset {
-    pub quality: libc::c_int,
-    pub st_lrm: libc::c_float,
+pub(crate) struct PsyLamePreset {
+    pub(crate) quality: libc::c_int,
+    pub(crate) st_lrm: libc::c_float,
 }
 #[inline(always)]
-unsafe extern "C" fn ff_exp10(mut x: libc::c_double) -> libc::c_double {
+unsafe fn ff_exp10(mut x: libc::c_double) -> libc::c_double {
     exp2(3.321_928_094_887_362_f64 * x)
 }
 #[inline(always)]
-unsafe extern "C" fn av_clip_c(
+unsafe fn av_clip_c(
     mut a: libc::c_int,
     mut amin: libc::c_int,
     mut amax: libc::c_int,
@@ -95,7 +95,7 @@ unsafe extern "C" fn av_clip_c(
     }
 }
 #[inline(always)]
-unsafe extern "C" fn av_clipf_c(
+unsafe fn av_clipf_c(
     mut a: libc::c_float,
     mut amin: libc::c_float,
     mut amax: libc::c_float,
@@ -268,7 +268,7 @@ static mut psy_fir_coeffs: [libc::c_float; 10] = [
     (-5.52212e-17f64 * 2 as libc::c_int as libc::c_double) as libc::c_float,
     (-0.313819f64 * 2 as libc::c_int as libc::c_double) as libc::c_float,
 ];
-unsafe extern "C" fn lame_calc_attack_threshold(mut bitrate: libc::c_int) -> libc::c_float {
+unsafe fn lame_calc_attack_threshold(mut bitrate: libc::c_int) -> libc::c_float {
     let mut lower_range: libc::c_int = 12 as libc::c_int;
     let mut upper_range: libc::c_int = 12 as libc::c_int;
     let mut lower_range_kbps: libc::c_int = psy_abr_map[12 as libc::c_int as usize].quality;
@@ -298,7 +298,7 @@ unsafe extern "C" fn lame_calc_attack_threshold(mut bitrate: libc::c_int) -> lib
     psy_abr_map[upper_range as usize].st_lrm
 }
 #[cold]
-unsafe extern "C" fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecContext) {
+unsafe fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecContext) {
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
     i = 0 as libc::c_int;
@@ -330,11 +330,11 @@ unsafe extern "C" fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *m
     }
 }
 #[cold]
-unsafe extern "C" fn calc_bark(mut f: libc::c_float) -> libc::c_float {
+unsafe fn calc_bark(mut f: libc::c_float) -> libc::c_float {
     13.3f32 * atanf(0.00076f32 * f) + 3.5f32 * atanf(f / 7500.0f32 * (f / 7500.0f32))
 }
 #[cold]
-unsafe extern "C" fn ath(mut f: libc::c_float, mut add: libc::c_float) -> libc::c_float {
+unsafe fn ath(mut f: libc::c_float, mut add: libc::c_float) -> libc::c_float {
     f /= 1000.0f32;
     (3.64f64 * pow(f as libc::c_double, -0.8f64)
         - 6.8f64 * exp(-0.6f64 * (f as libc::c_double - 3.4f64) * (f as libc::c_double - 3.4f64))
@@ -347,7 +347,7 @@ unsafe extern "C" fn ath(mut f: libc::c_float, mut add: libc::c_float) -> libc::
             * f as libc::c_double) as libc::c_float
 }
 #[cold]
-unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
+unsafe fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
     let mut pctx: *mut AacPsyContext = std::ptr::null_mut::<AacPsyContext>();
     let mut bark: libc::c_float = 0.;
     let mut i: libc::c_int = 0;
@@ -895,7 +895,7 @@ static mut window_grouping: [uint8_t; 9] = [
     0x36 as libc::c_int as uint8_t,
     0x36 as libc::c_int as uint8_t,
 ];
-unsafe extern "C" fn calc_bit_demand(
+unsafe fn calc_bit_demand(
     mut ctx: *mut AacPsyContext,
     mut pe: libc::c_float,
     mut bits: libc::c_int,
@@ -975,7 +975,7 @@ unsafe extern "C" fn calc_bit_demand(
         (*ctx).frame_bits as libc::c_float * bit_factor
     }) as libc::c_int
 }
-unsafe extern "C" fn calc_pe_3gpp(mut band: *mut AacPsyBand) -> libc::c_float {
+unsafe fn calc_pe_3gpp(mut band: *mut AacPsyBand) -> libc::c_float {
     let mut pe: libc::c_float = 0.;
     let mut a: libc::c_float = 0.;
     (*band).pe = 0.0f32;
@@ -995,7 +995,7 @@ unsafe extern "C" fn calc_pe_3gpp(mut band: *mut AacPsyBand) -> libc::c_float {
     }
     (*band).pe
 }
-unsafe extern "C" fn calc_reduction_3gpp(
+unsafe fn calc_reduction_3gpp(
     mut a: libc::c_float,
     mut desired_pe: libc::c_float,
     mut pe: libc::c_float,
@@ -1014,7 +1014,7 @@ unsafe extern "C" fn calc_reduction_3gpp(
         0.0f32
     }
 }
-unsafe extern "C" fn calc_reduced_thr_3gpp(
+unsafe fn calc_reduced_thr_3gpp(
     mut band: *mut AacPsyBand,
     mut min_snr: libc::c_float,
     mut reduction: libc::c_float,
@@ -1037,7 +1037,7 @@ unsafe extern "C" fn calc_reduced_thr_3gpp(
     }
     thr
 }
-unsafe extern "C" fn calc_thr_3gpp(
+unsafe fn calc_thr_3gpp(
     mut wi: *const FFPsyWindowInfo,
     num_bands: libc::c_int,
     mut pch: *mut AacPsyChannel,
@@ -1087,7 +1087,7 @@ unsafe extern "C" fn calc_thr_3gpp(
         w += 16 as libc::c_int;
     }
 }
-unsafe extern "C" fn psy_hp_filter(
+unsafe fn psy_hp_filter(
     mut firbuf: *const libc::c_float,
     mut hpfsmpl: *mut libc::c_float,
     mut psy_fir_coeffs_0: *const libc::c_float,
@@ -1116,7 +1116,7 @@ unsafe extern "C" fn psy_hp_filter(
         i;
     }
 }
-unsafe extern "C" fn psy_3gpp_analyze_channel(
+unsafe fn psy_3gpp_analyze_channel(
     mut ctx: *mut FFPsyContext,
     mut channel: libc::c_int,
     mut coefs: *const libc::c_float,
@@ -1982,7 +1982,7 @@ unsafe extern "C" fn psy_3gpp_analyze_channel(
     }
     (*pch).prev_band = (*pch).band;
 }
-unsafe extern "C" fn psy_3gpp_analyze(
+unsafe fn psy_3gpp_analyze(
     mut ctx: *mut FFPsyContext,
     mut channel: libc::c_int,
     mut coeffs: *mut *const libc::c_float,
@@ -2003,7 +2003,7 @@ unsafe extern "C" fn psy_3gpp_analyze(
     }
 }
 #[cold]
-unsafe extern "C" fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
+unsafe fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
     let mut pctx: *mut AacPsyContext = (*apc).model_priv_data as *mut AacPsyContext;
     // TODO: leaks 🚿
     if !pctx.is_null() {
@@ -2011,7 +2011,7 @@ unsafe extern "C" fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
     }
     // av_freep(&mut (*apc).model_priv_data as *mut *mut libc::c_void as *mut libc::c_void);
 }
-unsafe extern "C" fn lame_apply_block_type(
+unsafe fn lame_apply_block_type(
     mut ctx: *mut AacPsyChannel,
     mut wi: *mut FFPsyWindowInfo,
     mut uselongblock: libc::c_int,
@@ -2039,7 +2039,7 @@ unsafe extern "C" fn lame_apply_block_type(
     (*wi).window_type[0 as libc::c_int as usize] = (*ctx).next_window_seq as libc::c_int;
     (*ctx).next_window_seq = blocktype as WindowSequence;
 }
-unsafe extern "C" fn psy_lame_window(
+unsafe fn psy_lame_window(
     mut ctx: *mut FFPsyContext,
     mut _audio: *const libc::c_float,
     mut la: *const libc::c_float,
@@ -2203,15 +2203,15 @@ unsafe extern "C" fn psy_lame_window(
     (*pch).prev_attack = attacks[8 as libc::c_int as usize];
     wi
 }
-#[no_mangle]
-pub static mut ff_aac_psy_model: FFPsyModel = unsafe {
+
+pub(crate) static mut ff_aac_psy_model: FFPsyModel = unsafe {
     {
         FFPsyModel {
             name: b"3GPP TS 26.403-inspired model\0" as *const u8 as *const libc::c_char,
-            init: Some(psy_3gpp_init as unsafe extern "C" fn(*mut FFPsyContext) -> libc::c_int),
+            init: Some(psy_3gpp_init as unsafe fn(*mut FFPsyContext) -> libc::c_int),
             window: Some(
                 psy_lame_window
-                    as unsafe extern "C" fn(
+                    as unsafe fn(
                         *mut FFPsyContext,
                         *const libc::c_float,
                         *const libc::c_float,
@@ -2221,14 +2221,14 @@ pub static mut ff_aac_psy_model: FFPsyModel = unsafe {
             ),
             analyze: Some(
                 psy_3gpp_analyze
-                    as unsafe extern "C" fn(
+                    as unsafe fn(
                         *mut FFPsyContext,
                         libc::c_int,
                         *mut *const libc::c_float,
                         *const FFPsyWindowInfo,
                     ) -> (),
             ),
-            end: Some(psy_3gpp_end as unsafe extern "C" fn(*mut FFPsyContext) -> ()),
+            end: Some(psy_3gpp_end as unsafe fn(*mut FFPsyContext) -> ()),
         }
     }
 };

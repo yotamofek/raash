@@ -22,9 +22,8 @@ use std::{
     ptr,
 };
 
-#[no_mangle]
 #[cold]
-pub unsafe extern "C" fn ff_psy_init(
+pub(crate) unsafe fn ff_psy_init(
     mut ctx: *mut FFPsyContext,
     mut avctx: *mut AVCodecContext,
     mut num_lens: libc::c_int,
@@ -83,8 +82,8 @@ pub unsafe extern "C" fn ff_psy_init(
     }
     0 as libc::c_int
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_psy_find_group(
+
+pub(crate) unsafe fn ff_psy_find_group(
     mut ctx: *mut FFPsyContext,
     mut channel: libc::c_int,
 ) -> *mut FFPsyChannelGroup {
@@ -97,9 +96,9 @@ pub unsafe extern "C" fn ff_psy_find_group(
     }
     &mut *((*ctx).group).offset((i - 1 as libc::c_int) as isize) as *mut FFPsyChannelGroup
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_psy_end(mut ctx: *mut FFPsyContext) {
+pub(crate) unsafe fn ff_psy_end(mut ctx: *mut FFPsyContext) {
     if !((*ctx).model).is_null() && ((*(*ctx).model).end).is_some() {
         ((*(*ctx).model).end).expect("non-null function pointer")(ctx);
     }
@@ -109,9 +108,9 @@ pub unsafe extern "C" fn ff_psy_end(mut ctx: *mut FFPsyContext) {
     // av_freep(&mut (*ctx).group as *mut *mut FFPsyChannelGroup as *mut libc::c_void);
     // av_freep(&mut (*ctx).ch as *mut *mut FFPsyChannel as *mut libc::c_void);
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_psy_preprocess_init(
+pub(crate) unsafe fn ff_psy_preprocess_init(
     mut avctx: *mut AVCodecContext,
 ) -> *mut FFPsyPreprocessContext {
     let mut ctx: *mut FFPsyPreprocessContext = std::ptr::null_mut::<FFPsyPreprocessContext>();
@@ -163,8 +162,8 @@ pub unsafe extern "C" fn ff_psy_preprocess_init(
     ff_iir_filter_init(&mut (*ctx).fiir);
     ctx
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_psy_preprocess(
+
+pub(crate) unsafe fn ff_psy_preprocess(
     mut ctx: *mut FFPsyPreprocessContext,
     mut audio: *mut *mut libc::c_float,
     mut channels: libc::c_int,
@@ -189,9 +188,9 @@ pub unsafe extern "C" fn ff_psy_preprocess(
         }
     }
 }
-#[no_mangle]
+
 #[cold]
-pub unsafe extern "C" fn ff_psy_preprocess_end(mut ctx: *mut FFPsyPreprocessContext) {
+pub(crate) unsafe fn ff_psy_preprocess_end(mut ctx: *mut FFPsyPreprocessContext) {
     let mut i: libc::c_int = 0;
     ff_iir_filter_free_coeffsp(&mut (*ctx).fcoeffs);
     if !((*ctx).fstate).is_null() {

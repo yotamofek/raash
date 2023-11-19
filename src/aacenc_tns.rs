@@ -12,7 +12,7 @@ use crate::lpc::ff_lpc_calc_ref_coefs_f;
 use crate::types::*;
 
 #[inline(always)]
-unsafe extern "C" fn av_clip_c(
+unsafe fn av_clip_c(
     mut a: libc::c_int,
     mut amin: libc::c_int,
     mut amax: libc::c_int,
@@ -26,7 +26,7 @@ unsafe extern "C" fn av_clip_c(
     }
 }
 #[inline(always)]
-unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
+unsafe fn av_bswap32(mut x: uint32_t) -> uint32_t {
     (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
         | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
         << 16 as libc::c_int
@@ -35,11 +35,7 @@ unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
 }
 static mut BUF_BITS: libc::c_int = 0;
 #[inline]
-unsafe extern "C" fn put_bits_no_assert(
-    mut s: *mut PutBitContext,
-    mut n: libc::c_int,
-    mut value: BitBuf,
-) {
+unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
     let mut bit_buf: BitBuf = 0;
     let mut bit_left: libc::c_int = 0;
     bit_buf = (*s).bit_buf;
@@ -66,11 +62,11 @@ unsafe extern "C" fn put_bits_no_assert(
     (*s).bit_left = bit_left;
 }
 #[inline]
-unsafe extern "C" fn put_bits(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
+unsafe fn put_bits(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
     put_bits_no_assert(s, n, value);
 }
 #[inline]
-unsafe extern "C" fn compute_lpc_coefs(
+unsafe fn compute_lpc_coefs(
     mut autoc: *const LPC_TYPE,
     mut max_order: libc::c_int,
     mut lpc: *mut LPC_TYPE,
@@ -221,7 +217,7 @@ static mut tns_min_sfb_long: [uint8_t; 16] = [
     31 as libc::c_int as uint8_t,
 ];
 #[inline]
-unsafe extern "C" fn quant_array_idx(
+unsafe fn quant_array_idx(
     val: libc::c_float,
     mut arr: *const libc::c_float,
     num: libc::c_int,
@@ -243,7 +239,7 @@ unsafe extern "C" fn quant_array_idx(
     index
 }
 #[inline]
-unsafe extern "C" fn compress_coeffs(
+unsafe fn compress_coeffs(
     mut coef: *mut libc::c_int,
     mut order: libc::c_int,
     mut c_bits: libc::c_int,
@@ -284,8 +280,8 @@ unsafe extern "C" fn compress_coeffs(
     }
     1 as libc::c_int
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_encode_tns_info(
+
+pub(crate) unsafe fn ff_aac_encode_tns_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -359,8 +355,8 @@ pub unsafe extern "C" fn ff_aac_encode_tns_info(
         i;
     }
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_apply_tns(
+
+pub(crate) unsafe fn ff_aac_apply_tns(
     mut _s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -441,7 +437,7 @@ pub unsafe extern "C" fn ff_aac_apply_tns(
     }
 }
 #[inline]
-unsafe extern "C" fn quantize_coefs(
+unsafe fn quantize_coefs(
     mut coef: *mut libc::c_double,
     mut idx: *mut libc::c_int,
     mut lpc: *mut libc::c_float,
@@ -466,8 +462,8 @@ unsafe extern "C" fn quantize_coefs(
         i;
     }
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_search_for_tns(
+
+pub(crate) unsafe fn ff_aac_search_for_tns(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -601,7 +597,7 @@ pub unsafe extern "C" fn ff_aac_search_for_tns(
     }
     (*sce).tns.present = (count != 0) as libc::c_int;
 }
-unsafe extern "C" fn run_static_initializers() {
+unsafe fn run_static_initializers() {
     BUF_BITS = (8 as libc::c_int as libc::c_ulong)
         .wrapping_mul(::core::mem::size_of::<BitBuf>() as libc::c_ulong)
         as libc::c_int;
@@ -610,4 +606,4 @@ unsafe extern "C" fn run_static_initializers() {
 #[cfg_attr(target_os = "linux", link_section = ".init_array")]
 #[cfg_attr(target_os = "windows", link_section = ".CRT$XIB")]
 #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-static INIT_ARRAY: [unsafe extern "C" fn(); 1] = [run_static_initializers];
+static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];

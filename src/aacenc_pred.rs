@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[inline(always)]
-unsafe extern "C" fn av_clip_c(
+unsafe fn av_clip_c(
     mut a: libc::c_int,
     mut amin: libc::c_int,
     mut amax: libc::c_int,
@@ -30,7 +30,7 @@ unsafe extern "C" fn av_clip_c(
     }
 }
 #[inline(always)]
-unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
+unsafe fn av_bswap32(mut x: uint32_t) -> uint32_t {
     (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
         | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
         << 16 as libc::c_int
@@ -39,11 +39,7 @@ unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
 }
 static mut BUF_BITS: libc::c_int = 0;
 #[inline]
-unsafe extern "C" fn put_bits_no_assert(
-    mut s: *mut PutBitContext,
-    mut n: libc::c_int,
-    mut value: BitBuf,
-) {
+unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
     let mut bit_buf: BitBuf = 0;
     let mut bit_left: libc::c_int = 0;
     bit_buf = (*s).bit_buf;
@@ -70,11 +66,11 @@ unsafe extern "C" fn put_bits_no_assert(
     (*s).bit_left = bit_left;
 }
 #[inline]
-unsafe extern "C" fn put_bits(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
+unsafe fn put_bits(mut s: *mut PutBitContext, mut n: libc::c_int, mut value: BitBuf) {
     put_bits_no_assert(s, n, value);
 }
 #[inline]
-unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_int) -> libc::c_int {
+unsafe fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_int) -> libc::c_int {
     let mut Q34: libc::c_float = ff_aac_pow34sf_tab
         [(200 as libc::c_int - sf + 140 as libc::c_int - 36 as libc::c_int) as usize];
     let mut qmaxval: libc::c_int = 0;
@@ -91,7 +87,7 @@ unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_in
     cb
 }
 #[inline]
-unsafe extern "C" fn find_max_val(
+unsafe fn find_max_val(
     mut group_len: libc::c_int,
     mut swb_size: libc::c_int,
     mut scaled: *const libc::c_float,
@@ -138,14 +134,14 @@ union av_intfloat32 {
     f: libc::c_float,
 }
 #[inline]
-unsafe extern "C" fn flt16_round(mut pf: libc::c_float) -> libc::c_float {
+unsafe fn flt16_round(mut pf: libc::c_float) -> libc::c_float {
     let mut tmp: av_intfloat32 = av_intfloat32 { i: 0 };
     tmp.f = pf;
     tmp.i = (tmp.i).wrapping_add(0x8000 as libc::c_uint) & 0xffff0000 as libc::c_uint;
     tmp.f
 }
 #[inline]
-unsafe extern "C" fn flt16_even(mut pf: libc::c_float) -> libc::c_float {
+unsafe fn flt16_even(mut pf: libc::c_float) -> libc::c_float {
     let mut tmp: av_intfloat32 = av_intfloat32 { i: 0 };
     tmp.f = pf;
     tmp.i = (tmp.i)
@@ -155,14 +151,14 @@ unsafe extern "C" fn flt16_even(mut pf: libc::c_float) -> libc::c_float {
     tmp.f
 }
 #[inline]
-unsafe extern "C" fn flt16_trunc(mut pf: libc::c_float) -> libc::c_float {
+unsafe fn flt16_trunc(mut pf: libc::c_float) -> libc::c_float {
     let mut pun: av_intfloat32 = av_intfloat32 { i: 0 };
     pun.f = pf;
     pun.i &= 0xffff0000 as libc::c_uint;
     pun.f
 }
 #[inline]
-unsafe extern "C" fn predict(
+unsafe fn predict(
     mut ps: *mut PredictorState,
     mut coef: *mut libc::c_float,
     mut rcoef: *mut libc::c_float,
@@ -203,7 +199,7 @@ unsafe extern "C" fn predict(
     *rcoef = (*ps).x_est;
 }
 #[inline]
-unsafe extern "C" fn reset_predict_state(mut ps: *mut PredictorState) {
+unsafe fn reset_predict_state(mut ps: *mut PredictorState) {
     (*ps).r0 = 0.0f32;
     (*ps).r1 = 0.0f32;
     (*ps).k1 = 0.0f32;
@@ -214,7 +210,7 @@ unsafe extern "C" fn reset_predict_state(mut ps: *mut PredictorState) {
     (*ps).x_est = 0.0f32;
 }
 #[inline]
-unsafe extern "C" fn reset_all_predictors(mut ps: *mut PredictorState) {
+unsafe fn reset_all_predictors(mut ps: *mut PredictorState) {
     let mut i: libc::c_int = 0;
     i = 0 as libc::c_int;
     while i < 672 as libc::c_int {
@@ -224,10 +220,7 @@ unsafe extern "C" fn reset_all_predictors(mut ps: *mut PredictorState) {
     }
 }
 #[inline]
-unsafe extern "C" fn reset_predictor_group(
-    mut sce: *mut SingleChannelElement,
-    mut group_num: libc::c_int,
-) {
+unsafe fn reset_predictor_group(mut sce: *mut SingleChannelElement, mut group_num: libc::c_int) {
     let mut i: libc::c_int = 0;
     let mut ps: *mut PredictorState = ((*sce).predictor_state).as_mut_ptr();
     i = group_num - 1 as libc::c_int;
@@ -236,8 +229,8 @@ unsafe extern "C" fn reset_predictor_group(
         i += 30 as libc::c_int;
     }
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_apply_main_pred(
+
+pub(crate) unsafe fn ff_aac_apply_main_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -285,7 +278,7 @@ pub unsafe extern "C" fn ff_aac_apply_main_pred(
     };
 }
 #[inline]
-unsafe extern "C" fn update_counters(
+unsafe fn update_counters(
     mut ics: *mut IndividualChannelStream,
     mut inc: libc::c_int,
 ) -> libc::c_int {
@@ -301,8 +294,8 @@ unsafe extern "C" fn update_counters(
     }
     0 as libc::c_int
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_adjust_common_pred(
+
+pub(crate) unsafe fn ff_aac_adjust_common_pred(
     mut s: *mut AACEncContext,
     mut cpe: *mut ChannelElement,
 ) {
@@ -459,7 +452,7 @@ pub unsafe extern "C" fn ff_aac_adjust_common_pred(
     (*sce0).ics.predictor_present = (count != 0) as libc::c_int;
     (*sce1).ics.predictor_present = (*sce0).ics.predictor_present;
 }
-unsafe extern "C" fn update_pred_resets(mut sce: *mut SingleChannelElement) {
+unsafe fn update_pred_resets(mut sce: *mut SingleChannelElement) {
     let mut i: libc::c_int = 0;
     let mut max_group_id_c: libc::c_int = 0;
     let mut max_frame: libc::c_int = 0 as libc::c_int;
@@ -486,8 +479,8 @@ unsafe extern "C" fn update_pred_resets(mut sce: *mut SingleChannelElement) {
         (*ics).predictor_reset_group = 0 as libc::c_int;
     };
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_search_for_pred(
+
+pub(crate) unsafe fn ff_aac_search_for_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -719,8 +712,8 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
     }
     (*sce).ics.predictor_present = (count != 0) as libc::c_int;
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_aac_encode_main_pred(
+
+pub(crate) unsafe fn ff_aac_encode_main_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -763,7 +756,7 @@ pub unsafe extern "C" fn ff_aac_encode_main_pred(
         sfb;
     }
 }
-unsafe extern "C" fn run_static_initializers() {
+unsafe fn run_static_initializers() {
     BUF_BITS = (8 as libc::c_int as libc::c_ulong)
         .wrapping_mul(::core::mem::size_of::<BitBuf>() as libc::c_ulong)
         as libc::c_int;
@@ -772,4 +765,4 @@ unsafe extern "C" fn run_static_initializers() {
 #[cfg_attr(target_os = "linux", link_section = ".init_array")]
 #[cfg_attr(target_os = "windows", link_section = ".CRT$XIB")]
 #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-static INIT_ARRAY: [unsafe extern "C" fn(); 1] = [run_static_initializers];
+static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];
