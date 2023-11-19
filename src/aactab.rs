@@ -24,24 +24,24 @@ pub static mut ff_aac_kbd_short_128: [libc::c_float; 128] = [0.; 128];
 unsafe extern "C" fn aac_tableinit() {
     static mut exp2_lut: [libc::c_float; 16] = [
         1.00000000000000000000f64 as libc::c_float,
-        1.04427378242741384032f64 as libc::c_float,
-        1.09050773266525765921f64 as libc::c_float,
-        1.13878863475669165370f64 as libc::c_float,
-        1.18920711500272106672f64 as libc::c_float,
-        1.24185781207348404859f64 as libc::c_float,
-        1.29683955465100966593f64 as libc::c_float,
-        1.35425554693689272830f64 as libc::c_float,
-        1.41421356237309504880f64 as libc::c_float,
-        1.47682614593949931139f64 as libc::c_float,
-        1.54221082540794082361f64 as libc::c_float,
-        1.61049033194925430818f64 as libc::c_float,
-        1.68179283050742908606f64 as libc::c_float,
-        1.75625216037329948311f64 as libc::c_float,
-        1.83400808640934246349f64 as libc::c_float,
-        1.91520656139714729387f64 as libc::c_float,
+        1.044_273_782_427_413_8_f64 as libc::c_float,
+        1.090_507_732_665_257_7_f64 as libc::c_float,
+        1.138_788_634_756_691_6_f64 as libc::c_float,
+        1.189_207_115_002_721_f64 as libc::c_float,
+        1.241_857_812_073_484_f64 as libc::c_float,
+        1.296_839_554_651_009_6_f64 as libc::c_float,
+        1.354_255_546_936_892_7_f64 as libc::c_float,
+        1.414_213_562_373_095_1_f64 as libc::c_float,
+        1.476_826_145_939_499_3_f64 as libc::c_float,
+        1.542_210_825_407_940_7_f64 as libc::c_float,
+        1.610_490_331_949_254_3_f64 as libc::c_float,
+        1.681_792_830_507_429_f64 as libc::c_float,
+        1.756_252_160_373_299_5_f64 as libc::c_float,
+        1.834_008_086_409_342_4_f64 as libc::c_float,
+        1.915_206_561_397_147_4_f64 as libc::c_float,
     ];
-    let mut t1: libc::c_float = 8.8817841970012523233890533447265625e-16f64 as libc::c_float;
-    let mut t2: libc::c_float = 3.63797880709171295166015625e-12f64 as libc::c_float;
+    let mut t1: libc::c_float = 8.881_784_197_001_252e-16_f64 as libc::c_float;
+    let mut t2: libc::c_float = 3.637_978_807_091_713e-12_f64 as libc::c_float;
     let mut t1_inc_cur: libc::c_int = 0;
     let mut t2_inc_cur: libc::c_int = 0;
     let mut t1_inc_prev: libc::c_int = 0 as libc::c_int;

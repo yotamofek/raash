@@ -13,24 +13,24 @@ pub type LPC_TYPE = libc::c_double;
 pub type LPC_TYPE_U = libc::c_double;
 #[inline(always)]
 unsafe extern "C" fn av_clip_c(
-    mut a: libc::c_int,
-    mut amin: libc::c_int,
-    mut amax: libc::c_int,
+    a: libc::c_int,
+    amin: libc::c_int,
+    amax: libc::c_int,
 ) -> libc::c_int {
     if a < amin {
-        return amin;
+        amin
     } else if a > amax {
         return amax;
     } else {
         return a;
-    };
+    }
 }
 #[inline]
 unsafe extern "C" fn compute_ref_coefs(
-    mut autoc: *const LPC_TYPE,
-    mut max_order: libc::c_int,
-    mut ref_0: *mut LPC_TYPE,
-    mut error: *mut LPC_TYPE,
+    autoc: *const LPC_TYPE,
+    max_order: libc::c_int,
+    ref_0: *mut LPC_TYPE,
+    error: *mut LPC_TYPE,
 ) {
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
@@ -61,9 +61,8 @@ unsafe extern "C" fn compute_ref_coefs(
         while j < max_order - i {
             gen1[j as usize] = gen1[(j + 1 as libc::c_int) as usize]
                 + *ref_0.offset((i - 1 as libc::c_int) as isize) * gen0[j as usize];
-            gen0[j as usize] = gen1[(j + 1 as libc::c_int) as usize]
-                * *ref_0.offset((i - 1 as libc::c_int) as isize)
-                + gen0[j as usize];
+            gen0[j as usize] += gen1[(j + 1 as libc::c_int) as usize]
+                * *ref_0.offset((i - 1 as libc::c_int) as isize);
             j += 1;
             j;
         }
@@ -84,11 +83,11 @@ unsafe extern "C" fn compute_ref_coefs(
 #[inline]
 unsafe extern "C" fn compute_lpc_coefs(
     mut autoc: *const LPC_TYPE,
-    mut max_order: libc::c_int,
+    max_order: libc::c_int,
     mut lpc: *mut LPC_TYPE,
-    mut lpc_stride: libc::c_int,
-    mut fail: libc::c_int,
-    mut normalize: libc::c_int,
+    lpc_stride: libc::c_int,
+    fail: libc::c_int,
+    normalize: libc::c_int,
 ) -> libc::c_int {
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
@@ -125,8 +124,8 @@ unsafe extern "C" fn compute_lpc_coefs(
         *lpc.offset(i as isize) = r;
         j = 0 as libc::c_int;
         while j < i + 1 as libc::c_int >> 1 as libc::c_int {
-            let mut f: LPC_TYPE = *lpc_last.offset(j as isize);
-            let mut b: LPC_TYPE = *lpc_last.offset((i - 1 as libc::c_int - j) as isize);
+            let f: LPC_TYPE = *lpc_last.offset(j as isize);
+            let b: LPC_TYPE = *lpc_last.offset((i - 1 as libc::c_int - j) as isize);
             *lpc.offset(j as isize) = f + r * b;
             *lpc.offset((i - 1 as libc::c_int - j) as isize) = b + r * f;
             j += 1;
@@ -140,11 +139,11 @@ unsafe extern "C" fn compute_lpc_coefs(
         i += 1;
         i;
     }
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 unsafe extern "C" fn lpc_apply_welch_window_c(
     mut data: *const int32_t,
-    mut len: ptrdiff_t,
+    len: ptrdiff_t,
     mut w_data: *mut libc::c_double,
 ) {
     let mut i: libc::c_int = 0;
@@ -187,10 +186,10 @@ unsafe extern "C" fn lpc_apply_welch_window_c(
     }
 }
 unsafe extern "C" fn lpc_compute_autocorr_c(
-    mut data: *const libc::c_double,
-    mut len: ptrdiff_t,
-    mut lag: libc::c_int,
-    mut autoc: *mut libc::c_double,
+    data: *const libc::c_double,
+    len: ptrdiff_t,
+    lag: libc::c_int,
+    autoc: *mut libc::c_double,
 ) {
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
@@ -222,14 +221,14 @@ unsafe extern "C" fn lpc_compute_autocorr_c(
     }
 }
 unsafe extern "C" fn quantize_lpc_coefs(
-    mut lpc_in: *mut libc::c_double,
-    mut order: libc::c_int,
-    mut precision: libc::c_int,
-    mut lpc_out: *mut int32_t,
-    mut shift: *mut libc::c_int,
-    mut min_shift: libc::c_int,
-    mut max_shift: libc::c_int,
-    mut zero_shift: libc::c_int,
+    lpc_in: *mut libc::c_double,
+    order: libc::c_int,
+    precision: libc::c_int,
+    lpc_out: *mut int32_t,
+    shift: *mut libc::c_int,
+    min_shift: libc::c_int,
+    max_shift: libc::c_int,
+    zero_shift: libc::c_int,
 ) {
     let mut i: libc::c_int = 0;
     let mut cmax: libc::c_double = 0.;
@@ -261,7 +260,7 @@ unsafe extern "C" fn quantize_lpc_coefs(
         sh;
     }
     if sh == 0 as libc::c_int && cmax > qmax as libc::c_double {
-        let mut scale: libc::c_double = qmax as libc::c_double / cmax;
+        let scale: libc::c_double = qmax as libc::c_double / cmax;
         i = 0 as libc::c_int;
         while i < order {
             *lpc_in.offset(i as isize) *= scale;
@@ -282,9 +281,9 @@ unsafe extern "C" fn quantize_lpc_coefs(
     *shift = sh;
 }
 unsafe extern "C" fn estimate_best_order(
-    mut ref_0: *mut libc::c_double,
-    mut min_order: libc::c_int,
-    mut max_order: libc::c_int,
+    ref_0: *mut libc::c_double,
+    min_order: libc::c_int,
+    max_order: libc::c_int,
 ) -> libc::c_int {
     let mut i: libc::c_int = 0;
     let mut est: libc::c_int = 0;
@@ -299,14 +298,14 @@ unsafe extern "C" fn estimate_best_order(
             i;
         }
     }
-    return est;
+    est
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_lpc_calc_ref_coefs(
-    mut s: *mut LPCContext,
-    mut samples: *const int32_t,
-    mut order: libc::c_int,
-    mut ref_0: *mut libc::c_double,
+    s: *mut LPCContext,
+    samples: *const int32_t,
+    order: libc::c_int,
+    ref_0: *mut libc::c_double,
 ) -> libc::c_int {
     let mut autoc: [libc::c_double; 33] = [0.; 33];
     ((*s).lpc_apply_welch_window).expect("non-null function pointer")(
@@ -320,16 +319,16 @@ pub unsafe extern "C" fn ff_lpc_calc_ref_coefs(
         order,
         autoc.as_mut_ptr(),
     );
-    compute_ref_coefs(autoc.as_mut_ptr(), order, ref_0, 0 as *mut LPC_TYPE);
-    return order;
+    compute_ref_coefs(autoc.as_mut_ptr(), order, ref_0, std::ptr::null_mut::<LPC_TYPE>());
+    order
 }
 
 pub(crate) unsafe fn ff_lpc_calc_ref_coefs_f(
-    mut s: *mut LPCContext,
-    mut samples: *const libc::c_float,
-    mut len: libc::c_int,
-    mut order: libc::c_int,
-    mut ref_0: *mut libc::c_double,
+    s: *mut LPCContext,
+    samples: *const libc::c_float,
+    len: libc::c_int,
+    order: libc::c_int,
+    ref_0: *mut libc::c_double,
 ) -> libc::c_double {
     let mut i: libc::c_int = 0;
     let mut signal: libc::c_double = 0.0f32 as libc::c_double;
@@ -408,8 +407,8 @@ pub(crate) unsafe fn ff_lpc_calc_ref_coefs_f(
     let b: libc::c_double = 1.0f32 as libc::c_double - a;
     i = 0 as libc::c_int;
     while i <= len / 2 as libc::c_int {
-        let mut weight: libc::c_double = a - b * cos(2 as libc::c_int as libc::c_double
-            * 3.14159265358979323846f64
+        let weight: libc::c_double = a - b * cos(2 as libc::c_int as libc::c_double
+            * 3.141_592_653_589_793_f64
             * i as libc::c_double
             / (len - 1 as libc::c_int) as libc::c_double);
         *((*s).windowed_samples).offset(i as isize) =
@@ -433,28 +432,28 @@ pub(crate) unsafe fn ff_lpc_calc_ref_coefs_f(
         i += 1;
         i;
     }
-    return if avg_err != 0. {
+    if avg_err != 0. {
         signal / avg_err
     } else {
         ::core::f32::NAN as libc::c_double
-    };
+    }
 }
 
 pub(crate) unsafe fn ff_lpc_calc_coefs(
-    mut s: *mut LPCContext,
-    mut samples: *const int32_t,
-    mut blocksize: libc::c_int,
-    mut min_order: libc::c_int,
-    mut max_order: libc::c_int,
-    mut precision: libc::c_int,
-    mut coefs: *mut [int32_t; 32],
-    mut shift: *mut libc::c_int,
-    mut lpc_type: FFLPCType,
+    s: *mut LPCContext,
+    samples: *const int32_t,
+    blocksize: libc::c_int,
+    min_order: libc::c_int,
+    max_order: libc::c_int,
+    precision: libc::c_int,
+    coefs: *mut [int32_t; 32],
+    shift: *mut libc::c_int,
+    lpc_type: FFLPCType,
     mut lpc_passes: libc::c_int,
-    mut omethod: libc::c_int,
-    mut min_shift: libc::c_int,
-    mut max_shift: libc::c_int,
-    mut zero_shift: libc::c_int,
+    omethod: libc::c_int,
+    min_shift: libc::c_int,
+    max_shift: libc::c_int,
+    zero_shift: libc::c_int,
 ) -> libc::c_int {
     let mut autoc: [libc::c_double; 33] = [0.; 33];
     let mut ref_0: [libc::c_double; 32] = [
@@ -542,9 +541,9 @@ pub(crate) unsafe fn ff_lpc_calc_coefs(
         pass;
     }
     if lpc_type as libc::c_int == FF_LPC_TYPE_CHOLESKY as libc::c_int {
-        let mut m: *mut LLSModel = ((*s).lls_models).as_mut_ptr();
+        let m: *mut LLSModel = ((*s).lls_models).as_mut_ptr();
         let mut la_var: [libc::c_double; 36] = [0.; 36];
-        let mut var: *mut libc::c_double = la_var.as_mut_ptr();
+        let var: *mut libc::c_double = la_var.as_mut_ptr();
         let mut weight: libc::c_double = 0.;
         weight = weight;
         ptr::write_bytes(
@@ -590,7 +589,7 @@ pub(crate) unsafe fn ff_lpc_calc_coefs(
                     rinv = sqrt(inv);
                     j = 0 as libc::c_int;
                     while j <= max_order {
-                        let ref mut fresh1 = *var.offset(j as isize);
+                        let fresh1 = &mut (*var.offset(j as isize));
                         *fresh1 *= rinv;
                         j += 1;
                         j;
@@ -673,15 +672,15 @@ pub(crate) unsafe fn ff_lpc_calc_coefs(
             i;
         }
     }
-    return opt_order;
+    opt_order
 }
 
 #[cold]
 pub(crate) unsafe fn ff_lpc_init(
-    mut s: *mut LPCContext,
-    mut blocksize: libc::c_int,
-    mut max_order: libc::c_int,
-    mut lpc_type: FFLPCType,
+    s: *mut LPCContext,
+    blocksize: libc::c_int,
+    max_order: libc::c_int,
+    lpc_type: FFLPCType,
 ) -> libc::c_int {
     (*s).blocksize = blocksize;
     (*s).max_order = max_order;
@@ -716,11 +715,11 @@ pub(crate) unsafe fn ff_lpc_init(
                 *mut libc::c_double,
             ) -> (),
     );
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 #[no_mangle]
 #[cold]
-pub unsafe extern "C" fn ff_lpc_end(mut s: *mut LPCContext) {
+pub unsafe extern "C" fn ff_lpc_end(_s: *mut LPCContext) {
     // TODO: this leaks 🚿
     // av_freep(&mut (*s).windowed_buffer as *mut *mut libc::c_double as *mut libc::c_void);
 }

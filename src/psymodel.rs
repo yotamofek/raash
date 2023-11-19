@@ -10,7 +10,6 @@
 
 use crate::{
     aacpsy::ff_aac_psy_model,
-    common::*,
     iirfilter::{
         ff_iir_filter_free_coeffsp, ff_iir_filter_free_statep, ff_iir_filter_init,
         ff_iir_filter_init_coeffs, ff_iir_filter_init_state,
@@ -64,8 +63,8 @@ pub unsafe extern "C" fn ff_psy_init(
         j = 0 as libc::c_int;
         while j < (*((*ctx).group).offset(i as isize)).num_ch as libc::c_int * 2 as libc::c_int {
             let fresh0 = k;
-            k = k + 1;
-            let ref mut fresh1 = (*((*ctx).group).offset(i as isize)).ch[j as usize];
+            k += 1;
+            let fresh1 = &mut (*((*ctx).group).offset(i as isize)).ch[j as usize];
             *fresh1 = &mut *((*ctx).ch).offset(fresh0 as isize) as *mut FFPsyChannel;
             j += 1;
             j;
@@ -82,7 +81,7 @@ pub unsafe extern "C" fn ff_psy_init(
     if ((*(*ctx).model).init).is_some() {
         return ((*(*ctx).model).init).expect("non-null function pointer")(ctx);
     }
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_psy_find_group(
@@ -93,10 +92,10 @@ pub unsafe extern "C" fn ff_psy_find_group(
     let mut ch: libc::c_int = 0 as libc::c_int;
     while ch <= channel {
         let fresh2 = i;
-        i = i + 1;
+        i += 1;
         ch += (*((*ctx).group).offset(fresh2 as isize)).num_ch as libc::c_int;
     }
-    return &mut *((*ctx).group).offset((i - 1 as libc::c_int) as isize) as *mut FFPsyChannelGroup;
+    &mut *((*ctx).group).offset((i - 1 as libc::c_int) as isize) as *mut FFPsyChannelGroup
 }
 #[no_mangle]
 #[cold]
@@ -115,12 +114,12 @@ pub unsafe extern "C" fn ff_psy_end(mut ctx: *mut FFPsyContext) {
 pub unsafe extern "C" fn ff_psy_preprocess_init(
     mut avctx: *mut AVCodecContext,
 ) -> *mut FFPsyPreprocessContext {
-    let mut ctx: *mut FFPsyPreprocessContext = 0 as *mut FFPsyPreprocessContext;
+    let mut ctx: *mut FFPsyPreprocessContext = std::ptr::null_mut::<FFPsyPreprocessContext>();
     let mut i: libc::c_int = 0;
     let mut cutoff_coeff: libc::c_float = 0 as libc::c_int as libc::c_float;
     ctx = alloc_zeroed(Layout::new::<FFPsyPreprocessContext>()).cast();
     if ctx.is_null() {
-        return 0 as *mut FFPsyPreprocessContext;
+        return std::ptr::null_mut::<FFPsyPreprocessContext>();
     }
     (*ctx).avctx = avctx;
     if (*avctx).codec_id as libc::c_uint != AV_CODEC_ID_AAC as libc::c_int as libc::c_uint {
@@ -150,11 +149,11 @@ pub unsafe extern "C" fn ff_psy_preprocess_init(
                 // TODO: leaks 🚿
                 // av_free((*ctx).fcoeffs as *mut libc::c_void);
                 // av_free(ctx as *mut libc::c_void);
-                return 0 as *mut FFPsyPreprocessContext;
+                return std::ptr::null_mut::<FFPsyPreprocessContext>();
             }
             i = 0 as libc::c_int;
             while i < (*avctx).ch_layout.nb_channels {
-                let ref mut fresh3 = *((*ctx).fstate).offset(i as isize);
+                let fresh3 = &mut (*((*ctx).fstate).offset(i as isize));
                 *fresh3 = ff_iir_filter_init_state(4 as libc::c_int);
                 i += 1;
                 i;
@@ -162,7 +161,7 @@ pub unsafe extern "C" fn ff_psy_preprocess_init(
         }
     }
     ff_iir_filter_init(&mut (*ctx).fiir);
-    return ctx;
+    ctx
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_psy_preprocess(

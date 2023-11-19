@@ -36,8 +36,8 @@ unsafe extern "C" fn kbd_window_init(
         .cast()
     }) as *mut libc::c_double;
     let mut alpha2: libc::c_double = 4 as libc::c_int as libc::c_double
-        * (alpha as libc::c_double * 3.14159265358979323846f64 / n as libc::c_double)
-        * (alpha as libc::c_double * 3.14159265358979323846f64 / n as libc::c_double);
+        * (alpha as libc::c_double * 3.141_592_653_589_793_f64 / n as libc::c_double)
+        * (alpha as libc::c_double * 3.141_592_653_589_793_f64 / n as libc::c_double);
     if temp.is_null() {
         return -(12 as libc::c_int);
     }
@@ -81,7 +81,7 @@ unsafe extern "C" fn kbd_window_init(
         // TODO: this leaks 🚿
         // av_free(temp as *mut libc::c_void);
     }
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 #[no_mangle]
 #[cold]
@@ -90,7 +90,7 @@ pub unsafe extern "C" fn avpriv_kbd_window_init(
     mut alpha: libc::c_float,
     mut n: libc::c_int,
 ) -> libc::c_int {
-    return kbd_window_init(window, 0 as *mut libc::c_int, alpha, n);
+    kbd_window_init(window, std::ptr::null_mut::<libc::c_int>(), alpha, n)
 }
 #[no_mangle]
 #[cold]
@@ -99,5 +99,5 @@ pub unsafe extern "C" fn avpriv_kbd_window_init_fixed(
     mut alpha: libc::c_float,
     mut n: libc::c_int,
 ) -> libc::c_int {
-    return kbd_window_init(0 as *mut libc::c_float, window, alpha, n);
+    kbd_window_init(std::ptr::null_mut::<libc::c_float>(), window, alpha, n)
 }

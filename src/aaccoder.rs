@@ -61,7 +61,7 @@ pub struct TrellisPath {
 }
 #[inline]
 unsafe extern "C" fn ff_sqrf(mut a: libc::c_float) -> libc::c_float {
-    return a * a;
+    a * a
 }
 #[inline(always)]
 unsafe extern "C" fn ff_log2_c(mut v: libc::c_uint) -> libc::c_int {
@@ -86,33 +86,32 @@ unsafe extern "C" fn av_clip_c(
     mut amax: libc::c_int,
 ) -> libc::c_int {
     if a < amin {
-        return amin;
+        amin
     } else if a > amax {
         return amax;
     } else {
         return a;
-    };
+    }
 }
 #[inline(always)]
 unsafe extern "C" fn av_clip_uint8_c(mut a: libc::c_int) -> uint8_t {
     if a & !(0xff as libc::c_int) != 0 {
-        return (!a >> 31 as libc::c_int) as uint8_t;
+        (!a >> 31 as libc::c_int) as uint8_t
     } else {
-        return a as uint8_t;
-    };
+        a as uint8_t
+    }
 }
 #[inline(always)]
 unsafe extern "C" fn av_clip_uintp2_c(mut a: libc::c_int, mut p: libc::c_int) -> libc::c_uint {
     if a & !(((1 as libc::c_int) << p) - 1 as libc::c_int) != 0 {
-        return (!a >> 31 as libc::c_int & ((1 as libc::c_int) << p) - 1 as libc::c_int)
-            as libc::c_uint;
+        (!a >> 31 as libc::c_int & ((1 as libc::c_int) << p) - 1 as libc::c_int) as libc::c_uint
     } else {
-        return a as libc::c_uint;
-    };
+        a as libc::c_uint
+    }
 }
 #[inline(always)]
 unsafe extern "C" fn av_mod_uintp2_c(mut a: libc::c_uint, mut p: libc::c_uint) -> libc::c_uint {
-    return a & ((1 as libc::c_uint) << p).wrapping_sub(1 as libc::c_int as libc::c_uint);
+    a & ((1 as libc::c_uint) << p).wrapping_sub(1 as libc::c_int as libc::c_uint)
 }
 #[inline(always)]
 unsafe extern "C" fn av_clipf_c(
@@ -120,13 +119,13 @@ unsafe extern "C" fn av_clipf_c(
     mut amin: libc::c_float,
     mut amax: libc::c_float,
 ) -> libc::c_float {
-    return if (if a > amin { a } else { amin }) > amax {
+    if (if a > amin { a } else { amin }) > amax {
         amax
     } else if a > amin {
         a
     } else {
         amin
-    };
+    }
 }
 static mut BUF_BITS: libc::c_int = 0;
 #[inline]
@@ -174,11 +173,11 @@ unsafe extern "C" fn put_bits_no_assert(
 }
 #[inline(always)]
 unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
-    return (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
+    (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
         | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
         << 16 as libc::c_int
         | ((x >> 16 as libc::c_int) << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
-            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint);
+            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
 }
 static mut run_value_bits_long: [uint8_t; 64] = [
     5 as libc::c_int as uint8_t,
@@ -352,7 +351,7 @@ unsafe extern "C" fn quant(
     rounding: libc::c_float,
 ) -> libc::c_int {
     let mut a: libc::c_float = coef * Q;
-    return (sqrtf(a * sqrtf(a)) + rounding) as libc::c_int;
+    (sqrtf(a * sqrtf(a)) + rounding) as libc::c_int
 }
 #[inline]
 unsafe extern "C" fn find_max_val(
@@ -378,7 +377,7 @@ unsafe extern "C" fn find_max_val(
         w2 += 1;
         w2;
     }
-    return maxval;
+    maxval
 }
 #[inline]
 unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_int) -> libc::c_int {
@@ -395,7 +394,7 @@ unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_in
     } else {
         cb = aac_maxval_cb[qmaxval as usize] as libc::c_int;
     }
-    return cb;
+    cb
 }
 #[inline]
 unsafe extern "C" fn find_form_factor(
@@ -463,26 +462,26 @@ unsafe extern "C" fn find_form_factor(
         w2;
     }
     if weight > 0 as libc::c_int as libc::c_float {
-        return form / weight;
+        form / weight
     } else {
-        return 1.0f32;
-    };
+        1.0f32
+    }
 }
 #[inline]
 unsafe extern "C" fn coef2minsf(mut coef: libc::c_float) -> uint8_t {
-    return av_clip_uint8_c(
+    av_clip_uint8_c(
         (log2f(coef) * 4 as libc::c_int as libc::c_float - 69 as libc::c_int as libc::c_float
             + 140 as libc::c_int as libc::c_float
             - 36 as libc::c_int as libc::c_float) as libc::c_int,
-    );
+    )
 }
 #[inline(always)]
 unsafe extern "C" fn ff_fast_powf(mut x: libc::c_float, mut y: libc::c_float) -> libc::c_float {
-    return expf(logf(x) * y);
+    expf(logf(x) * y)
 }
 #[inline(always)]
 unsafe extern "C" fn bval2bmax(mut b: libc::c_float) -> libc::c_float {
-    return 0.001f32 + 0.0035f32 * (b * b * b) / (15.5f32 * 15.5f32 * 15.5f32);
+    0.001f32 + 0.0035f32 * (b * b * b) / (15.5f32 * 15.5f32 * 15.5f32)
 }
 #[inline]
 unsafe extern "C" fn ff_sfdelta_can_remove_band(
@@ -491,19 +490,19 @@ unsafe extern "C" fn ff_sfdelta_can_remove_band(
     mut prev_sf: libc::c_int,
     mut band: libc::c_int,
 ) -> libc::c_int {
-    return (prev_sf >= 0 as libc::c_int
+    (prev_sf >= 0 as libc::c_int
         && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= prev_sf - 60 as libc::c_int
         && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= prev_sf + 60 as libc::c_int)
-        as libc::c_int;
+        as libc::c_int
 }
 #[inline]
 unsafe extern "C" fn coef2maxsf(mut coef: libc::c_float) -> uint8_t {
-    return av_clip_uint8_c(
+    av_clip_uint8_c(
         (log2f(coef) * 4 as libc::c_int as libc::c_float
             + 6 as libc::c_int as libc::c_float
             + 140 as libc::c_int as libc::c_float
             - 36 as libc::c_int as libc::c_float) as libc::c_int,
-    );
+    )
 }
 #[inline(always)]
 unsafe extern "C" fn lcg_random(mut previous_val: libc::c_uint) -> libc::c_int {
@@ -512,7 +511,7 @@ unsafe extern "C" fn lcg_random(mut previous_val: libc::c_uint) -> libc::c_int {
             .wrapping_mul(1664525 as libc::c_uint)
             .wrapping_add(1013904223 as libc::c_int as libc::c_uint),
     };
-    return v.s;
+    v.s
 }
 #[inline]
 unsafe extern "C" fn ff_init_nextband_map(
@@ -536,7 +535,7 @@ unsafe extern "C" fn ff_init_nextband_map(
                 && ((*sce).band_type[(w * 16 as libc::c_int + g) as usize] as libc::c_uint)
                     < RESERVED_BT as libc::c_int as libc::c_uint
             {
-                let ref mut fresh0 = *nextband.offset(prevband as isize);
+                let fresh0 = &mut (*nextband.offset(prevband as isize));
                 *fresh0 = (w * 16 as libc::c_int + g) as uint8_t;
                 prevband = *fresh0;
             }
@@ -555,11 +554,11 @@ unsafe extern "C" fn ff_sfdelta_can_replace(
     mut new_sf: libc::c_int,
     mut band: libc::c_int,
 ) -> libc::c_int {
-    return (new_sf >= prev_sf - 60 as libc::c_int
+    (new_sf >= prev_sf - 60 as libc::c_int
         && new_sf <= prev_sf + 60 as libc::c_int
         && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= new_sf - 60 as libc::c_int
         && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= new_sf + 60 as libc::c_int)
-        as libc::c_int;
+        as libc::c_int
 }
 #[inline]
 unsafe extern "C" fn quantize_band_cost_cached(
@@ -577,7 +576,8 @@ unsafe extern "C" fn quantize_band_cost_cached(
     mut energy: *mut libc::c_float,
     mut rtz: libc::c_int,
 ) -> libc::c_float {
-    let mut entry: *mut AACQuantizeBandCostCacheEntry = 0 as *mut AACQuantizeBandCostCacheEntry;
+    let mut entry: *mut AACQuantizeBandCostCacheEntry =
+        std::ptr::null_mut::<AACQuantizeBandCostCacheEntry>();
     entry = &mut *(*((*s).quantize_band_cost_cache)
         .as_mut_ptr()
         .offset(scale_idx as isize))
@@ -609,7 +609,7 @@ unsafe extern "C" fn quantize_band_cost_cached(
     if !energy.is_null() {
         *energy = (*entry).energy;
     }
-    return (*entry).rd;
+    (*entry).rd
 }
 #[inline]
 unsafe extern "C" fn quantize_band_cost(
@@ -624,11 +624,11 @@ unsafe extern "C" fn quantize_band_cost(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return ff_quantize_and_encode_band_cost(
+    ff_quantize_and_encode_band_cost(
         s,
-        0 as *mut PutBitContext,
+        std::ptr::null_mut::<PutBitContext>(),
         in_0,
-        0 as *mut libc::c_float,
+        std::ptr::null_mut::<libc::c_float>(),
         scaled,
         size,
         scale_idx,
@@ -637,7 +637,7 @@ unsafe extern "C" fn quantize_band_cost(
         uplim,
         bits,
         energy,
-    );
+    )
 }
 #[inline]
 unsafe extern "C" fn quantize_band_cost_bits(
@@ -647,7 +647,7 @@ unsafe extern "C" fn quantize_band_cost_bits(
     mut size: libc::c_int,
     mut scale_idx: libc::c_int,
     mut cb: libc::c_int,
-    lambda: libc::c_float,
+    _lambda: libc::c_float,
     uplim: libc::c_float,
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
@@ -655,9 +655,9 @@ unsafe extern "C" fn quantize_band_cost_bits(
     let mut auxbits: libc::c_int = 0;
     ff_quantize_and_encode_band_cost(
         s,
-        0 as *mut PutBitContext,
+        std::ptr::null_mut::<PutBitContext>(),
         in_0,
-        0 as *mut libc::c_float,
+        std::ptr::null_mut::<libc::c_float>(),
         scaled,
         size,
         scale_idx,
@@ -670,7 +670,7 @@ unsafe extern "C" fn quantize_band_cost_bits(
     if !bits.is_null() {
         *bits = auxbits;
     }
-    return auxbits;
+    auxbits
 }
 #[inline]
 unsafe extern "C" fn ff_pns_bits(
@@ -678,14 +678,14 @@ unsafe extern "C" fn ff_pns_bits(
     mut w: libc::c_int,
     mut g: libc::c_int,
 ) -> libc::c_int {
-    return if g == 0
+    if g == 0
         || (*sce).zeroes[(w * 16 as libc::c_int + g - 1 as libc::c_int) as usize] == 0
         || (*sce).can_pns[(w * 16 as libc::c_int + g - 1 as libc::c_int) as usize] == 0
     {
         9 as libc::c_int
     } else {
         5 as libc::c_int
-    };
+    }
 }
 unsafe extern "C" fn search_for_quantizers_twoloop(
     mut avctx: *mut AVCodecContext,
@@ -1053,7 +1053,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
     } else {
         bandwidth = if 3000 as libc::c_int
             > (if frame_bit_rate != 0 {
-                (if (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                if (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                     > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
                         - 5500 as libc::c_int
                 {
@@ -1065,237 +1065,180 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                     + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
                 {
                     3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > 12000 as libc::c_int
                     + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
                 {
                     12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > 22000 as libc::c_int
                 {
                     22000 as libc::c_int
+                } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    }) > 12000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    {
-                        12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    } else {
-                        (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        })
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > (*avctx).sample_rate / 2 as libc::c_int
                 {
                     (*avctx).sample_rate / 2 as libc::c_int
+                } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    }) > 12000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    {
-                        12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    } else {
-                        (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        })
-                    }) > 22000 as libc::c_int
-                    {
-                        22000 as libc::c_int
-                    } else {
-                        (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        }) > 12000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                        {
-                            12000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                        } else {
-                            (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            }) > 3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                            {
-                                3000 as libc::c_int
-                                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                            } else {
-                                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                        / 32 as libc::c_int
-                                        - 5500 as libc::c_int
-                                {
-                                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                } else {
-                                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                        / 32 as libc::c_int
-                                        - 5500 as libc::c_int
-                                })
-                            })
-                        })
-                    })
-                })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 22000 as libc::c_int
+                {
+                    22000 as libc::c_int
+                } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }
             } else {
                 (*avctx).sample_rate / 2 as libc::c_int
             }) {
@@ -1313,104 +1256,19 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 12000 as libc::c_int
                 + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
             {
                 12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-            } else {
-                (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                })
-            }) > 22000 as libc::c_int
-            {
-                22000 as libc::c_int
-            } else {
-                (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int
-                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                }) > 12000 as libc::c_int
-                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                {
-                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                } else {
-                    (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    })
-                })
-            }) > (*avctx).sample_rate / 2 as libc::c_int
-            {
-                (*avctx).sample_rate / 2 as libc::c_int
-            } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
                     - 5500 as libc::c_int
             {
@@ -1422,43 +1280,14 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-            } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
-            }) > 12000 as libc::c_int
-                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             {
-                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 22000 as libc::c_int
             {
                 22000 as libc::c_int
@@ -1474,16 +1303,108 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 12000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            {
+                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > (*avctx).sample_rate / 2 as libc::c_int
+            {
+                (*avctx).sample_rate / 2 as libc::c_int
+            } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 12000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            {
+                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 22000 as libc::c_int
+            {
+                22000 as libc::c_int
+            } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 12000 as libc::c_int
                 + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
             {
@@ -1613,7 +1534,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                 }
             }
             let fresh1 = g;
-            g = g + 1;
+            g += 1;
             start += *((*sce).ics.swb_sizes).offset(fresh1 as isize) as libc::c_int;
         }
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
@@ -1957,7 +1878,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
             {
                 qstep = 1 as libc::c_int;
             }
-            if !(qstep != 0) {
+            if qstep == 0 {
                 break;
             }
         }
@@ -2079,7 +2000,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                             overdist;
                         }
                         let fresh2 = g;
-                        g = g + 1;
+                        g += 1;
                         start += *((*sce).ics.swb_sizes).offset(fresh2 as isize) as libc::c_int;
                     }
                     w += (*sce).ics.group_len[w as usize] as libc::c_int;
@@ -2121,7 +2042,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                                 zeroable;
                             }
                             let fresh3 = g;
-                            g = g + 1;
+                            g += 1;
                             start += *((*sce).ics.swb_sizes).offset(fresh3 as isize) as libc::c_int;
                         }
                         w += (*sce).ics.group_len[w as usize] as libc::c_int;
@@ -2177,8 +2098,8 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                         let mut mcb: libc::c_int = 0;
                         g = (*sce).ics.num_swb - 1 as libc::c_int;
                         while g > 0 as libc::c_int && zeroed < maxzeroed {
-                            if !((*((*sce).ics.swb_offset).offset(g as isize) as libc::c_int)
-                                < pns_start_pos)
+                            if (*((*sce).ics.swb_offset).offset(g as isize) as libc::c_int)
+                                >= pns_start_pos
                             {
                                 w = 0 as libc::c_int;
                                 while w < (*sce).ics.num_windows {
@@ -2639,7 +2560,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
             }
             if (*sce).zeroes[(w * 16 as libc::c_int + g) as usize] == 0 {
                 if prev != -(1 as libc::c_int) {
-                    let mut sfdiff_1: libc::c_int =
+                    let mut _sfdiff_1: libc::c_int =
                         (*sce).sf_idx[(w * 16 as libc::c_int + g) as usize] - prev
                             + 60 as libc::c_int;
                 } else if (*sce).zeroes[0 as libc::c_int as usize] != 0 {
@@ -2659,7 +2580,7 @@ unsafe extern "C" fn codebook_trellis_rate(
     mut sce: *mut SingleChannelElement,
     mut win: libc::c_int,
     mut group_len: libc::c_int,
-    lambda: libc::c_float,
+    _lambda: libc::c_float,
 ) {
     let mut path: [[TrellisBandCodingPath; 15]; 120] = [[TrellisBandCodingPath {
         prev_idx: 0,
@@ -2797,8 +2718,8 @@ unsafe extern "C" fn codebook_trellis_rate(
                             aac_cb_out_map[cb as usize] as libc::c_int,
                             0 as libc::c_int as libc::c_float,
                             ::core::f32::INFINITY,
-                            0 as *mut libc::c_int,
-                            0 as *mut libc::c_float,
+                            std::ptr::null_mut::<libc::c_int>(),
+                            std::ptr::null_mut::<libc::c_float>(),
                         ) as libc::c_float;
                         w += 1;
                         w;
@@ -2988,7 +2909,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_template(
     }
     let mut i_1: libc::c_int = 0 as libc::c_int;
     while i_1 < size {
-        let mut vec: *const libc::c_float = 0 as *const libc::c_float;
+        let mut vec: *const libc::c_float = std::ptr::null::<libc::c_float>();
         let mut quants: *mut libc::c_int = ((*s).qcoefs).as_mut_ptr().offset(i_1 as isize);
         let mut curidx: libc::c_int = 0 as libc::c_int;
         let mut curbits: libc::c_int = 0;
@@ -3128,24 +3049,24 @@ unsafe extern "C" fn quantize_and_encode_band_cost_template(
     if !energy.is_null() {
         *energy = qenergy;
     }
-    return cost;
+    cost
 }
 #[inline]
 unsafe extern "C" fn quantize_and_encode_band_cost_NONE(
-    mut s: *mut AACEncContext,
-    mut pb: *mut PutBitContext,
-    mut in_0: *const libc::c_float,
-    mut quant_0: *mut libc::c_float,
-    mut scaled: *const libc::c_float,
-    mut size: libc::c_int,
-    mut scale_idx: libc::c_int,
-    mut cb: libc::c_int,
-    lambda: libc::c_float,
-    uplim: libc::c_float,
-    mut bits: *mut libc::c_int,
-    mut energy: *mut libc::c_float,
+    mut _s: *mut AACEncContext,
+    mut _pb: *mut PutBitContext,
+    mut _in_0: *const libc::c_float,
+    mut _quant_0: *mut libc::c_float,
+    mut _scaled: *const libc::c_float,
+    mut _size: libc::c_int,
+    mut _scale_idx: libc::c_int,
+    mut _cb: libc::c_int,
+    _lambda: libc::c_float,
+    _uplim: libc::c_float,
+    mut _bits: *mut libc::c_int,
+    mut _energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return 0.0f32;
+    0.0f32
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_ZERO(
     mut s: *mut AACEncContext,
@@ -3161,7 +3082,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ZERO(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3185,7 +3106,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ZERO(
         0 as libc::c_int,
         0 as libc::c_int,
         0.4054f32,
-    );
+    )
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_SQUAD(
     mut s: *mut AACEncContext,
@@ -3201,7 +3122,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_SQUAD(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3225,7 +3146,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_SQUAD(
         0 as libc::c_int,
         0 as libc::c_int,
         0.4054f32,
-    );
+    )
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_UQUAD(
     mut s: *mut AACEncContext,
@@ -3241,7 +3162,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_UQUAD(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3265,7 +3186,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_UQUAD(
         0 as libc::c_int,
         0 as libc::c_int,
         0.4054f32,
-    );
+    )
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_SPAIR(
     mut s: *mut AACEncContext,
@@ -3281,7 +3202,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_SPAIR(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3305,7 +3226,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_SPAIR(
         0 as libc::c_int,
         0 as libc::c_int,
         0.4054f32,
-    );
+    )
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_UPAIR(
     mut s: *mut AACEncContext,
@@ -3321,7 +3242,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_UPAIR(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3345,7 +3266,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_UPAIR(
         0 as libc::c_int,
         0 as libc::c_int,
         0.4054f32,
-    );
+    )
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_ESC(
     mut s: *mut AACEncContext,
@@ -3361,7 +3282,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ESC(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3385,7 +3306,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ESC(
         0 as libc::c_int,
         0 as libc::c_int,
         0.4054f32,
-    );
+    )
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_ESC_RTZ(
     mut s: *mut AACEncContext,
@@ -3401,7 +3322,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ESC_RTZ(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3425,7 +3346,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_ESC_RTZ(
         0 as libc::c_int,
         0 as libc::c_int,
         0.1054f32,
-    );
+    )
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_NOISE(
     mut s: *mut AACEncContext,
@@ -3441,7 +3362,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_NOISE(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3465,7 +3386,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_NOISE(
         1 as libc::c_int,
         0 as libc::c_int,
         0.4054f32,
-    );
+    )
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_STEREO(
     mut s: *mut AACEncContext,
@@ -3481,7 +3402,7 @@ unsafe extern "C" fn quantize_and_encode_band_cost_STEREO(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return quantize_and_encode_band_cost_template(
+    quantize_and_encode_band_cost_template(
         s,
         pb,
         in_0,
@@ -3505,9 +3426,9 @@ unsafe extern "C" fn quantize_and_encode_band_cost_STEREO(
         0 as libc::c_int,
         1 as libc::c_int,
         0.4054f32,
-    );
+    )
 }
-static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16] = unsafe {
+static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16] = {
     [
         Some(
             quantize_and_encode_band_cost_ZERO
@@ -4074,9 +3995,9 @@ pub unsafe extern "C" fn ff_quantize_and_encode_band_cost(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return (quantize_and_encode_band_cost_arr[cb as usize]).expect("non-null function pointer")(
+    (quantize_and_encode_band_cost_arr[cb as usize]).expect("non-null function pointer")(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy,
-    );
+    )
 }
 #[inline]
 unsafe extern "C" fn quantize_and_encode_band(
@@ -4101,14 +4022,14 @@ unsafe extern "C" fn quantize_and_encode_band(
         pb,
         in_0,
         out,
-        0 as *const libc::c_float,
+        std::ptr::null::<libc::c_float>(),
         size,
         scale_idx,
         cb,
         lambda,
         ::core::f32::INFINITY,
-        0 as *mut libc::c_int,
-        0 as *mut libc::c_float,
+        std::ptr::null_mut::<libc::c_int>(),
+        std::ptr::null_mut::<libc::c_float>(),
     );
 }
 unsafe extern "C" fn encode_window_bands_info(
@@ -4221,8 +4142,8 @@ unsafe extern "C" fn encode_window_bands_info(
                             aac_cb_out_map[cb as usize] as libc::c_int,
                             lambda / (*band).threshold,
                             ::core::f32::INFINITY,
-                            0 as *mut libc::c_int,
-                            0 as *mut libc::c_float,
+                            std::ptr::null_mut::<libc::c_int>(),
+                            std::ptr::null_mut::<libc::c_float>(),
                         );
                         w += 1;
                         w;
@@ -4319,7 +4240,7 @@ unsafe extern "C" fn encode_window_bands_info(
     }
 }
 unsafe extern "C" fn set_special_band_scalefactors(
-    mut s: *mut AACEncContext,
+    mut _s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
     let mut w: libc::c_int = 0;
@@ -4331,7 +4252,7 @@ unsafe extern "C" fn set_special_band_scalefactors(
     while w < (*sce).ics.num_windows {
         g = 0 as libc::c_int;
         while g < (*sce).ics.num_swb {
-            if !((*sce).zeroes[(w * 16 as libc::c_int + g) as usize] != 0) {
+            if (*sce).zeroes[(w * 16 as libc::c_int + g) as usize] == 0 {
                 if (*sce).band_type[(w * 16 as libc::c_int + g) as usize] as libc::c_uint
                     == INTENSITY_BT as libc::c_int as libc::c_uint
                     || (*sce).band_type[(w * 16 as libc::c_int + g) as usize] as libc::c_uint
@@ -4378,7 +4299,7 @@ unsafe extern "C" fn set_special_band_scalefactors(
     while w < (*sce).ics.num_windows {
         g = 0 as libc::c_int;
         while g < (*sce).ics.num_swb {
-            if !((*sce).zeroes[(w * 16 as libc::c_int + g) as usize] != 0) {
+            if (*sce).zeroes[(w * 16 as libc::c_int + g) as usize] == 0 {
                 if (*sce).band_type[(w * 16 as libc::c_int + g) as usize] as libc::c_uint
                     == INTENSITY_BT as libc::c_int as libc::c_uint
                     || (*sce).band_type[(w * 16 as libc::c_int + g) as usize] as libc::c_uint
@@ -4408,7 +4329,7 @@ unsafe extern "C" fn set_special_band_scalefactors(
     }
 }
 unsafe extern "C" fn search_for_quantizers_anmr(
-    mut avctx: *mut AVCodecContext,
+    mut _avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     lambda: libc::c_float,
@@ -4425,7 +4346,7 @@ unsafe extern "C" fn search_for_quantizers_anmr(
     let mut bandaddr: [libc::c_int; 121] = [0; 121];
     let mut minq: libc::c_int = 0;
     let mut mincost: libc::c_float = 0.;
-    let mut q0f: libc::c_float = 3.40282347e+38f32;
+    let mut q0f: libc::c_float = 3.402_823_5e38_f32;
     let mut q1f: libc::c_float = 0.0f32;
     let mut qnrgf: libc::c_float = 0.0f32;
     let mut q0: libc::c_int = 0;
@@ -4611,8 +4532,8 @@ unsafe extern "C" fn search_for_quantizers_anmr(
                             cb,
                             lambda / (*band_0).threshold,
                             ::core::f32::INFINITY,
-                            0 as *mut libc::c_int,
-                            0 as *mut libc::c_float,
+                            std::ptr::null_mut::<libc::c_int>(),
+                            std::ptr::null_mut::<libc::c_float>(),
                         );
                         w2 += 1;
                         w2;
@@ -5126,7 +5047,7 @@ unsafe extern "C" fn search_for_quantizers_fast(
                                 1.0f32,
                                 ::core::f32::INFINITY,
                                 &mut b,
-                                0 as *mut libc::c_float,
+                                std::ptr::null_mut::<libc::c_float>(),
                                 0 as libc::c_int,
                             );
                             bits += b;
@@ -5176,7 +5097,7 @@ unsafe extern "C" fn search_for_quantizers_fast(
             {
                 qstep = 1 as libc::c_int;
             }
-            if !(qstep != 0) {
+            if qstep == 0 {
                 break;
             }
         }
@@ -5242,7 +5163,7 @@ unsafe extern "C" fn search_for_pns(
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
 ) {
-    let mut band: *mut FFPsyBand = 0 as *mut FFPsyBand;
+    let mut band: *mut FFPsyBand = std::ptr::null_mut::<FFPsyBand>();
     let mut w: libc::c_int = 0;
     let mut g: libc::c_int = 0;
     let mut w2: libc::c_int = 0;
@@ -5319,7 +5240,7 @@ unsafe extern "C" fn search_for_pns(
     } else {
         bandwidth = if 3000 as libc::c_int
             > (if frame_bit_rate != 0 {
-                (if (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                if (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                     > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
                         - 5500 as libc::c_int
                 {
@@ -5331,237 +5252,180 @@ unsafe extern "C" fn search_for_pns(
                     + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
                 {
                     3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > 12000 as libc::c_int
                     + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
                 {
                     12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > 22000 as libc::c_int
                 {
                     22000 as libc::c_int
+                } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    }) > 12000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    {
-                        12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    } else {
-                        (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        })
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > (*avctx).sample_rate / 2 as libc::c_int
                 {
                     (*avctx).sample_rate / 2 as libc::c_int
+                } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    }) > 12000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    {
-                        12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    } else {
-                        (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        })
-                    }) > 22000 as libc::c_int
-                    {
-                        22000 as libc::c_int
-                    } else {
-                        (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        }) > 12000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                        {
-                            12000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                        } else {
-                            (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            }) > 3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                            {
-                                3000 as libc::c_int
-                                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                            } else {
-                                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                        / 32 as libc::c_int
-                                        - 5500 as libc::c_int
-                                {
-                                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                } else {
-                                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                        / 32 as libc::c_int
-                                        - 5500 as libc::c_int
-                                })
-                            })
-                        })
-                    })
-                })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 22000 as libc::c_int
+                {
+                    22000 as libc::c_int
+                } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }
             } else {
                 (*avctx).sample_rate / 2 as libc::c_int
             }) {
@@ -5579,104 +5443,19 @@ unsafe extern "C" fn search_for_pns(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 12000 as libc::c_int
                 + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
             {
                 12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-            } else {
-                (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                })
-            }) > 22000 as libc::c_int
-            {
-                22000 as libc::c_int
-            } else {
-                (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int
-                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                }) > 12000 as libc::c_int
-                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                {
-                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                } else {
-                    (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    })
-                })
-            }) > (*avctx).sample_rate / 2 as libc::c_int
-            {
-                (*avctx).sample_rate / 2 as libc::c_int
-            } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
                     - 5500 as libc::c_int
             {
@@ -5688,43 +5467,14 @@ unsafe extern "C" fn search_for_pns(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-            } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
-            }) > 12000 as libc::c_int
-                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             {
-                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 22000 as libc::c_int
             {
                 22000 as libc::c_int
@@ -5740,16 +5490,108 @@ unsafe extern "C" fn search_for_pns(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 12000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            {
+                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > (*avctx).sample_rate / 2 as libc::c_int
+            {
+                (*avctx).sample_rate / 2 as libc::c_int
+            } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 12000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            {
+                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 22000 as libc::c_int
+            {
+                22000 as libc::c_int
+            } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 12000 as libc::c_int
                 + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
             {
@@ -5966,8 +5808,8 @@ unsafe extern "C" fn search_for_pns(
                                         as libc::c_int,
                                     lambda / (*band).threshold,
                                     ::core::f32::INFINITY,
-                                    0 as *mut libc::c_int,
-                                    0 as *mut libc::c_float,
+                                    std::ptr::null_mut::<libc::c_int>(),
+                                    std::ptr::null_mut::<libc::c_float>(),
                                 );
                                 dist2 += (*band).energy / ((*band).spread * (*band).spread)
                                     * lambda
@@ -6016,7 +5858,7 @@ unsafe extern "C" fn mark_pns(
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
 ) {
-    let mut band: *mut FFPsyBand = 0 as *mut FFPsyBand;
+    let mut band: *mut FFPsyBand = std::ptr::null_mut::<FFPsyBand>();
     let mut w: libc::c_int = 0;
     let mut g: libc::c_int = 0;
     let mut w2: libc::c_int = 0;
@@ -6071,7 +5913,7 @@ unsafe extern "C" fn mark_pns(
     } else {
         bandwidth = if 3000 as libc::c_int
             > (if frame_bit_rate != 0 {
-                (if (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                if (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                     > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
                         - 5500 as libc::c_int
                 {
@@ -6083,237 +5925,180 @@ unsafe extern "C" fn mark_pns(
                     + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
                 {
                     3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > 12000 as libc::c_int
                     + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
                 {
                     12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > 22000 as libc::c_int
                 {
                     22000 as libc::c_int
+                } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    }) > 12000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    {
-                        12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    } else {
-                        (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        })
-                    })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
                 }) > (*avctx).sample_rate / 2 as libc::c_int
                 {
                     (*avctx).sample_rate / 2 as libc::c_int
+                } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 } else {
-                    (if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    }) > 12000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    {
-                        12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                    } else {
-                        (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        })
-                    }) > 22000 as libc::c_int
-                    {
-                        22000 as libc::c_int
-                    } else {
-                        (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        }) > 3000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        {
-                            3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                        } else {
-                            (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            })
-                        }) > 12000 as libc::c_int
-                            + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                        {
-                            12000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                        } else {
-                            (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            {
-                                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            } else {
-                                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                    / 32 as libc::c_int
-                                    - 5500 as libc::c_int
-                            }) > 3000 as libc::c_int
-                                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                            {
-                                3000 as libc::c_int
-                                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                            } else {
-                                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                        / 32 as libc::c_int
-                                        - 5500 as libc::c_int
-                                {
-                                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                                } else {
-                                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                        / 32 as libc::c_int
-                                        - 5500 as libc::c_int
-                                })
-                            })
-                        })
-                    })
-                })
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 22000 as libc::c_int
+                {
+                    22000 as libc::c_int
+                } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 12000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                {
+                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }) > 3000 as libc::c_int
+                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                {
+                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+                } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                {
+                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                } else {
+                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                        - 5500 as libc::c_int
+                }
             } else {
                 (*avctx).sample_rate / 2 as libc::c_int
             }) {
@@ -6331,104 +6116,19 @@ unsafe extern "C" fn mark_pns(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 12000 as libc::c_int
                 + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
             {
                 12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-            } else {
-                (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                })
-            }) > 22000 as libc::c_int
-            {
-                22000 as libc::c_int
-            } else {
-                (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int
-                    + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                }) > 12000 as libc::c_int
-                    + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                {
-                    12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
-                } else {
-                    (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    }) > 3000 as libc::c_int
-                        + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    {
-                        3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                    } else {
-                        (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                            > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        {
-                            frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        } else {
-                            frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int
-                                / 32 as libc::c_int
-                                - 5500 as libc::c_int
-                        })
-                    })
-                })
-            }) > (*avctx).sample_rate / 2 as libc::c_int
-            {
-                (*avctx).sample_rate / 2 as libc::c_int
-            } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
                 > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
                     - 5500 as libc::c_int
             {
@@ -6440,43 +6140,14 @@ unsafe extern "C" fn mark_pns(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-            } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
-            }) > 12000 as libc::c_int
-                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             {
-                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                }) > 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                {
-                    3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
-                } else {
-                    (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                        > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    {
-                        frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    } else {
-                        frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                            - 5500 as libc::c_int
-                    })
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 22000 as libc::c_int
             {
                 22000 as libc::c_int
@@ -6492,16 +6163,108 @@ unsafe extern "C" fn mark_pns(
                 + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
             {
                 3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
             } else {
-                (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                    > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                {
-                    frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
-                } else {
-                    frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
-                        - 5500 as libc::c_int
-                })
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 12000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            {
+                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > (*avctx).sample_rate / 2 as libc::c_int
+            {
+                (*avctx).sample_rate / 2 as libc::c_int
+            } else if (if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 12000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            {
+                12000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
+            } else if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 22000 as libc::c_int
+            {
+                22000 as libc::c_int
+            } else if (if (if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            }) > 3000 as libc::c_int
+                + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            {
+                3000 as libc::c_int + frame_bit_rate / 1 as libc::c_int / 4 as libc::c_int
+            } else if frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+                > frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
+            {
+                frame_bit_rate / 1 as libc::c_int / 5 as libc::c_int
+            } else {
+                frame_bit_rate / 1 as libc::c_int * 15 as libc::c_int / 32 as libc::c_int
+                    - 5500 as libc::c_int
             }) > 12000 as libc::c_int
                 + frame_bit_rate / 1 as libc::c_int / 16 as libc::c_int
             {
@@ -6844,10 +6607,10 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 (*sce0).sf_idx[(w * 16 as libc::c_int + g) as usize],
                                 (*sce0).band_type[(w * 16 as libc::c_int + g) as usize]
                                     as libc::c_int,
-                                lambda / ((*band0).threshold + 1.17549435e-38f32),
+                                lambda / ((*band0).threshold + 1.175_494_4e-38_f32),
                                 ::core::f32::INFINITY,
                                 &mut b1,
-                                0 as *mut libc::c_float,
+                                std::ptr::null_mut::<libc::c_float>(),
                             );
                             dist1 += quantize_band_cost(
                                 s,
@@ -6859,10 +6622,10 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 (*sce1).sf_idx[(w * 16 as libc::c_int + g) as usize],
                                 (*sce1).band_type[(w * 16 as libc::c_int + g) as usize]
                                     as libc::c_int,
-                                lambda / ((*band1).threshold + 1.17549435e-38f32),
+                                lambda / ((*band1).threshold + 1.175_494_4e-38_f32),
                                 ::core::f32::INFINITY,
                                 &mut b2,
-                                0 as *mut libc::c_float,
+                                std::ptr::null_mut::<libc::c_float>(),
                             );
                             dist2 += quantize_band_cost(
                                 s,
@@ -6871,10 +6634,10 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 *((*sce0).ics.swb_sizes).offset(g as isize) as libc::c_int,
                                 mididx,
                                 midcb,
-                                lambda / (minthr + 1.17549435e-38f32),
+                                lambda / (minthr + 1.175_494_4e-38_f32),
                                 ::core::f32::INFINITY,
                                 &mut b3,
-                                0 as *mut libc::c_float,
+                                std::ptr::null_mut::<libc::c_float>(),
                             );
                             dist2 += quantize_band_cost(
                                 s,
@@ -6883,10 +6646,10 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 *((*sce1).ics.swb_sizes).offset(g as isize) as libc::c_int,
                                 sididx,
                                 sidcb,
-                                mslambda / (minthr * bmax + 1.17549435e-38f32),
+                                mslambda / (minthr * bmax + 1.175_494_4e-38_f32),
                                 ::core::f32::INFINITY,
                                 &mut b4,
-                                0 as *mut libc::c_float,
+                                std::ptr::null_mut::<libc::c_float>(),
                             );
                             B0 += b1 + b2;
                             B1 += b3 + b4;
@@ -6954,10 +6717,10 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
     }
 }
 #[no_mangle]
-pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = unsafe {
+pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = {
     [
         {
-            let mut init = AACCoefficientsEncoder {
+            AACCoefficientsEncoder {
                 search_for_quantizers: Some(
                     search_for_quantizers_anmr
                         as unsafe extern "C" fn(
@@ -7096,11 +6859,10 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = unsafe {
                             *mut SingleChannelElement,
                         ) -> (),
                 ),
-            };
-            init
+            }
         },
         {
-            let mut init = AACCoefficientsEncoder {
+            AACCoefficientsEncoder {
                 search_for_quantizers: Some(
                     search_for_quantizers_twoloop
                         as unsafe extern "C" fn(
@@ -7245,11 +7007,10 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = unsafe {
                             *mut SingleChannelElement,
                         ) -> (),
                 ),
-            };
-            init
+            }
         },
         {
-            let mut init = AACCoefficientsEncoder {
+            AACCoefficientsEncoder {
                 search_for_quantizers: Some(
                     search_for_quantizers_fast
                         as unsafe extern "C" fn(
@@ -7394,8 +7155,7 @@ pub static mut ff_aac_coders: [AACCoefficientsEncoder; 3] = unsafe {
                             *mut SingleChannelElement,
                         ) -> (),
                 ),
-            };
-            init
+            }
         },
     ]
 };

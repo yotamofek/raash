@@ -18,20 +18,20 @@ unsafe extern "C" fn av_clip_c(
     mut amax: libc::c_int,
 ) -> libc::c_int {
     if a < amin {
-        return amin;
+        amin
     } else if a > amax {
         return amax;
     } else {
         return a;
-    };
+    }
 }
 #[inline(always)]
 unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
-    return (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
+    (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
         | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
         << 16 as libc::c_int
         | ((x >> 16 as libc::c_int) << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
-            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint);
+            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
 }
 static mut BUF_BITS: libc::c_int = 0;
 #[inline]
@@ -128,7 +128,7 @@ unsafe extern "C" fn compute_lpc_coefs(
         i += 1;
         i;
     }
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 static mut tns_tmp2_map_1_3: [INTFLOAT; 4] = [
     0.00000000f64 as libc::c_float,
@@ -240,7 +240,7 @@ unsafe extern "C" fn quant_array_idx(
         i += 1;
         i;
     }
-    return index;
+    index
 }
 #[inline]
 unsafe extern "C" fn compress_coeffs(
@@ -282,7 +282,7 @@ unsafe extern "C" fn compress_coeffs(
         i += 1;
         i;
     }
-    return 1 as libc::c_int;
+    1 as libc::c_int
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_aac_encode_tns_info(
@@ -313,7 +313,7 @@ pub unsafe extern "C" fn ff_aac_encode_tns_info(
             2 as libc::c_int - is8,
             (*sce).tns.n_filt[i as usize] as BitBuf,
         );
-        if !((*tns).n_filt[i as usize] == 0) {
+        if (*tns).n_filt[i as usize] != 0 {
             put_bits(&mut (*s).pb, 1 as libc::c_int, c_bits as BitBuf);
             filt = 0 as libc::c_int;
             while filt < (*tns).n_filt[i as usize] {
@@ -327,7 +327,7 @@ pub unsafe extern "C" fn ff_aac_encode_tns_info(
                     5 as libc::c_int - 2 as libc::c_int * is8,
                     (*tns).order[i as usize][filt as usize] as BitBuf,
                 );
-                if !((*tns).order[i as usize][filt as usize] == 0) {
+                if (*tns).order[i as usize][filt as usize] != 0 {
                     put_bits(
                         &mut (*s).pb,
                         1 as libc::c_int,
@@ -361,7 +361,7 @@ pub unsafe extern "C" fn ff_aac_encode_tns_info(
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_aac_apply_tns(
-    mut s: *mut AACEncContext,
+    mut _s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
     let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
@@ -395,7 +395,7 @@ pub unsafe extern "C" fn ff_aac_apply_tns(
                 top - (*tns).length[w as usize][filt as usize]
             };
             order = (*tns).order[w as usize][filt as usize];
-            if !(order == 0 as libc::c_int) {
+            if order != 0 as libc::c_int {
                 compute_lpc_coefs(
                     ((*tns).coef[w as usize][filt as usize]).as_mut_ptr(),
                     order,
@@ -410,7 +410,7 @@ pub unsafe extern "C" fn ff_aac_apply_tns(
                 end = *((*ics).swb_offset).offset((if top > mmm { mmm } else { top }) as isize)
                     as libc::c_int;
                 size = end - start;
-                if !(size <= 0 as libc::c_int) {
+                if size > 0 as libc::c_int {
                     if (*tns).direction[w as usize][filt as usize] != 0 {
                         inc = -(1 as libc::c_int);
                         start = end - 1 as libc::c_int;

@@ -78,7 +78,7 @@ pub struct PsyLamePreset {
 }
 #[inline(always)]
 unsafe extern "C" fn ff_exp10(mut x: libc::c_double) -> libc::c_double {
-    return exp2(3.32192809488736234787f64 * x);
+    exp2(3.321_928_094_887_362_f64 * x)
 }
 #[inline(always)]
 unsafe extern "C" fn av_clip_c(
@@ -87,12 +87,12 @@ unsafe extern "C" fn av_clip_c(
     mut amax: libc::c_int,
 ) -> libc::c_int {
     if a < amin {
-        return amin;
+        amin
     } else if a > amax {
         return amax;
     } else {
         return a;
-    };
+    }
 }
 #[inline(always)]
 unsafe extern "C" fn av_clipf_c(
@@ -100,184 +100,160 @@ unsafe extern "C" fn av_clipf_c(
     mut amin: libc::c_float,
     mut amax: libc::c_float,
 ) -> libc::c_float {
-    return if (if a > amin { a } else { amin }) > amax {
+    if (if a > amin { a } else { amin }) > amax {
         amax
     } else if a > amin {
         a
     } else {
         amin
-    };
+    }
 }
 static mut psy_abr_map: [PsyLamePreset; 13] = [
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 8 as libc::c_int,
             st_lrm: 6.60f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 16 as libc::c_int,
             st_lrm: 6.60f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 24 as libc::c_int,
             st_lrm: 6.60f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 32 as libc::c_int,
             st_lrm: 6.60f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 40 as libc::c_int,
             st_lrm: 6.60f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 48 as libc::c_int,
             st_lrm: 6.60f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 56 as libc::c_int,
             st_lrm: 6.60f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 64 as libc::c_int,
             st_lrm: 6.40f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 80 as libc::c_int,
             st_lrm: 6.00f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 96 as libc::c_int,
             st_lrm: 5.60f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 112 as libc::c_int,
             st_lrm: 5.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 128 as libc::c_int,
             st_lrm: 5.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 160 as libc::c_int,
             st_lrm: 5.20f64 as libc::c_float,
-        };
-        init
+        }
     },
 ];
 static mut psy_vbr_map: [PsyLamePreset; 11] = [
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 0 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 1 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 2 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 3 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 4 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 5 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 6 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 7 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 8 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 9 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
     {
-        let mut init = PsyLamePreset {
+        PsyLamePreset {
             quality: 10 as libc::c_int,
             st_lrm: 4.20f64 as libc::c_float,
-        };
-        init
+        }
     },
 ];
 static mut psy_fir_coeffs: [libc::c_float; 10] = [
@@ -319,7 +295,7 @@ unsafe extern "C" fn lame_calc_attack_threshold(mut bitrate: libc::c_int) -> lib
     if upper_range_kbps - bitrate > bitrate - lower_range_kbps {
         return psy_abr_map[lower_range as usize].st_lrm;
     }
-    return psy_abr_map[upper_range as usize].st_lrm;
+    psy_abr_map[upper_range as usize].st_lrm
 }
 #[cold]
 unsafe extern "C" fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecContext) {
@@ -355,12 +331,12 @@ unsafe extern "C" fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *m
 }
 #[cold]
 unsafe extern "C" fn calc_bark(mut f: libc::c_float) -> libc::c_float {
-    return 13.3f32 * atanf(0.00076f32 * f) + 3.5f32 * atanf(f / 7500.0f32 * (f / 7500.0f32));
+    13.3f32 * atanf(0.00076f32 * f) + 3.5f32 * atanf(f / 7500.0f32 * (f / 7500.0f32))
 }
 #[cold]
 unsafe extern "C" fn ath(mut f: libc::c_float, mut add: libc::c_float) -> libc::c_float {
     f /= 1000.0f32;
-    return (3.64f64 * pow(f as libc::c_double, -0.8f64)
+    (3.64f64 * pow(f as libc::c_double, -0.8f64)
         - 6.8f64 * exp(-0.6f64 * (f as libc::c_double - 3.4f64) * (f as libc::c_double - 3.4f64))
         + 6.0f64 * exp(-0.15f64 * (f as libc::c_double - 8.7f64) * (f as libc::c_double - 8.7f64))
         + (0.6f64 + 0.04f64 * add as libc::c_double)
@@ -368,11 +344,11 @@ unsafe extern "C" fn ath(mut f: libc::c_float, mut add: libc::c_float) -> libc::
             * f as libc::c_double
             * f as libc::c_double
             * f as libc::c_double
-            * f as libc::c_double) as libc::c_float;
+            * f as libc::c_double) as libc::c_float
 }
 #[cold]
 unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
-    let mut pctx: *mut AacPsyContext = 0 as *mut AacPsyContext;
+    let mut pctx: *mut AacPsyContext = std::ptr::null_mut::<AacPsyContext>();
     let mut bark: libc::c_float = 0.;
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
@@ -419,24 +395,22 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                     / 4 as libc::c_int as libc::c_long
-        } else {
-            (if (*(*ctx).avctx).bit_rate
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                 / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            })
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
         }) > 12000 as libc::c_int as libc::c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
@@ -446,162 +420,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                     / 16 as libc::c_int as libc::c_long
-        } else {
-            (if (if (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            }) > 3000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 4 as libc::c_int as libc::c_long
-            {
-                3000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 4 as libc::c_int as libc::c_long
-            } else {
-                (if (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-                    > (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                {
-                    (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                } else {
-                    (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                })
-            })
-        }) > 22000 as libc::c_int as libc::c_long
-        {
-            22000 as libc::c_int as libc::c_long
-        } else {
-            (if (if (if (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            }) > 3000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 4 as libc::c_int as libc::c_long
-            {
-                3000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 4 as libc::c_int as libc::c_long
-            } else {
-                (if (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-                    > (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                {
-                    (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                } else {
-                    (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                })
-            }) > 12000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 16 as libc::c_int as libc::c_long
-            {
-                12000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 16 as libc::c_int as libc::c_long
-            } else {
-                (if (if (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-                    > (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                {
-                    (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                } else {
-                    (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                }) > 3000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 4 as libc::c_int as libc::c_long
-                {
-                    3000 as libc::c_int as libc::c_long
-                        + (*(*ctx).avctx).bit_rate
-                            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                            / 4 as libc::c_int as libc::c_long
-                } else {
-                    (if (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                        > (*(*ctx).avctx).bit_rate
-                            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                            * 15 as libc::c_int as libc::c_long
-                            / 32 as libc::c_int as libc::c_long
-                            - 5500 as libc::c_int as libc::c_long
-                    {
-                        (*(*ctx).avctx).bit_rate
-                            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                            / 5 as libc::c_int as libc::c_long
-                    } else {
-                        (*(*ctx).avctx).bit_rate
-                            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                            * 15 as libc::c_int as libc::c_long
-                            / 32 as libc::c_int as libc::c_long
-                            - 5500 as libc::c_int as libc::c_long
-                    })
-                })
-            })
-        }) > ((*(*ctx).avctx).sample_rate / 2 as libc::c_int) as libc::c_long
-        {
-            ((*(*ctx).avctx).sample_rate / 2 as libc::c_int) as libc::c_long
-        } else if (if (if (if (*(*ctx).avctx).bit_rate
+        } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
             / 5 as libc::c_int as libc::c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
@@ -626,79 +445,22 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                     / 4 as libc::c_int as libc::c_long
-        } else {
-            (if (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            })
-        }) > 12000 as libc::c_int as libc::c_long
-            + (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                / 16 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
         {
-            12000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 16 as libc::c_int as libc::c_long
-        } else {
-            (if (if (*(*ctx).avctx).bit_rate
+            (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                 / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            }) > 3000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 4 as libc::c_int as libc::c_long
-            {
-                3000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 4 as libc::c_int as libc::c_long
-            } else {
-                (if (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-                    > (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                {
-                    (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                } else {
-                    (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                })
-            })
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
         }) > 22000 as libc::c_int as libc::c_long
         {
             22000 as libc::c_int as libc::c_long
@@ -727,24 +489,210 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                     / 4 as libc::c_int as libc::c_long
-        } else {
-            (if (*(*ctx).avctx).bit_rate
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                 / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 12000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 16 as libc::c_int as libc::c_long
+        {
+            12000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            })
+                    / 16 as libc::c_int as libc::c_long
+        } else if (if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 3000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 4 as libc::c_int as libc::c_long
+        {
+            3000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 4 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > ((*(*ctx).avctx).sample_rate / 2 as libc::c_int) as libc::c_long
+        {
+            ((*(*ctx).avctx).sample_rate / 2 as libc::c_int) as libc::c_long
+        } else if (if (if (if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 3000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 4 as libc::c_int as libc::c_long
+        {
+            3000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 4 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 12000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 16 as libc::c_int as libc::c_long
+        {
+            12000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 16 as libc::c_int as libc::c_long
+        } else if (if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 3000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 4 as libc::c_int as libc::c_long
+        {
+            3000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 4 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 22000 as libc::c_int as libc::c_long
+        {
+            22000 as libc::c_int as libc::c_long
+        } else if (if (if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 3000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 4 as libc::c_int as libc::c_long
+        {
+            3000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 4 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
         }) > 12000 as libc::c_int as libc::c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
@@ -888,7 +836,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
                 (pe_min / *band_sizes.offset(g as isize) as libc::c_int as libc::c_float)
                     as libc::c_double,
             ) - 1.5f32 as libc::c_double) as libc::c_float;
-            (*coeff).min_snr = av_clipf_c(1.0f32 / minsnr, 3.1622776e-3f32, 7.9432821e-1f32);
+            (*coeff).min_snr = av_clipf_c(1.0f32 / minsnr, 3.1622776e-3f32, 7.943_282e-1_f32);
             g += 1;
             g;
         }
@@ -934,7 +882,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> libc::c_int {
         return -(12 as libc::c_int);
     }
     lame_window_init(pctx, (*ctx).avctx);
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 static mut window_grouping: [uint8_t; 9] = [
     0xb6 as libc::c_int as uint8_t,
@@ -962,15 +910,15 @@ unsafe extern "C" fn calc_bit_demand(
     let bitsave_add: libc::c_float = if short_window != 0 {
         -0.75f32
     } else {
-        -0.84285712f32
+        -0.842_857_1_f32
     };
     let bitspend_slope: libc::c_float = if short_window != 0 {
-        0.81818181f32
+        0.818_181_8_f32
     } else {
-        0.66666669f32
+        0.666_666_7_f32
     };
     let bitspend_add: libc::c_float = if short_window != 0 {
-        -0.26111111f32
+        -0.261_111_1_f32
     } else {
         -0.35f32
     };
@@ -1011,7 +959,7 @@ unsafe extern "C" fn calc_bit_demand(
     } else {
         pe
     };
-    return (if (*ctx).frame_bits as libc::c_float * bit_factor
+    (if (*ctx).frame_bits as libc::c_float * bit_factor
         > (if (*ctx).frame_bits + size - bits > (*ctx).frame_bits / 8 as libc::c_int {
             (*ctx).frame_bits + size - bits
         } else {
@@ -1025,7 +973,7 @@ unsafe extern "C" fn calc_bit_demand(
         }) as libc::c_float
     } else {
         (*ctx).frame_bits as libc::c_float * bit_factor
-    }) as libc::c_int;
+    }) as libc::c_int
 }
 unsafe extern "C" fn calc_pe_3gpp(mut band: *mut AacPsyBand) -> libc::c_float {
     let mut pe: libc::c_float = 0.;
@@ -1038,14 +986,14 @@ unsafe extern "C" fn calc_pe_3gpp(mut band: *mut AacPsyBand) -> libc::c_float {
         pe = a - log2f((*band).thr);
         (*band).active_lines = (*band).nz_lines;
         if pe < 3.0f32 {
-            pe = pe * 0.55935729f32 + 1.3219281f32;
-            a = a * 0.55935729f32 + 1.3219281f32;
-            (*band).active_lines *= 0.55935729f32;
+            pe = pe * 0.559_357_3_f32 + 1.3219281f32;
+            a = a * 0.559_357_3_f32 + 1.3219281f32;
+            (*band).active_lines *= 0.559_357_3_f32;
         }
         (*band).pe = pe * (*band).nz_lines;
         (*band).pe_const = a * (*band).nz_lines;
     }
-    return (*band).pe;
+    (*band).pe
 }
 unsafe extern "C" fn calc_reduction_3gpp(
     mut a: libc::c_float,
@@ -1060,11 +1008,11 @@ unsafe extern "C" fn calc_reduction_3gpp(
     }
     thr_avg = exp2f((a - pe) / (4.0f32 * active_lines));
     reduction = exp2f((a - desired_pe) / (4.0f32 * active_lines)) - thr_avg;
-    return if reduction > 0.0f32 {
+    if reduction > 0.0f32 {
         reduction
     } else {
         0.0f32
-    };
+    }
 }
 unsafe extern "C" fn calc_reduced_thr_3gpp(
     mut band: *mut AacPsyBand,
@@ -1087,7 +1035,7 @@ unsafe extern "C" fn calc_reduced_thr_3gpp(
             (*band).avoid_holes = PSY_3GPP_AH_ACTIVE as libc::c_int;
         }
     }
-    return thr;
+    thr
 }
 unsafe extern "C" fn calc_thr_3gpp(
     mut wi: *const FFPsyWindowInfo,
@@ -1366,24 +1314,22 @@ unsafe extern "C" fn psy_3gpp_analyze_channel(
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                     / 4 as libc::c_int as libc::c_long
-        } else {
-            (if (*(*ctx).avctx).bit_rate
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                 / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            })
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
         }) > 12000 as libc::c_int as libc::c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
@@ -1393,162 +1339,7 @@ unsafe extern "C" fn psy_3gpp_analyze_channel(
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                     / 16 as libc::c_int as libc::c_long
-        } else {
-            (if (if (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            }) > 3000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 4 as libc::c_int as libc::c_long
-            {
-                3000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 4 as libc::c_int as libc::c_long
-            } else {
-                (if (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-                    > (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                {
-                    (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                } else {
-                    (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                })
-            })
-        }) > 22000 as libc::c_int as libc::c_long
-        {
-            22000 as libc::c_int as libc::c_long
-        } else {
-            (if (if (if (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            }) > 3000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 4 as libc::c_int as libc::c_long
-            {
-                3000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 4 as libc::c_int as libc::c_long
-            } else {
-                (if (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-                    > (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                {
-                    (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                } else {
-                    (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                })
-            }) > 12000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 16 as libc::c_int as libc::c_long
-            {
-                12000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 16 as libc::c_int as libc::c_long
-            } else {
-                (if (if (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-                    > (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                {
-                    (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                } else {
-                    (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                }) > 3000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 4 as libc::c_int as libc::c_long
-                {
-                    3000 as libc::c_int as libc::c_long
-                        + (*(*ctx).avctx).bit_rate
-                            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                            / 4 as libc::c_int as libc::c_long
-                } else {
-                    (if (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                        > (*(*ctx).avctx).bit_rate
-                            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                            * 15 as libc::c_int as libc::c_long
-                            / 32 as libc::c_int as libc::c_long
-                            - 5500 as libc::c_int as libc::c_long
-                    {
-                        (*(*ctx).avctx).bit_rate
-                            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                            / 5 as libc::c_int as libc::c_long
-                    } else {
-                        (*(*ctx).avctx).bit_rate
-                            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                            * 15 as libc::c_int as libc::c_long
-                            / 32 as libc::c_int as libc::c_long
-                            - 5500 as libc::c_int as libc::c_long
-                    })
-                })
-            })
-        }) > ((*(*ctx).avctx).sample_rate / 2 as libc::c_int) as libc::c_long
-        {
-            ((*(*ctx).avctx).sample_rate / 2 as libc::c_int) as libc::c_long
-        } else if (if (if (if (*(*ctx).avctx).bit_rate
+        } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
             / 5 as libc::c_int as libc::c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
@@ -1573,79 +1364,22 @@ unsafe extern "C" fn psy_3gpp_analyze_channel(
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                     / 4 as libc::c_int as libc::c_long
-        } else {
-            (if (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            })
-        }) > 12000 as libc::c_int as libc::c_long
-            + (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                / 16 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
         {
-            12000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 16 as libc::c_int as libc::c_long
-        } else {
-            (if (if (*(*ctx).avctx).bit_rate
+            (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                 / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            }) > 3000 as libc::c_int as libc::c_long
-                + (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 4 as libc::c_int as libc::c_long
-            {
-                3000 as libc::c_int as libc::c_long
-                    + (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 4 as libc::c_int as libc::c_long
-            } else {
-                (if (*(*ctx).avctx).bit_rate
-                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-                    > (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                {
-                    (*(*ctx).avctx).bit_rate
-                        / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        / 5 as libc::c_int as libc::c_long
-                } else {
-                    (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                        * 15 as libc::c_int as libc::c_long
-                        / 32 as libc::c_int as libc::c_long
-                        - 5500 as libc::c_int as libc::c_long
-                })
-            })
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
         }) > 22000 as libc::c_int as libc::c_long
         {
             22000 as libc::c_int as libc::c_long
@@ -1674,24 +1408,210 @@ unsafe extern "C" fn psy_3gpp_analyze_channel(
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                     / 4 as libc::c_int as libc::c_long
-        } else {
-            (if (*(*ctx).avctx).bit_rate
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
                 / 5 as libc::c_int as libc::c_long
-                > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            {
-                (*(*ctx).avctx).bit_rate
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 12000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 16 as libc::c_int as libc::c_long
+        {
+            12000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    / 5 as libc::c_int as libc::c_long
-            } else {
-                (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
-                    * 15 as libc::c_int as libc::c_long
-                    / 32 as libc::c_int as libc::c_long
-                    - 5500 as libc::c_int as libc::c_long
-            })
+                    / 16 as libc::c_int as libc::c_long
+        } else if (if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 3000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 4 as libc::c_int as libc::c_long
+        {
+            3000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 4 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > ((*(*ctx).avctx).sample_rate / 2 as libc::c_int) as libc::c_long
+        {
+            ((*(*ctx).avctx).sample_rate / 2 as libc::c_int) as libc::c_long
+        } else if (if (if (if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 3000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 4 as libc::c_int as libc::c_long
+        {
+            3000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 4 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 12000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 16 as libc::c_int as libc::c_long
+        {
+            12000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 16 as libc::c_int as libc::c_long
+        } else if (if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 3000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 4 as libc::c_int as libc::c_long
+        {
+            3000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 4 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 22000 as libc::c_int as libc::c_long
+        {
+            22000 as libc::c_int as libc::c_long
+        } else if (if (if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        }) > 3000 as libc::c_int as libc::c_long
+            + (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 4 as libc::c_int as libc::c_long
+        {
+            3000 as libc::c_int as libc::c_long
+                + (*(*ctx).avctx).bit_rate
+                    / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                    / 4 as libc::c_int as libc::c_long
+        } else if (*(*ctx).avctx).bit_rate
+            / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+            / 5 as libc::c_int as libc::c_long
+            > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
+        {
+            (*(*ctx).avctx).bit_rate
+                / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                / 5 as libc::c_int as libc::c_long
+        } else {
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
+                * 15 as libc::c_int as libc::c_long
+                / 32 as libc::c_int as libc::c_long
+                - 5500 as libc::c_int as libc::c_long
         }) > 12000 as libc::c_int as libc::c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as libc::c_long
@@ -2020,7 +1940,7 @@ unsafe extern "C" fn psy_3gpp_analyze_channel(
             g = num_bands;
             while pe > desired_pe && {
                 let fresh0 = g;
-                g = g - 1;
+                g -= 1;
                 fresh0 != 0
             } {
                 w = 0 as libc::c_int;
@@ -2029,10 +1949,10 @@ unsafe extern "C" fn psy_3gpp_analyze_channel(
                         &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize)
                             as *mut AacPsyBand;
                     if (*band_4).avoid_holes != PSY_3GPP_AH_NONE as libc::c_int
-                        && (*coeffs.offset(g as isize)).min_snr < 7.9432821e-1f32
+                        && (*coeffs.offset(g as isize)).min_snr < 7.943_282e-1_f32
                     {
-                        (*coeffs.offset(g as isize)).min_snr = 7.9432821e-1f32;
-                        (*band_4).thr = (*band_4).energy * 7.9432821e-1f32;
+                        (*coeffs.offset(g as isize)).min_snr = 7.943_282e-1_f32;
+                        (*band_4).thr = (*band_4).energy * 7.943_282e-1_f32;
                         pe += (*band_4).active_lines * 1.5f32 - (*band_4).pe;
                     }
                     w += 16 as libc::c_int;
@@ -2121,7 +2041,7 @@ unsafe extern "C" fn lame_apply_block_type(
 }
 unsafe extern "C" fn psy_lame_window(
     mut ctx: *mut FFPsyContext,
-    mut audio: *const libc::c_float,
+    mut _audio: *const libc::c_float,
     mut la: *const libc::c_float,
     mut channel: libc::c_int,
     mut prev_type: libc::c_int,
@@ -2134,15 +2054,14 @@ unsafe extern "C" fn psy_lame_window(
     let mut attacks: [libc::c_int; 9] = [0 as libc::c_int, 0, 0, 0, 0, 0, 0, 0, 0];
     let mut i: libc::c_int = 0;
     let mut wi: FFPsyWindowInfo = {
-        let mut init = FFPsyWindowInfo {
+        FFPsyWindowInfo {
             window_type: [0 as libc::c_int, 0, 0],
             window_shape: 0,
             num_windows: 0,
             grouping: [0; 8],
             clipping: [0.; 8],
-            window_sizes: 0 as *mut libc::c_int,
-        };
-        init
+            window_sizes: std::ptr::null_mut::<libc::c_int>(),
+        }
     };
     if !la.is_null() {
         let mut hpfsmpl: [libc::c_float; 1024] = [0.; 1024];
@@ -2191,7 +2110,7 @@ unsafe extern "C" fn psy_lame_window(
                 energy_subshort[(i + 3 as libc::c_int) as usize];
             energy_short[(1 as libc::c_int + i / 3 as libc::c_int) as usize] += p;
             if p > energy_subshort[(i + 1 as libc::c_int) as usize] {
-                p = p / energy_subshort[(i + 1 as libc::c_int) as usize];
+                p /= energy_subshort[(i + 1 as libc::c_int) as usize];
             } else if energy_subshort[(i + 1 as libc::c_int) as usize] > p * 10.0f32 {
                 p = energy_subshort[(i + 1 as libc::c_int) as usize] / (p * 10.0f32);
             } else {
@@ -2203,11 +2122,10 @@ unsafe extern "C" fn psy_lame_window(
         }
         i = 0 as libc::c_int;
         while i < (8 as libc::c_int + 1 as libc::c_int) * 3 as libc::c_int {
-            if attacks[(i / 3 as libc::c_int) as usize] == 0 {
-                if attack_intensity[i as usize] > (*pch).attack_threshold {
-                    attacks[(i / 3 as libc::c_int) as usize] =
-                        i % 3 as libc::c_int + 1 as libc::c_int;
-                }
+            if attacks[(i / 3 as libc::c_int) as usize] == 0
+                && attack_intensity[i as usize] > (*pch).attack_threshold
+            {
+                attacks[(i / 3 as libc::c_int) as usize] = i % 3 as libc::c_int + 1 as libc::c_int;
             }
             i += 1;
             i;
@@ -2217,15 +2135,12 @@ unsafe extern "C" fn psy_lame_window(
             let u: libc::c_float = energy_short[(i - 1 as libc::c_int) as usize];
             let v: libc::c_float = energy_short[i as usize];
             let m: libc::c_float = if u > v { u } else { v };
-            if m < 40000 as libc::c_int as libc::c_float {
-                if u < 1.7f32 * v && v < 1.7f32 * u {
-                    if i == 1 as libc::c_int
-                        && attacks[0 as libc::c_int as usize] < attacks[i as usize]
-                    {
-                        attacks[0 as libc::c_int as usize] = 0 as libc::c_int;
-                    }
-                    attacks[i as usize] = 0 as libc::c_int;
+            if m < 40000 as libc::c_int as libc::c_float && u < 1.7f32 * v && v < 1.7f32 * u {
+                if i == 1 as libc::c_int && attacks[0 as libc::c_int as usize] < attacks[i as usize]
+                {
+                    attacks[0 as libc::c_int as usize] = 0 as libc::c_int;
                 }
+                attacks[i as usize] = 0 as libc::c_int;
             }
             att_sum += attacks[i as usize];
             i += 1;
@@ -2286,12 +2201,12 @@ unsafe extern "C" fn psy_lame_window(
     }
     (*pch).next_grouping = window_grouping[grouping as usize];
     (*pch).prev_attack = attacks[8 as libc::c_int as usize];
-    return wi;
+    wi
 }
 #[no_mangle]
 pub static mut ff_aac_psy_model: FFPsyModel = unsafe {
     {
-        let mut init = FFPsyModel {
+        FFPsyModel {
             name: b"3GPP TS 26.403-inspired model\0" as *const u8 as *const libc::c_char,
             init: Some(psy_3gpp_init as unsafe extern "C" fn(*mut FFPsyContext) -> libc::c_int),
             window: Some(
@@ -2314,7 +2229,6 @@ pub static mut ff_aac_psy_model: FFPsyModel = unsafe {
                     ) -> (),
             ),
             end: Some(psy_3gpp_end as unsafe extern "C" fn(*mut FFPsyContext) -> ()),
-        };
-        init
+        }
     }
 };

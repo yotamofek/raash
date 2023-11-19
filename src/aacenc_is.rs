@@ -15,7 +15,7 @@ use crate::types::*;
 
 #[inline]
 unsafe extern "C" fn pos_pow34(mut a: libc::c_float) -> libc::c_float {
-    return sqrtf(a * sqrtf(a));
+    sqrtf(a * sqrtf(a))
 }
 #[inline]
 unsafe extern "C" fn find_max_val(
@@ -41,7 +41,7 @@ unsafe extern "C" fn find_max_val(
         w2 += 1;
         w2;
     }
-    return maxval;
+    maxval
 }
 #[inline]
 unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_int) -> libc::c_int {
@@ -58,7 +58,7 @@ unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_in
     } else {
         cb = aac_maxval_cb[qmaxval as usize] as libc::c_int;
     }
-    return cb;
+    cb
 }
 #[inline]
 unsafe extern "C" fn ff_init_nextband_map(
@@ -82,7 +82,7 @@ unsafe extern "C" fn ff_init_nextband_map(
                 && ((*sce).band_type[(w * 16 as libc::c_int + g) as usize] as libc::c_uint)
                     < RESERVED_BT as libc::c_int as libc::c_uint
             {
-                let ref mut fresh0 = *nextband.offset(prevband as isize);
+                let fresh0 = &mut (*nextband.offset(prevband as isize));
                 *fresh0 = (w * 16 as libc::c_int + g) as uint8_t;
                 prevband = *fresh0;
             }
@@ -100,10 +100,10 @@ unsafe extern "C" fn ff_sfdelta_can_remove_band(
     mut prev_sf: libc::c_int,
     mut band: libc::c_int,
 ) -> libc::c_int {
-    return (prev_sf >= 0 as libc::c_int
+    (prev_sf >= 0 as libc::c_int
         && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= prev_sf - 60 as libc::c_int
         && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= prev_sf + 60 as libc::c_int)
-        as libc::c_int;
+        as libc::c_int
 }
 #[inline]
 unsafe extern "C" fn quantize_band_cost(
@@ -118,11 +118,11 @@ unsafe extern "C" fn quantize_band_cost(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return ff_quantize_and_encode_band_cost(
+    ff_quantize_and_encode_band_cost(
         s,
-        0 as *mut PutBitContext,
+        std::ptr::null_mut::<PutBitContext>(),
         in_0,
-        0 as *mut libc::c_float,
+        std::ptr::null_mut::<libc::c_float>(),
         scaled,
         size,
         scale_idx,
@@ -131,7 +131,7 @@ unsafe extern "C" fn quantize_band_cost(
         uplim,
         bits,
         energy,
-    );
+    )
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_aac_is_encoding_err(
@@ -183,15 +183,15 @@ pub unsafe extern "C" fn ff_aac_is_encoding_err(
     let mut dist1: libc::c_float = 0.0f32;
     let mut dist2: libc::c_float = 0.0f32;
     let mut is_error: AACISError = {
-        let mut init = AACISError {
+        
+        AACISError {
             pass: 0 as libc::c_int,
             phase: 0,
             error: 0.,
             dist1: 0.,
             dist2: 0.,
             ener01: 0.,
-        };
-        init
+        }
     };
     if ener01 <= 0 as libc::c_int as libc::c_float || ener0 <= 0 as libc::c_int as libc::c_float {
         is_error.pass = 0 as libc::c_int;
@@ -266,8 +266,8 @@ pub unsafe extern "C" fn ff_aac_is_encoding_err(
             (*sce0).band_type[(w * 16 as libc::c_int + g) as usize] as libc::c_int,
             (*s).lambda / (*band0).threshold,
             ::core::f32::INFINITY,
-            0 as *mut libc::c_int,
-            0 as *mut libc::c_float,
+            std::ptr::null_mut::<libc::c_int>(),
+            std::ptr::null_mut::<libc::c_float>(),
         );
         dist1 += quantize_band_cost(
             s,
@@ -278,8 +278,8 @@ pub unsafe extern "C" fn ff_aac_is_encoding_err(
             (*sce1).band_type[(w * 16 as libc::c_int + g) as usize] as libc::c_int,
             (*s).lambda / (*band1).threshold,
             ::core::f32::INFINITY,
-            0 as *mut libc::c_int,
-            0 as *mut libc::c_float,
+            std::ptr::null_mut::<libc::c_int>(),
+            std::ptr::null_mut::<libc::c_float>(),
         );
         dist2 += quantize_band_cost(
             s,
@@ -290,8 +290,8 @@ pub unsafe extern "C" fn ff_aac_is_encoding_err(
             is_band_type,
             (*s).lambda / minthr,
             ::core::f32::INFINITY,
-            0 as *mut libc::c_int,
-            0 as *mut libc::c_float,
+            std::ptr::null_mut::<libc::c_int>(),
+            std::ptr::null_mut::<libc::c_float>(),
         );
         i = 0 as libc::c_int;
         while i < *((*sce0).ics.swb_sizes).offset(g as isize) as libc::c_int {
@@ -313,7 +313,7 @@ pub unsafe extern "C" fn ff_aac_is_encoding_err(
     is_error.dist1 = dist1;
     is_error.dist2 = dist2;
     is_error.ener01 = ener01;
-    return is_error;
+    is_error
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_aac_search_for_is(
@@ -388,7 +388,7 @@ pub unsafe extern "C" fn ff_aac_search_for_is(
                     dist2: 0.,
                     ener01: 0.,
                 };
-                let mut best: *mut AACISError = 0 as *mut AACISError;
+                let mut best: *mut AACISError = std::ptr::null_mut::<AACISError>();
                 w2 = 0 as libc::c_int;
                 while w2 < (*sce0).ics.group_len[w as usize] as libc::c_int {
                     i = 0 as libc::c_int;

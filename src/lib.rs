@@ -1,5 +1,14 @@
 #![feature(extern_types)]
-#![allow(clippy::eq_op, clippy::precedence)]
+#![allow(
+    clippy::eq_op,
+    clippy::precedence,
+    clippy::nonminimal_bool,
+    clippy::no_effect,
+    path_statements,
+    clippy::unnecessary_mut_passed
+)]
+#![warn(clippy::approx_constant)]
+#![deny(dead_code)]
 
 mod aaccoder;
 mod aacenc;

@@ -1,7 +1,7 @@
 use crate::{common::*, types::*};
 use ::libc;
 
-unsafe fn update_lls(mut m: *mut LLSModel, mut var: *const libc::c_double) {
+unsafe fn update_lls(m: *mut LLSModel, var: *const libc::c_double) {
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
     i = 0 as libc::c_int;
@@ -19,30 +19,30 @@ unsafe fn update_lls(mut m: *mut LLSModel, mut var: *const libc::c_double) {
 }
 
 pub(crate) unsafe fn avpriv_solve_lls(
-    mut m: *mut LLSModel,
-    mut threshold: libc::c_double,
-    mut min_order: libc::c_ushort,
+    m: *mut LLSModel,
+    threshold: libc::c_double,
+    min_order: libc::c_ushort,
 ) {
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
     let mut k: libc::c_int = 0;
-    let mut factor: *mut [libc::c_double; 36] = &mut *(*((*m).covariance)
+    let factor: *mut [libc::c_double; 36] = &mut *(*((*m).covariance)
         .as_mut_ptr()
         .offset(1 as libc::c_int as isize))
     .as_mut_ptr()
     .offset(0 as libc::c_int as isize)
         as *mut libc::c_double as *mut libc::c_void
         as *mut [libc::c_double; 36];
-    let mut covar: *mut [libc::c_double; 36] = &mut *(*((*m).covariance)
+    let covar: *mut [libc::c_double; 36] = &mut *(*((*m).covariance)
         .as_mut_ptr()
         .offset(1 as libc::c_int as isize))
     .as_mut_ptr()
     .offset(1 as libc::c_int as isize)
         as *mut libc::c_double as *mut libc::c_void
         as *mut [libc::c_double; 36];
-    let mut covar_y: *mut libc::c_double =
+    let covar_y: *mut libc::c_double =
         ((*m).covariance[0 as libc::c_int as usize]).as_mut_ptr();
-    let mut count: libc::c_int = (*m).indep_count;
+    let count: libc::c_int = (*m).indep_count;
     i = 0 as libc::c_int;
     while i < count {
         j = i;
@@ -125,9 +125,9 @@ pub(crate) unsafe fn avpriv_solve_lls(
     }
 }
 unsafe extern "C" fn evaluate_lls(
-    mut m: *mut LLSModel,
-    mut param: *const libc::c_double,
-    mut order: libc::c_int,
+    m: *mut LLSModel,
+    param: *const libc::c_double,
+    order: libc::c_int,
 ) -> libc::c_double {
     let mut i: libc::c_int = 0;
     let mut out: libc::c_double = 0 as libc::c_int as libc::c_double;
@@ -137,10 +137,10 @@ unsafe extern "C" fn evaluate_lls(
         i += 1;
         i;
     }
-    return out;
+    out
 }
 
-pub(crate) unsafe fn avpriv_init_lls(mut m: *mut LLSModel, mut indep_count: libc::c_int) {
+pub(crate) unsafe fn avpriv_init_lls(m: *mut LLSModel, indep_count: libc::c_int) {
     (*m) = LLSModel::default();
     (*m).indep_count = indep_count;
     (*m).update_lls = Some(update_lls);

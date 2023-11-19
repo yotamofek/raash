@@ -22,20 +22,20 @@ unsafe extern "C" fn av_clip_c(
     mut amax: libc::c_int,
 ) -> libc::c_int {
     if a < amin {
-        return amin;
+        amin
     } else if a > amax {
         return amax;
     } else {
         return a;
-    };
+    }
 }
 #[inline(always)]
 unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
-    return (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
+    (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
         | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
         << 16 as libc::c_int
         | ((x >> 16 as libc::c_int) << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
-            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint);
+            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
 }
 static mut BUF_BITS: libc::c_int = 0;
 #[inline]
@@ -88,7 +88,7 @@ unsafe extern "C" fn find_min_book(mut maxval: libc::c_float, mut sf: libc::c_in
     } else {
         cb = aac_maxval_cb[qmaxval as usize] as libc::c_int;
     }
-    return cb;
+    cb
 }
 #[inline]
 unsafe extern "C" fn find_max_val(
@@ -114,7 +114,7 @@ unsafe extern "C" fn find_max_val(
         w2 += 1;
         w2;
     }
-    return maxval;
+    maxval
 }
 static mut aac_maxval_cb: [libc::c_uchar; 14] = [
     0 as libc::c_int as libc::c_uchar,
@@ -142,7 +142,7 @@ unsafe extern "C" fn flt16_round(mut pf: libc::c_float) -> libc::c_float {
     let mut tmp: av_intfloat32 = av_intfloat32 { i: 0 };
     tmp.f = pf;
     tmp.i = (tmp.i).wrapping_add(0x8000 as libc::c_uint) & 0xffff0000 as libc::c_uint;
-    return tmp.f;
+    tmp.f
 }
 #[inline]
 unsafe extern "C" fn flt16_even(mut pf: libc::c_float) -> libc::c_float {
@@ -152,14 +152,14 @@ unsafe extern "C" fn flt16_even(mut pf: libc::c_float) -> libc::c_float {
         .wrapping_add(0x7fff as libc::c_uint)
         .wrapping_add(tmp.i & 0x10000 as libc::c_uint >> 16 as libc::c_int)
         & 0xffff0000 as libc::c_uint;
-    return tmp.f;
+    tmp.f
 }
 #[inline]
 unsafe extern "C" fn flt16_trunc(mut pf: libc::c_float) -> libc::c_float {
     let mut pun: av_intfloat32 = av_intfloat32 { i: 0 };
     pun.f = pf;
     pun.i &= 0xffff0000 as libc::c_uint;
-    return pun.f;
+    pun.f
 }
 #[inline]
 unsafe extern "C" fn predict(
@@ -299,7 +299,7 @@ unsafe extern "C" fn update_counters(
         i += 1;
         i;
     }
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_aac_adjust_common_pred(
@@ -376,7 +376,7 @@ pub unsafe extern "C" fn ff_aac_adjust_common_pred(
                 dist2: 0.,
                 ener01: 0.,
             };
-            let mut erf: *mut AACISError = 0 as *mut AACISError;
+            let mut erf: *mut AACISError = std::ptr::null_mut::<AACISError>();
             if sfb < 10 as libc::c_int || sfb > pmax || sum != 2 as libc::c_int {
                 if (*sce0).ics.prediction_used[sfb as usize] != 0 {
                     (*sce0).ics.prediction_used[sfb as usize] = 0 as libc::c_int as uint8_t;
@@ -591,9 +591,9 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
             );
             dist1 = ff_quantize_and_encode_band_cost(
                 s,
-                0 as *mut PutBitContext,
+                std::ptr::null_mut::<PutBitContext>(),
                 &mut *((*sce).coeffs).as_mut_ptr().offset(start_coef as isize),
-                0 as *mut libc::c_float,
+                std::ptr::null_mut::<libc::c_float>(),
                 O34,
                 num_coeffs,
                 (*sce).sf_idx[sfb as usize],
@@ -601,7 +601,7 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
                 (*s).lambda / (*band).threshold,
                 ::core::f32::INFINITY,
                 &mut cost1,
-                0 as *mut libc::c_float,
+                std::ptr::null_mut::<libc::c_float>(),
             );
             cost_coeffs += cost1;
             i = 0 as libc::c_int;
@@ -626,7 +626,7 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
             }
             ff_quantize_and_encode_band_cost(
                 s,
-                0 as *mut PutBitContext,
+                std::ptr::null_mut::<PutBitContext>(),
                 SENT,
                 QERR,
                 S34,
@@ -636,7 +636,7 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
                 (*s).lambda / (*band).threshold,
                 ::core::f32::INFINITY,
                 &mut cost2,
-                0 as *mut libc::c_float,
+                std::ptr::null_mut::<libc::c_float>(),
             );
             i = 0 as libc::c_int;
             while i < num_coeffs {
@@ -668,17 +668,17 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
             }
             dist2 = ff_quantize_and_encode_band_cost(
                 s,
-                0 as *mut PutBitContext,
+                std::ptr::null_mut::<PutBitContext>(),
                 &mut *((*sce).prcoeffs).as_mut_ptr().offset(start_coef as isize),
-                0 as *mut libc::c_float,
+                std::ptr::null_mut::<libc::c_float>(),
                 P34,
                 num_coeffs,
                 (*sce).sf_idx[sfb as usize],
                 cb_p,
                 (*s).lambda / (*band).threshold,
                 ::core::f32::INFINITY,
-                0 as *mut libc::c_int,
-                0 as *mut libc::c_float,
+                std::ptr::null_mut::<libc::c_int>(),
+                std::ptr::null_mut::<libc::c_float>(),
             );
             i = 0 as libc::c_int;
             while i < num_coeffs {

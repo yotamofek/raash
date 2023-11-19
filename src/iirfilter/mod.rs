@@ -3,24 +3,24 @@ use std::alloc::{alloc, alloc_zeroed, Layout};
 use crate::{common::*, types::*};
 
 #[inline(always)]
-unsafe fn av_clip_int16_c(mut a: libc::c_int) -> int16_t {
+unsafe fn av_clip_int16_c(a: libc::c_int) -> int16_t {
     if (a as libc::c_uint).wrapping_add(0x8000 as libc::c_uint)
         & !(0xffff as libc::c_int) as libc::c_uint
         != 0
     {
-        return (a >> 31 as libc::c_int ^ 0x7fff as libc::c_int) as int16_t;
+        (a >> 31 as libc::c_int ^ 0x7fff as libc::c_int) as int16_t
     } else {
-        return a as int16_t;
-    };
+        a as int16_t
+    }
 }
 #[cold]
 unsafe fn butterworth_init_coeffs(
-    mut avc: *mut libc::c_void,
-    mut c: *mut FFIIRFilterCoeffs,
-    mut filt_mode: IIRFilterMode,
-    mut order: libc::c_int,
-    mut cutoff_ratio: libc::c_float,
-    mut stopband: libc::c_float,
+    _avc: *mut libc::c_void,
+    c: *mut FFIIRFilterCoeffs,
+    filt_mode: IIRFilterMode,
+    order: libc::c_int,
+    cutoff_ratio: libc::c_float,
+    _stopband: libc::c_float,
 ) -> libc::c_int {
     let mut i: libc::c_int = 0;
     let mut j: libc::c_int = 0;
@@ -36,7 +36,7 @@ unsafe fn butterworth_init_coeffs(
         "Butterworth filter currently only supports even filter orders"
     );
     wa = 2 as libc::c_int as libc::c_double
-        * tan(3.14159265358979323846f64 * 0.5f64 * cutoff_ratio as libc::c_double);
+        * tan(3.141_592_653_589_793_f64 * 0.5f64 * cutoff_ratio as libc::c_double);
     *((*c).cx).offset(0 as libc::c_int as isize) = 1 as libc::c_int;
     i = 1 as libc::c_int;
     while i < (order >> 1 as libc::c_int) + 1 as libc::c_int {
@@ -59,8 +59,8 @@ unsafe fn butterworth_init_coeffs(
     i = 0 as libc::c_int;
     while i < order {
         let mut zp: [libc::c_double; 2] = [0.; 2];
-        let mut th: libc::c_double = ((i + (order >> 1 as libc::c_int)) as libc::c_double + 0.5f64)
-            * 3.14159265358979323846f64
+        let th: libc::c_double = ((i + (order >> 1 as libc::c_int)) as libc::c_double + 0.5f64)
+            * 3.141_592_653_589_793_f64
             / order as libc::c_double;
         let mut a_re: libc::c_double = 0.;
         let mut a_im: libc::c_double = 0.;
@@ -117,16 +117,16 @@ unsafe fn butterworth_init_coeffs(
         i;
     }
     (*c).gain /= ((1 as libc::c_int) << order) as libc::c_float;
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 #[cold]
 unsafe fn biquad_init_coeffs(
-    mut avc: *mut libc::c_void,
-    mut c: *mut FFIIRFilterCoeffs,
-    mut filt_mode: IIRFilterMode,
-    mut order: libc::c_int,
-    mut cutoff_ratio: libc::c_float,
-    mut stopband: libc::c_float,
+    _avc: *mut libc::c_void,
+    c: *mut FFIIRFilterCoeffs,
+    filt_mode: IIRFilterMode,
+    order: libc::c_int,
+    cutoff_ratio: libc::c_float,
+    _stopband: libc::c_float,
 ) -> libc::c_int {
     let mut cos_w0: libc::c_double = 0.;
     let mut sin_w0: libc::c_double = 0.;
@@ -138,8 +138,8 @@ unsafe fn biquad_init_coeffs(
         "Biquad filter currently only supports high-pass and low-pass filter modes"
     );
     assert_eq!(order, 2, "Biquad filter must have order of 2");
-    cos_w0 = cos(3.14159265358979323846f64 * cutoff_ratio as libc::c_double);
-    sin_w0 = sin(3.14159265358979323846f64 * cutoff_ratio as libc::c_double);
+    cos_w0 = cos(3.141_592_653_589_793_f64 * cutoff_ratio as libc::c_double);
+    sin_w0 = sin(3.141_592_653_589_793_f64 * cutoff_ratio as libc::c_double);
     a0 = 1.0f64 + sin_w0 / 2.0f64;
     if filt_mode as libc::c_uint == FF_FILTER_MODE_HIGHPASS as libc::c_int as libc::c_uint {
         (*c).gain = ((1.0f64 + cos_w0) / 2.0f64 / a0) as libc::c_float;
@@ -157,27 +157,27 @@ unsafe fn biquad_init_coeffs(
         lrintf((x0 / (*c).gain as libc::c_double) as libc::c_float) as libc::c_int;
     *((*c).cx).offset(1 as libc::c_int as isize) =
         lrintf((x1 / (*c).gain as libc::c_double) as libc::c_float) as libc::c_int;
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 
 #[cold]
 pub(crate) unsafe fn ff_iir_filter_init_coeffs(
-    mut avc: *mut libc::c_void,
-    mut filt_type: IIRFilterType,
-    mut filt_mode: IIRFilterMode,
-    mut order: libc::c_int,
-    mut cutoff_ratio: libc::c_float,
-    mut stopband: libc::c_float,
-    mut ripple: libc::c_float,
+    avc: *mut libc::c_void,
+    filt_type: IIRFilterType,
+    filt_mode: IIRFilterMode,
+    order: libc::c_int,
+    cutoff_ratio: libc::c_float,
+    stopband: libc::c_float,
+    _ripple: libc::c_float,
 ) -> *mut FFIIRFilterCoeffs {
-    let mut current_block: u64;
-    let mut c: *mut FFIIRFilterCoeffs = 0 as *mut FFIIRFilterCoeffs;
+    let current_block: u64;
+    let mut c: *mut FFIIRFilterCoeffs = std::ptr::null_mut::<FFIIRFilterCoeffs>();
     let mut ret: libc::c_int = 0 as libc::c_int;
     if order <= 0 as libc::c_int
         || order > 30 as libc::c_int
         || cutoff_ratio as libc::c_double >= 1.0f64
     {
-        return 0 as *mut FFIIRFilterCoeffs;
+        return std::ptr::null_mut::<FFIIRFilterCoeffs>();
     }
     c = alloc_zeroed(Layout::new::<FFIIRFilterCoeffs>()).cast();
     if !(c.is_null()
@@ -221,13 +221,13 @@ pub(crate) unsafe fn ff_iir_filter_init_coeffs(
         }
     }
     ff_iir_filter_free_coeffsp(&mut c);
-    return 0 as *mut FFIIRFilterCoeffs;
+    std::ptr::null_mut::<FFIIRFilterCoeffs>()
 }
 #[no_mangle]
 #[cold]
-pub unsafe extern "C" fn ff_iir_filter_init_state(mut order: libc::c_int) -> *mut FFIIRFilterState {
+pub unsafe extern "C" fn ff_iir_filter_init_state(order: libc::c_int) -> *mut FFIIRFilterState {
     // TODO: is this correct?
-    let mut s: *mut FFIIRFilterState =
+    let s: *mut FFIIRFilterState =
         alloc_zeroed(Layout::array::<libc::c_float>(order as usize).unwrap()).cast();
     // let mut s: *mut FFIIRFilterState = av_mallocz(
     //     (::core::mem::size_of::<FFIIRFilterState>() as libc::c_ulong).wrapping_add(
@@ -235,17 +235,17 @@ pub unsafe extern "C" fn ff_iir_filter_init_state(mut order: libc::c_int) -> *mu
     //             .wrapping_mul((order - 1 as libc::c_int) as libc::c_ulong),
     //     ),
     // ) as *mut FFIIRFilterState;
-    return s;
+    s
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_iir_filter(
-    mut c: *const FFIIRFilterCoeffs,
-    mut s: *mut FFIIRFilterState,
-    mut size: libc::c_int,
-    mut src: *const int16_t,
-    mut sstep: ptrdiff_t,
-    mut dst: *mut int16_t,
-    mut dstep: ptrdiff_t,
+    c: *const FFIIRFilterCoeffs,
+    s: *mut FFIIRFilterState,
+    size: libc::c_int,
+    src: *const int16_t,
+    sstep: ptrdiff_t,
+    dst: *mut int16_t,
+    dstep: ptrdiff_t,
 ) {
     if (*c).order == 2 as libc::c_int {
         let mut i: libc::c_int = 0;
@@ -253,7 +253,7 @@ pub unsafe extern "C" fn ff_iir_filter(
         let mut dst0: *mut int16_t = dst;
         i = 0 as libc::c_int;
         while i < size {
-            let mut in_0: libc::c_float = *src0 as libc::c_int as libc::c_float * (*c).gain
+            let in_0: libc::c_float = *src0 as libc::c_int as libc::c_float * (*c).gain
                 + *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
                     * *((*c).cy).offset(0 as libc::c_int as isize)
                 + *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
@@ -412,13 +412,13 @@ pub unsafe extern "C" fn ff_iir_filter(
     };
 }
 unsafe extern "C" fn iir_filter_flt(
-    mut c: *const FFIIRFilterCoeffs,
-    mut s: *mut FFIIRFilterState,
-    mut size: libc::c_int,
-    mut src: *const libc::c_float,
-    mut sstep: ptrdiff_t,
-    mut dst: *mut libc::c_float,
-    mut dstep: ptrdiff_t,
+    c: *const FFIIRFilterCoeffs,
+    s: *mut FFIIRFilterState,
+    size: libc::c_int,
+    src: *const libc::c_float,
+    sstep: ptrdiff_t,
+    dst: *mut libc::c_float,
+    dstep: ptrdiff_t,
 ) {
     if (*c).order == 2 as libc::c_int {
         let mut i: libc::c_int = 0;
@@ -426,7 +426,7 @@ unsafe extern "C" fn iir_filter_flt(
         let mut dst0: *mut libc::c_float = dst;
         i = 0 as libc::c_int;
         while i < size {
-            let mut in_0: libc::c_float = *src0 * (*c).gain
+            let in_0: libc::c_float = *src0 * (*c).gain
                 + *((*s).x).as_mut_ptr().offset(0 as libc::c_int as isize)
                     * *((*c).cy).offset(0 as libc::c_int as isize)
                 + *((*s).x).as_mut_ptr().offset(1 as libc::c_int as isize)
@@ -584,15 +584,15 @@ unsafe extern "C" fn iir_filter_flt(
 }
 #[no_mangle]
 #[cold]
-pub unsafe extern "C" fn ff_iir_filter_free_statep(mut state: *mut *mut FFIIRFilterState) {
+pub unsafe extern "C" fn ff_iir_filter_free_statep(_state: *mut *mut FFIIRFilterState) {
     // TODO: leaks 🚿
 
     // av_freep(state as *mut libc::c_void);
 }
 #[no_mangle]
 #[cold]
-pub unsafe extern "C" fn ff_iir_filter_free_coeffsp(mut coeffsp: *mut *mut FFIIRFilterCoeffs) {
-    let mut coeffs: *mut FFIIRFilterCoeffs = *coeffsp;
+pub unsafe extern "C" fn ff_iir_filter_free_coeffsp(coeffsp: *mut *mut FFIIRFilterCoeffs) {
+    let coeffs: *mut FFIIRFilterCoeffs = *coeffsp;
     // TODO: leaks 🚿
     if !coeffs.is_null() {
         // av_freep(&mut (*coeffs).cx as *mut *mut libc::c_int as *mut libc::c_void);
@@ -601,7 +601,7 @@ pub unsafe extern "C" fn ff_iir_filter_free_coeffsp(mut coeffsp: *mut *mut FFIIR
     // av_freep(coeffsp as *mut libc::c_void);
 }
 #[no_mangle]
-pub unsafe extern "C" fn ff_iir_filter_init(mut f: *mut FFIIRFilterContext) {
+pub unsafe extern "C" fn ff_iir_filter_init(f: *mut FFIIRFilterContext) {
     (*f).filter_flt = Some(
         iir_filter_flt
             as unsafe extern "C" fn(

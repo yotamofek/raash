@@ -21,7 +21,7 @@ extern "C" {
     fn av_free(ptr: *mut libc::c_void);
 }
 #[inline(always)]
-unsafe fn ff_ctz_c(mut v: libc::c_int) -> libc::c_int {
+unsafe fn ff_ctz_c(v: libc::c_int) -> libc::c_int {
     static mut debruijn_ctz32: [uint8_t; 32] = [
         0 as libc::c_int as uint8_t,
         1 as libc::c_int as uint8_t,
@@ -56,11 +56,11 @@ unsafe fn ff_ctz_c(mut v: libc::c_int) -> libc::c_int {
         10 as libc::c_int as uint8_t,
         9 as libc::c_int as uint8_t,
     ];
-    return debruijn_ctz32[(((v & -v) as libc::c_uint).wrapping_mul(0x77cb531 as libc::c_uint)
-        >> 27 as libc::c_int) as usize] as libc::c_int;
+    debruijn_ctz32[(((v & -v) as libc::c_uint).wrapping_mul(0x77cb531 as libc::c_uint)
+        >> 27 as libc::c_int) as usize] as libc::c_int
 }
 
-unsafe fn reset_ctx(mut s: *mut AVTXContext, mut free_sub: libc::c_int) {
+unsafe fn reset_ctx(s: *mut AVTXContext, free_sub: libc::c_int) {
     if s.is_null() {
         return;
     }
@@ -85,12 +85,12 @@ unsafe fn reset_ctx(mut s: *mut AVTXContext, mut free_sub: libc::c_int) {
     av_freep(&mut (*s).exp as *mut *mut libc::c_void as *mut libc::c_void);
     av_freep(&mut (*s).tmp as *mut *mut libc::c_void as *mut libc::c_void);
     (*s).nb_sub = 0 as libc::c_int;
-    (*s).opaque = 0 as *mut libc::c_void;
+    (*s).opaque = std::ptr::null_mut::<libc::c_void>();
     (*s).fn_0[0] = None;
 }
 
 #[cold]
-pub(crate) unsafe fn av_tx_uninit(mut ctx: *mut *mut AVTXContext) {
+pub(crate) unsafe fn av_tx_uninit(ctx: *mut *mut AVTXContext) {
     if (*ctx).is_null() {
         return;
     }
@@ -99,13 +99,13 @@ pub(crate) unsafe fn av_tx_uninit(mut ctx: *mut *mut AVTXContext) {
 }
 #[cold]
 unsafe fn ff_tx_null_init(
-    mut s: *mut AVTXContext,
-    mut cd: *const FFTXCodelet,
-    mut flags: uint64_t,
-    mut opts: *mut FFTXCodeletOptions,
-    mut len: libc::c_int,
-    mut inv: libc::c_int,
-    mut scale: *const libc::c_void,
+    s: *mut AVTXContext,
+    _cd: *const FFTXCodelet,
+    _flags: uint64_t,
+    _opts: *mut FFTXCodeletOptions,
+    _len: libc::c_int,
+    _inv: libc::c_int,
+    _scale: *const libc::c_void,
 ) -> libc::c_int {
     if (*s).type_0 as libc::c_uint == AV_TX_FLOAT_MDCT as libc::c_int as libc::c_uint
         || (*s).type_0 as libc::c_uint == AV_TX_DOUBLE_MDCT as libc::c_int as libc::c_uint
@@ -116,19 +116,19 @@ unsafe fn ff_tx_null_init(
     {
         return -(22 as libc::c_int);
     }
-    return 0 as libc::c_int;
+    0 as libc::c_int
 }
 unsafe fn ff_tx_null(
-    mut s: *mut AVTXContext,
+    _s: *mut AVTXContext,
     mut _out: *mut libc::c_void,
     mut _in: *mut libc::c_void,
-    mut stride: ptrdiff_t,
+    stride: ptrdiff_t,
 ) {
     ptr::copy_nonoverlapping(_in, _out, stride as usize);
 }
 static mut ff_tx_null_def: FFTXCodelet = unsafe {
     {
-        let mut init = FFTXCodelet {
+        FFTXCodelet {
             name: b"null\0" as *const u8 as *const libc::c_char,
             function: Some(ff_tx_null),
             type_0: 2147483647 as AVTXType,
@@ -172,8 +172,7 @@ static mut ff_tx_null_def: FFTXCodelet = unsafe {
             uninit: None,
             cpu_flags: 0 as libc::c_int,
             prio: FF_TX_PRIO_MAX as libc::c_int,
-        };
-        init
+        }
     }
 };
 static mut ff_tx_null_list: [*const FFTXCodelet; 2] = unsafe {
@@ -224,9 +223,9 @@ static mut cpu_slow_penalties: [[libc::c_int; 2]; 6] = [
     ],
 ];
 unsafe fn get_codelet_prio(
-    mut cd: *const FFTXCodelet,
-    mut cpu_flags: libc::c_int,
-    mut len: libc::c_int,
+    cd: *const FFTXCodelet,
+    cpu_flags: libc::c_int,
+    len: libc::c_int,
 ) -> libc::c_int {
     let mut prio: libc::c_int = (*cd).prio;
     let mut max_factor: libc::c_int = 0 as libc::c_int;
@@ -271,19 +270,19 @@ unsafe fn get_codelet_prio(
     if max_factor != 0 {
         prio += 16 as libc::c_int * max_factor;
     }
-    return prio;
+    prio
 }
 
-unsafe fn cmp_matches(mut a: *mut TXCodeletMatch, mut b: *mut TXCodeletMatch) -> libc::c_int {
-    return ((*b).prio > (*a).prio) as libc::c_int - ((*b).prio < (*a).prio) as libc::c_int;
+unsafe fn cmp_matches(a: *mut TXCodeletMatch, b: *mut TXCodeletMatch) -> libc::c_int {
+    ((*b).prio > (*a).prio) as libc::c_int - ((*b).prio < (*a).prio) as libc::c_int
 }
 #[inline]
-unsafe fn check_cd_factors(mut cd: *const FFTXCodelet, mut len: libc::c_int) -> libc::c_int {
+unsafe fn check_cd_factors(cd: *const FFTXCodelet, mut len: libc::c_int) -> libc::c_int {
     let mut matches: libc::c_int = 0 as libc::c_int;
     let mut any_flag: libc::c_int = 0 as libc::c_int;
     let mut i: libc::c_int = 0 as libc::c_int;
     while i < 16 as libc::c_int {
-        let mut factor: libc::c_int = (*cd).factors[i as usize];
+        let factor: libc::c_int = (*cd).factors[i as usize];
         if factor == -(1 as libc::c_int) {
             any_flag = 1 as libc::c_int;
             matches += 1;
@@ -293,15 +292,15 @@ unsafe fn check_cd_factors(mut cd: *const FFTXCodelet, mut len: libc::c_int) -> 
                 break;
             }
             if factor == 2 as libc::c_int {
-                let mut bits_2: libc::c_int = ff_ctz_c(len);
-                if !(bits_2 == 0) {
+                let bits_2: libc::c_int = ff_ctz_c(len);
+                if bits_2 != 0 {
                     len >>= bits_2;
                     matches += 1;
                     matches;
                 }
             } else {
                 let mut res: libc::c_int = len % factor;
-                if !(res != 0) {
+                if res == 0 {
                     while res == 0 {
                         len /= factor;
                         res = len % factor;
@@ -314,25 +313,24 @@ unsafe fn check_cd_factors(mut cd: *const FFTXCodelet, mut len: libc::c_int) -> 
         i += 1;
         i;
     }
-    return ((*cd).nb_factors <= matches && (any_flag != 0 || len == 1 as libc::c_int))
-        as libc::c_int;
+    ((*cd).nb_factors <= matches && (any_flag != 0 || len == 1 as libc::c_int)) as libc::c_int
 }
 
 #[cold]
 unsafe fn ff_tx_init_subtx(
-    mut s: *mut AVTXContext,
-    mut type_0: AVTXType,
-    mut flags: uint64_t,
-    mut opts: *mut FFTXCodeletOptions,
-    mut len: libc::c_int,
-    mut inv: libc::c_int,
-    mut scale: *const libc::c_void,
+    s: *mut AVTXContext,
+    type_0: AVTXType,
+    flags: uint64_t,
+    opts: *mut FFTXCodeletOptions,
+    len: libc::c_int,
+    inv: libc::c_int,
+    scale: *const libc::c_void,
 ) -> libc::c_int {
     let mut current_block: u64;
     let mut ret: libc::c_int = 0 as libc::c_int;
-    let mut sub: *mut AVTXContext = 0 as *mut AVTXContext;
-    let mut cd_tmp: *mut TXCodeletMatch = 0 as *mut TXCodeletMatch;
-    let mut cd_matches: *mut TXCodeletMatch = 0 as *mut TXCodeletMatch;
+    let mut sub: *mut AVTXContext = std::ptr::null_mut::<AVTXContext>();
+    let mut cd_tmp: *mut TXCodeletMatch = std::ptr::null_mut::<TXCodeletMatch>();
+    let mut cd_matches: *mut TXCodeletMatch = std::ptr::null_mut::<TXCodeletMatch>();
     let mut cd_matches_size: libc::c_uint = 0 as libc::c_int as libc::c_uint;
     let mut codelet_list_idx: libc::c_int = codelet_list_num;
     let mut nb_cd_matches: libc::c_int = 0 as libc::c_int;
@@ -346,7 +344,7 @@ unsafe fn ff_tx_init_subtx(
     // };
     let cpu_flags: libc::c_int = av_get_cpu_flags();
     let mut req_flags: uint64_t = flags;
-    let mut inv_req_mask: uint64_t =
+    let inv_req_mask: uint64_t =
         ((AV_TX_FULL_IMDCT as libc::c_int
             | AV_TX_REAL_TO_REAL as libc::c_int
             | AV_TX_REAL_TO_IMAGINARY as libc::c_int) as libc::c_ulonglong
@@ -372,12 +370,12 @@ unsafe fn ff_tx_init_subtx(
     }
     loop {
         let fresh10 = codelet_list_idx;
-        codelet_list_idx = codelet_list_idx - 1;
-        if !(fresh10 != 0) {
+        codelet_list_idx -= 1;
+        if fresh10 == 0 {
             break;
         }
         let mut list: *const *const FFTXCodelet = codelet_list[codelet_list_idx as usize];
-        let mut cd: *const FFTXCodelet = 0 as *const FFTXCodelet;
+        let mut cd: *const FFTXCodelet = std::ptr::null::<FFTXCodelet>();
         loop {
             let fresh11 = list;
             list = list.offset(1);
@@ -437,7 +435,7 @@ unsafe fn ff_tx_init_subtx(
                 return -(12 as libc::c_int);
             }
             cd_matches = cd_tmp;
-            let ref mut fresh12 = (*cd_matches.offset(nb_cd_matches as isize)).cd;
+            let fresh12 = &mut (*cd_matches.offset(nb_cd_matches as isize)).cd;
             *fresh12 = cd;
             (*cd_matches.offset(nb_cd_matches as isize)).prio =
                 get_codelet_prio(cd, cpu_flags, len);
@@ -479,7 +477,7 @@ unsafe fn ff_tx_init_subtx(
     if nb_cd_matches == 0 {
         return -(38 as libc::c_int);
     }
-    let mut stack: [[*mut libc::c_void; 2]; 64] = [[0 as *mut libc::c_void; 2]; 64];
+    let mut stack: [[*mut libc::c_void; 2]; 64] = [[std::ptr::null_mut::<libc::c_void>(); 2]; 64];
     let mut sp: libc::c_int = 1 as libc::c_int;
     stack[0 as libc::c_int as usize][0 as libc::c_int as usize] = cd_matches as *mut libc::c_void;
     stack[0 as libc::c_int as usize][1 as libc::c_int as usize] = cd_matches
@@ -501,31 +499,23 @@ unsafe fn ff_tx_init_subtx(
                     .offset((end.offset_from(start) as libc::c_long >> 1 as libc::c_int) as isize);
                 if cmp_matches(start, end) > 0 as libc::c_int {
                     if cmp_matches(end, mid) > 0 as libc::c_int {
-                        let mut SWAP_tmp: TXCodeletMatch = *mid;
-                        *mid = *start;
-                        *start = SWAP_tmp;
+                        core::ptr::swap(mid, start);
                     } else {
-                        let mut SWAP_tmp_0: TXCodeletMatch = *end;
-                        *end = *start;
-                        *start = SWAP_tmp_0;
+                        core::ptr::swap(end, start);
                     }
                 } else if cmp_matches(start, mid) > 0 as libc::c_int {
-                    let mut SWAP_tmp_1: TXCodeletMatch = *mid;
-                    *mid = *start;
-                    *start = SWAP_tmp_1;
+                    core::ptr::swap(mid, start);
                 } else {
                     checksort = 1 as libc::c_int;
                 }
                 if cmp_matches(mid, end) > 0 as libc::c_int {
-                    let mut SWAP_tmp_2: TXCodeletMatch = *end;
-                    *end = *mid;
-                    *mid = SWAP_tmp_2;
+                    core::ptr::swap(end, mid);
                     checksort = 0 as libc::c_int;
                 }
                 if start == end.offset(-(2 as libc::c_int as isize)) {
                     break;
                 }
-                let mut SWAP_tmp_3: TXCodeletMatch = *mid;
+                let SWAP_tmp_3: TXCodeletMatch = *mid;
                 *mid = *end.offset(-(1 as libc::c_int) as isize);
                 *end.offset(-(1 as libc::c_int) as isize) = SWAP_tmp_3;
                 while left <= right {
@@ -544,16 +534,14 @@ unsafe fn ff_tx_init_subtx(
                         right;
                     }
                     if left <= right {
-                        let mut SWAP_tmp_4: TXCodeletMatch = *right;
-                        *right = *left;
-                        *left = SWAP_tmp_4;
+                        core::ptr::swap(right, left);
                         left = left.offset(1);
                         left;
                         right = right.offset(-1);
                         right;
                     }
                 }
-                let mut SWAP_tmp_5: TXCodeletMatch = *left;
+                let SWAP_tmp_5: TXCodeletMatch = *left;
                 *left = *end.offset(-(1 as libc::c_int) as isize);
                 *end.offset(-(1 as libc::c_int) as isize) = SWAP_tmp_5;
                 if checksort != 0
@@ -575,22 +563,20 @@ unsafe fn ff_tx_init_subtx(
                 {
                     stack[sp as usize][0 as libc::c_int as usize] = start as *mut libc::c_void;
                     let fresh13 = sp;
-                    sp = sp + 1;
+                    sp += 1;
                     stack[fresh13 as usize][1 as libc::c_int as usize] = right as *mut libc::c_void;
                     start = left.offset(1 as libc::c_int as isize);
                 } else {
                     stack[sp as usize][0 as libc::c_int as usize] =
                         left.offset(1 as libc::c_int as isize) as *mut libc::c_void;
                     let fresh14 = sp;
-                    sp = sp + 1;
+                    sp += 1;
                     stack[fresh14 as usize][1 as libc::c_int as usize] = end as *mut libc::c_void;
                     end = right;
                 }
             } else {
                 if cmp_matches(start, end) > 0 as libc::c_int {
-                    let mut SWAP_tmp_6: TXCodeletMatch = *end;
-                    *end = *start;
-                    *start = SWAP_tmp_6;
+                    core::ptr::swap(end, start);
                 }
                 break;
             }
@@ -602,7 +588,7 @@ unsafe fn ff_tx_init_subtx(
     //     b"%s\n\0" as *const u8 as *const libc::c_char,
     //     bp.str_0,
     // );
-    let mut i: libc::c_int = 0 as libc::c_int;
+    let _i: libc::c_int = 0 as libc::c_int;
     // while i < nb_cd_matches {
     //     av_log(
     //         0 as *mut libc::c_void,
@@ -631,133 +617,128 @@ unsafe fn ff_tx_init_subtx(
     } else {
         current_block = 5706227035632243100;
     }
-    match current_block {
-        5706227035632243100 => {
-            let mut i_0: libc::c_int = 0 as libc::c_int;
-            loop {
-                if !(i_0 < nb_cd_matches) {
+    if let 5706227035632243100 = current_block {
+        let mut i_0: libc::c_int = 0 as libc::c_int;
+        loop {
+            if i_0 >= nb_cd_matches {
+                current_block = 16937825661756021828;
+                break;
+            }
+            let cd_0: *const FFTXCodelet = (*cd_matches.offset(i_0 as isize)).cd;
+            let sctx: *mut AVTXContext =
+                &mut *((*s).sub).offset((*s).nb_sub as isize) as *mut AVTXContext;
+            (*sctx).len = len;
+            (*sctx).inv = inv;
+            (*sctx).type_0 = type_0;
+            (*sctx).flags = (*cd_0).flags | flags;
+            (*sctx).cd_self = cd_0;
+            (*s).fn_0[(*s).nb_sub as usize] = (*cd_0).function;
+            (*s).cd[(*s).nb_sub as usize] = cd_0;
+            ret = 0 as libc::c_int;
+            if ((*cd_0).init).is_some() {
+                ret = ((*cd_0).init).expect("non-null function pointer")(
+                    sctx, cd_0, flags, opts, len, inv, scale,
+                );
+            }
+            if ret >= 0 as libc::c_int {
+                if !opts.is_null()
+                    && (*opts).map_dir as libc::c_uint
+                        != FF_TX_MAP_NONE as libc::c_int as libc::c_uint
+                    && (*sctx).map_dir as libc::c_uint
+                        == FF_TX_MAP_NONE as libc::c_int as libc::c_uint
+                {
+                    (*sctx).map = alloc(Layout::array::<libc::c_int>(len as usize).unwrap()).cast();
+                    if ((*sctx).map).is_null() {
+                        ret = -(12 as libc::c_int);
+                        current_block = 7391434065428304855;
+                        break;
+                    } else {
+                        let mut i_1: libc::c_int = 0 as libc::c_int;
+                        while i_1 < len {
+                            *((*sctx).map).offset(i_1 as isize) = i_1;
+                            i_1 += 1;
+                            i_1;
+                        }
+                    }
+                } else if !opts.is_null()
+                    && (*opts).map_dir as libc::c_uint != (*sctx).map_dir as libc::c_uint
+                {
+                    let tmp: *mut libc::c_int =
+                        alloc(Layout::array::<libc::c_int>(len as usize).unwrap()).cast();
+                    if tmp.is_null() {
+                        ret = -(12 as libc::c_int);
+                        current_block = 7391434065428304855;
+                        break;
+                    } else {
+                        ptr::copy_nonoverlapping((*sctx).map, tmp, len as usize);
+                        let mut i_2: libc::c_int = 0 as libc::c_int;
+                        while i_2 < len {
+                            *((*sctx).map).offset(*tmp.offset(i_2 as isize) as isize) = i_2;
+                            i_2 += 1;
+                            i_2;
+                        }
+                        av_free(tmp as *mut libc::c_void);
+                    }
+                }
+                (*s).nb_sub += 1;
+                (*s).nb_sub;
+                current_block = 7391434065428304855;
+                break;
+            } else {
+                (*s).fn_0[(*s).nb_sub as usize] = None;
+                (*s).cd[(*s).nb_sub as usize] = std::ptr::null::<FFTXCodelet>();
+                reset_ctx(sctx, 0 as libc::c_int);
+                if ret == -(12 as libc::c_int) {
                     current_block = 16937825661756021828;
                     break;
                 }
-                let mut cd_0: *const FFTXCodelet = (*cd_matches.offset(i_0 as isize)).cd;
-                let mut sctx: *mut AVTXContext =
-                    &mut *((*s).sub).offset((*s).nb_sub as isize) as *mut AVTXContext;
-                (*sctx).len = len;
-                (*sctx).inv = inv;
-                (*sctx).type_0 = type_0;
-                (*sctx).flags = (*cd_0).flags | flags;
-                (*sctx).cd_self = cd_0;
-                (*s).fn_0[(*s).nb_sub as usize] = (*cd_0).function;
-                (*s).cd[(*s).nb_sub as usize] = cd_0;
-                ret = 0 as libc::c_int;
-                if ((*cd_0).init).is_some() {
-                    ret = ((*cd_0).init).expect("non-null function pointer")(
-                        sctx, cd_0, flags, opts, len, inv, scale,
-                    );
-                }
-                if ret >= 0 as libc::c_int {
-                    if !opts.is_null()
-                        && (*opts).map_dir as libc::c_uint
-                            != FF_TX_MAP_NONE as libc::c_int as libc::c_uint
-                        && (*sctx).map_dir as libc::c_uint
-                            == FF_TX_MAP_NONE as libc::c_int as libc::c_uint
-                    {
-                        (*sctx).map =
-                            alloc(Layout::array::<libc::c_int>(len as usize).unwrap()).cast();
-                        if ((*sctx).map).is_null() {
-                            ret = -(12 as libc::c_int);
-                            current_block = 7391434065428304855;
-                            break;
-                        } else {
-                            let mut i_1: libc::c_int = 0 as libc::c_int;
-                            while i_1 < len {
-                                *((*sctx).map).offset(i_1 as isize) = i_1;
-                                i_1 += 1;
-                                i_1;
-                            }
-                        }
-                    } else if !opts.is_null()
-                        && (*opts).map_dir as libc::c_uint != (*sctx).map_dir as libc::c_uint
-                    {
-                        let mut tmp: *mut libc::c_int =
-                            alloc(Layout::array::<libc::c_int>(len as usize).unwrap()).cast();
-                        if tmp.is_null() {
-                            ret = -(12 as libc::c_int);
-                            current_block = 7391434065428304855;
-                            break;
-                        } else {
-                            ptr::copy_nonoverlapping((*sctx).map, tmp, len as usize);
-                            let mut i_2: libc::c_int = 0 as libc::c_int;
-                            while i_2 < len {
-                                *((*sctx).map).offset(*tmp.offset(i_2 as isize) as isize) = i_2;
-                                i_2 += 1;
-                                i_2;
-                            }
-                            av_free(tmp as *mut libc::c_void);
-                        }
-                    }
-                    (*s).nb_sub += 1;
-                    (*s).nb_sub;
-                    current_block = 7391434065428304855;
-                    break;
-                } else {
-                    (*s).fn_0[(*s).nb_sub as usize] = None;
-                    (*s).cd[(*s).nb_sub as usize] = 0 as *const FFTXCodelet;
-                    reset_ctx(sctx, 0 as libc::c_int);
-                    if ret == -(12 as libc::c_int) {
-                        current_block = 16937825661756021828;
-                        break;
-                    }
-                    i_0 += 1;
-                    i_0;
-                }
+                i_0 += 1;
+                i_0;
             }
-            match current_block {
-                7391434065428304855 => {}
-                _ => {
-                    if (*s).nb_sub == 0 {
-                        av_freep(&mut (*s).sub as *mut *mut AVTXContext as *mut libc::c_void);
-                    }
+        }
+        match current_block {
+            7391434065428304855 => {}
+            _ => {
+                if (*s).nb_sub == 0 {
+                    av_freep(&mut (*s).sub as *mut *mut AVTXContext as *mut libc::c_void);
                 }
             }
         }
-        _ => {}
     }
     av_free(cd_matches as *mut libc::c_void);
-    return ret;
+    ret
 }
 
 #[cold]
 pub(crate) unsafe fn av_tx_init(
-    mut ctx: *mut *mut AVTXContext,
-    mut tx: *mut av_tx_fn,
-    mut type_0: AVTXType,
-    mut inv: libc::c_int,
-    mut len: libc::c_int,
+    ctx: *mut *mut AVTXContext,
+    tx: *mut av_tx_fn,
+    type_0: AVTXType,
+    inv: libc::c_int,
+    len: libc::c_int,
     mut scale: *const libc::c_void,
     mut flags: uint64_t,
 ) -> libc::c_int {
     let mut ret: libc::c_int = 0;
     let mut tmp: AVTXContext = {
-        let mut init = AVTXContext {
+        AVTXContext {
             len: 0 as libc::c_int,
             inv: 0,
-            map: 0 as *mut libc::c_int,
-            exp: 0 as *mut libc::c_void,
-            tmp: 0 as *mut libc::c_void,
-            sub: 0 as *mut AVTXContext,
+            map: std::ptr::null_mut::<libc::c_int>(),
+            exp: std::ptr::null_mut::<libc::c_void>(),
+            tmp: std::ptr::null_mut::<libc::c_void>(),
+            sub: std::ptr::null_mut::<AVTXContext>(),
             fn_0: [None; 4],
             nb_sub: 0,
-            cd: [0 as *const FFTXCodelet; 4],
-            cd_self: 0 as *const FFTXCodelet,
+            cd: [std::ptr::null::<FFTXCodelet>(); 4],
+            cd_self: std::ptr::null::<FFTXCodelet>(),
             type_0: AV_TX_FLOAT_FFT,
             flags: 0,
             map_dir: FF_TX_MAP_NONE,
             scale_f: 0.,
             scale_d: 0.,
-            opaque: 0 as *mut libc::c_void,
-        };
-        init
+            opaque: std::ptr::null_mut::<libc::c_void>(),
+        }
     };
     let default_scale_d: libc::c_double = 1.0f64;
     let default_scale_f: libc::c_float = 1.0f32;
@@ -790,7 +771,7 @@ pub(crate) unsafe fn av_tx_init(
         &mut tmp,
         type_0,
         flags,
-        0 as *mut FFTXCodeletOptions,
+        std::ptr::null_mut::<FFTXCodeletOptions>(),
         len,
         inv,
         scale,
@@ -806,7 +787,7 @@ pub(crate) unsafe fn av_tx_init(
     //     b"Transform tree:\n\0" as *const u8 as *const libc::c_char,
     // );
     // print_tx_structure(*ctx, 0 as libc::c_int);
-    return ret;
+    ret
 }
 unsafe fn run_static_initializers() {
     codelet_list_num = (::core::mem::size_of::<[*const *const FFTXCodelet; 4]>() as libc::c_ulong)

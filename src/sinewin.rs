@@ -100,13 +100,13 @@ pub static mut ff_sine_windows: [*mut libc::c_float; 14] = unsafe {
 pub static mut ff_sine_8192: [libc::c_float; 8192] = [0.; 8192];
 #[no_mangle]
 #[cold]
-pub unsafe fn ff_sine_window_init(mut window: *mut libc::c_float, mut n: libc::c_int) {
+pub unsafe fn ff_sine_window_init(window: *mut libc::c_float, n: libc::c_int) {
     let mut i: libc::c_int = 0;
     i = 0 as libc::c_int;
     while i < n {
         *window.offset(i as isize) = sinf(
             ((i as libc::c_double + 0.5f64)
-                * (3.14159265358979323846f64 / (2.0f64 * n as libc::c_double)))
+                * (3.141_592_653_589_793_f64 / (2.0f64 * n as libc::c_double)))
                 as libc::c_float,
         );
         i += 1;
@@ -115,7 +115,7 @@ pub unsafe fn ff_sine_window_init(mut window: *mut libc::c_float, mut n: libc::c
 }
 #[no_mangle]
 #[cold]
-pub(crate) unsafe fn ff_init_ff_sine_windows(mut index: libc::c_int) {
+pub(crate) unsafe fn ff_init_ff_sine_windows(index: libc::c_int) {
     init_sine_window_once[(index - 5 as libc::c_int) as usize]
         .call_once(|| sine_window_init_func_array[(index - 5 as libc::c_int) as usize].unwrap()());
 }

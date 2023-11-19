@@ -17,19 +17,19 @@ use crate::types::*;
 #[inline(always)]
 unsafe extern "C" fn av_clip_uintp2_c(mut a: libc::c_int, mut p: libc::c_int) -> libc::c_uint {
     if a & !(((1 as libc::c_int) << p) - 1 as libc::c_int) != 0 {
-        return (!a >> 31 as libc::c_int & ((1 as libc::c_int) << p) - 1 as libc::c_int)
-            as libc::c_uint;
+        (!a >> 31 as libc::c_int & ((1 as libc::c_int) << p) - 1 as libc::c_int)
+            as libc::c_uint
     } else {
-        return a as libc::c_uint;
-    };
+        a as libc::c_uint
+    }
 }
 #[inline(always)]
 unsafe extern "C" fn av_bswap32(mut x: uint32_t) -> uint32_t {
-    return (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
+    (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
         | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
         << 16 as libc::c_int
         | ((x >> 16 as libc::c_int) << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
-            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint);
+            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
 }
 static mut BUF_BITS: libc::c_int = 0;
 #[inline]
@@ -80,11 +80,11 @@ unsafe extern "C" fn quantize_band_cost(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    return ff_quantize_and_encode_band_cost(
+    ff_quantize_and_encode_band_cost(
         s,
-        0 as *mut PutBitContext,
+        std::ptr::null_mut::<PutBitContext>(),
         in_0,
-        0 as *mut libc::c_float,
+        std::ptr::null_mut::<libc::c_float>(),
         scaled,
         size,
         scale_idx,
@@ -93,7 +93,7 @@ unsafe extern "C" fn quantize_band_cost(
         uplim,
         bits,
         energy,
-    );
+    )
 }
 #[inline]
 unsafe extern "C" fn quant_array_idx(
@@ -115,7 +115,7 @@ unsafe extern "C" fn quant_array_idx(
         i += 1;
         i;
     }
-    return index;
+    index
 }
 static mut ltp_coef: [INTFLOAT; 8] = [
     0.570829f64 as libc::c_float,
@@ -176,8 +176,8 @@ pub unsafe extern "C" fn ff_aac_ltp_insert_new_frame(mut s: *mut AACEncContext) 
     let mut chans: libc::c_int = 0;
     let mut cur_channel: libc::c_int = 0;
     let mut start_ch: libc::c_int = 0 as libc::c_int;
-    let mut cpe: *mut ChannelElement = 0 as *mut ChannelElement;
-    let mut sce: *mut SingleChannelElement = 0 as *mut SingleChannelElement;
+    let mut cpe: *mut ChannelElement = std::ptr::null_mut::<ChannelElement>();
+    let mut sce: *mut SingleChannelElement = std::ptr::null_mut::<SingleChannelElement>();
     i = 0 as libc::c_int;
     while i < *((*s).chan_map).offset(0 as libc::c_int as isize) as libc::c_int {
         cpe = &mut *((*s).cpe).offset(i as isize) as *mut ChannelElement;
@@ -306,7 +306,7 @@ pub unsafe extern "C" fn ff_aac_update_ltp(
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_aac_adjust_common_ltp(
-    mut s: *mut AACEncContext,
+    mut _s: *mut AACEncContext,
     mut cpe: *mut ChannelElement,
 ) {
     let mut sfb: libc::c_int = 0;
@@ -352,7 +352,7 @@ pub unsafe extern "C" fn ff_aac_adjust_common_ltp(
 pub unsafe extern "C" fn ff_aac_search_for_ltp(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
-    mut common_window: libc::c_int,
+    mut _common_window: libc::c_int,
 ) {
     let mut w: libc::c_int = 0;
     let mut g: libc::c_int = 0;
@@ -449,7 +449,7 @@ pub unsafe extern "C" fn ff_aac_search_for_ltp(
                         (*s).lambda / (*band).threshold,
                         ::core::f32::INFINITY,
                         &mut bits_tmp1,
-                        0 as *mut libc::c_float,
+                        std::ptr::null_mut::<libc::c_float>(),
                     );
                     dist2 += quantize_band_cost(
                         s,
@@ -462,7 +462,7 @@ pub unsafe extern "C" fn ff_aac_search_for_ltp(
                         (*s).lambda / (*band).threshold,
                         ::core::f32::INFINITY,
                         &mut bits_tmp2,
-                        0 as *mut libc::c_float,
+                        std::ptr::null_mut::<libc::c_float>(),
                     );
                     bits1 += bits_tmp1;
                     bits2 += bits_tmp2;
