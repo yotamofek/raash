@@ -2098,6 +2098,18 @@ pub struct LongTermPrediction {
     pub coef: INTFLOAT,
     pub used: [int8_t; 40],
 }
+
+impl Default for LongTermPrediction {
+    fn default() -> Self {
+        Self {
+            present: Default::default(),
+            lag: Default::default(),
+            coef_idx: Default::default(),
+            coef: Default::default(),
+            used: [0; 40],
+        }
+    }
+}
 pub type WindowSequence = libc::c_uint;
 pub const LONG_STOP_SEQUENCE: WindowSequence = 3;
 pub const EIGHT_SHORT_SEQUENCE: WindowSequence = 2;

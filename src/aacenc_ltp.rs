@@ -8,20 +8,12 @@
     unused_mut
 )]
 
+use std::ptr;
+
+use crate::common::*;
 use crate::types::*;
 
 extern "C" {
-    pub type AVOptionRanges;
-    pub type AVOption;
-    pub type AVBuffer;
-    pub type AVDictionary;
-    pub type AVCodecDescriptor;
-    pub type AVCodecInternal;
-    pub type AVTXContext;
-    pub type FFPsyPreprocessContext;
-    fn sqrt(_: libc::c_double) -> libc::c_double;
-    fn memcpy(_: *mut libc::c_void, _: *const libc::c_void, _: libc::c_ulong) -> *mut libc::c_void;
-    fn memset(_: *mut libc::c_void, _: libc::c_int, _: libc::c_ulong) -> *mut libc::c_void;
     fn av_log(avcl: *mut libc::c_void, level: libc::c_int, fmt: *const libc::c_char, _: ...);
     fn ff_quantize_and_encode_band_cost(
         s: *mut AACEncContext,
@@ -221,43 +213,16 @@ pub unsafe extern "C" fn ff_aac_ltp_insert_new_frame(mut s: *mut AACEncContext) 
         while ch < chans {
             sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
             cur_channel = start_ch + ch;
-            memcpy(
+            (*sce).ltp_state.copy_within(1024..2048, 0);
+            ptr::copy_nonoverlapping(
+                &*(*((*s).planar_samples).as_ptr().offset(cur_channel as isize))
+                    .offset(2048 as libc::c_int as isize),
                 &mut *((*sce).ltp_state)
                     .as_mut_ptr()
-                    .offset(0 as libc::c_int as isize) as *mut INTFLOAT
-                    as *mut libc::c_void,
-                &mut *((*sce).ltp_state)
-                    .as_mut_ptr()
-                    .offset(1024 as libc::c_int as isize) as *mut INTFLOAT
-                    as *const libc::c_void,
-                (1024 as libc::c_int as libc::c_ulong)
-                    .wrapping_mul(::core::mem::size_of::<INTFLOAT>() as libc::c_ulong),
+                    .offset(1024 as libc::c_int as isize),
+                1024,
             );
-            memcpy(
-                &mut *((*sce).ltp_state)
-                    .as_mut_ptr()
-                    .offset(1024 as libc::c_int as isize) as *mut INTFLOAT
-                    as *mut libc::c_void,
-                &mut *(*((*s).planar_samples)
-                    .as_mut_ptr()
-                    .offset(cur_channel as isize))
-                .offset(2048 as libc::c_int as isize) as *mut libc::c_float
-                    as *const libc::c_void,
-                (1024 as libc::c_int as libc::c_ulong)
-                    .wrapping_mul(::core::mem::size_of::<INTFLOAT>() as libc::c_ulong),
-            );
-            memcpy(
-                &mut *((*sce).ltp_state)
-                    .as_mut_ptr()
-                    .offset(2048 as libc::c_int as isize) as *mut INTFLOAT
-                    as *mut libc::c_void,
-                &mut *((*sce).ret_buf)
-                    .as_mut_ptr()
-                    .offset(0 as libc::c_int as isize) as *mut INTFLOAT
-                    as *const libc::c_void,
-                (1024 as libc::c_int as libc::c_ulong)
-                    .wrapping_mul(::core::mem::size_of::<INTFLOAT>() as libc::c_ulong),
-            );
+            (*sce).ltp_state[2048..][..1024].copy_from_slice(&(*sce).ret_buf[..1024]);
             (*sce).ics.ltp.lag = 0 as libc::c_int as int16_t;
             ch += 1;
             ch;
@@ -335,11 +300,10 @@ unsafe extern "C" fn generate_samples(
         i += 1;
         i;
     }
-    memset(
-        &mut *buf.offset(i as isize) as *mut libc::c_float as *mut libc::c_void,
-        0 as libc::c_int,
-        ((2048 as libc::c_int - i) as libc::c_ulong)
-            .wrapping_mul(::core::mem::size_of::<libc::c_float>() as libc::c_ulong),
+    ptr::write_bytes(
+        &mut *buf.offset(i as isize) as *mut libc::c_float,
+        0,
+        (2048 as libc::c_int - i) as usize,
     );
 }
 #[no_mangle]
@@ -445,20 +409,8 @@ pub unsafe extern "C" fn ff_aac_search_for_ltp(
         == EIGHT_SHORT_SEQUENCE as libc::c_int as libc::c_uint
     {
         if (*sce).ics.ltp.lag != 0 {
-            memset(
-                &mut *((*sce).ltp_state)
-                    .as_mut_ptr()
-                    .offset(0 as libc::c_int as isize) as *mut INTFLOAT
-                    as *mut libc::c_void,
-                0 as libc::c_int,
-                (3072 as libc::c_int as libc::c_ulong)
-                    .wrapping_mul(::core::mem::size_of::<INTFLOAT>() as libc::c_ulong),
-            );
-            memset(
-                &mut (*sce).ics.ltp as *mut LongTermPrediction as *mut libc::c_void,
-                0 as libc::c_int,
-                ::core::mem::size_of::<LongTermPrediction>() as libc::c_ulong,
-            );
+            (*sce).ltp_state.fill(0.);
+            (*sce).ics.ltp = LongTermPrediction::default();
         }
         return;
     }

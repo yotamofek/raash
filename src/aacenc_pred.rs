@@ -8,13 +8,10 @@
     unused_mut
 )]
 
-use crate::types::*;
+use crate::{aactab::ff_aac_pow34sf_tab, types::*};
 
 extern "C" {
     static ff_aac_pred_sfb_max: [uint8_t; 0];
-    static mut ff_aac_pow34sf_tab: [libc::c_float; 428];
-    fn memcpy(_: *mut libc::c_void, _: *const libc::c_void, _: libc::c_ulong) -> *mut libc::c_void;
-    fn memset(_: *mut libc::c_void, _: libc::c_int, _: libc::c_ulong) -> *mut libc::c_void;
     fn av_log(avcl: *mut libc::c_void, level: libc::c_int, fmt: *const libc::c_char, _: ...);
     fn ff_aac_is_encoding_err(
         s: *mut AACEncContext,
@@ -569,12 +566,7 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
     if (*sce).ics.predictor_initialized == 0 {
         reset_all_predictors(((*sce).predictor_state).as_mut_ptr());
         (*sce).ics.predictor_initialized = 1 as libc::c_int;
-        memcpy(
-            ((*sce).prcoeffs).as_mut_ptr() as *mut libc::c_void,
-            ((*sce).coeffs).as_mut_ptr() as *const libc::c_void,
-            (1024 as libc::c_int as libc::c_ulong)
-                .wrapping_mul(::core::mem::size_of::<libc::c_float>() as libc::c_ulong),
-        );
+        (*sce).prcoeffs = (*sce).coeffs;
         i = 1 as libc::c_int;
         while i < 31 as libc::c_int {
             (*sce).ics.predictor_reset_count[i as usize] = i;
@@ -583,11 +575,7 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
         }
     }
     update_pred_resets(sce);
-    memcpy(
-        ((*sce).band_alt).as_mut_ptr() as *mut libc::c_void,
-        ((*sce).band_type).as_mut_ptr() as *const libc::c_void,
-        ::core::mem::size_of::<[BandType; 128]>() as libc::c_ulong,
-    );
+    (*sce).band_alt = (*sce).band_type;
     sfb = 10 as libc::c_int;
     while sfb < pmax {
         let mut cost1: libc::c_int = 0;
@@ -757,11 +745,7 @@ pub unsafe extern "C" fn ff_aac_search_for_pred(
             sfb += 1;
             sfb;
         }
-        memset(
-            &mut (*sce).ics.prediction_used as *mut [uint8_t; 41] as *mut libc::c_void,
-            0 as libc::c_int,
-            ::core::mem::size_of::<[uint8_t; 41]>() as libc::c_ulong,
-        );
+        (*sce).ics.prediction_used.fill(0);
     }
     (*sce).ics.predictor_present = (count != 0) as libc::c_int;
 }

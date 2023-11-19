@@ -10,6 +10,7 @@ mod aacenc_tns;
 mod aacenctab;
 mod aacpsy;
 mod aactab;
+mod common;
 mod iirfilter;
 mod kbdwin;
 mod mpeg4audio_sample_rates;

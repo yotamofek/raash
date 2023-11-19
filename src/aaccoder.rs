@@ -7,8 +7,11 @@
     unused_assignments,
     unused_mut
 )]
-#![feature(extern_types)]
 
+use std::ptr;
+
+use crate::aacenc::ff_quantize_band_cost_cache_init;
+use crate::common::*;
 use crate::types::*;
 use crate::{aacenc_is::*, aacenc_ltp::*, aacenc_pred::*, aacenc_tns::*, aactab::*};
 
@@ -21,21 +24,8 @@ extern "C" {
     pub type AVCodecInternal;
     pub type AVTXContext;
     pub type FFPsyPreprocessContext;
-    fn expf(_: libc::c_float) -> libc::c_float;
-    fn logf(_: libc::c_float) -> libc::c_float;
-    fn log2f(_: libc::c_float) -> libc::c_float;
-    fn powf(_: libc::c_float, _: libc::c_float) -> libc::c_float;
-    fn sqrtf(_: libc::c_float) -> libc::c_float;
-    fn cbrtf(_: libc::c_float) -> libc::c_float;
-    fn ceilf(_: libc::c_float) -> libc::c_float;
-    fn fabsf(_: libc::c_float) -> libc::c_float;
-    fn roundf(_: libc::c_float) -> libc::c_float;
-    fn abort() -> !;
-    fn memcpy(_: *mut libc::c_void, _: *const libc::c_void, _: libc::c_ulong) -> *mut libc::c_void;
-    fn memset(_: *mut libc::c_void, _: libc::c_int, _: libc::c_ulong) -> *mut libc::c_void;
     static ff_log2_tab: [uint8_t; 256];
     fn av_log(avcl: *mut libc::c_void, level: libc::c_int, fmt: *const libc::c_char, _: ...);
-    fn ff_quantize_band_cost_cache_init(s: *mut AACEncContext);
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -1752,11 +1742,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
         }
         w += (*sce).ics.group_len[w as usize] as libc::c_int;
     }
-    memcpy(
-        euplims.as_mut_ptr() as *mut libc::c_void,
-        uplims.as_mut_ptr() as *const libc::c_void,
-        ::core::mem::size_of::<[libc::c_float; 128]>() as libc::c_ulong,
-    );
+    euplims = uplims;
     w = 0 as libc::c_int;
     while w < (*sce).ics.num_windows {
         let mut de_psy_factor: libc::c_float = if (*sce).ics.num_windows > 1 as libc::c_int {
@@ -2909,13 +2895,14 @@ unsafe extern "C" fn codebook_trellis_rate(
         cb = aac_cb_out_map[stackcb[i as usize] as usize] as libc::c_int;
         put_bits(&mut (*s).pb, 4 as libc::c_int, cb as BitBuf);
         count = stackrun[i as usize];
-        memset(
-            ((*sce).zeroes)
+        ptr::write_bytes(
+            (*sce)
+                .zeroes
                 .as_mut_ptr()
                 .offset((win * 16 as libc::c_int) as isize)
-                .offset(start as isize) as *mut libc::c_void,
-            (cb == 0) as libc::c_int,
-            count as libc::c_ulong,
+                .offset(start as isize),
+            u8::from(cb == 0),
+            count as usize,
         );
         j = 0 as libc::c_int;
         while j < count {
@@ -3181,17 +3168,6 @@ unsafe extern "C" fn quantize_and_encode_band_cost_NONE(
     mut bits: *mut libc::c_int,
     mut energy: *mut libc::c_float,
 ) -> libc::c_float {
-    if 0 as libc::c_int == 0 {
-        av_log(
-            0 as *mut libc::c_void,
-            0 as libc::c_int,
-            b"Assertion %s failed at %s:%d\n\0" as *const u8 as *const libc::c_char,
-            b"0\0" as *const u8 as *const libc::c_char,
-            b"libavcodec/aaccoder.c\0" as *const u8 as *const libc::c_char,
-            201 as libc::c_int,
-        );
-        abort();
-    }
     return 0.0f32;
 }
 unsafe extern "C" fn quantize_and_encode_band_cost_ZERO(
@@ -4340,13 +4316,13 @@ unsafe extern "C" fn encode_window_bands_info(
         cb = aac_cb_out_map[stackcb[i as usize] as usize] as libc::c_int;
         put_bits(&mut (*s).pb, 4 as libc::c_int, cb as BitBuf);
         count = stackrun[i as usize];
-        memset(
+        ptr::write_bytes(
             ((*sce).zeroes)
                 .as_mut_ptr()
                 .offset((win * 16 as libc::c_int) as isize)
-                .offset(start as isize) as *mut libc::c_void,
-            (cb == 0) as libc::c_int,
-            count as libc::c_ulong,
+                .offset(start as isize),
+            u8::from(cb == 0),
+            count as usize,
         );
         j = 0 as libc::c_int;
         while j < count {
@@ -4492,16 +4468,8 @@ unsafe extern "C" fn search_for_quantizers_anmr(
         i;
     }
     if qcnt == 0 {
-        memset(
-            ((*sce).sf_idx).as_mut_ptr() as *mut libc::c_void,
-            0 as libc::c_int,
-            ::core::mem::size_of::<[libc::c_int; 128]>() as libc::c_ulong,
-        );
-        memset(
-            ((*sce).zeroes).as_mut_ptr() as *mut libc::c_void,
-            1 as libc::c_int,
-            ::core::mem::size_of::<[uint8_t; 128]>() as libc::c_ulong,
-        );
+        ((*sce).sf_idx).fill(0);
+        ((*sce).zeroes).fill(1);
         return;
     }
     q0 = av_clip_c(
@@ -5835,11 +5803,7 @@ unsafe extern "C" fn search_for_pns(
         };
     }
     cutoff = bandwidth * 2 as libc::c_int * wlen / (*avctx).sample_rate;
-    memcpy(
-        ((*sce).band_alt).as_mut_ptr() as *mut libc::c_void,
-        ((*sce).band_type).as_mut_ptr() as *const libc::c_void,
-        ::core::mem::size_of::<[BandType; 128]>() as libc::c_ulong,
-    );
+    (*sce).band_alt = (*sce).band_type;
     ff_init_nextband_map(sce, nextband.as_mut_ptr());
     w = 0 as libc::c_int;
     while w < (*sce).ics.num_windows {
@@ -6591,11 +6555,7 @@ unsafe extern "C" fn mark_pns(
         };
     }
     cutoff = bandwidth * 2 as libc::c_int * wlen / (*avctx).sample_rate;
-    memcpy(
-        ((*sce).band_alt).as_mut_ptr() as *mut libc::c_void,
-        ((*sce).band_type).as_mut_ptr() as *const libc::c_void,
-        ::core::mem::size_of::<[BandType; 128]>() as libc::c_ulong,
-    );
+    (*sce).band_alt = (*sce).band_type;
     w = 0 as libc::c_int;
     while w < (*sce).ics.num_windows {
         g = 0 as libc::c_int;

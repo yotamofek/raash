@@ -15,6 +15,8 @@ use c2rust_bitfields::BitfieldStruct;
 use crate::aacenctab::{
     ff_aac_swb_size_1024, ff_aac_swb_size_1024_len, ff_aac_swb_size_128, ff_aac_swb_size_128_len,
 };
+use crate::common::*;
+use crate::mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates;
 use crate::psymodel::FFPsyPreprocessContext;
 use crate::types::*;
 extern "C" {
@@ -31,9 +33,6 @@ extern "C" {
         chl: *const AVChannelLayout,
         chl1: *const AVChannelLayout,
     ) -> libc::c_int;
-    fn sqrtf(_: libc::c_float) -> libc::c_float;
-    fn fabsf(_: libc::c_float) -> libc::c_float;
-    fn fabs(_: libc::c_double) -> libc::c_double;
     fn avpriv_float_dsp_alloc(strict: libc::c_int) -> *mut AVFloatDSPContext;
     fn strlen(_: *const libc::c_char) -> libc::c_ulong;
     fn av_mallocz(size: size_t) -> *mut libc::c_void;
@@ -51,7 +50,6 @@ extern "C" {
         string: *const libc::c_char,
         terminate_string: libc::c_int,
     );
-    static ff_mpeg4audio_sample_rates: [libc::c_int; 16];
     static mut ff_sine_128: [libc::c_float; 128];
     static mut ff_sine_1024: [libc::c_float; 1024];
     fn av_tx_init(

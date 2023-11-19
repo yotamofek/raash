@@ -1,8 +1,17 @@
-#![allow(dead_code, mutable_transmutes, non_camel_case_types, non_snake_case, non_upper_case_globals, unused_assignments, unused_mut)]
+#![allow(
+    dead_code,
+    mutable_transmutes,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals,
+    unused_assignments,
+    unused_mut
+)]
+use crate::common::*;
+
 extern "C" {
     fn lrint(_: libc::c_double) -> libc::c_long;
     fn av_bessel_i0(x: libc::c_double) -> libc::c_double;
-    fn sqrt(_: libc::c_double) -> libc::c_double;
     fn av_malloc(size: size_t) -> *mut libc::c_void;
     fn av_free(ptr: *mut libc::c_void);
 }
@@ -39,11 +48,9 @@ unsafe extern "C" fn kbd_window_init(
     while i <= n / 2 as libc::c_int {
         tmp = alpha2 * i as libc::c_double * (n - i) as libc::c_double;
         *temp.offset(i as isize) = av_bessel_i0(sqrt(tmp));
-        scale
-            += *temp.offset(i as isize)
-                * (1 as libc::c_int
-                    + (i != 0 && i < n / 2 as libc::c_int) as libc::c_int)
-                    as libc::c_double;
+        scale += *temp.offset(i as isize)
+            * (1 as libc::c_int + (i != 0 && i < n / 2 as libc::c_int) as libc::c_int)
+                as libc::c_double;
         i += 1;
         i;
     }
@@ -54,12 +61,9 @@ unsafe extern "C" fn kbd_window_init(
         if !float_window.is_null() {
             *float_window.offset(i as isize) = sqrt(sum * scale) as libc::c_float;
         } else {
-            *int_window
-                .offset(
-                    i as isize,
-                ) = lrint(
-                2147483647 as libc::c_int as libc::c_double * sqrt(sum * scale),
-            ) as libc::c_int;
+            *int_window.offset(i as isize) =
+                lrint(2147483647 as libc::c_int as libc::c_double * sqrt(sum * scale))
+                    as libc::c_int;
         }
         i += 1;
         i;
@@ -69,12 +73,9 @@ unsafe extern "C" fn kbd_window_init(
         if !float_window.is_null() {
             *float_window.offset(i as isize) = sqrt(sum * scale) as libc::c_float;
         } else {
-            *int_window
-                .offset(
-                    i as isize,
-                ) = lrint(
-                2147483647 as libc::c_int as libc::c_double * sqrt(sum * scale),
-            ) as libc::c_int;
+            *int_window.offset(i as isize) =
+                lrint(2147483647 as libc::c_int as libc::c_double * sqrt(sum * scale))
+                    as libc::c_int;
         }
         i += 1;
         i;
