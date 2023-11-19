@@ -6,7 +6,6 @@ extern "C" {
     pub type AVCodecDescriptor;
     pub type AVCodecInternal;
     pub type AVCodecHWConfigInternal;
-    pub type AVTXContext;
 }
 
 pub type __int8_t = libc::c_schar;
@@ -1636,7 +1635,7 @@ pub struct FFCodec {
     pub init_static_data: Option<unsafe extern "C" fn(*mut FFCodec) -> ()>,
     pub init: Option<unsafe extern "C" fn(*mut AVCodecContext) -> libc::c_int>,
     pub cb: C2RustUnnamed_1,
-    pub close: Option<unsafe extern "C" fn(*mut AVCodecContext) -> libc::c_int>,
+    pub close: Option<unsafe fn(*mut AVCodecContext) -> libc::c_int>,
     pub flush: Option<unsafe extern "C" fn(*mut AVCodecContext) -> ()>,
     pub bsfs: *const libc::c_char,
     pub hw_configs: *const *const AVCodecHWConfigInternal,
@@ -1780,9 +1779,8 @@ pub const AV_TX_FLOAT_MDCT: AVTXType = 1;
 pub const AV_TX_INT32_FFT: AVTXType = 4;
 pub const AV_TX_DOUBLE_FFT: AVTXType = 2;
 pub const AV_TX_FLOAT_FFT: AVTXType = 0;
-pub type av_tx_fn = Option<
-    unsafe extern "C" fn(*mut AVTXContext, *mut libc::c_void, *mut libc::c_void, ptrdiff_t) -> (),
->;
+pub type av_tx_fn =
+    Option<unsafe fn(*mut AVTXContext, *mut libc::c_void, *mut libc::c_void, ptrdiff_t) -> ()>;
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct PSDSPContext {
@@ -2866,4 +2864,94 @@ pub struct FFIIRFilterCoeffs {
 #[repr(C)]
 pub struct FFIIRFilterState {
     pub x: [libc::c_float; 1],
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct AVBPrint {
+    pub str_0: *mut libc::c_char,
+    pub len: libc::c_uint,
+    pub size: libc::c_uint,
+    pub size_max: libc::c_uint,
+    pub reserved_internal_buffer: [libc::c_char; 1],
+    pub reserved_padding: [libc::c_char; 1000],
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct AVTXContext {
+    pub len: libc::c_int,
+    pub inv: libc::c_int,
+    pub map: *mut libc::c_int,
+    pub exp: *mut libc::c_void,
+    pub tmp: *mut libc::c_void,
+    pub sub: *mut AVTXContext,
+    pub fn_0: [av_tx_fn; 4],
+    pub nb_sub: libc::c_int,
+    pub cd: [*const FFTXCodelet; 4],
+    pub cd_self: *const FFTXCodelet,
+    pub type_0: AVTXType,
+    pub flags: uint64_t,
+    pub map_dir: FFTXMapDirection,
+    pub scale_f: libc::c_float,
+    pub scale_d: libc::c_double,
+    pub opaque: *mut libc::c_void,
+}
+pub type FFTXMapDirection = libc::c_uint;
+pub const FF_TX_MAP_SCATTER: FFTXMapDirection = 2;
+pub const FF_TX_MAP_GATHER: FFTXMapDirection = 1;
+pub const FF_TX_MAP_NONE: FFTXMapDirection = 0;
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FFTXCodelet {
+    pub name: *const libc::c_char,
+    pub function: av_tx_fn,
+    pub type_0: AVTXType,
+    pub flags: uint64_t,
+    pub factors: [libc::c_int; 16],
+    pub nb_factors: libc::c_int,
+    pub min_len: libc::c_int,
+    pub max_len: libc::c_int,
+    pub init: Option<
+        unsafe fn(
+            *mut AVTXContext,
+            *const FFTXCodelet,
+            uint64_t,
+            *mut FFTXCodeletOptions,
+            libc::c_int,
+            libc::c_int,
+            *const libc::c_void,
+        ) -> libc::c_int,
+    >,
+    pub uninit: Option<unsafe fn(*mut AVTXContext) -> libc::c_int>,
+    pub cpu_flags: libc::c_int,
+    pub prio: libc::c_int,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FFTXCodeletOptions {
+    pub map_dir: FFTXMapDirection,
+}
+pub type TXComplex = ();
+pub type AVTXFlags = libc::c_uint;
+pub const AV_TX_REAL_TO_IMAGINARY: AVTXFlags = 16;
+pub const AV_TX_REAL_TO_REAL: AVTXFlags = 8;
+pub const AV_TX_FULL_IMDCT: AVTXFlags = 4;
+pub const AV_TX_UNALIGNED: AVTXFlags = 2;
+pub const AV_TX_INPLACE: AVTXFlags = 1;
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct TXCodeletMatch {
+    pub cd: *const FFTXCodelet,
+    pub prio: libc::c_int,
+}
+pub const FF_TX_PRIO_MAX: FFTXCodeletPriority = 32768;
+pub type FFTXCodeletPriority = libc::c_int;
+pub const FF_TX_PRIO_MIN: FFTXCodeletPriority = -131072;
+pub const FF_TX_PRIO_BASE: FFTXCodeletPriority = 0;
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FFTXLenDecomp {
+    pub len: libc::c_int,
+    pub len2: libc::c_int,
+    pub prio: libc::c_int,
+    pub cd: *const FFTXCodelet,
 }

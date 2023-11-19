@@ -21,6 +21,7 @@ use crate::aactab::{
     ff_aac_num_swb_128, ff_aac_scalefactor_bits, ff_aac_scalefactor_code, ff_swb_offset_1024,
     ff_swb_offset_128, ff_tns_max_bands_1024, ff_tns_max_bands_128,
 };
+use crate::avutil::tx::{av_tx_init, av_tx_uninit};
 use crate::common::*;
 use crate::lpc::{ff_lpc_end, ff_lpc_init};
 use crate::mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates;
@@ -57,16 +58,6 @@ extern "C" {
         string: *const libc::c_char,
         terminate_string: libc::c_int,
     );
-    fn av_tx_init(
-        ctx: *mut *mut AVTXContext,
-        tx: *mut av_tx_fn,
-        type_0: AVTXType,
-        inv: libc::c_int,
-        len: libc::c_int,
-        scale: *const libc::c_void,
-        flags: uint64_t,
-    ) -> libc::c_int;
-    fn av_tx_uninit(ctx: *mut *mut AVTXContext);
     fn ff_af_queue_init(avctx: *mut AVCodecContext, afq: *mut AudioFrameQueue);
     fn ff_af_queue_add(afq: *mut AudioFrameQueue, f: *const AVFrame) -> libc::c_int;
     fn ff_af_queue_remove(
@@ -4325,7 +4316,7 @@ unsafe extern "C" fn aac_encode_frame(
     return 0 as libc::c_int;
 }
 #[cold]
-unsafe extern "C" fn aac_encode_end(mut avctx: *mut AVCodecContext) -> libc::c_int {
+unsafe fn aac_encode_end(mut avctx: *mut AVCodecContext) -> libc::c_int {
     let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
     av_log(
         avctx as *mut libc::c_void,
@@ -5230,7 +5221,7 @@ unsafe extern "C" fn run_static_initializers() {
                         ) -> libc::c_int,
                 ),
             },
-            close: Some(aac_encode_end as unsafe extern "C" fn(*mut AVCodecContext) -> libc::c_int),
+            close: Some(aac_encode_end),
             flush: None,
             bsfs: 0 as *const libc::c_char,
             hw_configs: 0 as *const *const AVCodecHWConfigInternal,
