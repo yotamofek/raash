@@ -2490,7 +2490,7 @@ pub struct AACEncContext {
     pub chan_map: *const uint8_t,
     pub cpe: *mut ChannelElement,
     pub psy: FFPsyContext,
-    pub psypp: *mut crate::psymodel::FFPsyPreprocessContext,
+    pub psypp: *mut FFPsyPreprocessContext,
     pub coder: *const AACCoefficientsEncoder,
     pub cur_channel: libc::c_int,
     pub random_state: libc::c_int,
@@ -2803,4 +2803,54 @@ pub struct AACISError {
     pub dist1: libc::c_float,
     pub dist2: libc::c_float,
     pub ener01: libc::c_float,
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FFPsyPreprocessContext {
+    pub avctx: *mut AVCodecContext,
+    pub stereo_att: libc::c_float,
+    pub fcoeffs: *mut FFIIRFilterCoeffs,
+    pub fstate: *mut *mut FFIIRFilterState,
+    pub fiir: FFIIRFilterContext,
+}
+#[derive(Copy, Clone, Default)]
+#[repr(C)]
+pub struct FFIIRFilterContext {
+    pub filter_flt: Option<
+        unsafe extern "C" fn(
+            *const FFIIRFilterCoeffs,
+            *mut FFIIRFilterState,
+            libc::c_int,
+            *const libc::c_float,
+            ptrdiff_t,
+            *mut libc::c_float,
+            ptrdiff_t,
+        ) -> (),
+    >,
+}
+pub type IIRFilterMode = libc::c_uint;
+pub const FF_FILTER_MODE_BANDSTOP: IIRFilterMode = 3;
+pub const FF_FILTER_MODE_BANDPASS: IIRFilterMode = 2;
+pub const FF_FILTER_MODE_HIGHPASS: IIRFilterMode = 1;
+pub const FF_FILTER_MODE_LOWPASS: IIRFilterMode = 0;
+pub type IIRFilterType = libc::c_uint;
+pub const FF_FILTER_TYPE_ELLIPTIC: IIRFilterType = 4;
+pub const FF_FILTER_TYPE_CHEBYSHEV: IIRFilterType = 3;
+pub const FF_FILTER_TYPE_BUTTERWORTH: IIRFilterType = 2;
+pub const FF_FILTER_TYPE_BIQUAD: IIRFilterType = 1;
+pub const FF_FILTER_TYPE_BESSEL: IIRFilterType = 0;
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FFIIRFilterCoeffs {
+    pub order: libc::c_int,
+    pub gain: libc::c_float,
+    pub cx: *mut libc::c_int,
+    pub cy: *mut libc::c_float,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FFIIRFilterState {
+    pub x: [libc::c_float; 1],
 }

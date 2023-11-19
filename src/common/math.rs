@@ -39,6 +39,15 @@ pub(crate) fn atanf(n: libc::c_float) -> libc::c_float {
 pub(crate) fn exp(n: libc::c_double) -> libc::c_double {
     n.exp()
 }
+pub(crate) fn tan(n: libc::c_double) -> libc::c_double {
+    n.tan()
+}
+pub(crate) fn cos(n: libc::c_double) -> libc::c_double {
+    n.cos()
+}
+pub(crate) fn sin(n: libc::c_double) -> libc::c_double {
+    n.sin()
+}
 pub(crate) fn exp2f(n: libc::c_float) -> libc::c_float {
     n.exp2()
 }

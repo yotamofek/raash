@@ -10,15 +10,11 @@
 
 use crate::{common::*, types::*};
 
-use std::ptr;
+use std::{
+    alloc::{alloc, alloc_zeroed, Layout},
+    ptr,
+};
 extern "C" {
-    pub type FFIIRFilterState;
-    pub type FFIIRFilterCoeffs;
-    fn av_mallocz(size: size_t) -> *mut libc::c_void;
-    fn av_malloc_array(nmemb: size_t, size: size_t) -> *mut libc::c_void;
-    fn av_calloc(nmemb: size_t, size: size_t) -> *mut libc::c_void;
-    fn av_free(ptr: *mut libc::c_void);
-    fn av_freep(ptr: *mut libc::c_void);
     fn ff_iir_filter_init(f: *mut FFIIRFilterContext);
     fn ff_iir_filter_init_coeffs(
         avc: *mut libc::c_void,
@@ -34,97 +30,7 @@ extern "C" {
     fn ff_iir_filter_free_statep(state: *mut *mut FFIIRFilterState);
     static ff_aac_psy_model: FFPsyModel;
 }
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FFPsyWindowInfo {
-    pub window_type: [libc::c_int; 3],
-    pub window_shape: libc::c_int,
-    pub num_windows: libc::c_int,
-    pub grouping: [libc::c_int; 8],
-    pub clipping: [libc::c_float; 8],
-    pub window_sizes: *mut libc::c_int,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FFPsyContext {
-    pub avctx: *mut AVCodecContext,
-    pub model: *const FFPsyModel,
-    pub ch: *mut FFPsyChannel,
-    pub group: *mut FFPsyChannelGroup,
-    pub num_groups: libc::c_int,
-    pub cutoff: libc::c_int,
-    pub bands: *mut *mut uint8_t,
-    pub num_bands: *mut libc::c_int,
-    pub num_lens: libc::c_int,
-    pub bitres: C2RustUnnamed_0,
-    pub model_priv_data: *mut libc::c_void,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct C2RustUnnamed_0 {
-    pub size: libc::c_int,
-    pub bits: libc::c_int,
-    pub alloc: libc::c_int,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FFPsyModel {
-    pub name: *const libc::c_char,
-    pub init: Option<unsafe extern "C" fn(*mut FFPsyContext) -> libc::c_int>,
-    pub window: Option<
-        unsafe extern "C" fn(
-            *mut FFPsyContext,
-            *const libc::c_float,
-            *const libc::c_float,
-            libc::c_int,
-            libc::c_int,
-        ) -> FFPsyWindowInfo,
-    >,
-    pub analyze: Option<
-        unsafe extern "C" fn(
-            *mut FFPsyContext,
-            libc::c_int,
-            *mut *const libc::c_float,
-            *const FFPsyWindowInfo,
-        ) -> (),
-    >,
-    pub end: Option<unsafe extern "C" fn(*mut FFPsyContext) -> ()>,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FFPsyPreprocessContext {
-    pub avctx: *mut AVCodecContext,
-    pub stereo_att: libc::c_float,
-    pub fcoeffs: *mut FFIIRFilterCoeffs,
-    pub fstate: *mut *mut FFIIRFilterState,
-    pub fiir: FFIIRFilterContext,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FFIIRFilterContext {
-    pub filter_flt: Option<
-        unsafe extern "C" fn(
-            *const FFIIRFilterCoeffs,
-            *mut FFIIRFilterState,
-            libc::c_int,
-            *const libc::c_float,
-            ptrdiff_t,
-            *mut libc::c_float,
-            ptrdiff_t,
-        ) -> (),
-    >,
-}
-pub type IIRFilterMode = libc::c_uint;
-pub const FF_FILTER_MODE_BANDSTOP: IIRFilterMode = 3;
-pub const FF_FILTER_MODE_BANDPASS: IIRFilterMode = 2;
-pub const FF_FILTER_MODE_HIGHPASS: IIRFilterMode = 1;
-pub const FF_FILTER_MODE_LOWPASS: IIRFilterMode = 0;
-pub type IIRFilterType = libc::c_uint;
-pub const FF_FILTER_TYPE_ELLIPTIC: IIRFilterType = 4;
-pub const FF_FILTER_TYPE_CHEBYSHEV: IIRFilterType = 3;
-pub const FF_FILTER_TYPE_BUTTERWORTH: IIRFilterType = 2;
-pub const FF_FILTER_TYPE_BIQUAD: IIRFilterType = 1;
-pub const FF_FILTER_TYPE_BESSEL: IIRFilterType = 0;
+
 #[no_mangle]
 #[cold]
 pub unsafe extern "C" fn ff_psy_init(
@@ -140,23 +46,14 @@ pub unsafe extern "C" fn ff_psy_init(
     let mut j: libc::c_int = 0;
     let mut k: libc::c_int = 0 as libc::c_int;
     (*ctx).avctx = avctx;
-    (*ctx).ch = av_calloc(
-        (*avctx).ch_layout.nb_channels as size_t,
-        (2 as libc::c_int as libc::c_ulong)
-            .wrapping_mul(::core::mem::size_of::<FFPsyChannel>() as libc::c_ulong),
-    ) as *mut FFPsyChannel;
-    (*ctx).group = av_calloc(
-        num_groups as size_t,
-        ::core::mem::size_of::<FFPsyChannelGroup>() as libc::c_ulong,
-    ) as *mut FFPsyChannelGroup;
-    (*ctx).bands = av_malloc_array(
-        ::core::mem::size_of::<*mut uint8_t>() as libc::c_ulong,
-        num_lens as size_t,
-    ) as *mut *mut uint8_t;
-    (*ctx).num_bands = av_malloc_array(
-        ::core::mem::size_of::<libc::c_int>() as libc::c_ulong,
-        num_lens as size_t,
-    ) as *mut libc::c_int;
+    (*ctx).ch = alloc_zeroed(
+        Layout::array::<[FFPsyChannel; 2]>((*avctx).ch_layout.nb_channels as usize).unwrap(),
+    )
+    .cast();
+    (*ctx).group =
+        alloc_zeroed(Layout::array::<FFPsyChannelGroup>(num_groups as usize).unwrap()).cast();
+    (*ctx).bands = alloc(Layout::array::<*mut uint8_t>(num_lens as usize).unwrap()).cast();
+    (*ctx).num_bands = alloc(Layout::array::<libc::c_int>(num_lens as usize).unwrap()).cast();
     (*ctx).cutoff = (*avctx).cutoff;
     if ((*ctx).ch).is_null()
         || ((*ctx).group).is_null()
@@ -215,10 +112,11 @@ pub unsafe extern "C" fn ff_psy_end(mut ctx: *mut FFPsyContext) {
     if !((*ctx).model).is_null() && ((*(*ctx).model).end).is_some() {
         ((*(*ctx).model).end).expect("non-null function pointer")(ctx);
     }
-    av_freep(&mut (*ctx).bands as *mut *mut *mut uint8_t as *mut libc::c_void);
-    av_freep(&mut (*ctx).num_bands as *mut *mut libc::c_int as *mut libc::c_void);
-    av_freep(&mut (*ctx).group as *mut *mut FFPsyChannelGroup as *mut libc::c_void);
-    av_freep(&mut (*ctx).ch as *mut *mut FFPsyChannel as *mut libc::c_void);
+    // TODO: leaks 🚿
+    // av_freep(&mut (*ctx).bands as *mut *mut *mut uint8_t as *mut libc::c_void);
+    // av_freep(&mut (*ctx).num_bands as *mut *mut libc::c_int as *mut libc::c_void);
+    // av_freep(&mut (*ctx).group as *mut *mut FFPsyChannelGroup as *mut libc::c_void);
+    // av_freep(&mut (*ctx).ch as *mut *mut FFPsyChannel as *mut libc::c_void);
 }
 #[no_mangle]
 #[cold]
@@ -228,8 +126,7 @@ pub unsafe extern "C" fn ff_psy_preprocess_init(
     let mut ctx: *mut FFPsyPreprocessContext = 0 as *mut FFPsyPreprocessContext;
     let mut i: libc::c_int = 0;
     let mut cutoff_coeff: libc::c_float = 0 as libc::c_int as libc::c_float;
-    ctx = av_mallocz(::core::mem::size_of::<FFPsyPreprocessContext>() as libc::c_ulong)
-        as *mut FFPsyPreprocessContext;
+    ctx = alloc_zeroed(Layout::new::<FFPsyPreprocessContext>()).cast();
     if ctx.is_null() {
         return 0 as *mut FFPsyPreprocessContext;
     }
@@ -252,13 +149,15 @@ pub unsafe extern "C" fn ff_psy_preprocess_init(
             );
         }
         if !((*ctx).fcoeffs).is_null() {
-            (*ctx).fstate = av_calloc(
-                (*avctx).ch_layout.nb_channels as size_t,
-                ::core::mem::size_of::<*mut FFIIRFilterState>() as libc::c_ulong,
-            ) as *mut *mut FFIIRFilterState;
+            (*ctx).fstate = alloc_zeroed(
+                Layout::array::<*mut FFIIRFilterState>((*avctx).ch_layout.nb_channels as usize)
+                    .unwrap(),
+            )
+            .cast();
             if ((*ctx).fstate).is_null() {
-                av_free((*ctx).fcoeffs as *mut libc::c_void);
-                av_free(ctx as *mut libc::c_void);
+                // TODO: leaks 🚿
+                // av_free((*ctx).fcoeffs as *mut libc::c_void);
+                // av_free(ctx as *mut libc::c_void);
                 return 0 as *mut FFPsyPreprocessContext;
             }
             i = 0 as libc::c_int;
@@ -312,6 +211,7 @@ pub unsafe extern "C" fn ff_psy_preprocess_end(mut ctx: *mut FFPsyPreprocessCont
             i;
         }
     }
-    av_freep(&mut (*ctx).fstate as *mut *mut *mut FFIIRFilterState as *mut libc::c_void);
-    av_free(ctx as *mut libc::c_void);
+    // TODO: leaks 🚿
+    // av_freep(&mut (*ctx).fstate as *mut *mut *mut FFIIRFilterState as *mut libc::c_void);
+    // av_free(ctx as *mut libc::c_void);
 }

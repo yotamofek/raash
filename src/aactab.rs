@@ -8,21 +8,13 @@
     unused_mut
 )]
 
-use crate::types::*;
+use std::sync::Once;
+
+use crate::{kbdwin::avpriv_kbd_window_init, types::*};
 
 extern "C" {
-    fn pthread_once(
-        __once_control: *mut pthread_once_t,
-        __init_routine: Option<unsafe extern "C" fn() -> ()>,
-    ) -> libc::c_int;
-    fn avpriv_kbd_window_init(
-        window: *mut libc::c_float,
-        alpha: libc::c_float,
-        n: libc::c_int,
-    ) -> libc::c_int;
     fn ff_init_ff_sine_windows(index: libc::c_int);
 }
-pub type pthread_once_t = libc::c_int;
 #[no_mangle]
 pub static mut ff_aac_pow2sf_tab: [libc::c_float; 428] = [0.; 428];
 #[no_mangle]
@@ -94,11 +86,8 @@ unsafe extern "C" fn aac_float_common_init() {
 #[no_mangle]
 #[cold]
 pub unsafe extern "C" fn ff_aac_float_common_init() {
-    static mut init_static_once: pthread_once_t = 0 as libc::c_int;
-    pthread_once(
-        &mut init_static_once,
-        Some(aac_float_common_init as unsafe extern "C" fn() -> ()),
-    );
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| aac_float_common_init());
 }
 #[no_mangle]
 pub static mut ff_aac_num_swb_1024: [uint8_t; 13] = [

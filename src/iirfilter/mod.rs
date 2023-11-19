@@ -1,57 +1,11 @@
-use libc;
+use std::alloc::{alloc, alloc_zeroed, Layout};
+
+use crate::{common::*, types::*};
+
 extern "C" {
-    fn cosss(_: libc::c_double) -> libc::c_double;
-    fn sin(_: libc::c_double) -> libc::c_double;
-    fn tan(_: libc::c_double) -> libc::c_double;
     fn lrintf(_: libc::c_float) -> libc::c_long;
-    fn av_malloc(size: size_t) -> *mut libc::c_void;
-    fn av_mallocz(size: size_t) -> *mut libc::c_void;
-    fn av_freep(ptr: *mut libc::c_void);
-    fn av_log(avcl: *mut libc::c_void, level: libc::c_int, fmt: *const libc::c_char, _: ...);
 }
-pub type __int16_t = libc::c_short;
-pub type int16_t = __int16_t;
-pub type size_t = libc::c_ulong;
-pub type ptrdiff_t = libc::c_long;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FFIIRFilterCoeffs {
-    pub order: libc::c_int,
-    pub gain: libc::c_float,
-    pub cx: *mut libc::c_int,
-    pub cy: *mut libc::c_float,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FFIIRFilterState {
-    pub x: [libc::c_float; 1],
-}
-pub type IIRFilterType = libc::c_uint;
-pub const FF_FILTER_TYPE_ELLIPTIC: IIRFilterType = 4;
-pub const FF_FILTER_TYPE_CHEBYSHEV: IIRFilterType = 3;
-pub const FF_FILTER_TYPE_BUTTERWORTH: IIRFilterType = 2;
-pub const FF_FILTER_TYPE_BIQUAD: IIRFilterType = 1;
-pub const FF_FILTER_TYPE_BESSEL: IIRFilterType = 0;
-pub type IIRFilterMode = libc::c_uint;
-pub const FF_FILTER_MODE_BANDSTOP: IIRFilterMode = 3;
-pub const FF_FILTER_MODE_BANDPASS: IIRFilterMode = 2;
-pub const FF_FILTER_MODE_HIGHPASS: IIRFilterMode = 1;
-pub const FF_FILTER_MODE_LOWPASS: IIRFilterMode = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FFIIRFilterContext {
-    pub filter_flt: Option<
-        unsafe extern "C" fn(
-            *const FFIIRFilterCoeffs,
-            *mut FFIIRFilterState,
-            libc::c_int,
-            *const libc::c_float,
-            ptrdiff_t,
-            *mut libc::c_float,
-            ptrdiff_t,
-        ) -> (),
-    >,
-}
+
 #[inline(always)]
 unsafe extern "C" fn av_clip_int16_c(mut a: libc::c_int) -> int16_t {
     if (a as libc::c_uint).wrapping_add(0x8000 as libc::c_uint)
@@ -76,24 +30,15 @@ unsafe extern "C" fn butterworth_init_coeffs(
     let mut j: libc::c_int = 0;
     let mut wa: libc::c_double = 0.;
     let mut p: [[libc::c_double; 2]; 31] = [[0.; 2]; 31];
-    if filt_mode as libc::c_uint != FF_FILTER_MODE_LOWPASS as libc::c_int as libc::c_uint {
-        av_log(
-            avc,
-            16 as libc::c_int,
-            b"Butterworth filter currently only supports low-pass filter mode\n\0" as *const u8
-                as *const libc::c_char,
-        );
-        return -(1 as libc::c_int);
-    }
-    if order & 1 as libc::c_int != 0 {
-        av_log(
-            avc,
-            16 as libc::c_int,
-            b"Butterworth filter currently only supports even filter orders\n\0" as *const u8
-                as *const libc::c_char,
-        );
-        return -(1 as libc::c_int);
-    }
+    assert_eq!(
+        filt_mode, FF_FILTER_MODE_LOWPASS,
+        "Butterworth filter currently only supports low-pass filter mode"
+    );
+    assert_eq!(
+        order & 1 as libc::c_int,
+        0,
+        "Butterworth filter currently only supports even filter orders"
+    );
     wa = 2 as libc::c_int as libc::c_double
         * tan(3.14159265358979323846f64 * 0.5f64 * cutoff_ratio as libc::c_double);
     *((*c).cx).offset(0 as libc::c_int as isize) = 1 as libc::c_int;
@@ -125,7 +70,7 @@ unsafe extern "C" fn butterworth_init_coeffs(
         let mut a_im: libc::c_double = 0.;
         let mut c_re: libc::c_double = 0.;
         let mut c_im: libc::c_double = 0.;
-        zp[0 as libc::c_int as usize] = cosss(th) * wa;
+        zp[0 as libc::c_int as usize] = cos(th) * wa;
         zp[1 as libc::c_int as usize] = sin(th) * wa;
         a_re = zp[0 as libc::c_int as usize] + 2.0f64;
         c_re = zp[0 as libc::c_int as usize] - 2.0f64;
@@ -192,26 +137,12 @@ unsafe extern "C" fn biquad_init_coeffs(
     let mut a0: libc::c_double = 0.;
     let mut x0: libc::c_double = 0.;
     let mut x1: libc::c_double = 0.;
-    if filt_mode as libc::c_uint != FF_FILTER_MODE_HIGHPASS as libc::c_int as libc::c_uint
-        && filt_mode as libc::c_uint != FF_FILTER_MODE_LOWPASS as libc::c_int as libc::c_uint
-    {
-        av_log(
-            avc,
-            16 as libc::c_int,
-            b"Biquad filter currently only supports high-pass and low-pass filter modes\n\0"
-                as *const u8 as *const libc::c_char,
-        );
-        return -(1 as libc::c_int);
-    }
-    if order != 2 as libc::c_int {
-        av_log(
-            avc,
-            16 as libc::c_int,
-            b"Biquad filter must have order of 2\n\0" as *const u8 as *const libc::c_char,
-        );
-        return -(1 as libc::c_int);
-    }
-    cos_w0 = cosss(3.14159265358979323846f64 * cutoff_ratio as libc::c_double);
+    assert!(
+        [FF_FILTER_MODE_HIGHPASS, FF_FILTER_MODE_LOWPASS].contains(&filt_mode),
+        "Biquad filter currently only supports high-pass and low-pass filter modes"
+    );
+    assert_eq!(order, 2, "Biquad filter must have order of 2");
+    cos_w0 = cos(3.14159265358979323846f64 * cutoff_ratio as libc::c_double);
     sin_w0 = sin(3.14159265358979323846f64 * cutoff_ratio as libc::c_double);
     a0 = 1.0f64 + sin_w0 / 2.0f64;
     if filt_mode as libc::c_uint == FF_FILTER_MODE_HIGHPASS as libc::c_int as libc::c_uint {
@@ -253,22 +184,20 @@ pub unsafe extern "C" fn ff_iir_filter_init_coeffs(
     {
         return 0 as *mut FFIIRFilterCoeffs;
     }
-    c = av_mallocz(::core::mem::size_of::<FFIIRFilterCoeffs>() as libc::c_ulong)
-        as *mut FFIIRFilterCoeffs;
+    c = alloc_zeroed(Layout::new::<FFIIRFilterCoeffs>()).cast();
     if !(c.is_null()
         || {
-            (*c).cx = av_malloc(
-                (::core::mem::size_of::<libc::c_int>() as libc::c_ulong).wrapping_mul(
-                    ((order >> 1 as libc::c_int) + 1 as libc::c_int) as libc::c_ulong,
-                ),
-            ) as *mut libc::c_int;
+            (*c).cx = alloc(
+                Layout::array::<libc::c_int>(
+                    ((order >> 1 as libc::c_int) + 1 as libc::c_int) as usize,
+                )
+                .unwrap(),
+            )
+            .cast();
             ((*c).cx).is_null()
         }
         || {
-            (*c).cy = av_malloc(
-                (::core::mem::size_of::<libc::c_float>() as libc::c_ulong)
-                    .wrapping_mul(order as libc::c_ulong),
-            ) as *mut libc::c_float;
+            (*c).cy = alloc(Layout::array::<libc::c_float>(order as usize).unwrap()).cast();
             ((*c).cy).is_null()
         })
     {
@@ -283,12 +212,7 @@ pub unsafe extern "C" fn ff_iir_filter_init_coeffs(
                 current_block = 13513818773234778473;
             }
             _ => {
-                av_log(
-                    avc,
-                    16 as libc::c_int,
-                    b"filter type is not currently implemented\n\0" as *const u8
-                        as *const libc::c_char,
-                );
+                panic!("filter type is not currently implemented");
                 current_block = 9061800508960952076;
             }
         }
@@ -307,12 +231,15 @@ pub unsafe extern "C" fn ff_iir_filter_init_coeffs(
 #[no_mangle]
 #[cold]
 pub unsafe extern "C" fn ff_iir_filter_init_state(mut order: libc::c_int) -> *mut FFIIRFilterState {
-    let mut s: *mut FFIIRFilterState = av_mallocz(
-        (::core::mem::size_of::<FFIIRFilterState>() as libc::c_ulong).wrapping_add(
-            (::core::mem::size_of::<libc::c_float>() as libc::c_ulong)
-                .wrapping_mul((order - 1 as libc::c_int) as libc::c_ulong),
-        ),
-    ) as *mut FFIIRFilterState;
+    // TODO: is this correct?
+    let mut s: *mut FFIIRFilterState =
+        alloc_zeroed(Layout::array::<libc::c_float>(order as usize).unwrap()).cast();
+    // let mut s: *mut FFIIRFilterState = av_mallocz(
+    //     (::core::mem::size_of::<FFIIRFilterState>() as libc::c_ulong).wrapping_add(
+    //         (::core::mem::size_of::<libc::c_float>() as libc::c_ulong)
+    //             .wrapping_mul((order - 1 as libc::c_int) as libc::c_ulong),
+    //     ),
+    // ) as *mut FFIIRFilterState;
     return s;
 }
 #[no_mangle]
@@ -663,17 +590,20 @@ unsafe extern "C" fn iir_filter_flt(
 #[no_mangle]
 #[cold]
 pub unsafe extern "C" fn ff_iir_filter_free_statep(mut state: *mut *mut FFIIRFilterState) {
-    av_freep(state as *mut libc::c_void);
+    // TODO: leaks 🚿
+
+    // av_freep(state as *mut libc::c_void);
 }
 #[no_mangle]
 #[cold]
 pub unsafe extern "C" fn ff_iir_filter_free_coeffsp(mut coeffsp: *mut *mut FFIIRFilterCoeffs) {
     let mut coeffs: *mut FFIIRFilterCoeffs = *coeffsp;
+    // TODO: leaks 🚿
     if !coeffs.is_null() {
-        av_freep(&mut (*coeffs).cx as *mut *mut libc::c_int as *mut libc::c_void);
-        av_freep(&mut (*coeffs).cy as *mut *mut libc::c_float as *mut libc::c_void);
+        // av_freep(&mut (*coeffs).cx as *mut *mut libc::c_int as *mut libc::c_void);
+        // av_freep(&mut (*coeffs).cy as *mut *mut libc::c_float as *mut libc::c_void);
     }
-    av_freep(coeffsp as *mut libc::c_void);
+    // av_freep(coeffsp as *mut libc::c_void);
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_iir_filter_init(mut f: *mut FFIIRFilterContext) {

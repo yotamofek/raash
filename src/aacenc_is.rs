@@ -13,32 +13,6 @@ use crate::aactab::ff_aac_pow34sf_tab;
 use crate::common::*;
 use crate::types::*;
 
-// extern "C" {
-//     pub type AVOptionRanges;
-//     pub type AVOption;
-//     pub type AVBuffer;
-//     pub type AVDictionary;
-//     pub type AVCodecDescriptor;
-//     pub type AVCodecInternal;
-//     pub type AVTXContext;
-//     pub type FFPsyPreprocessContext;
-//     static mut ff_aac_pow34sf_tab: [libc::c_float; 428];
-//     fn ff_quantize_and_encode_band_cost(
-//         s: *mut AACEncContext,
-//         pb: *mut PutBitContext,
-//         in_0: *const libc::c_float,
-//         quant: *mut libc::c_float,
-//         scaled: *const libc::c_float,
-//         size: libc::c_int,
-//         scale_idx: libc::c_int,
-//         cb: libc::c_int,
-//         lambda: libc::c_float,
-//         uplim: libc::c_float,
-//         bits: *mut libc::c_int,
-//         energy: *mut libc::c_float,
-//     ) -> libc::c_float;
-// }
-
 #[inline]
 unsafe extern "C" fn pos_pow34(mut a: libc::c_float) -> libc::c_float {
     return sqrtf(a * sqrtf(a));

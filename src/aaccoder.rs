@@ -16,16 +16,8 @@ use crate::types::*;
 use crate::{aacenc_is::*, aacenc_ltp::*, aacenc_pred::*, aacenc_tns::*, aactab::*};
 
 extern "C" {
-    pub type AVOptionRanges;
-    pub type AVOption;
-    pub type AVBuffer;
-    pub type AVDictionary;
-    pub type AVCodecDescriptor;
-    pub type AVCodecInternal;
-    pub type AVTXContext;
     pub type FFPsyPreprocessContext;
     static ff_log2_tab: [uint8_t; 256];
-    fn av_log(avcl: *mut libc::c_void, level: libc::c_int, fmt: *const libc::c_char, _: ...);
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -182,12 +174,7 @@ unsafe extern "C" fn put_bits_no_assert(
             (*s).buf_ptr =
                 ((*s).buf_ptr).offset(::core::mem::size_of::<BitBuf>() as libc::c_ulong as isize);
         } else {
-            av_log(
-                0 as *mut libc::c_void,
-                16 as libc::c_int,
-                b"Internal error, put_bits buffer too small\n\0" as *const u8
-                    as *const libc::c_char,
-            );
+            panic!("Internal error, put_bits buffer too small");
         }
         bit_left += BUF_BITS - n;
         bit_buf = value;

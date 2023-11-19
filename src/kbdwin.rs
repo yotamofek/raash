@@ -8,6 +8,7 @@
     unused_mut
 )]
 use crate::common::*;
+use crate::types::*;
 
 extern "C" {
     fn lrint(_: libc::c_double) -> libc::c_long;
@@ -15,9 +16,6 @@ extern "C" {
     fn av_malloc(size: size_t) -> *mut libc::c_void;
     fn av_free(ptr: *mut libc::c_void);
 }
-pub type size_t = libc::c_ulong;
-pub type __int32_t = libc::c_int;
-pub type int32_t = __int32_t;
 #[cold]
 unsafe extern "C" fn kbd_window_init(
     mut float_window: *mut libc::c_float,

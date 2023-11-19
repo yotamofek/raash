@@ -10,26 +10,9 @@
 
 use std::ptr;
 
+use crate::aaccoder::ff_quantize_and_encode_band_cost;
 use crate::common::*;
 use crate::types::*;
-
-extern "C" {
-    fn av_log(avcl: *mut libc::c_void, level: libc::c_int, fmt: *const libc::c_char, _: ...);
-    fn ff_quantize_and_encode_band_cost(
-        s: *mut AACEncContext,
-        pb: *mut PutBitContext,
-        in_0: *const libc::c_float,
-        quant: *mut libc::c_float,
-        scaled: *const libc::c_float,
-        size: libc::c_int,
-        scale_idx: libc::c_int,
-        cb: libc::c_int,
-        lambda: libc::c_float,
-        uplim: libc::c_float,
-        bits: *mut libc::c_int,
-        energy: *mut libc::c_float,
-    ) -> libc::c_float;
-}
 
 #[inline(always)]
 unsafe extern "C" fn av_clip_uintp2_c(mut a: libc::c_int, mut p: libc::c_int) -> libc::c_uint {
@@ -72,12 +55,7 @@ unsafe extern "C" fn put_bits_no_assert(
             (*s).buf_ptr =
                 ((*s).buf_ptr).offset(::core::mem::size_of::<BitBuf>() as libc::c_ulong as isize);
         } else {
-            av_log(
-                0 as *mut libc::c_void,
-                16 as libc::c_int,
-                b"Internal error, put_bits buffer too small\n\0" as *const u8
-                    as *const libc::c_char,
-            );
+            panic!("Internal error, put_bits buffer too small");
         }
         bit_left += BUF_BITS - n;
         bit_buf = value;
