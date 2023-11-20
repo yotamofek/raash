@@ -18,22 +18,20 @@ use crate::{
     aacenc_tns::*, aactab::*, common::*, types::*,
 };
 
-pub(crate) type quantize_and_encode_band_func = Option<
-    unsafe fn(
-        *mut AACEncContext,
-        *mut PutBitContext,
-        *const c_float,
-        *mut c_float,
-        *const c_float,
-        c_int,
-        c_int,
-        c_int,
-        c_float,
-        c_float,
-        *mut c_int,
-        *mut c_float,
-    ) -> c_float,
->;
+type quantize_and_encode_band_func = unsafe fn(
+    *mut AACEncContext,
+    *mut PutBitContext,
+    *const c_float,
+    *mut c_float,
+    *const c_float,
+    c_int,
+    c_int,
+    c_int,
+    c_float,
+    c_float,
+    *mut c_int,
+    *mut c_float,
+) -> c_float;
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) union C2RustUnnamed_2 {
@@ -378,7 +376,7 @@ unsafe fn quantize_band_cost_cached(
     mut rtz: c_int,
 ) -> c_float {
     let mut entry: *mut AACQuantizeBandCostCacheEntry =
-        std::ptr::null_mut::<AACQuantizeBandCostCacheEntry>();
+        ptr::null_mut::<AACQuantizeBandCostCacheEntry>();
     entry = &mut *(*((*s).quantize_band_cost_cache)
         .as_mut_ptr()
         .offset(scale_idx as isize))
@@ -427,9 +425,9 @@ unsafe fn quantize_band_cost(
 ) -> c_float {
     ff_quantize_and_encode_band_cost(
         s,
-        std::ptr::null_mut::<PutBitContext>(),
+        ptr::null_mut::<PutBitContext>(),
         in_0,
-        std::ptr::null_mut::<c_float>(),
+        ptr::null_mut::<c_float>(),
         scaled,
         size,
         scale_idx,
@@ -456,9 +454,9 @@ unsafe fn quantize_band_cost_bits(
     let mut auxbits: c_int = 0;
     ff_quantize_and_encode_band_cost(
         s,
-        std::ptr::null_mut::<PutBitContext>(),
+        ptr::null_mut::<PutBitContext>(),
         in_0,
-        std::ptr::null_mut::<c_float>(),
+        ptr::null_mut::<c_float>(),
         scaled,
         size,
         scale_idx,
@@ -2339,8 +2337,8 @@ unsafe extern "C" fn codebook_trellis_rate(
                             aac_cb_out_map[cb as usize] as c_int,
                             0 as c_int as c_float,
                             ::core::f32::INFINITY,
-                            std::ptr::null_mut::<c_int>(),
-                            std::ptr::null_mut::<c_float>(),
+                            ptr::null_mut::<c_int>(),
+                            ptr::null_mut::<c_float>(),
                         ) as c_float;
                         w += 1;
                         w;
@@ -2519,7 +2517,7 @@ unsafe fn quantize_and_encode_band_cost_template(
     }
     let mut i_1: c_int = 0 as c_int;
     while i_1 < size {
-        let mut vec: *const c_float = std::ptr::null::<c_float>();
+        let mut vec: *const c_float = ptr::null::<c_float>();
         let mut quants: *mut c_int = ((*s).qcoefs).as_mut_ptr().offset(i_1 as isize);
         let mut curidx: c_int = 0 as c_int;
         let mut curbits: c_int = 0;
@@ -2532,12 +2530,9 @@ unsafe fn quantize_and_encode_band_cost_template(
             j_0 += 1;
             j_0;
         }
-        curbits =
-            *(ff_aac_spectral_bits[(cb - 1 as c_int) as usize]).offset(curidx as isize) as c_int;
-        vec = &*(*ff_aac_codebook_vectors
-            .as_ptr()
-            .offset((cb - 1 as c_int) as isize))
-        .offset((curidx * dim) as isize) as *const c_float;
+        curbits = ff_aac_spectral_bits[(cb - 1 as c_int) as usize][curidx as usize] as c_int;
+        vec = &(*ff_aac_codebook_vectors[(cb - 1 as c_int) as usize])[(curidx * dim) as usize]
+            as *const c_float;
         if BT_UNSIGNED != 0 {
             let mut j_1: c_int = 0 as c_int;
             while j_1 < dim {
@@ -2596,18 +2591,14 @@ unsafe fn quantize_and_encode_band_cost_template(
         if !pb.is_null() {
             put_bits(
                 pb,
-                *(ff_aac_spectral_bits[(cb - 1 as c_int) as usize]).offset(curidx as isize)
-                    as c_int,
-                *(ff_aac_spectral_codes[(cb - 1 as c_int) as usize]).offset(curidx as isize)
-                    as BitBuf,
+                ff_aac_spectral_bits[(cb - 1 as c_int) as usize][curidx as usize] as c_int,
+                ff_aac_spectral_codes[(cb - 1 as c_int) as usize][curidx as usize] as BitBuf,
             );
             if BT_UNSIGNED != 0 {
                 let mut j_3: c_int = 0 as c_int;
                 while j_3 < dim {
-                    if *(*ff_aac_codebook_vectors
-                        .as_ptr()
-                        .offset((cb - 1 as c_int) as isize))
-                    .offset((curidx * dim + j_3) as isize)
+                    if ff_aac_codebook_vectors[(cb - 1 as c_int) as usize]
+                        [(curidx * dim + j_3) as usize]
                         != 0.0f32
                     {
                         put_bits(
@@ -2623,10 +2614,7 @@ unsafe fn quantize_and_encode_band_cost_template(
             if BT_ESC != 0 {
                 let mut j_4: c_int = 0 as c_int;
                 while j_4 < 2 as c_int {
-                    if *(*ff_aac_codebook_vectors
-                        .as_ptr()
-                        .offset((cb - 1 as c_int) as isize))
-                    .offset((curidx * 2 as c_int + j_4) as isize)
+                    if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * 2 + j_4) as usize]
                         == 64.0f32
                     {
                         let mut coef: c_int = av_clip_uintp2_c(
@@ -3000,554 +2988,490 @@ unsafe fn quantize_and_encode_band_cost_STEREO(
 }
 static mut quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16] = {
     [
-        Some(
-            quantize_and_encode_band_cost_ZERO
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_SQUAD
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_SQUAD
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UQUAD
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UQUAD
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_SPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_SPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_ESC
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_NONE
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_NOISE
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_STEREO
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_STEREO
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
+        quantize_and_encode_band_cost_ZERO
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float,
+        quantize_and_encode_band_cost_SQUAD
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float,
+        (quantize_and_encode_band_cost_SQUAD
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UQUAD
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UQUAD
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_SPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_SPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_ESC
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_NONE
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_NOISE
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_STEREO
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_STEREO
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
     ]
 };
 static mut quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func; 16] = unsafe {
     [
-        Some(
-            quantize_and_encode_band_cost_ZERO
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_SQUAD
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_SQUAD
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UQUAD
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UQUAD
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_SPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_SPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_UPAIR
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_ESC_RTZ
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_NONE
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_NOISE
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_STEREO
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
-        Some(
-            quantize_and_encode_band_cost_STEREO
-                as unsafe fn(
-                    *mut AACEncContext,
-                    *mut PutBitContext,
-                    *const c_float,
-                    *mut c_float,
-                    *const c_float,
-                    c_int,
-                    c_int,
-                    c_int,
-                    c_float,
-                    c_float,
-                    *mut c_int,
-                    *mut c_float,
-                ) -> c_float,
-        ),
+        (quantize_and_encode_band_cost_ZERO
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_SQUAD
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_SQUAD
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UQUAD
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UQUAD
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_SPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_SPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_UPAIR
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_ESC_RTZ
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_NONE
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_NOISE
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_STEREO
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
+        (quantize_and_encode_band_cost_STEREO
+            as unsafe fn(
+                *mut AACEncContext,
+                *mut PutBitContext,
+                *const c_float,
+                *mut c_float,
+                *const c_float,
+                c_int,
+                c_int,
+                c_int,
+                c_float,
+                c_float,
+                *mut c_int,
+                *mut c_float,
+            ) -> c_float),
     ]
 };
 
@@ -3565,7 +3489,7 @@ pub(crate) unsafe fn ff_quantize_and_encode_band_cost(
     mut bits: *mut c_int,
     mut energy: *mut c_float,
 ) -> c_float {
-    (quantize_and_encode_band_cost_arr[cb as usize]).expect("non-null function pointer")(
+    (quantize_and_encode_band_cost_arr[cb as usize])(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy,
     )
 }
@@ -3581,25 +3505,24 @@ unsafe extern "C" fn quantize_and_encode_band(
     lambda: c_float,
     mut rtz: c_int,
 ) {
-    (*if rtz != 0 {
-        quantize_and_encode_band_cost_rtz_arr.as_ptr()
+    let arr = if rtz != 0 {
+        &quantize_and_encode_band_cost_rtz_arr
     } else {
-        quantize_and_encode_band_cost_arr.as_ptr()
-    }
-    .offset(cb as isize))
-    .expect("non-null function pointer")(
+        &quantize_and_encode_band_cost_arr
+    };
+    arr[cb as usize](
         s,
         pb,
         in_0,
         out,
-        std::ptr::null::<c_float>(),
+        ptr::null(),
         size,
         scale_idx,
         cb,
         lambda,
-        ::core::f32::INFINITY,
-        std::ptr::null_mut::<c_int>(),
-        std::ptr::null_mut::<c_float>(),
+        f32::INFINITY,
+        ptr::null_mut(),
+        ptr::null_mut(),
     );
 }
 unsafe extern "C" fn encode_window_bands_info(
@@ -3709,8 +3632,8 @@ unsafe extern "C" fn encode_window_bands_info(
                             aac_cb_out_map[cb as usize] as c_int,
                             lambda / (*band).threshold,
                             ::core::f32::INFINITY,
-                            std::ptr::null_mut::<c_int>(),
-                            std::ptr::null_mut::<c_float>(),
+                            ptr::null_mut::<c_int>(),
+                            ptr::null_mut::<c_float>(),
                         );
                         w += 1;
                         w;
@@ -4078,8 +4001,8 @@ unsafe extern "C" fn search_for_quantizers_anmr(
                             cb,
                             lambda / (*band_0).threshold,
                             ::core::f32::INFINITY,
-                            std::ptr::null_mut::<c_int>(),
-                            std::ptr::null_mut::<c_float>(),
+                            ptr::null_mut::<c_int>(),
+                            ptr::null_mut::<c_float>(),
                         );
                         w2 += 1;
                         w2;
@@ -4581,7 +4504,7 @@ unsafe extern "C" fn search_for_quantizers_fast(
                                 1.0f32,
                                 ::core::f32::INFINITY,
                                 &mut b,
-                                std::ptr::null_mut::<c_float>(),
+                                ptr::null_mut::<c_float>(),
                                 0 as c_int,
                             );
                             bits += b;
@@ -4691,7 +4614,7 @@ unsafe extern "C" fn search_for_pns(
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
 ) {
-    let mut band: *mut FFPsyBand = std::ptr::null_mut::<FFPsyBand>();
+    let mut band: *mut FFPsyBand = ptr::null_mut::<FFPsyBand>();
     let mut w: c_int = 0;
     let mut g: c_int = 0;
     let mut w2: c_int = 0;
@@ -5228,8 +5151,8 @@ unsafe extern "C" fn search_for_pns(
                                     (*sce).band_alt[((w + w2) * 16 as c_int + g) as usize] as c_int,
                                     lambda / (*band).threshold,
                                     ::core::f32::INFINITY,
-                                    std::ptr::null_mut::<c_int>(),
-                                    std::ptr::null_mut::<c_float>(),
+                                    ptr::null_mut::<c_int>(),
+                                    ptr::null_mut::<c_float>(),
                                 );
                                 dist2 += (*band).energy / ((*band).spread * (*band).spread)
                                     * lambda
@@ -5276,7 +5199,7 @@ unsafe extern "C" fn mark_pns(
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
 ) {
-    let mut band: *mut FFPsyBand = std::ptr::null_mut::<FFPsyBand>();
+    let mut band: *mut FFPsyBand = ptr::null_mut::<FFPsyBand>();
     let mut w: c_int = 0;
     let mut g: c_int = 0;
     let mut w2: c_int = 0;
@@ -5923,7 +5846,7 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 lambda / ((*band0).threshold + 1.175_494_4e-38_f32),
                                 ::core::f32::INFINITY,
                                 &mut b1,
-                                std::ptr::null_mut::<c_float>(),
+                                ptr::null_mut::<c_float>(),
                             );
                             dist1 += quantize_band_cost(
                                 s,
@@ -5937,7 +5860,7 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 lambda / ((*band1).threshold + 1.175_494_4e-38_f32),
                                 ::core::f32::INFINITY,
                                 &mut b2,
-                                std::ptr::null_mut::<c_float>(),
+                                ptr::null_mut::<c_float>(),
                             );
                             dist2 += quantize_band_cost(
                                 s,
@@ -5949,7 +5872,7 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 lambda / (minthr + 1.175_494_4e-38_f32),
                                 ::core::f32::INFINITY,
                                 &mut b3,
-                                std::ptr::null_mut::<c_float>(),
+                                ptr::null_mut::<c_float>(),
                             );
                             dist2 += quantize_band_cost(
                                 s,
@@ -5961,7 +5884,7 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 mslambda / (minthr * bmax + 1.175_494_4e-38_f32),
                                 ::core::f32::INFINITY,
                                 &mut b4,
-                                std::ptr::null_mut::<c_float>(),
+                                ptr::null_mut::<c_float>(),
                             );
                             B0 += b1 + b2;
                             B1 += b3 + b4;

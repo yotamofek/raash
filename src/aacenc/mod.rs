@@ -4252,8 +4252,7 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         }
     }
     (*s).profile = (*avctx).profile;
-    (*s).coder = &*ff_aac_coders.as_ptr().offset((*s).options.coder as isize)
-        as *const AACCoefficientsEncoder;
+    (*s).coder = &ff_aac_coders[(*s).options.coder as usize];
     if (*s).options.coder == AAC_CODER_ANMR as c_int {
         if (*avctx).strict_std_compliance > -(2 as c_int) {
             av_log(

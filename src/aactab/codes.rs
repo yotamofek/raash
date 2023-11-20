@@ -231,37 +231,14 @@ static bits11: [c_uchar; 289] = [
     11, 12, 12, 9, 9, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 5,
 ];
 
-pub(crate) static mut ff_aac_spectral_codes: [*const c_ushort; 11] = unsafe {
-    [
-        codes1.as_ptr(),
-        codes2.as_ptr(),
-        codes3.as_ptr(),
-        codes4.as_ptr(),
-        codes5.as_ptr(),
-        codes6.as_ptr(),
-        codes7.as_ptr(),
-        codes8.as_ptr(),
-        codes9.as_ptr(),
-        codes10.as_ptr(),
-        codes11.as_ptr(),
-    ]
-};
+pub(crate) static ff_aac_spectral_codes: [&[c_ushort]; 11] = [
+    &codes1, &codes2, &codes3, &codes4, &codes5, &codes6, &codes7, &codes8, &codes9, &codes10,
+    &codes11,
+];
 
-pub(crate) static mut ff_aac_spectral_bits: [*const c_uchar; 11] = unsafe {
-    [
-        bits1.as_ptr(),
-        bits2.as_ptr(),
-        bits3.as_ptr(),
-        bits4.as_ptr(),
-        bits5.as_ptr(),
-        bits6.as_ptr(),
-        bits7.as_ptr(),
-        bits8.as_ptr(),
-        bits9.as_ptr(),
-        bits10.as_ptr(),
-        bits11.as_ptr(),
-    ]
-};
+pub(crate) static ff_aac_spectral_bits: [&[c_uchar]; 11] = [
+    &bits1, &bits2, &bits3, &bits4, &bits5, &bits6, &bits7, &bits8, &bits9, &bits10, &bits11,
+];
 
 pub(crate) static ff_aac_spectral_sizes: [c_ushort; 11] =
     [81, 81, 81, 81, 81, 81, 64, 64, 169, 169, 289];
@@ -512,21 +489,19 @@ static codebook_vector10: [c_float; 578] = [
     30.5673509, 64.0f32, 33.7419917, 64.0f32, 36.9931811, 64.0f32, 64.0f32,
 ];
 
-pub(crate) static mut ff_aac_codebook_vectors: [*const c_float; 11] = unsafe {
-    [
-        codebook_vector0.as_ptr(),
-        codebook_vector0.as_ptr(),
-        codebook_vector2.as_ptr(),
-        codebook_vector2.as_ptr(),
-        codebook_vector4.as_ptr(),
-        codebook_vector4.as_ptr(),
-        codebook_vector6.as_ptr(),
-        codebook_vector6.as_ptr(),
-        codebook_vector8.as_ptr(),
-        codebook_vector8.as_ptr(),
-        codebook_vector10.as_ptr(),
-    ]
-};
+pub(crate) static ff_aac_codebook_vectors: [&[c_float]; 11] = [
+    &codebook_vector0,
+    &codebook_vector0,
+    &codebook_vector2,
+    &codebook_vector2,
+    &codebook_vector4,
+    &codebook_vector4,
+    &codebook_vector6,
+    &codebook_vector6,
+    &codebook_vector8,
+    &codebook_vector8,
+    &codebook_vector10,
+];
 static codebook_vector0_vals: [c_float; 3] = [-1.0000000, 0.0000000, 1.0000000];
 static codebook_vector02_idx: [c_ushort; 81] = [
     0, 0x8140, 0x8180, 0x4110, 0xc250, 0xc290, 0x4120, 0xc260, 0xc2a0, 0x2104, 0xa244, 0xa284,
