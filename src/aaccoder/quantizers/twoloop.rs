@@ -1,5 +1,6 @@
-use std::mem::size_of;
+use std::{iter::zip, mem::size_of, ptr, slice};
 
+use itertools::izip;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
 use crate::{
@@ -115,7 +116,7 @@ pub(crate) unsafe extern "C" fn search(
     min_spread_thr_r = -1.;
     max_spread_thr_r = -1.;
 
-    loop1(
+    let allz = loop1(
         sce,
         s,
         cutoff,
@@ -123,55 +124,16 @@ pub(crate) unsafe extern "C" fn search(
         &mut uplims,
         &mut energies,
         &mut nzs,
-        &mut allz,
         &mut spread_thr_r,
         &mut min_spread_thr_r,
         &mut max_spread_thr_r,
     );
 
-    minscaler = 65535;
-    w = 0;
-    while w < sce.ics.num_windows {
-        g = 0;
-        while g < sce.ics.num_swb {
-            if sce.zeroes[(w * 16 + g) as usize] != 0 {
-                sce.sf_idx[(w * 16 + g) as usize] = 140;
-            } else {
-                sce.sf_idx[(w * 16 + g) as usize] = ((140.
-                    + 1.75f64
-                        * (uplims[(w * 16 + g) as usize].max(0.00125)
-                            / *(sce.ics.swb_sizes).offset(g as isize) as c_int as c_float)
-                            .log2() as c_double
-                    + sfoffs as c_double)
-                    as c_int)
-                    .clamp(60, 255);
-                minscaler = if minscaler > sce.sf_idx[(w * 16 + g) as usize] {
-                    sce.sf_idx[(w * 16 + g) as usize]
-                } else {
-                    minscaler
-                };
-            }
-            g += 1;
-            g;
-        }
-        w += sce.ics.group_len[w as usize] as c_int;
-    }
-    minscaler = minscaler.clamp(140, 255);
-    w = 0 as c_int;
-    while w < sce.ics.num_windows {
-        g = 0 as c_int;
-        while g < sce.ics.num_swb {
-            if sce.zeroes[(w * 16 + g) as usize] == 0 {
-                sce.sf_idx[(w * 16 + g) as usize] =
-                    sce.sf_idx[(w * 16 + g) as usize].clamp(minscaler, minscaler + 60 - 1);
-            }
-            g += 1;
-            g;
-        }
-        w += sce.ics.group_len[w as usize] as c_int;
-    }
+    let minscaler = find_min_scaler(sce, &uplims, sfoffs);
 
-    if allz == 0 {
+    clip_non_zeros(sce, minscaler);
+
+    if let AllZ::False = allz {
         return;
     }
 
@@ -648,7 +610,7 @@ pub(crate) unsafe extern "C" fn search(
             i += 1;
             i;
         }
-        minscaler = 255 as c_int;
+        let mut minscaler = 255 as c_int;
         maxscaler = 0 as c_int;
         w = 0 as c_int;
         while w < sce.ics.num_windows {
@@ -1008,6 +970,66 @@ pub(crate) unsafe extern "C" fn search(
     }
 }
 
+fn clip_non_zeros(sce: &mut SingleChannelElement, minscaler: i32) {
+    let mut w = 0;
+    while w < sce.ics.num_windows as usize {
+        let mut g = 0;
+        let num_swb = sce.ics.num_swb as usize;
+        for (&zero, sf_idx) in zip(
+            &sce.zeroes[w * 16..][..num_swb],
+            &mut sce.sf_idx[w * 16..][..num_swb],
+        ) {
+            if zero == 0 {
+                *sf_idx = (*sf_idx).clamp(minscaler, minscaler + 60 - 1);
+            }
+        }
+
+        w += sce.ics.group_len[w] as usize;
+    }
+}
+
+// TODO: name?
+unsafe fn find_min_scaler(
+    sce: &mut SingleChannelElement,
+    uplims: &[c_float; 128],
+    sfoffs: c_float,
+) -> c_int {
+    let mut minscaler = 65535;
+    let mut w = 0;
+
+    // TODO: is this safe?
+    let swb_sizes = slice::from_raw_parts(sce.ics.swb_sizes, sce.ics.num_swb as usize);
+
+    while w < sce.ics.num_windows as usize {
+        for (&zero, sf_idx, &uplim, &swb_size) in izip!(
+            &sce.zeroes[w * 16..],
+            &mut sce.sf_idx[w * 16..],
+            &uplims[w * 16..],
+            // this one actually limits the rest to num_swb
+            swb_sizes
+        ) {
+            if zero != 0 {
+                *sf_idx = 140;
+            } else {
+                *sf_idx = ((140.
+                    + 1.75f64 * (uplim.max(0.00125) / swb_size as c_float).log2() as c_double
+                    + sfoffs as c_double) as c_int)
+                    .clamp(60, 255);
+                minscaler = minscaler.min(*sf_idx as c_int);
+            }
+        }
+        w += sce.ics.group_len[w] as usize;
+    }
+
+    minscaler.clamp(140, 255)
+}
+
+#[derive(PartialEq, Eq)]
+enum AllZ {
+    True,
+    False,
+}
+
 // TODO: name
 unsafe fn loop1(
     sce: &mut SingleChannelElement,
@@ -1017,14 +1039,14 @@ unsafe fn loop1(
     uplims: &mut [f32; 128],
     energies: &mut [f32; 128],
     nzs: &mut [i8; 128],
-    allz: &mut i32,
     spread_thr_r: &mut [f32; 128],
     min_spread_thr_r: &mut f32,
     max_spread_thr_r: &mut f32,
-) {
+) -> AllZ {
     let mut w = 0 as c_int;
     let mut start;
     let mut g;
+    let mut allz = AllZ::False;
     while w < sce.ics.num_windows {
         start = 0 as c_int;
         g = start;
@@ -1070,7 +1092,9 @@ unsafe fn loop1(
             energies[(w * 16 + g) as usize] = energy;
             nzs[(w * 16 + g) as usize] = nz as c_char;
             sce.zeroes[(w * 16 + g) as usize] = (nz == 0) as c_int as c_uchar;
-            *allz |= nz;
+            if nz > 0 {
+                allz = AllZ::True
+            }
             if nz != 0 && sce.can_pns[(w * 16 + g) as usize] as c_int != 0 {
                 spread_thr_r[(w * 16 + g) as usize] = energy * nz as c_float / (uplim * spread);
                 if *min_spread_thr_r < 0. {
@@ -1095,6 +1119,8 @@ unsafe fn loop1(
         }
         w += sce.ics.group_len[w as usize] as c_int;
     }
+
+    allz
 }
 
 fn zeroscale(lambda: f32) -> f32 {
