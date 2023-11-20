@@ -8,6 +8,8 @@
     unused_mut
 )]
 
+pub(crate) mod pow;
+
 use std::{ffi::CStr, mem::size_of, ptr};
 
 use libc::{
@@ -482,6 +484,7 @@ unsafe extern "C" fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float
         i;
     }
 }
+
 #[inline]
 unsafe extern "C" fn quantize_bands(
     mut out: *mut c_int,

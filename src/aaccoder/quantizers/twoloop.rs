@@ -9,7 +9,7 @@ use crate::{
         ff_sfdelta_can_remove_band, find_form_factor, find_max_val, find_min_book,
         quantize_band_cost_cached,
     },
-    aacenc::ff_quantize_band_cost_cache_init,
+    aacenc::{ff_quantize_band_cost_cache_init, pow::Pow34},
     aactab::ff_aac_scalefactor_bits,
     common::*,
     types::*,
@@ -43,31 +43,23 @@ pub(crate) unsafe extern "C" fn search(
     let mut refbits: c_int = dest_bits;
     let mut too_many_bits: c_int = 0;
     let mut too_few_bits: c_int = 0;
-    let mut nzs: [c_char; 128] = [0; 128];
     let mut nextband: [c_uchar; 128] = [0; 128];
     let mut maxsf: [c_int; 128] = [0; 128];
     let mut minsf: [c_int; 128] = [0; 128];
     let mut dists: [c_float; 128] = [0.; 128];
     let mut qenergies: [c_float; 128] = [0.; 128];
-    let mut uplims: [c_float; 128] = [0.; 128];
     let mut euplims: [c_float; 128] = [0.; 128];
-    let mut energies: [c_float; 128] = [0.; 128];
     let mut maxvals: [c_float; 128] = [0.; 128];
-    let mut spread_thr_r: [c_float; 128] = [0.; 128];
-    let mut min_spread_thr_r: c_float = 0.;
-    let mut max_spread_thr_r: c_float = 0.;
     let mut rdlambda: c_float = (2.0f32 * 120.0f32 / lambda).clamp(0.0625f32, 16.0f32);
     let nzslope: c_float = 1.5f32;
     let mut rdmin: c_float = 0.03125f32;
     let mut rdmax: c_float = 1.0f32;
     let mut sfoffs: c_float = ((120.0f32 / lambda).log2() * 4.0f32).clamp(-5., 10.);
     let mut fflag: c_int = 0;
-    let mut minscaler: c_int = 0;
     let mut maxscaler: c_int = 0;
     let mut nminscaler: c_int = 0;
     let mut its: c_int = 0 as c_int;
     let mut maxits: c_int = 30 as c_int;
-    let mut allz: c_int = 0 as c_int;
     let mut tbits: c_int = 0;
     let mut cutoff: c_int = 1024 as c_int;
     let mut pns_start_pos: c_int = 0;
@@ -113,21 +105,16 @@ pub(crate) unsafe extern "C" fn search(
     dest_bits = dest_bits.min(5800);
     too_many_bits = too_many_bits.min(5800);
     too_few_bits = too_few_bits.min(5800);
-    min_spread_thr_r = -1.;
-    max_spread_thr_r = -1.;
 
-    let allz = loop1(
-        sce,
-        s,
-        cutoff,
-        zeroscale,
-        &mut uplims,
-        &mut energies,
-        &mut nzs,
-        &mut spread_thr_r,
-        &mut min_spread_thr_r,
-        &mut max_spread_thr_r,
-    );
+    let Loop1Result {
+        mut uplims,
+        energies,
+        nzs,
+        spread_thr_r,
+        min_spread_thr_r,
+        max_spread_thr_r,
+        allz,
+    } = loop1(sce, s, cutoff, zeroscale);
 
     let minscaler = find_min_scaler(sce, &uplims, sfoffs);
 
@@ -137,7 +124,8 @@ pub(crate) unsafe extern "C" fn search(
         return;
     }
 
-    s.abs_pow34.unwrap()((s.scoefs).as_mut_ptr(), (sce.coeffs).as_mut_ptr(), 1024);
+    s.scoefs = sce.coeffs.map(Pow34::abs_pow34);
+
     ff_quantize_band_cost_cache_init(s);
     minsf.fill(0);
     w = 0;
@@ -973,7 +961,6 @@ pub(crate) unsafe extern "C" fn search(
 fn clip_non_zeros(sce: &mut SingleChannelElement, minscaler: i32) {
     let mut w = 0;
     while w < sce.ics.num_windows as usize {
-        let mut g = 0;
         let num_swb = sce.ics.num_swb as usize;
         for (&zero, sf_idx) in zip(
             &sce.zeroes[w * 16..][..num_swb],
@@ -989,7 +976,7 @@ fn clip_non_zeros(sce: &mut SingleChannelElement, minscaler: i32) {
 }
 
 // TODO: name?
-unsafe fn find_min_scaler(
+fn find_min_scaler(
     sce: &mut SingleChannelElement,
     uplims: &[c_float; 128],
     sfoffs: c_float,
@@ -998,7 +985,7 @@ unsafe fn find_min_scaler(
     let mut w = 0;
 
     // TODO: is this safe?
-    let swb_sizes = slice::from_raw_parts(sce.ics.swb_sizes, sce.ics.num_swb as usize);
+    let swb_sizes = unsafe { slice::from_raw_parts(sce.ics.swb_sizes, sce.ics.num_swb as usize) };
 
     while w < sce.ics.num_windows as usize {
         for (&zero, sf_idx, &uplim, &swb_size) in izip!(
@@ -1024,29 +1011,62 @@ unsafe fn find_min_scaler(
     minscaler.clamp(140, 255)
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq)]
 enum AllZ {
-    True,
+    #[default]
     False,
+    True,
+}
+
+struct Loop1Result {
+    uplims: [f32; 128],
+    energies: [f32; 128],
+    nzs: [i8; 128],
+    spread_thr_r: [f32; 128],
+    min_spread_thr_r: f32,
+    max_spread_thr_r: f32,
+    allz: AllZ,
+}
+
+impl Default for Loop1Result {
+    fn default() -> Self {
+        Self {
+            uplims: [0.; 128],
+            energies: [0.; 128],
+            nzs: [0; 128],
+            spread_thr_r: [0.; 128],
+            min_spread_thr_r: -1.,
+            max_spread_thr_r: -1.,
+            allz: Default::default(),
+        }
+    }
 }
 
 // TODO: name
-unsafe fn loop1(
+fn loop1(
     sce: &mut SingleChannelElement,
     s: &AACEncContext,
     cutoff: i32,
     zeroscale: f32,
-    uplims: &mut [f32; 128],
-    energies: &mut [f32; 128],
-    nzs: &mut [i8; 128],
-    spread_thr_r: &mut [f32; 128],
-    min_spread_thr_r: &mut f32,
-    max_spread_thr_r: &mut f32,
-) -> AllZ {
+) -> Loop1Result {
+    let mut res = Loop1Result::default();
+    let Loop1Result {
+        uplims,
+        energies,
+        nzs,
+        spread_thr_r,
+        min_spread_thr_r,
+        max_spread_thr_r,
+        allz,
+    } = &mut res;
+
+    // TODO: is this safe?
+    let swb_sizes = unsafe { slice::from_raw_parts(sce.ics.swb_sizes, sce.ics.num_swb as usize) };
+    let ch = unsafe { &*s.psy.ch.offset(s.cur_channel as isize) };
+
     let mut w = 0 as c_int;
     let mut start;
     let mut g;
-    let mut allz = AllZ::False;
     while w < sce.ics.num_windows {
         start = 0 as c_int;
         g = start;
@@ -1057,7 +1077,6 @@ unsafe fn loop1(
             let mut spread: c_float = 0.0f32;
             let mut w2 = 0;
             while w2 < sce.ics.group_len[w as usize] as c_int {
-                let ch = &*s.psy.ch.offset(s.cur_channel as isize);
                 let band = ch.psy_bands[((w + w2) * 16 + g) as usize];
                 if start >= cutoff
                     || band.energy <= band.threshold * zeroscale
@@ -1073,27 +1092,26 @@ unsafe fn loop1(
             if nz == 0 {
                 uplim = 0.0f32;
             } else {
-                nz = 0;
-                w2 = 0;
-                while w2 < sce.ics.group_len[w as usize] as c_int {
-                    let ch = &*s.psy.ch.offset(s.cur_channel as isize);
-                    let band = ch.psy_bands[((w + w2) * 16 + g) as usize];
-                    if !(band.energy <= band.threshold * zeroscale || band.threshold == 0.0f32) {
+                nz = ch.psy_bands[(w * 16 + g) as usize..]
+                    .iter()
+                    .step_by(16)
+                    .take(sce.ics.group_len[w as usize] as usize)
+                    .filter(|band| {
+                        !(band.energy <= band.threshold * zeroscale || band.threshold == 0.0f32)
+                    })
+                    .inspect(|band| {
                         uplim += band.threshold;
                         energy += band.energy;
                         spread += band.spread;
-                        nz += 1;
-                    }
-                    w2 += 1;
-                    w2;
-                }
+                    })
+                    .count() as i32;
             }
             uplims[(w * 16 + g) as usize] = uplim;
             energies[(w * 16 + g) as usize] = energy;
             nzs[(w * 16 + g) as usize] = nz as c_char;
             sce.zeroes[(w * 16 + g) as usize] = (nz == 0) as c_int as c_uchar;
             if nz > 0 {
-                allz = AllZ::True
+                *allz = AllZ::True
             }
             if nz != 0 && sce.can_pns[(w * 16 + g) as usize] as c_int != 0 {
                 spread_thr_r[(w * 16 + g) as usize] = energy * nz as c_float / (uplim * spread);
@@ -1115,12 +1133,12 @@ unsafe fn loop1(
             }
             let fresh1 = g;
             g += 1;
-            start += *(sce.ics.swb_sizes).offset(fresh1 as isize) as c_int;
+            start += swb_sizes[fresh1 as usize] as c_int;
         }
         w += sce.ics.group_len[w as usize] as c_int;
     }
 
-    allz
+    res
 }
 
 fn zeroscale(lambda: f32) -> f32 {
