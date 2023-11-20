@@ -129,7 +129,7 @@ unsafe extern "C" fn put_bits_no_assert(
         if ((*s).buf_end).offset_from((*s).buf_ptr) as c_long as c_ulong
             >= size_of::<BitBuf>() as c_ulong
         {
-            (*((*s).buf_ptr as *mut unaligned_32)).l = bit_buf;
+            (*((*s).buf_ptr as *mut unaligned_32)).l = bit_buf.swap_bytes();
             (*s).buf_ptr = ((*s).buf_ptr).offset(size_of::<BitBuf>() as c_ulong as isize);
         } else {
             panic!("Internal error, put_bits buffer too small");
