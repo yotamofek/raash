@@ -1,6 +1,11 @@
 use crate::types::*;
 
 use ::libc;
+
+use super::{
+    ff_tx_clear_ctx, ff_tx_decompose_length, ff_tx_gen_compound_mapping, ff_tx_gen_default_map,
+    ff_tx_gen_inplace_map, ff_tx_gen_pfa_input_map, ff_tx_gen_ptwo_revtab, ff_tx_init_subtx,
+};
 extern "C" {
     fn cos(_: libc::c_double) -> libc::c_double;
     fn sin(_: libc::c_double) -> libc::c_double;
@@ -12,38 +17,6 @@ extern "C" {
     fn pthread_once(
         __once_control: *mut pthread_once_t,
         __init_routine: Option<unsafe extern "C" fn() -> ()>,
-    ) -> libc::c_int;
-    fn ff_tx_gen_inplace_map(s: *mut AVTXContext, len: libc::c_int) -> libc::c_int;
-    fn ff_tx_gen_ptwo_revtab(s: *mut AVTXContext, opts: *mut FFTXCodeletOptions) -> libc::c_int;
-    fn ff_tx_gen_compound_mapping(
-        s: *mut AVTXContext,
-        opts: *mut FFTXCodeletOptions,
-        inv: libc::c_int,
-        n: libc::c_int,
-        m: libc::c_int,
-    ) -> libc::c_int;
-    fn ff_tx_gen_default_map(s: *mut AVTXContext, opts: *mut FFTXCodeletOptions) -> libc::c_int;
-    fn ff_tx_decompose_length(
-        dst: *mut libc::c_int,
-        type_0: AVTXType,
-        len: libc::c_int,
-        inv: libc::c_int,
-    ) -> libc::c_int;
-    fn ff_tx_clear_ctx(s: *mut AVTXContext);
-    fn ff_tx_init_subtx(
-        s: *mut AVTXContext,
-        type_0: AVTXType,
-        flags: uint64_t,
-        opts: *mut FFTXCodeletOptions,
-        len: libc::c_int,
-        inv: libc::c_int,
-        scale: *const libc::c_void,
-    ) -> libc::c_int;
-    fn ff_tx_gen_pfa_input_map(
-        s: *mut AVTXContext,
-        opts: *mut FFTXCodeletOptions,
-        d1: libc::c_int,
-        d2: libc::c_int,
     ) -> libc::c_int;
     fn memcpy(_: *mut libc::c_void, _: *const libc::c_void, _: libc::c_ulong) -> *mut libc::c_void;
 }

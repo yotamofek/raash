@@ -3629,7 +3629,6 @@ unsafe extern "C" fn aac_encode_frame(
     mut frame: *const AVFrame,
     mut got_packet_ptr: *mut libc::c_int,
 ) -> libc::c_int {
-    panic!();
     let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
     let mut samples: *mut *mut libc::c_float = ((*s).planar_samples).as_mut_ptr();
     let mut samples2: *mut libc::c_float = std::ptr::null_mut::<libc::c_float>();
