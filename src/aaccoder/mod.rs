@@ -470,6 +470,20 @@ unsafe fn ff_pns_bits(mut sce: *mut SingleChannelElement, mut w: c_int, mut g: c
         5 as c_int
     }
 }
+
+fn cutoff_from_bitrate(bit_rate: c_int, channels: c_int, sample_rate: c_int) -> c_int {
+    if bit_rate == 0 {
+        return sample_rate / 2;
+    }
+
+    (bit_rate / channels / 5)
+        .max(bit_rate / channels * 15 / 32 - 5500)
+        .min(3000 + bit_rate / channels / 4)
+        .min(12000 + bit_rate / channels / 16)
+        .min(22000)
+        .min(sample_rate / 2)
+}
+
 unsafe extern "C" fn search_for_quantizers_twoloop(
     mut avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
@@ -553,7 +567,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
         rdlambda = sqrtf(rdlambda);
     }
     let mut wlen: c_int = 1024 as c_int / (*sce).ics.num_windows;
-    let mut bandwidth: c_int = 0;
+
     let mut rate_bandwidth_multiplier: c_float = 1.5f32;
     let mut frame_bit_rate: c_int = (if (*avctx).flags & (1 as c_int) << 1 as c_int != 0 {
         refbits as c_float * rate_bandwidth_multiplier * (*avctx).sample_rate as c_float
@@ -564,305 +578,13 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
     if (*s).options.pns != 0 || (*s).options.intensity_stereo != 0 {
         frame_bit_rate = (frame_bit_rate as c_float * 1.15f32) as c_int;
     }
-    if (*avctx).cutoff > 0 as c_int {
-        bandwidth = (*avctx).cutoff;
+    let bandwidth = if (*avctx).cutoff > 0 {
+        (*avctx).cutoff
     } else {
-        bandwidth = if 3000 as c_int
-            > (if frame_bit_rate != 0 {
-                if (if (if (if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                {
-                    3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-                {
-                    12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-                } else if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                {
-                    3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 22000 as c_int
-                {
-                    22000 as c_int
-                } else if (if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                {
-                    3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-                {
-                    12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-                } else if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                {
-                    3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > (*avctx).sample_rate / 2 as c_int
-                {
-                    (*avctx).sample_rate / 2 as c_int
-                } else if (if (if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                {
-                    3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-                {
-                    12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-                } else if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                {
-                    3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 22000 as c_int
-                {
-                    22000 as c_int
-                } else if (if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                {
-                    3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-                {
-                    12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-                } else if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                {
-                    3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-                } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                    > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                {
-                    frame_bit_rate / 1 as c_int / 5 as c_int
-                } else {
-                    frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-                }
-            } else {
-                (*avctx).sample_rate / 2 as c_int
-            }) {
-            3000 as c_int
-        } else if frame_bit_rate != 0 {
-            if (if (if (if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            {
-                3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-            {
-                12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-            } else if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            {
-                3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 22000 as c_int
-            {
-                22000 as c_int
-            } else if (if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            {
-                3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-            {
-                12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-            } else if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            {
-                3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > (*avctx).sample_rate / 2 as c_int
-            {
-                (*avctx).sample_rate / 2 as c_int
-            } else if (if (if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            {
-                3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-            {
-                12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-            } else if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            {
-                3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 22000 as c_int
-            {
-                22000 as c_int
-            } else if (if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            {
-                3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-            {
-                12000 as c_int + frame_bit_rate / 1 as c_int / 16 as c_int
-            } else if (if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }) > 3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            {
-                3000 as c_int + frame_bit_rate / 1 as c_int / 4 as c_int
-            } else if frame_bit_rate / 1 as c_int / 5 as c_int
-                > frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            {
-                frame_bit_rate / 1 as c_int / 5 as c_int
-            } else {
-                frame_bit_rate / 1 as c_int * 15 as c_int / 32 as c_int - 5500 as c_int
-            }
-        } else {
-            (*avctx).sample_rate / 2 as c_int
-        };
-        (*s).psy.cutoff = bandwidth;
-    }
+        (*s).psy.cutoff = cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate).max(3000);
+        (*s).psy.cutoff
+    };
+    (*s).psy.cutoff = bandwidth;
     cutoff = bandwidth * 2 as c_int * wlen / (*avctx).sample_rate;
     pns_start_pos = 4000 as c_int * 2 as c_int * wlen / (*avctx).sample_rate;
     destbits = if destbits > 5800 as c_int {
@@ -1932,6 +1654,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
         w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }
+
 unsafe extern "C" fn codebook_trellis_rate(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
