@@ -15,7 +15,7 @@ use libc::{c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 use crate::{
     aaccoder::ff_quantize_and_encode_band_cost,
     aacenc_is::ff_aac_is_encoding_err,
-    aactab::{ff_aac_pow34sf_tab, ff_aac_pred_sfb_max},
+    aactab::{ff_aac_pred_sfb_max, POW_SF_TABLES},
     common::*,
     types::*,
 };
@@ -54,7 +54,7 @@ unsafe fn put_bits(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
 #[inline]
 unsafe fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
     let mut Q34: c_float =
-        ff_aac_pow34sf_tab[(200 as c_int - sf + 140 as c_int - 36 as c_int) as usize];
+        POW_SF_TABLES.pow34[(200 as c_int - sf + 140 as c_int - 36 as c_int) as usize];
     let mut qmaxval: c_int = 0;
     let mut cb: c_int = 0;
     qmaxval = (maxval * Q34 + 0.4054f32) as c_int;

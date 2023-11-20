@@ -2665,22 +2665,7 @@ pub static mut aac_cb_maxval: [c_uchar; 12] = [
     12 as c_int as c_uchar,
     16 as c_int as c_uchar,
 ];
-pub static mut aac_maxval_cb: [c_uchar; 14] = [
-    0 as c_int as c_uchar,
-    1 as c_int as c_uchar,
-    3 as c_int as c_uchar,
-    5 as c_int as c_uchar,
-    5 as c_int as c_uchar,
-    7 as c_int as c_uchar,
-    7 as c_int as c_uchar,
-    7 as c_int as c_uchar,
-    9 as c_int as c_uchar,
-    9 as c_int as c_uchar,
-    9 as c_int as c_uchar,
-    9 as c_int as c_uchar,
-    9 as c_int as c_uchar,
-    11 as c_int as c_uchar,
-];
+pub static aac_maxval_cb: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
 
 pub type LPC_TYPE = c_float;
 pub type LPC_TYPE_U = c_float;

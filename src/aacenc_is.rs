@@ -13,7 +13,7 @@ use std::{mem::size_of, slice};
 use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_ulong};
 
 use crate::{
-    aaccoder::ff_quantize_and_encode_band_cost, aactab::ff_aac_pow34sf_tab, common::*, types::*,
+    aaccoder::ff_quantize_and_encode_band_cost, aactab::POW_SF_TABLES, common::*, types::*,
 };
 
 #[inline]
@@ -37,21 +37,12 @@ unsafe fn find_max_val(
 }
 
 #[inline]
-unsafe fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
-    let mut Q34: c_float =
-        ff_aac_pow34sf_tab[(200 as c_int - sf + 140 as c_int - 36 as c_int) as usize];
-    let mut qmaxval: c_int = 0;
-    let mut cb: c_int = 0;
-    qmaxval = (maxval * Q34 + 0.4054f32) as c_int;
-    if qmaxval as c_ulong
-        >= (size_of::<[c_uchar; 14]>() as c_ulong).wrapping_div(size_of::<c_uchar>() as c_ulong)
-    {
-        cb = 11 as c_int;
-    } else {
-        cb = aac_maxval_cb[qmaxval as usize] as c_int;
-    }
-    cb
+fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
+    let mut Q34: c_float = POW_SF_TABLES.pow34[(200 - sf + 140 - 36) as usize];
+    let qmaxval = (maxval * Q34 + 0.405_4_f32) as usize;
+    aac_maxval_cb.get(qmaxval).copied().unwrap_or(11) as c_int
 }
+
 #[inline]
 unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut c_uchar) {
     let mut prevband: c_uchar = 0 as c_int as c_uchar;
@@ -82,6 +73,7 @@ unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextban
     }
     *nextband.offset(prevband as isize) = prevband;
 }
+
 #[inline]
 unsafe fn ff_sfdelta_can_remove_band(
     mut sce: *const SingleChannelElement,

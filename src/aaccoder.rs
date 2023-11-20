@@ -192,7 +192,7 @@ unsafe fn find_max_val(
 #[inline]
 unsafe fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
     let mut Q34: c_float =
-        ff_aac_pow34sf_tab[(200 as c_int - sf + 140 as c_int - 36 as c_int) as usize];
+        POW_SF_TABLES.pow34[(200 as c_int - sf + 140 as c_int - 36 as c_int) as usize];
     let mut qmaxval: c_int = 0;
     let mut cb: c_int = 0;
     qmaxval = (maxval * Q34 + 0.4054f32) as c_int;
@@ -2457,10 +2457,10 @@ unsafe fn quantize_and_encode_band_cost_template(
     ROUNDING: c_float,
 ) -> c_float {
     let q_idx: c_int = 200 as c_int - scale_idx + 140 as c_int - 36 as c_int;
-    let Q: c_float = ff_aac_pow2sf_tab[q_idx as usize];
-    let Q34: c_float = ff_aac_pow34sf_tab[q_idx as usize];
+    let Q: c_float = POW_SF_TABLES.pow2[q_idx as usize];
+    let Q34: c_float = POW_SF_TABLES.pow34[q_idx as usize];
     let IQ: c_float =
-        ff_aac_pow2sf_tab[(200 as c_int + scale_idx - 140 as c_int + 36 as c_int) as usize];
+        POW_SF_TABLES.pow2[(200 as c_int + scale_idx - 140 as c_int + 36 as c_int) as usize];
     let CLIPPED_ESCAPE: c_float = 165140.0f32 * IQ;
     let mut cost: c_float = 0 as c_int as c_float;
     let mut qenergy: c_float = 0 as c_int as c_float;
@@ -5152,7 +5152,7 @@ unsafe extern "C" fn search_for_pns(
                         -(100 as c_int),
                         155 as c_int,
                     );
-                    noise_amp = -ff_aac_pow2sf_tab[(noise_sfi + 200 as c_int) as usize];
+                    noise_amp = -POW_SF_TABLES.pow2[(noise_sfi + 200 as c_int) as usize];
                     if prev != -(1000 as c_int) {
                         let mut noise_sfdiff: c_int = noise_sfi - prev + 60 as c_int;
                         if noise_sfdiff < 0 as c_int || noise_sfdiff > 2 as c_int * 60 as c_int {

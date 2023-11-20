@@ -17,7 +17,7 @@ use libc::{c_double, c_float, c_int, c_void};
 use crate::{avutil::mathematics::av_bessel_i0, common::*};
 
 #[cold]
-unsafe fn kbd_window_init(
+pub(crate) unsafe fn kbd_window_init(
     mut float_window: *mut c_float,
     mut int_window: *mut c_int,
     mut alpha: c_float,

@@ -8,22 +8,32 @@
     unused_mut
 )]
 
-use std::sync::Once;
+use std::{
+    f32::consts::SQRT_2,
+    f64::consts::PI,
+    iter::zip,
+    ptr,
+    sync::{Once, OnceLock},
+};
 
-use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
+use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_ushort};
+use once_cell::sync::Lazy;
 
-use crate::{kbdwin::avpriv_kbd_window_init, sinewin::ff_init_ff_sine_windows};
+use crate::{
+    avutil::mathematics::av_bessel_i0, kbdwin::avpriv_kbd_window_init,
+    sinewin::ff_init_ff_sine_windows,
+};
 
-pub(crate) static mut ff_aac_pow2sf_tab: [c_float; 428] = [0.; 428];
+pub(crate) struct PowSfTables {
+    pub pow2: [c_float; 428],
+    pub pow34: [c_float; 428],
+}
 
-pub(crate) static mut ff_aac_pow34sf_tab: [c_float; 428] = [0.; 428];
+pub(crate) static POW_SF_TABLES: Lazy<PowSfTables> = Lazy::new(|| {
+    let mut pow2 = [0.; 428];
+    let mut pow34 = [0.; 428];
 
-pub(crate) static mut ff_aac_kbd_long_1024: [c_float; 1024] = [0.; 1024];
-
-pub(crate) static mut ff_aac_kbd_short_128: [c_float; 128] = [0.; 128];
-#[cold]
-unsafe fn aac_tableinit() {
-    static mut exp2_lut: [c_float; 16] = [
+    const EXP2_LUT: [c_float; 16] = [
         1.00000000000000000000,
         1.044_273_7,
         1.090_507_7,
@@ -32,7 +42,7 @@ unsafe fn aac_tableinit() {
         1.241_857_8,
         1.296_839_6,
         1.354_255_6,
-        1.414_213_5,
+        SQRT_2,
         1.476_826_2,
         1.542_210_8,
         1.610_490_3,
@@ -47,37 +57,71 @@ unsafe fn aac_tableinit() {
     let mut t2_inc_cur: c_int = 0;
     let mut t1_inc_prev: c_int = 0 as c_int;
     let mut t2_inc_prev: c_int = 8 as c_int;
-    let mut i: c_int = 0 as c_int;
-    while i < 428 as c_int {
-        t1_inc_cur = 4 as c_int * (i % 4 as c_int);
-        t2_inc_cur = (8 as c_int + 3 as c_int * i) % 16 as c_int;
+    for (i, (pow2, pow34)) in zip(&mut pow2, &mut pow34).enumerate() {
+        t1_inc_cur = 4 as c_int * (i as c_int % 4);
+        t2_inc_cur = (8 as c_int + 3 as c_int * i as c_int) % 16 as c_int;
         if t1_inc_cur < t1_inc_prev {
             t1 *= 2 as c_int as c_float;
         }
         if t2_inc_cur < t2_inc_prev {
             t2 *= 2 as c_int as c_float;
         }
-        ff_aac_pow2sf_tab[i as usize] = t1 * exp2_lut[t1_inc_cur as usize];
-        ff_aac_pow34sf_tab[i as usize] = t2 * exp2_lut[t2_inc_cur as usize];
+        *pow2 = t1 * EXP2_LUT[t1_inc_cur as usize];
+        *pow34 = t2 * EXP2_LUT[t2_inc_cur as usize];
         t1_inc_prev = t1_inc_cur;
         t2_inc_prev = t2_inc_cur;
+    }
+
+    PowSfTables { pow2, pow34 }
+});
+
+pub(crate) fn kbd_window_init<const N: usize>(mut alpha: c_float) -> [c_float; N]
+where
+    [(); N / 2 + 1]:,
+{
+    let mut float_window: [c_float; N] = [0.; N];
+    let mut temp: [c_double; N / 2 + 1] = [0.; N / 2 + 1];
+    let mut i: c_int = 0;
+    let mut sum: c_double = 0.0f64;
+    let mut tmp: c_double = 0.;
+    let mut scale: c_double = 0.0f64;
+    let mut alpha2: c_double =
+        4. * (alpha as c_double * PI / N as c_double) * (alpha as c_double * PI / N as c_double);
+
+    i = 0 as c_int;
+    while i <= (N / 2) as c_int {
+        tmp = alpha2 * i as c_double * (N as c_int - i) as c_double;
+        temp[i as usize] = unsafe { av_bessel_i0(tmp.sqrt()) };
+        scale +=
+            temp[i as usize] * (1 as c_int + (i != 0 && i < (N / 2) as c_int) as c_int) as c_double;
         i += 1;
         i;
     }
+    scale = 1.0f64 / (scale + 1.);
+    i = 0 as c_int;
+    while i <= (N / 2) as c_int {
+        sum += temp[i as usize];
+        float_window[i as usize] = (sum * scale).sqrt() as c_float;
+
+        i += 1;
+        i;
+    }
+    while i < N as c_int {
+        sum += temp[(N as c_int - i) as usize];
+        float_window[i as usize] = (sum * scale).sqrt() as c_float;
+
+        i += 1;
+        i;
+    }
+
+    float_window
 }
+
+pub(crate) static KBD_LONG: Lazy<[c_float; 1024]> = Lazy::new(|| kbd_window_init(4.));
+pub(crate) static KBD_SHORT: Lazy<[c_float; 128]> = Lazy::new(|| kbd_window_init(6.));
+
 #[cold]
 unsafe fn aac_float_common_init() {
-    aac_tableinit();
-    avpriv_kbd_window_init(
-        ff_aac_kbd_long_1024.as_mut_ptr(),
-        4.0f64 as c_float,
-        1024 as c_int,
-    );
-    avpriv_kbd_window_init(
-        ff_aac_kbd_short_128.as_mut_ptr(),
-        6.0f64 as c_float,
-        128 as c_int,
-    );
     ff_init_ff_sine_windows(10 as c_int);
     ff_init_ff_sine_windows(7 as c_int);
 }

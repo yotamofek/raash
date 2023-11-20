@@ -1,4 +1,10 @@
-#![feature(extern_types, c_str_literals, array_chunks)]
+#![feature(
+    extern_types,
+    c_str_literals,
+    array_chunks,
+    inline_const,
+    generic_const_exprs
+)]
 #![allow(
     clippy::eq_op,
     clippy::precedence,
