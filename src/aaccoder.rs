@@ -11,9 +11,7 @@
 use std::{mem::size_of, ptr};
 
 use ilog::IntLog;
-use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong,
-};
+use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
 use crate::{
     aacenc::ff_quantize_band_cost_cache_init, aacenc_is::*, aacenc_ltp::*, aacenc_pred::*,
@@ -67,7 +65,7 @@ unsafe fn ff_sqrf(mut a: c_float) -> c_float {
     a * a
 }
 #[inline(always)]
-unsafe fn ff_log2_c(mut v: c_uint) -> c_int {
+fn ff_log2_c(mut v: c_uint) -> c_int {
     // TODO: is this (the cast) correct??
     v.log2() as c_int
     // let mut n: c_int = 0 as c_int;
@@ -81,16 +79,6 @@ unsafe fn ff_log2_c(mut v: c_uint) -> c_int {
     // }
     // n += ff_log2_tab[v as usize] as c_int;
     // return n;
-}
-#[inline(always)]
-unsafe fn av_clip_c(mut a: c_int, mut amin: c_int, mut amax: c_int) -> c_int {
-    if a < amin {
-        amin
-    } else if a > amax {
-        return amax;
-    } else {
-        return a;
-    }
 }
 #[inline(always)]
 unsafe fn av_clip_uint8_c(mut a: c_int) -> c_uchar {
@@ -1261,20 +1249,18 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
             if (*sce).zeroes[(w * 16 as c_int + g) as usize] != 0 {
                 (*sce).sf_idx[(w * 16 as c_int + g) as usize] = 140 as c_int;
             } else {
-                (*sce).sf_idx[(w * 16 as c_int + g) as usize] = av_clip_c(
-                    (140 as c_int as c_double
-                        + 1.75f64
-                            * log2f(
-                                (if 0.00125f32 > uplims[(w * 16 as c_int + g) as usize] {
-                                    0.00125f32
-                                } else {
-                                    uplims[(w * 16 as c_int + g) as usize]
-                                }) / *((*sce).ics.swb_sizes).offset(g as isize) as c_int as c_float,
-                            ) as c_double
-                        + sfoffs as c_double) as c_int,
-                    60 as c_int,
-                    255 as c_int,
-                );
+                (*sce).sf_idx[(w * 16 as c_int + g) as usize] = ((140.
+                    + 1.75f64
+                        * log2f(
+                            (if 0.00125f32 > uplims[(w * 16 as c_int + g) as usize] {
+                                0.00125f32
+                            } else {
+                                uplims[(w * 16 as c_int + g) as usize]
+                            }) / *((*sce).ics.swb_sizes).offset(g as isize) as c_int as c_float,
+                        ) as c_double
+                    + sfoffs as c_double)
+                    as c_int)
+                    .clamp(60, 255);
                 minscaler = if minscaler > (*sce).sf_idx[(w * 16 as c_int + g) as usize] {
                     (*sce).sf_idx[(w * 16 as c_int + g) as usize]
                 } else {
@@ -1286,21 +1272,15 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
         }
         w += (*sce).ics.group_len[w as usize] as c_int;
     }
-    minscaler = av_clip_c(
-        minscaler,
-        140 as c_int - 36 as c_int,
-        255 as c_int - 36 as c_int,
-    );
+    minscaler = minscaler.clamp(140, 255);
     w = 0 as c_int;
     while w < (*sce).ics.num_windows {
         g = 0 as c_int;
         while g < (*sce).ics.num_swb {
             if (*sce).zeroes[(w * 16 as c_int + g) as usize] == 0 {
-                (*sce).sf_idx[(w * 16 as c_int + g) as usize] = av_clip_c(
-                    (*sce).sf_idx[(w * 16 as c_int + g) as usize],
-                    minscaler,
-                    minscaler + 60 as c_int - 1 as c_int,
-                );
+                (*sce).sf_idx[(w * 16 as c_int + g) as usize] = (*sce).sf_idx
+                    [(w * 16 as c_int + g) as usize]
+                    .clamp(minscaler, minscaler + 60 as c_int - 1 as c_int);
             }
             g += 1;
             g;
@@ -1503,11 +1483,10 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                         dists[(w * 16 as c_int + g) as usize] = dist - bits as c_float;
                         qenergies[(w * 16 as c_int + g) as usize] = qenergy;
                         if prev != -(1 as c_int) {
-                            let mut sfdiff: c_int = av_clip_c(
-                                (*sce).sf_idx[(w * 16 as c_int + g) as usize] - prev + 60 as c_int,
-                                0 as c_int,
-                                2 as c_int * 60 as c_int,
-                            );
+                            let mut sfdiff: c_int = ((*sce).sf_idx[(w * 16 as c_int + g) as usize]
+                                - prev
+                                + 60 as c_int)
+                                .clamp(0, 2 * 60);
                             bits += ff_aac_scalefactor_bits[sfdiff as usize] as c_int;
                         }
                         tbits += bits;

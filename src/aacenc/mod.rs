@@ -4346,7 +4346,7 @@ static mut aacenc_options: [AVOption; 22] = [
             default_val: C2RustUnnamed_0 {
                 i64_0: AAC_CODER_TWOLOOP as c_int as c_long,
             },
-            min: 0 as c_int as c_double,
+            min: 0.,
             max: (AAC_CODER_NB as c_int - 1 as c_int) as c_double,
             flags: 1 as c_int | 8 as c_int,
             unit: c"coder".as_ptr(),
@@ -4362,7 +4362,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: AAC_CODER_ANMR as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"coder".as_ptr(),
         }
@@ -4377,7 +4377,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: AAC_CODER_TWOLOOP as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"coder".as_ptr(),
         }
@@ -4392,7 +4392,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: AAC_CODER_FAST as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"coder".as_ptr(),
         }
@@ -4407,7 +4407,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: -(1 as c_int) as c_long,
             },
             min: -(1 as c_int) as c_double,
-            max: 1 as c_int as c_double,
+            max: 1.,
             flags: 1 as c_int | 8 as c_int,
             unit: 0 as *const c_char,
         }
@@ -4422,7 +4422,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 1 as c_int as c_long,
             },
             min: -(1 as c_int) as c_double,
-            max: 1 as c_int as c_double,
+            max: 1.,
             flags: 1 as c_int | 8 as c_int,
             unit: 0 as *const c_char,
         }
@@ -4437,7 +4437,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 1 as c_int as c_long,
             },
             min: -(1 as c_int) as c_double,
-            max: 1 as c_int as c_double,
+            max: 1.,
             flags: 1 as c_int | 8 as c_int,
             unit: 0 as *const c_char,
         }
@@ -4452,7 +4452,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 1 as c_int as c_long,
             },
             min: -(1 as c_int) as c_double,
-            max: 1 as c_int as c_double,
+            max: 1.,
             flags: 1 as c_int | 8 as c_int,
             unit: 0 as *const c_char,
         }
@@ -4467,7 +4467,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 0 as c_int as c_long,
             },
             min: -(1 as c_int) as c_double,
-            max: 1 as c_int as c_double,
+            max: 1.,
             flags: 1 as c_int | 8 as c_int,
             unit: 0 as *const c_char,
         }
@@ -4482,7 +4482,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 0 as c_int as c_long,
             },
             min: -(1 as c_int) as c_double,
-            max: 1 as c_int as c_double,
+            max: 1.,
             flags: 1 as c_int | 8 as c_int,
             unit: 0 as *const c_char,
         }
@@ -4497,7 +4497,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 0 as c_int as c_long,
             },
             min: -(1 as c_int) as c_double,
-            max: 1 as c_int as c_double,
+            max: 1.,
             flags: 1 as c_int | 8 as c_int,
             unit: 0 as *const c_char,
         }
@@ -4512,7 +4512,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 0 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4527,7 +4527,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 1 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4542,7 +4542,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 2 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4557,7 +4557,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 3 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4572,7 +4572,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 4 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4587,7 +4587,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 28 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4602,7 +4602,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 22 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4617,7 +4617,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 38 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4632,7 +4632,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 128 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }
@@ -4647,7 +4647,7 @@ static mut aacenc_options: [AVOption; 22] = [
                 i64_0: 131 as c_int as c_long,
             },
             min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647 as c_int as c_double,
+            max: 2147483647.,
             flags: 1 as c_int | 8 as c_int,
             unit: c"avctx.profile".as_ptr(),
         }

@@ -7,12 +7,12 @@
     unused_assignments,
     unused_mut
 )]
-use std::alloc::{alloc, Layout};
-
-use libc::{
-    c_double, c_float, c_int,
-    c_void,
+use std::{
+    alloc::{alloc, Layout},
+    f64::consts::PI,
 };
+
+use libc::{c_double, c_float, c_int, c_void};
 
 use crate::{avutil::mathematics::av_bessel_i0, common::*};
 
@@ -33,9 +33,8 @@ unsafe fn kbd_window_init(
     } else {
         alloc(Layout::array::<c_double>((n / 2 as c_int + 1 as c_int) as usize).unwrap()).cast()
     }) as *mut c_double;
-    let mut alpha2: c_double = 4 as c_int as c_double
-        * (alpha as c_double * 3.141_592_653_589_793_f64 / n as c_double)
-        * (alpha as c_double * 3.141_592_653_589_793_f64 / n as c_double);
+    let mut alpha2: c_double =
+        4. * (alpha as c_double * PI / n as c_double) * (alpha as c_double * PI / n as c_double);
     if temp.is_null() {
         return -(12 as c_int);
     }
@@ -48,15 +47,14 @@ unsafe fn kbd_window_init(
         i += 1;
         i;
     }
-    scale = 1.0f64 / (scale + 1 as c_int as c_double);
+    scale = 1.0f64 / (scale + 1.);
     i = 0 as c_int;
     while i <= n / 2 as c_int {
         sum += *temp.offset(i as isize);
         if !float_window.is_null() {
             *float_window.offset(i as isize) = sqrt(sum * scale) as c_float;
         } else {
-            *int_window.offset(i as isize) =
-                lrint(2147483647 as c_int as c_double * sqrt(sum * scale)) as c_int;
+            *int_window.offset(i as isize) = lrint(2147483647. * sqrt(sum * scale)) as c_int;
         }
         i += 1;
         i;
@@ -66,8 +64,7 @@ unsafe fn kbd_window_init(
         if !float_window.is_null() {
             *float_window.offset(i as isize) = sqrt(sum * scale) as c_float;
         } else {
-            *int_window.offset(i as isize) =
-                lrint(2147483647 as c_int as c_double * sqrt(sum * scale)) as c_int;
+            *int_window.offset(i as isize) = lrint(2147483647. * sqrt(sum * scale)) as c_int;
         }
         i += 1;
         i;

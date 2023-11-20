@@ -1,4 +1,7 @@
-use std::alloc::{alloc, alloc_zeroed, Layout};
+use std::{
+    alloc::{alloc, alloc_zeroed, Layout},
+    f64::consts::PI,
+};
 
 use libc::{c_double, c_float, c_int, c_longlong, c_uint, c_void};
 
@@ -26,8 +29,7 @@ unsafe fn butterworth_init_coeffs(
         0,
         "Butterworth filter currently only supports even filter orders"
     );
-    wa =
-        2 as c_int as c_double * tan(3.141_592_653_589_793_f64 * 0.5f64 * cutoff_ratio as c_double);
+    wa = 2. * tan(PI * 0.5f64 * cutoff_ratio as c_double);
     *((*c).cx).offset(0 as c_int as isize) = 1 as c_int;
     i = 1 as c_int;
     while i < (order >> 1 as c_int) + 1 as c_int {
@@ -49,9 +51,8 @@ unsafe fn butterworth_init_coeffs(
     i = 0 as c_int;
     while i < order {
         let mut zp: [c_double; 2] = [0.; 2];
-        let th: c_double = ((i + (order >> 1 as c_int)) as c_double + 0.5f64)
-            * 3.141_592_653_589_793_f64
-            / order as c_double;
+        let th: c_double =
+            ((i + (order >> 1 as c_int)) as c_double + 0.5f64) * PI / order as c_double;
         let mut a_re: c_double = 0.;
         let mut a_im: c_double = 0.;
         let mut c_re: c_double = 0.;
@@ -121,8 +122,8 @@ unsafe fn biquad_init_coeffs(
         "Biquad filter currently only supports high-pass and low-pass filter modes"
     );
     assert_eq!(order, 2, "Biquad filter must have order of 2");
-    cos_w0 = cos(3.141_592_653_589_793_f64 * cutoff_ratio as c_double);
-    sin_w0 = sin(3.141_592_653_589_793_f64 * cutoff_ratio as c_double);
+    cos_w0 = cos(PI * cutoff_ratio as c_double);
+    sin_w0 = sin(PI * cutoff_ratio as c_double);
     a0 = 1.0f64 + sin_w0 / 2.0f64;
     if filt_mode as c_uint == FF_FILTER_MODE_HIGHPASS as c_int as c_uint {
         (*c).gain = ((1.0f64 + cos_w0) / 2.0f64 / a0) as c_float;

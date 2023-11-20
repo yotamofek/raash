@@ -1,4 +1,10 @@
-use std::{mem::size_of, sync::Once};
+use std::{
+    f64::{
+        consts::{FRAC_PI_2, PI},
+    },
+    mem::size_of,
+    sync::Once,
+};
 
 use ::libc;
 use libc::{
@@ -9,7 +15,7 @@ use super::{
     ff_tx_clear_ctx, ff_tx_decompose_length, ff_tx_gen_compound_mapping, ff_tx_gen_default_map,
     ff_tx_gen_inplace_map, ff_tx_gen_pfa_input_map, ff_tx_gen_ptwo_revtab, ff_tx_init_subtx,
 };
-use crate::{types::*};
+use crate::types::*;
 extern "C" {
     fn cos(_: c_double) -> c_double;
     fn sin(_: c_double) -> c_double;
@@ -60,8 +66,7 @@ unsafe extern "C" fn ff_ctz_c(v: c_int) -> c_int {
         10 as c_int as c_uchar,
         9 as c_int as c_uchar,
     ];
-    debruijn_ctz32
-        [(((v & -v) as c_uint).wrapping_mul(0x77cb531 as c_uint) >> 27 as c_int) as usize]
+    debruijn_ctz32[(((v & -v) as c_uint).wrapping_mul(0x77cb531 as c_uint) >> 27 as c_int) as usize]
         as c_int
 }
 #[no_mangle]
@@ -110,8 +115,7 @@ pub static mut ff_tx_tab_7_double: [TXSample; 6] = [0.; 6];
 pub static mut ff_tx_tab_9_double: [TXSample; 8] = [0.; 8];
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_262144_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 262144 as c_int as c_double;
+    let freq: c_double = 2. * PI / 262144.;
     let mut tab: *mut TXSample = ff_tx_tab_262144_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 262144 as c_int / 4 as c_int {
@@ -125,8 +129,7 @@ unsafe extern "C" fn ff_tx_init_tab_262144_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_4096_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 4096 as c_int as c_double;
+    let freq: c_double = 2. * PI / 4096.;
     let mut tab: *mut TXSample = ff_tx_tab_4096_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 4096 as c_int / 4 as c_int {
@@ -140,8 +143,7 @@ unsafe extern "C" fn ff_tx_init_tab_4096_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_256_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 256 as c_int as c_double;
+    let freq: c_double = 2. * PI / 256.;
     let mut tab: *mut TXSample = ff_tx_tab_256_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 256 as c_int / 4 as c_int {
@@ -155,8 +157,7 @@ unsafe extern "C" fn ff_tx_init_tab_256_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_128_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 128 as c_int as c_double;
+    let freq: c_double = 2. * PI / 128.;
     let mut tab: *mut TXSample = ff_tx_tab_128_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 128 as c_int / 4 as c_int {
@@ -170,8 +171,7 @@ unsafe extern "C" fn ff_tx_init_tab_128_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_64_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 64 as c_int as c_double;
+    let freq: c_double = 2. * PI / 64.;
     let mut tab: *mut TXSample = ff_tx_tab_64_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 64 as c_int / 4 as c_int {
@@ -185,8 +185,7 @@ unsafe extern "C" fn ff_tx_init_tab_64_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_32_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 32 as c_int as c_double;
+    let freq: c_double = 2. * PI / 32.;
     let mut tab: *mut TXSample = ff_tx_tab_32_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 32 as c_int / 4 as c_int {
@@ -200,8 +199,7 @@ unsafe extern "C" fn ff_tx_init_tab_32_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_16_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 16 as c_int as c_double;
+    let freq: c_double = 2. * PI / 16.;
     let mut tab: *mut TXSample = ff_tx_tab_16_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 16 as c_int / 4 as c_int {
@@ -215,8 +213,7 @@ unsafe extern "C" fn ff_tx_init_tab_16_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_8_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 8 as c_int as c_double;
+    let freq: c_double = 2. * PI / 8.;
     let mut tab: *mut TXSample = ff_tx_tab_8_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 8 as c_int / 4 as c_int {
@@ -230,8 +227,7 @@ unsafe extern "C" fn ff_tx_init_tab_8_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_16384_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 16384 as c_int as c_double;
+    let freq: c_double = 2. * PI / 16384.;
     let mut tab: *mut TXSample = ff_tx_tab_16384_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 16384 as c_int / 4 as c_int {
@@ -245,8 +241,7 @@ unsafe extern "C" fn ff_tx_init_tab_16384_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_8192_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 8192 as c_int as c_double;
+    let freq: c_double = 2. * PI / 8192.;
     let mut tab: *mut TXSample = ff_tx_tab_8192_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 8192 as c_int / 4 as c_int {
@@ -260,8 +255,7 @@ unsafe extern "C" fn ff_tx_init_tab_8192_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_131072_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 131072 as c_int as c_double;
+    let freq: c_double = 2. * PI / 131072.;
     let mut tab: *mut TXSample = ff_tx_tab_131072_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 131072 as c_int / 4 as c_int {
@@ -275,8 +269,7 @@ unsafe extern "C" fn ff_tx_init_tab_131072_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_65536_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 65536 as c_int as c_double;
+    let freq: c_double = 2. * PI / 65536.;
     let mut tab: *mut TXSample = ff_tx_tab_65536_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 65536 as c_int / 4 as c_int {
@@ -290,8 +283,7 @@ unsafe extern "C" fn ff_tx_init_tab_65536_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_524288_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 524288 as c_int as c_double;
+    let freq: c_double = 2. * PI / 524288.;
     let mut tab: *mut TXSample = ff_tx_tab_524288_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 524288 as c_int / 4 as c_int {
@@ -305,8 +297,7 @@ unsafe extern "C" fn ff_tx_init_tab_524288_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_32768_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 32768 as c_int as c_double;
+    let freq: c_double = 2. * PI / 32768.;
     let mut tab: *mut TXSample = ff_tx_tab_32768_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 32768 as c_int / 4 as c_int {
@@ -320,8 +311,7 @@ unsafe extern "C" fn ff_tx_init_tab_32768_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_1048576_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 1048576 as c_int as c_double;
+    let freq: c_double = 2. * PI / 1048576.;
     let mut tab: *mut TXSample = ff_tx_tab_1048576_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 1048576 as c_int / 4 as c_int {
@@ -335,8 +325,7 @@ unsafe extern "C" fn ff_tx_init_tab_1048576_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_1024_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 1024 as c_int as c_double;
+    let freq: c_double = 2. * PI / 1024.;
     let mut tab: *mut TXSample = ff_tx_tab_1024_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 1024 as c_int / 4 as c_int {
@@ -350,8 +339,7 @@ unsafe extern "C" fn ff_tx_init_tab_1024_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_2097152_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 2097152 as c_int as c_double;
+    let freq: c_double = 2. * PI / 2097152.;
     let mut tab: *mut TXSample = ff_tx_tab_2097152_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 2097152 as c_int / 4 as c_int {
@@ -365,8 +353,7 @@ unsafe extern "C" fn ff_tx_init_tab_2097152_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_512_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 512 as c_int as c_double;
+    let freq: c_double = 2. * PI / 512.;
     let mut tab: *mut TXSample = ff_tx_tab_512_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 512 as c_int / 4 as c_int {
@@ -380,8 +367,7 @@ unsafe extern "C" fn ff_tx_init_tab_512_double() {
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_2048_double() {
-    let freq: c_double =
-        2 as c_int as c_double * 3.141_592_653_589_793_f64 / 2048 as c_int as c_double;
+    let freq: c_double = 2. * PI / 2048.;
     let mut tab: *mut TXSample = ff_tx_tab_2048_double.as_mut_ptr();
     let mut i: c_int = 0 as c_int;
     while i < 2048 as c_int / 4 as c_int {
@@ -439,60 +425,36 @@ static mut sr_tabs_init_once: [Once; 19] = [
 ];
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_53_double() {
-    ff_tx_tab_53_double[0 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 5 as c_int as c_double);
-    ff_tx_tab_53_double[1 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 5 as c_int as c_double);
-    ff_tx_tab_53_double[2 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 10 as c_int as c_double);
-    ff_tx_tab_53_double[3 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 10 as c_int as c_double);
-    ff_tx_tab_53_double[4 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 5 as c_int as c_double);
-    ff_tx_tab_53_double[5 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 5 as c_int as c_double);
-    ff_tx_tab_53_double[6 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 10 as c_int as c_double);
-    ff_tx_tab_53_double[7 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 10 as c_int as c_double);
-    ff_tx_tab_53_double[8 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 12 as c_int as c_double);
-    ff_tx_tab_53_double[9 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 12 as c_int as c_double);
-    ff_tx_tab_53_double[10 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 6 as c_int as c_double);
-    ff_tx_tab_53_double[11 as c_int as usize] =
-        cos(8 as c_int as c_double * 3.141_592_653_589_793_f64 / 6 as c_int as c_double);
+    ff_tx_tab_53_double[0 as c_int as usize] = cos(2. * PI / 5.);
+    ff_tx_tab_53_double[1 as c_int as usize] = cos(2. * PI / 5.);
+    ff_tx_tab_53_double[2 as c_int as usize] = cos(2. * PI / 10.);
+    ff_tx_tab_53_double[3 as c_int as usize] = cos(2. * PI / 10.);
+    ff_tx_tab_53_double[4 as c_int as usize] = sin(2. * PI / 5.);
+    ff_tx_tab_53_double[5 as c_int as usize] = sin(2. * PI / 5.);
+    ff_tx_tab_53_double[6 as c_int as usize] = sin(2. * PI / 10.);
+    ff_tx_tab_53_double[7 as c_int as usize] = sin(2. * PI / 10.);
+    ff_tx_tab_53_double[8 as c_int as usize] = cos(2. * PI / 12.);
+    ff_tx_tab_53_double[9 as c_int as usize] = cos(2. * PI / 12.);
+    ff_tx_tab_53_double[10 as c_int as usize] = cos(2. * PI / 6.);
+    ff_tx_tab_53_double[11 as c_int as usize] = cos(8. * PI / 6.);
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_7_double() {
-    ff_tx_tab_7_double[0 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 7 as c_int as c_double);
-    ff_tx_tab_7_double[1 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 7 as c_int as c_double);
-    ff_tx_tab_7_double[2 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 28 as c_int as c_double);
-    ff_tx_tab_7_double[3 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 28 as c_int as c_double);
-    ff_tx_tab_7_double[4 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 14 as c_int as c_double);
-    ff_tx_tab_7_double[5 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 14 as c_int as c_double);
+    ff_tx_tab_7_double[0 as c_int as usize] = cos(2. * PI / 7.);
+    ff_tx_tab_7_double[1 as c_int as usize] = sin(2. * PI / 7.);
+    ff_tx_tab_7_double[2 as c_int as usize] = sin(2. * PI / 28.);
+    ff_tx_tab_7_double[3 as c_int as usize] = cos(2. * PI / 28.);
+    ff_tx_tab_7_double[4 as c_int as usize] = cos(2. * PI / 14.);
+    ff_tx_tab_7_double[5 as c_int as usize] = sin(2. * PI / 14.);
 }
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_9_double() {
-    ff_tx_tab_9_double[0 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 3 as c_int as c_double);
-    ff_tx_tab_9_double[1 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 3 as c_int as c_double);
-    ff_tx_tab_9_double[2 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 9 as c_int as c_double);
-    ff_tx_tab_9_double[3 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 9 as c_int as c_double);
-    ff_tx_tab_9_double[4 as c_int as usize] =
-        cos(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 36 as c_int as c_double);
-    ff_tx_tab_9_double[5 as c_int as usize] =
-        sin(2 as c_int as c_double * 3.141_592_653_589_793_f64 / 36 as c_int as c_double);
+    ff_tx_tab_9_double[0 as c_int as usize] = cos(2. * PI / 3.);
+    ff_tx_tab_9_double[1 as c_int as usize] = sin(2. * PI / 3.);
+    ff_tx_tab_9_double[2 as c_int as usize] = cos(2. * PI / 9.);
+    ff_tx_tab_9_double[3 as c_int as usize] = sin(2. * PI / 9.);
+    ff_tx_tab_9_double[4 as c_int as usize] = cos(2. * PI / 36.);
+    ff_tx_tab_9_double[5 as c_int as usize] = sin(2. * PI / 36.);
     ff_tx_tab_9_double[6 as c_int as usize] =
         ff_tx_tab_9_double[2 as c_int as usize] + ff_tx_tab_9_double[5 as c_int as usize];
     ff_tx_tab_9_double[7 as c_int as usize] =
@@ -501,21 +463,18 @@ unsafe extern "C" fn ff_tx_init_tab_9_double() {
 static mut nptwo_tabs_init_data: [FFTabInitData; 3] = unsafe {
     [
         {
-            
             FFTabInitData {
                 func: Some(ff_tx_init_tab_53_double as unsafe extern "C" fn() -> ()),
                 factors: [15 as c_int, 5 as c_int, 3 as c_int, 0],
             }
         },
         {
-            
             FFTabInitData {
                 func: Some(ff_tx_init_tab_9_double as unsafe extern "C" fn() -> ()),
                 factors: [9 as c_int, 0, 0, 0],
             }
         },
         {
-            
             FFTabInitData {
                 func: Some(ff_tx_init_tab_7_double as unsafe extern "C" fn() -> ()),
                 factors: [7 as c_int, 0, 0, 0],
@@ -568,11 +527,7 @@ pub unsafe extern "C" fn ff_tx_init_tabs_double(mut len: c_int) {
     }
 }
 #[inline(always)]
-unsafe extern "C" fn fft3(
-    out: *mut TXComplex,
-    in_0: *mut TXComplex,
-    stride: ptrdiff_t,
-) {
+unsafe extern "C" fn fft3(out: *mut TXComplex, in_0: *mut TXComplex, stride: ptrdiff_t) {
     let mut tmp: [TXComplex; 3] = [TXComplex { re: 0., im: 0. }; 3];
     let tab: *const TXSample = ff_tx_tab_53_double.as_mut_ptr();
     tmp[0 as c_int as usize] = *in_0.offset(0 as c_int as isize);
@@ -602,11 +557,7 @@ unsafe extern "C" fn fft3(
         tmp[0 as c_int as usize].im - tmp[2 as c_int as usize].im + tmp[1 as c_int as usize].im;
 }
 #[inline(always)]
-unsafe extern "C" fn fft5(
-    out: *mut TXComplex,
-    in_0: *mut TXComplex,
-    stride: ptrdiff_t,
-) {
+unsafe extern "C" fn fft5(out: *mut TXComplex, in_0: *mut TXComplex, stride: ptrdiff_t) {
     let mut dc: TXComplex = TXComplex { re: 0., im: 0. };
     let mut z0: [TXComplex; 4] = [TXComplex { re: 0., im: 0. }; 4];
     let mut t: [TXComplex; 6] = [TXComplex { re: 0., im: 0. }; 6];
@@ -666,11 +617,7 @@ unsafe extern "C" fn fft5(
     (*out.offset((4 as c_int as c_long * stride) as isize)).im = dc.im + z0[3 as c_int as usize].im;
 }
 #[inline(always)]
-unsafe extern "C" fn fft5_m1(
-    out: *mut TXComplex,
-    in_0: *mut TXComplex,
-    stride: ptrdiff_t,
-) {
+unsafe extern "C" fn fft5_m1(out: *mut TXComplex, in_0: *mut TXComplex, stride: ptrdiff_t) {
     let mut dc: TXComplex = TXComplex { re: 0., im: 0. };
     let mut z0: [TXComplex; 4] = [TXComplex { re: 0., im: 0. }; 4];
     let mut t: [TXComplex; 6] = [TXComplex { re: 0., im: 0. }; 6];
@@ -732,11 +679,7 @@ unsafe extern "C" fn fft5_m1(
     (*out.offset((9 as c_int as c_long * stride) as isize)).im = dc.im + z0[3 as c_int as usize].im;
 }
 #[inline(always)]
-unsafe extern "C" fn fft5_m2(
-    out: *mut TXComplex,
-    in_0: *mut TXComplex,
-    stride: ptrdiff_t,
-) {
+unsafe extern "C" fn fft5_m2(out: *mut TXComplex, in_0: *mut TXComplex, stride: ptrdiff_t) {
     let mut dc: TXComplex = TXComplex { re: 0., im: 0. };
     let mut z0: [TXComplex; 4] = [TXComplex { re: 0., im: 0. }; 4];
     let mut t: [TXComplex; 6] = [TXComplex { re: 0., im: 0. }; 6];
@@ -798,11 +741,7 @@ unsafe extern "C" fn fft5_m2(
     (*out.offset((4 as c_int as c_long * stride) as isize)).im = dc.im + z0[3 as c_int as usize].im;
 }
 #[inline(always)]
-unsafe extern "C" fn fft5_m3(
-    out: *mut TXComplex,
-    in_0: *mut TXComplex,
-    stride: ptrdiff_t,
-) {
+unsafe extern "C" fn fft5_m3(out: *mut TXComplex, in_0: *mut TXComplex, stride: ptrdiff_t) {
     let mut dc: TXComplex = TXComplex { re: 0., im: 0. };
     let mut z0: [TXComplex; 4] = [TXComplex { re: 0., im: 0. }; 4];
     let mut t: [TXComplex; 6] = [TXComplex { re: 0., im: 0. }; 6];
@@ -866,11 +805,7 @@ unsafe extern "C" fn fft5_m3(
         dc.im + z0[3 as c_int as usize].im;
 }
 #[inline(always)]
-unsafe extern "C" fn fft7(
-    out: *mut TXComplex,
-    in_0: *mut TXComplex,
-    stride: ptrdiff_t,
-) {
+unsafe extern "C" fn fft7(out: *mut TXComplex, in_0: *mut TXComplex, stride: ptrdiff_t) {
     let mut dc: TXComplex = TXComplex { re: 0., im: 0. };
     let mut t: [TXComplex; 6] = [TXComplex { re: 0., im: 0. }; 6];
     let mut z: [TXComplex; 3] = [TXComplex { re: 0., im: 0. }; 3];
@@ -966,11 +901,7 @@ unsafe extern "C" fn fft7(
     (*out.offset((6 as c_int as c_long * stride) as isize)).im = dc.im + z[0 as c_int as usize].im;
 }
 #[inline(always)]
-unsafe extern "C" fn fft9(
-    out: *mut TXComplex,
-    in_0: *mut TXComplex,
-    stride: ptrdiff_t,
-) {
+unsafe extern "C" fn fft9(out: *mut TXComplex, in_0: *mut TXComplex, stride: ptrdiff_t) {
     let tab: *const TXComplex = ff_tx_tab_9_double.as_mut_ptr() as *const TXComplex;
     let mut dc: TXComplex = TXComplex { re: 0., im: 0. };
     let mut t: [TXComplex; 16] = [TXComplex { re: 0., im: 0. }; 16];
@@ -1076,56 +1007,48 @@ unsafe extern "C" fn fft9(
     y[4 as c_int as usize].re = y[0 as c_int as usize].re - y[4 as c_int as usize].re;
     y[4 as c_int as usize].im = y[0 as c_int as usize].im - y[4 as c_int as usize].im;
     *out.offset((1 as c_int as c_long * stride) as isize) = {
-        
         AVComplexDouble {
             re: x[1 as c_int as usize].re + y[1 as c_int as usize].im,
             im: x[1 as c_int as usize].im - y[1 as c_int as usize].re,
         }
     };
     *out.offset((2 as c_int as c_long * stride) as isize) = {
-        
         AVComplexDouble {
             re: x[2 as c_int as usize].re + y[2 as c_int as usize].im,
             im: x[2 as c_int as usize].im - y[2 as c_int as usize].re,
         }
     };
     *out.offset((3 as c_int as c_long * stride) as isize) = {
-        
         AVComplexDouble {
             re: x[3 as c_int as usize].re + y[3 as c_int as usize].im,
             im: x[3 as c_int as usize].im - y[3 as c_int as usize].re,
         }
     };
     *out.offset((4 as c_int as c_long * stride) as isize) = {
-        
         AVComplexDouble {
             re: x[4 as c_int as usize].re + y[4 as c_int as usize].im,
             im: x[4 as c_int as usize].im - y[4 as c_int as usize].re,
         }
     };
     *out.offset((5 as c_int as c_long * stride) as isize) = {
-        
         AVComplexDouble {
             re: x[4 as c_int as usize].re - y[4 as c_int as usize].im,
             im: x[4 as c_int as usize].im + y[4 as c_int as usize].re,
         }
     };
     *out.offset((6 as c_int as c_long * stride) as isize) = {
-        
         AVComplexDouble {
             re: x[3 as c_int as usize].re - y[3 as c_int as usize].im,
             im: x[3 as c_int as usize].im + y[3 as c_int as usize].re,
         }
     };
     *out.offset((7 as c_int as c_long * stride) as isize) = {
-        
         AVComplexDouble {
             re: x[2 as c_int as usize].re - y[2 as c_int as usize].im,
             im: x[2 as c_int as usize].im + y[2 as c_int as usize].re,
         }
     };
     *out.offset((8 as c_int as c_long * stride) as isize) = {
-        
         AVComplexDouble {
             re: x[1 as c_int as usize].re - y[1 as c_int as usize].im,
             im: x[1 as c_int as usize].im + y[1 as c_int as usize].re,
@@ -1133,11 +1056,7 @@ unsafe extern "C" fn fft9(
     };
 }
 #[inline(always)]
-unsafe extern "C" fn fft15(
-    out: *mut TXComplex,
-    in_0: *mut TXComplex,
-    stride: ptrdiff_t,
-) {
+unsafe extern "C" fn fft15(out: *mut TXComplex, in_0: *mut TXComplex, stride: ptrdiff_t) {
     let mut tmp: [TXComplex; 15] = [TXComplex { re: 0., im: 0. }; 15];
     let mut i: c_int = 0 as c_int;
     while i < 5 as c_int {
@@ -1174,7 +1093,6 @@ unsafe extern "C" fn ff_tx_fft_factor_init_double_c(
 }
 static mut ff_tx_fft3_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft3_fwd_double_c".as_ptr(),
             function: Some(
@@ -1215,7 +1133,6 @@ static mut ff_tx_fft3_fwd_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft3_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft3_ns_double_c".as_ptr(),
             function: Some(
@@ -1268,7 +1185,6 @@ unsafe extern "C" fn ff_tx_fft3_double_c(
 }
 static mut ff_tx_fft5_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft5_ns_double_c".as_ptr(),
             function: Some(
@@ -1309,7 +1225,6 @@ static mut ff_tx_fft5_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft5_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft5_fwd_double_c".as_ptr(),
             function: Some(
@@ -1362,7 +1277,6 @@ unsafe extern "C" fn ff_tx_fft5_double_c(
 }
 static mut ff_tx_fft7_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft7_fwd_double_c".as_ptr(),
             function: Some(
@@ -1415,7 +1329,6 @@ unsafe extern "C" fn ff_tx_fft7_double_c(
 }
 static mut ff_tx_fft7_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft7_ns_double_c".as_ptr(),
             function: Some(
@@ -1456,7 +1369,6 @@ static mut ff_tx_fft7_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft9_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft9_fwd_double_c".as_ptr(),
             function: Some(
@@ -1497,7 +1409,6 @@ static mut ff_tx_fft9_fwd_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft9_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft9_ns_double_c".as_ptr(),
             function: Some(
@@ -1550,7 +1461,6 @@ unsafe extern "C" fn ff_tx_fft9_double_c(
 }
 static mut ff_tx_fft15_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft15_ns_double_c".as_ptr(),
             function: Some(
@@ -2092,7 +2002,6 @@ unsafe extern "C" fn ff_tx_fft16_ns_double_c(
 }
 static mut ff_tx_fft2_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft2_ns_double_c".as_ptr(),
             function: Some(
@@ -2133,7 +2042,6 @@ static mut ff_tx_fft2_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft4_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft4_ns_double_c".as_ptr(),
             function: Some(
@@ -2174,7 +2082,6 @@ static mut ff_tx_fft4_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft8_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft8_ns_double_c".as_ptr(),
             function: Some(
@@ -2215,7 +2122,6 @@ static mut ff_tx_fft8_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft16_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft16_ns_double_c".as_ptr(),
             function: Some(
@@ -2256,7 +2162,6 @@ static mut ff_tx_fft16_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft32_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft32_ns_double_c".as_ptr(),
             function: Some(
@@ -2321,7 +2226,6 @@ unsafe extern "C" fn ff_tx_fft32_ns_double_c(
 }
 static mut ff_tx_fft64_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft64_ns_double_c".as_ptr(),
             function: Some(
@@ -2410,7 +2314,6 @@ unsafe extern "C" fn ff_tx_fft128_ns_double_c(
 }
 static mut ff_tx_fft128_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft128_ns_double_c".as_ptr(),
             function: Some(
@@ -2475,7 +2378,6 @@ unsafe extern "C" fn ff_tx_fft256_ns_double_c(
 }
 static mut ff_tx_fft256_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft256_ns_double_c".as_ptr(),
             function: Some(
@@ -2540,7 +2442,6 @@ unsafe extern "C" fn ff_tx_fft512_ns_double_c(
 }
 static mut ff_tx_fft512_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft512_ns_double_c".as_ptr(),
             function: Some(
@@ -2581,7 +2482,6 @@ static mut ff_tx_fft512_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft1024_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft1024_ns_double_c".as_ptr(),
             function: Some(
@@ -2646,7 +2546,6 @@ unsafe extern "C" fn ff_tx_fft1024_ns_double_c(
 }
 static mut ff_tx_fft2048_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft2048_ns_double_c".as_ptr(),
             function: Some(
@@ -2735,7 +2634,6 @@ unsafe extern "C" fn ff_tx_fft4096_ns_double_c(
 }
 static mut ff_tx_fft4096_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft4096_ns_double_c".as_ptr(),
             function: Some(
@@ -2776,7 +2674,6 @@ static mut ff_tx_fft4096_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft8192_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft8192_ns_double_c".as_ptr(),
             function: Some(
@@ -2865,7 +2762,6 @@ unsafe extern "C" fn ff_tx_fft16384_ns_double_c(
 }
 static mut ff_tx_fft16384_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft16384_ns_double_c".as_ptr(),
             function: Some(
@@ -2906,7 +2802,6 @@ static mut ff_tx_fft16384_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft32768_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft32768_ns_double_c".as_ptr(),
             function: Some(
@@ -2995,7 +2890,6 @@ unsafe extern "C" fn ff_tx_fft65536_ns_double_c(
 }
 static mut ff_tx_fft65536_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft65536_ns_double_c".as_ptr(),
             function: Some(
@@ -3060,7 +2954,6 @@ unsafe extern "C" fn ff_tx_fft131072_ns_double_c(
 }
 static mut ff_tx_fft131072_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft131072_ns_double_c".as_ptr(),
             function: Some(
@@ -3125,7 +3018,6 @@ unsafe extern "C" fn ff_tx_fft262144_ns_double_c(
 }
 static mut ff_tx_fft262144_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft262144_ns_double_c".as_ptr(),
             function: Some(
@@ -3166,7 +3058,6 @@ static mut ff_tx_fft262144_ns_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft524288_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft524288_ns_double_c".as_ptr(),
             function: Some(
@@ -3255,7 +3146,6 @@ unsafe extern "C" fn ff_tx_fft1048576_ns_double_c(
 }
 static mut ff_tx_fft1048576_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft1048576_ns_double_c".as_ptr(),
             function: Some(
@@ -3320,7 +3210,6 @@ unsafe extern "C" fn ff_tx_fft2097152_ns_double_c(
 }
 static mut ff_tx_fft2097152_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft2097152_ns_double_c".as_ptr(),
             function: Some(
@@ -3372,7 +3261,6 @@ unsafe extern "C" fn ff_tx_fft_init_double_c(
     let mut ret: c_int = 0;
     let is_inplace: c_int = (flags & AV_TX_INPLACE as c_int as c_ulong != 0) as c_int;
     let mut sub_opts: FFTXCodeletOptions = {
-        
         FFTXCodeletOptions {
             map_dir: (if is_inplace != 0 {
                 FF_TX_MAP_SCATTER as c_int
@@ -3489,7 +3377,6 @@ unsafe extern "C" fn ff_tx_fft_inplace_double_c(
 }
 static mut ff_tx_fft_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft_double_c".as_ptr(),
             function: Some(
@@ -3528,7 +3415,6 @@ static mut ff_tx_fft_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft_inplace_small_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft_inplace_small_double_c".as_ptr(),
             function: Some(
@@ -3568,7 +3454,6 @@ static mut ff_tx_fft_inplace_small_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft_inplace_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft_inplace_double_c".as_ptr(),
             function: Some(
@@ -3617,9 +3502,9 @@ unsafe extern "C" fn ff_tx_fft_init_naive_small_double_c(
     _scale: *const c_void,
 ) -> c_int {
     let phase: c_double = if (*s).inv != 0 {
-        2.0f64 * 3.141_592_653_589_793_f64 / len as c_double
+        2.0f64 * PI / len as c_double
     } else {
-        -2.0f64 * 3.141_592_653_589_793_f64 / len as c_double
+        -2.0f64 * PI / len as c_double
     };
     (*s).exp = AVTXNum {
         double: av_malloc(((len * len) as c_ulong).wrapping_mul(size_of::<TXComplex>() as c_ulong))
@@ -3634,7 +3519,6 @@ unsafe extern "C" fn ff_tx_fft_init_naive_small_double_c(
         while j < len {
             let factor: c_double = phase * i as c_double * j as c_double;
             *(((*s).exp).double.offset((i * j) as isize)) = {
-                
                 AVComplexDouble {
                     re: cos(factor),
                     im: sin(factor),
@@ -3658,26 +3542,19 @@ unsafe extern "C" fn ff_tx_fft_naive_double_c(
     let dst: *mut TXComplex = _dst as *mut TXComplex;
     let n: c_int = (*s).len;
     let phase: c_double = if (*s).inv != 0 {
-        2.0f64 * 3.141_592_653_589_793_f64 / n as c_double
+        2.0f64 * PI / n as c_double
     } else {
-        -2.0f64 * 3.141_592_653_589_793_f64 / n as c_double
+        -2.0f64 * PI / n as c_double
     };
     stride = (stride as c_ulong).wrapping_div(size_of::<TXComplex>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
     let mut i: c_int = 0 as c_int;
     while i < n {
-        let mut tmp: TXComplex = {
-            
-            AVComplexDouble {
-                re: 0 as c_int as c_double,
-                im: 0.,
-            }
-        };
+        let mut tmp: TXComplex = { AVComplexDouble { re: 0., im: 0. } };
         let mut j: c_int = 0 as c_int;
         while j < n {
             let factor: c_double = phase * i as c_double * j as c_double;
             let mult: TXComplex = {
-                
                 AVComplexDouble {
                     re: cos(factor),
                     im: sin(factor),
@@ -3711,13 +3588,7 @@ unsafe extern "C" fn ff_tx_fft_naive_small_double_c(
         as ptrdiff_t;
     let mut i: c_int = 0 as c_int;
     while i < n {
-        let mut tmp: TXComplex = {
-            
-            AVComplexDouble {
-                re: 0 as c_int as c_double,
-                im: 0.,
-            }
-        };
+        let mut tmp: TXComplex = { AVComplexDouble { re: 0., im: 0. } };
         let mut j: c_int = 0 as c_int;
         while j < n {
             let mut res: TXComplex = TXComplex { re: 0., im: 0. };
@@ -3738,7 +3609,6 @@ unsafe extern "C" fn ff_tx_fft_naive_small_double_c(
 }
 static mut ff_tx_fft_naive_small_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft_naive_small_double_c".as_ptr(),
             function: Some(
@@ -3777,7 +3647,6 @@ static mut ff_tx_fft_naive_small_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft_naive_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft_naive_double_c".as_ptr(),
             function: Some(
@@ -3817,7 +3686,6 @@ unsafe extern "C" fn ff_tx_fft_pfa_init_double_c(
     let mut tmp: *mut c_int = std::ptr::null_mut::<c_int>();
     let ps: c_int = (flags as c_ulonglong & (1 as c_ulonglong) << 61 as c_int) as c_int;
     let mut sub_opts: FFTXCodeletOptions = {
-        
         FFTXCodeletOptions {
             map_dir: FF_TX_MAP_GATHER,
         }
@@ -4092,7 +3960,6 @@ unsafe extern "C" fn ff_tx_fft_pfa_ns_double_c(
 }
 static mut ff_tx_fft_pfa_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft_pfa_double_c".as_ptr(),
             function: Some(
@@ -4148,7 +4015,6 @@ static mut ff_tx_fft_pfa_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_fft_pfa_ns_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"fft_pfa_ns_double_c".as_ptr(),
             function: Some(
@@ -4227,7 +4093,7 @@ unsafe extern "C" fn ff_tx_mdct_naive_fwd_double_c(
     let dst: *mut TXSample = _dst as *mut TXSample;
     let scale: c_double = (*s).scale_d;
     let len: c_int = (*s).len;
-    let phase: c_double = 3.141_592_653_589_793_f64 / (4.0f64 * len as c_double);
+    let phase: c_double = PI / (4.0f64 * len as c_double);
     stride = (stride as c_ulong).wrapping_div(size_of::<TXSample>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
     let mut i: c_int = 0 as c_int;
@@ -4256,17 +4122,15 @@ unsafe extern "C" fn ff_tx_mdct_naive_inv_double_c(
     let scale: c_double = (*s).scale_d;
     let len: c_int = (*s).len >> 1 as c_int;
     let len2: c_int = len * 2 as c_int;
-    let phase: c_double = 3.141_592_653_589_793_f64 / (4.0f64 * len2 as c_double);
+    let phase: c_double = PI / (4.0f64 * len2 as c_double);
     stride = (stride as c_ulong).wrapping_div(size_of::<TXSample>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
     let mut i: c_int = 0 as c_int;
     while i < len {
         let mut sum_d: c_double = 0.0f64;
         let mut sum_u: c_double = 0.0f64;
-        let i_d: c_double =
-            phase * (4 as c_int * len - 2 as c_int * i - 1 as c_int) as c_double;
-        let i_u: c_double =
-            phase * (3 as c_int * len2 + 2 as c_int * i + 1 as c_int) as c_double;
+        let i_d: c_double = phase * (4 as c_int * len - 2 as c_int * i - 1 as c_int) as c_double;
+        let i_u: c_double = phase * (3 as c_int * len2 + 2 as c_int * i + 1 as c_int) as c_double;
         let mut j: c_int = 0 as c_int;
         while j < len2 {
             let a: c_double = (2 as c_int * j + 1 as c_int) as c_double;
@@ -4286,7 +4150,6 @@ unsafe extern "C" fn ff_tx_mdct_naive_inv_double_c(
 }
 static mut ff_tx_mdct_naive_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_naive_fwd_double_c".as_ptr(),
             function: Some(
@@ -4343,7 +4206,6 @@ static mut ff_tx_mdct_naive_fwd_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_mdct_naive_inv_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_naive_inv_double_c".as_ptr(),
             function: Some(
@@ -4410,7 +4272,6 @@ unsafe extern "C" fn ff_tx_mdct_init_double_c(
 ) -> c_int {
     let mut ret: c_int = 0;
     let mut sub_opts: FFTXCodeletOptions = {
-        
         FFTXCodeletOptions {
             map_dir: (if inv == 0 {
                 FF_TX_MAP_SCATTER as c_int
@@ -4471,7 +4332,14 @@ unsafe extern "C" fn ff_tx_mdct_init_double_c(
             i;
         }
     }
-    ret = ff_tx_mdct_gen_exp_double(s, if inv != 0 { (*s).map } else { std::ptr::null_mut::<c_int>() });
+    ret = ff_tx_mdct_gen_exp_double(
+        s,
+        if inv != 0 {
+            (*s).map
+        } else {
+            std::ptr::null_mut::<c_int>()
+        },
+    );
     if ret != 0 {
         return ret;
     }
@@ -4535,14 +4403,12 @@ unsafe extern "C" fn ff_tx_mdct_fwd_double_c(
         let i0: c_int = len4 + i_0;
         let i1: c_int = len4 - i_0 - 1 as c_int;
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*z.offset(i1 as isize)).re,
                 im: (*z.offset(i1 as isize)).im,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*z.offset(i0 as isize)).re,
                 im: (*z.offset(i0 as isize)).im,
@@ -4582,7 +4448,6 @@ unsafe extern "C" fn ff_tx_mdct_inv_double_c(
     while i < len2 {
         let k: c_int = *sub_map.offset(i as isize);
         let tmp: TXComplex = {
-            
             AVComplexDouble {
                 re: *in2.offset((-k as c_long * stride) as isize),
                 im: *in1.offset((k as c_long * stride) as isize),
@@ -4607,14 +4472,12 @@ unsafe extern "C" fn ff_tx_mdct_inv_double_c(
         let i0: c_int = len4 + i_0;
         let i1: c_int = len4 - i_0 - 1 as c_int;
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*z.offset(i1 as isize)).im,
                 im: (*z.offset(i1 as isize)).re,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*z.offset(i0 as isize)).im,
                 im: (*z.offset(i0 as isize)).re,
@@ -4634,7 +4497,6 @@ unsafe extern "C" fn ff_tx_mdct_inv_double_c(
 }
 static mut ff_tx_mdct_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_fwd_double_c".as_ptr(),
             function: Some(
@@ -4691,7 +4553,6 @@ static mut ff_tx_mdct_fwd_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_mdct_inv_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_inv_double_c".as_ptr(),
             function: Some(
@@ -4804,7 +4665,6 @@ unsafe extern "C" fn ff_tx_mdct_inv_full_double_c(
 }
 static mut ff_tx_mdct_inv_full_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_inv_full_double_c".as_ptr(),
             function: Some(
@@ -4872,7 +4732,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_init_double_c(
     let mut ret: c_int = 0;
     let mut sub_len: c_int = 0;
     let mut sub_opts: FFTXCodeletOptions = {
-        
         FFTXCodeletOptions {
             map_dir: FF_TX_MAP_SCATTER,
         }
@@ -4930,7 +4789,14 @@ unsafe extern "C" fn ff_tx_mdct_pfa_init_double_c(
             k += 3 as c_int * 5 as c_int;
         }
     }
-    ret = ff_tx_mdct_gen_exp_double(s, if inv != 0 { (*s).map } else { std::ptr::null_mut::<c_int>() });
+    ret = ff_tx_mdct_gen_exp_double(
+        s,
+        if inv != 0 {
+            (*s).map
+        } else {
+            std::ptr::null_mut::<c_int>()
+        },
+    );
     if ret != 0 {
         return ret;
     }
@@ -4978,7 +4844,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_3xM_inv_double_c(
         while j < 3 as c_int {
             let k: c_int = *in_map.offset(j as isize);
             let tmp: TXComplex = {
-                
                 AVComplexDouble {
                     re: *in2.offset((-k as c_long * stride) as isize),
                     im: *in1.offset((k as c_long * stride) as isize),
@@ -5020,14 +4885,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_3xM_inv_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).im,
                 im: (*((*s).tmp).double.offset(s1 as isize)).re,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).im,
                 im: (*((*s).tmp).double.offset(s0 as isize)).re,
@@ -5047,7 +4910,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_3xM_inv_double_c(
 }
 static mut ff_tx_mdct_pfa_3xM_inv_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_3xM_inv_double_c".as_ptr(),
             function: Some(
@@ -5130,7 +4992,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_5xM_inv_double_c(
         while j < 5 as c_int {
             let k: c_int = *in_map.offset(j as isize);
             let tmp: TXComplex = {
-                
                 AVComplexDouble {
                     re: *in2.offset((-k as c_long * stride) as isize),
                     im: *in1.offset((k as c_long * stride) as isize),
@@ -5172,14 +5033,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_5xM_inv_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).im,
                 im: (*((*s).tmp).double.offset(s1 as isize)).re,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).im,
                 im: (*((*s).tmp).double.offset(s0 as isize)).re,
@@ -5199,7 +5058,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_5xM_inv_double_c(
 }
 static mut ff_tx_mdct_pfa_5xM_inv_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_5xM_inv_double_c".as_ptr(),
             function: Some(
@@ -5256,7 +5114,6 @@ static mut ff_tx_mdct_pfa_5xM_inv_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_mdct_pfa_7xM_inv_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_7xM_inv_double_c".as_ptr(),
             function: Some(
@@ -5339,7 +5196,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_7xM_inv_double_c(
         while j < 7 as c_int {
             let k: c_int = *in_map.offset(j as isize);
             let tmp: TXComplex = {
-                
                 AVComplexDouble {
                     re: *in2.offset((-k as c_long * stride) as isize),
                     im: *in1.offset((k as c_long * stride) as isize),
@@ -5381,14 +5237,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_7xM_inv_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).im,
                 im: (*((*s).tmp).double.offset(s1 as isize)).re,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).im,
                 im: (*((*s).tmp).double.offset(s0 as isize)).re,
@@ -5434,7 +5288,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_9xM_inv_double_c(
         while j < 9 as c_int {
             let k: c_int = *in_map.offset(j as isize);
             let tmp: TXComplex = {
-                
                 AVComplexDouble {
                     re: *in2.offset((-k as c_long * stride) as isize),
                     im: *in1.offset((k as c_long * stride) as isize),
@@ -5476,14 +5329,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_9xM_inv_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).im,
                 im: (*((*s).tmp).double.offset(s1 as isize)).re,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).im,
                 im: (*((*s).tmp).double.offset(s0 as isize)).re,
@@ -5503,7 +5354,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_9xM_inv_double_c(
 }
 static mut ff_tx_mdct_pfa_9xM_inv_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_9xM_inv_double_c".as_ptr(),
             function: Some(
@@ -5586,7 +5436,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_15xM_inv_double_c(
         while j < 15 as c_int {
             let k: c_int = *in_map.offset(j as isize);
             let tmp: TXComplex = {
-                
                 AVComplexDouble {
                     re: *in2.offset((-k as c_long * stride) as isize),
                     im: *in1.offset((k as c_long * stride) as isize),
@@ -5628,14 +5477,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_15xM_inv_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).im,
                 im: (*((*s).tmp).double.offset(s1 as isize)).re,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).im,
                 im: (*((*s).tmp).double.offset(s0 as isize)).re,
@@ -5655,7 +5502,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_15xM_inv_double_c(
 }
 static mut ff_tx_mdct_pfa_15xM_inv_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_15xM_inv_double_c".as_ptr(),
             function: Some(
@@ -5781,14 +5627,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_3xM_fwd_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).re,
                 im: (*((*s).tmp).double.offset(s1 as isize)).im,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).re,
                 im: (*((*s).tmp).double.offset(s0 as isize)).im,
@@ -5808,7 +5652,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_3xM_fwd_double_c(
 }
 static mut ff_tx_mdct_pfa_3xM_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_3xM_fwd_double_c".as_ptr(),
             function: Some(
@@ -5934,14 +5777,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_5xM_fwd_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).re,
                 im: (*((*s).tmp).double.offset(s1 as isize)).im,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).re,
                 im: (*((*s).tmp).double.offset(s0 as isize)).im,
@@ -5961,7 +5802,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_5xM_fwd_double_c(
 }
 static mut ff_tx_mdct_pfa_5xM_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_5xM_fwd_double_c".as_ptr(),
             function: Some(
@@ -6087,14 +5927,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_7xM_fwd_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).re,
                 im: (*((*s).tmp).double.offset(s1 as isize)).im,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).re,
                 im: (*((*s).tmp).double.offset(s0 as isize)).im,
@@ -6114,7 +5952,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_7xM_fwd_double_c(
 }
 static mut ff_tx_mdct_pfa_7xM_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_7xM_fwd_double_c".as_ptr(),
             function: Some(
@@ -6240,14 +6077,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_9xM_fwd_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).re,
                 im: (*((*s).tmp).double.offset(s1 as isize)).im,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).re,
                 im: (*((*s).tmp).double.offset(s0 as isize)).im,
@@ -6267,7 +6102,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_9xM_fwd_double_c(
 }
 static mut ff_tx_mdct_pfa_9xM_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_9xM_fwd_double_c".as_ptr(),
             function: Some(
@@ -6393,14 +6227,12 @@ unsafe extern "C" fn ff_tx_mdct_pfa_15xM_fwd_double_c(
         let s0: c_int = *out_map.offset(i0 as isize);
         let s1: c_int = *out_map.offset(i1 as isize);
         let src1: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s1 as isize)).re,
                 im: (*((*s).tmp).double.offset(s1 as isize)).im,
             }
         };
         let src0: TXComplex = {
-            
             AVComplexDouble {
                 re: (*((*s).tmp).double.offset(s0 as isize)).re,
                 im: (*((*s).tmp).double.offset(s0 as isize)).im,
@@ -6420,7 +6252,6 @@ unsafe extern "C" fn ff_tx_mdct_pfa_15xM_fwd_double_c(
 }
 static mut ff_tx_mdct_pfa_15xM_fwd_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"mdct_pfa_15xM_fwd_double_c".as_ptr(),
             function: Some(
@@ -6516,9 +6347,9 @@ unsafe extern "C" fn ff_tx_rdft_init_double_c(
         return -(12 as c_int);
     }
     tab = (*s).exp.double as *mut TXSample;
-    f = 2 as c_int as c_double * 3.141_592_653_589_793_f64 / len as c_double;
+    f = 2. * PI / len as c_double;
     m = if inv != 0 {
-        2 as c_int as c_double * (*s).scale_d
+        2. * (*s).scale_d
     } else {
         (*s).scale_d
     };
@@ -6635,7 +6466,7 @@ unsafe extern "C" fn ff_tx_rdft_r2c_double_c(
     }
     (*data.offset(len2 as isize)).re = (*data.offset(0 as c_int as isize)).im;
     let fresh38 = &mut (*data.offset(len2 as isize)).im;
-    *fresh38 = 0 as c_int as c_double;
+    *fresh38 = 0.;
     (*data.offset(0 as c_int as isize)).im = *fresh38;
 }
 static mut ff_tx_rdft_r2c_def_double_c: FFTXCodelet = FFTXCodelet {
@@ -6831,7 +6662,6 @@ unsafe extern "C" fn ff_tx_rdft_r2r_double_c(
 }
 static mut ff_tx_rdft_r2r_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"rdft_r2r_double_c".as_ptr(),
             function: Some(
@@ -6990,7 +6820,6 @@ unsafe extern "C" fn ff_tx_rdft_r2r_mod2_double_c(
 }
 static mut ff_tx_rdft_r2r_mod2_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"rdft_r2r_mod2_double_c".as_ptr(),
             function: Some(
@@ -7049,7 +6878,6 @@ static mut ff_tx_rdft_r2r_mod2_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_rdft_r2i_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"rdft_r2i_double_c".as_ptr(),
             function: Some(
@@ -7207,7 +7035,6 @@ unsafe extern "C" fn ff_tx_rdft_r2i_double_c(
 }
 static mut ff_tx_rdft_r2i_mod2_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"rdft_r2i_mod2_double_c".as_ptr(),
             function: Some(
@@ -7407,7 +7234,7 @@ unsafe extern "C" fn ff_tx_dct_init_double_c(
         return -(12 as c_int);
     }
     tab = (*s).exp.double as *mut TXSample;
-    freq = 3.141_592_653_589_793_f64 / (len * 2 as c_int) as c_double;
+    freq = PI / (len * 2 as c_int) as c_double;
     let mut i: c_int = 0 as c_int;
     while i < len {
         *tab.offset(i as isize) =
@@ -7495,7 +7322,7 @@ unsafe extern "C" fn ff_tx_dctIII_double_c(
     let len2: c_int = len >> 1 as c_int;
     let exp: *const TXSample = (*s).exp.double as *mut c_void as *const TXSample;
     let mut tmp1: TXSample = 0.;
-    let mut tmp2: TXSample = 2 as c_int as c_double * *src.offset((len - 1 as c_int) as isize);
+    let mut tmp2: TXSample = 2. * *src.offset((len - 1 as c_int) as isize);
     *src.offset(len as isize) = tmp2;
     let mut i: c_int = len - 2 as c_int;
     while i >= 2 as c_int {
@@ -7530,7 +7357,6 @@ unsafe extern "C" fn ff_tx_dctIII_double_c(
 }
 static mut ff_tx_dctII_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"dctII_double_c".as_ptr(),
             function: Some(
@@ -7587,7 +7413,6 @@ static mut ff_tx_dctII_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_dctIII_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"dctIII_double_c".as_ptr(),
             function: Some(
@@ -7749,7 +7574,6 @@ unsafe extern "C" fn ff_tx_dstI_double_c(
 }
 static mut ff_tx_dctI_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"dctI_double_c".as_ptr(),
             function: Some(
@@ -7805,7 +7629,6 @@ static mut ff_tx_dctI_def_double_c: FFTXCodelet = unsafe {
 };
 static mut ff_tx_dstI_def_double_c: FFTXCodelet = unsafe {
     {
-        
         FFTXCodelet {
             name: c"dstI_double_c".as_ptr(),
             function: Some(
@@ -7867,12 +7690,8 @@ pub unsafe extern "C" fn ff_tx_mdct_gen_exp_double(
     let mut off: c_int = 0 as c_int;
     let len4: c_int = (*s).len >> 1 as c_int;
     let mut scale: c_double = (*s).scale_d;
-    let theta: c_double = (if scale < 0 as c_int as c_double {
-        len4
-    } else {
-        0 as c_int
-    }) as c_double
-        + 1.0f64 / 8.0f64;
+    let theta: c_double =
+        (if scale < 0. { len4 } else { 0 as c_int }) as c_double + 1.0f64 / 8.0f64;
     let alloc: c_ulong = (if !pre_tab.is_null() {
         2 as c_int * len4
     } else {
@@ -7890,10 +7709,8 @@ pub unsafe extern "C" fn ff_tx_mdct_gen_exp_double(
     }
     let mut i: c_int = 0 as c_int;
     while i < len4 {
-        let alpha: c_double =
-            1.570_796_326_794_896_6_f64 * (i as c_double + theta) / len4 as c_double;
+        let alpha: c_double = FRAC_PI_2 * (i as c_double + theta) / len4 as c_double;
         *((*s).exp).double.offset((off + i) as isize) = {
-            
             AVComplexDouble {
                 re: cos(alpha) * scale,
                 im: sin(alpha) * scale,
@@ -7984,7 +7801,6 @@ pub static mut ff_tx_codelet_list_double_c: [*const FFTXCodelet; 63] = unsafe {
 };
 unsafe extern "C" fn run_static_initializers() {
     ff_tx_rdft_r2c_def_double_c = {
-        
         FFTXCodelet {
             name: c"rdft_r2c_double_c".as_ptr(),
             function: Some(
@@ -8043,7 +7859,6 @@ unsafe extern "C" fn run_static_initializers() {
         }
     };
     ff_tx_rdft_c2r_def_double_c = {
-        
         FFTXCodelet {
             name: c"rdft_c2r_double_c".as_ptr(),
             function: Some(

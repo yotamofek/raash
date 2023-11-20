@@ -67,11 +67,11 @@ pub(crate) unsafe fn av_bessel_i0(mut x: c_double) -> c_double {
     let mut y: c_double = 0.;
     let mut r: c_double = 0.;
     let mut factor: c_double = 0.;
-    if x == 0 as c_int as c_double {
+    if x == 0. {
         return 1.0f64;
     }
     x = fabs(x);
-    if x <= 15 as c_int as c_double {
+    if x <= 15. {
         y = x * x;
         eval_poly(
             p1.as_ptr(),
@@ -85,7 +85,7 @@ pub(crate) unsafe fn av_bessel_i0(mut x: c_double) -> c_double {
             y,
         )
     } else {
-        y = 1 as c_int as c_double / x - 1.0f64 / 15 as c_int as c_double;
+        y = 1. / x - 1.0f64 / 15.;
         r = eval_poly(
             p2.as_ptr(),
             (size_of::<[c_double; 7]>() as c_ulong).wrapping_div(size_of::<c_double>() as c_ulong)

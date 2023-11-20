@@ -10,22 +10,9 @@
 
 use std::mem::size_of;
 
-use libc::{
-    c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong,
-};
+use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
-use crate::{lpc::ff_lpc_calc_ref_coefs_f, types::*};
-
-#[inline(always)]
-unsafe fn av_clip_c(mut a: c_int, mut amin: c_int, mut amax: c_int) -> c_int {
-    if a < amin {
-        amin
-    } else if a > amax {
-        return amax;
-    } else {
-        return a;
-    }
-}
+use crate::{common::*, lpc::ff_lpc_calc_ref_coefs_f, types::*};
 
 static mut BUF_BITS: c_int = 0;
 #[inline]

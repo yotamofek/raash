@@ -1,6 +1,6 @@
-use libc::{
-    c_double, c_float, c_long,
-};
+use std::f64;
+
+use libc::{c_double, c_float, c_int, c_long};
 
 pub(crate) fn sqrtf(n: c_float) -> c_float {
     n.sqrt()
@@ -72,4 +72,15 @@ pub(crate) fn lrintf(n: c_float) -> c_long {
 pub(crate) fn lrint(n: c_double) -> c_long {
     // TODO: is this correct???
     n as c_long
+}
+
+pub(crate) fn av_clip_c(a: c_int, amin: c_int, amax: c_int) -> c_int {
+    a.clamp(amin, amax)
+}
+pub(crate) fn av_clipf_c(a: c_float, amin: c_float, amax: c_float) -> c_float {
+    a.clamp(amin, amax)
+}
+
+pub(crate) unsafe fn ff_exp10(x: c_double) -> c_double {
+    (f64::consts::LOG2_10 * x).exp2()
 }

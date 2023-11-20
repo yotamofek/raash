@@ -10,10 +10,7 @@
 
 use std::sync::Once;
 
-use libc::{
-    c_float, c_int, c_uchar, c_uint,
-    c_ushort,
-};
+use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
 
 use crate::{kbdwin::avpriv_kbd_window_init, sinewin::ff_init_ff_sine_windows};
 
@@ -27,25 +24,25 @@ pub(crate) static mut ff_aac_kbd_short_128: [c_float; 128] = [0.; 128];
 #[cold]
 unsafe fn aac_tableinit() {
     static mut exp2_lut: [c_float; 16] = [
-        1.00000000000000000000f64 as c_float,
-        1.044_273_782_427_413_8_f64 as c_float,
-        1.090_507_732_665_257_7_f64 as c_float,
-        1.138_788_634_756_691_6_f64 as c_float,
-        1.189_207_115_002_721_f64 as c_float,
-        1.241_857_812_073_484_f64 as c_float,
-        1.296_839_554_651_009_6_f64 as c_float,
-        1.354_255_546_936_892_7_f64 as c_float,
-        1.414_213_562_373_095_1_f64 as c_float,
-        1.476_826_145_939_499_3_f64 as c_float,
-        1.542_210_825_407_940_7_f64 as c_float,
-        1.610_490_331_949_254_3_f64 as c_float,
-        1.681_792_830_507_429_f64 as c_float,
-        1.756_252_160_373_299_5_f64 as c_float,
-        1.834_008_086_409_342_4_f64 as c_float,
-        1.915_206_561_397_147_4_f64 as c_float,
+        1.00000000000000000000,
+        1.044_273_7,
+        1.090_507_7,
+        1.138_788_6,
+        1.189_207_1,
+        1.241_857_8,
+        1.296_839_6,
+        1.354_255_6,
+        1.414_213_5,
+        1.476_826_2,
+        1.542_210_8,
+        1.610_490_3,
+        1.681_792_9,
+        1.756_252_2,
+        1.834_008_1,
+        1.915_206_6,
     ];
-    let mut t1: c_float = 8.881_784_197_001_252e-16_f64 as c_float;
-    let mut t2: c_float = 3.637_978_807_091_713e-12_f64 as c_float;
+    let mut t1: c_float = 8.881_784e-16;
+    let mut t2: c_float = 3.637_979e-12;
     let mut t1_inc_cur: c_int = 0;
     let mut t2_inc_cur: c_int = 0;
     let mut t1_inc_prev: c_int = 0 as c_int;

@@ -1,8 +1,6 @@
-use std::sync::Once;
+use std::{f64::consts::PI, sync::Once};
 
-use libc::{
-    c_double, c_float, c_int,
-};
+use libc::{c_double, c_float, c_int};
 
 use crate::common::*;
 
@@ -107,10 +105,8 @@ pub(crate) unsafe fn ff_sine_window_init(window: *mut c_float, n: c_int) {
     let mut i: c_int = 0;
     i = 0 as c_int;
     while i < n {
-        *window.offset(i as isize) = sinf(
-            ((i as c_double + 0.5f64) * (3.141_592_653_589_793_f64 / (2.0f64 * n as c_double)))
-                as c_float,
-        );
+        *window.offset(i as isize) =
+            sinf(((i as c_double + 0.5f64) * (PI / (2.0f64 * n as c_double))) as c_float);
         i += 1;
         i;
     }

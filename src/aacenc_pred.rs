@@ -10,27 +10,15 @@
 
 use std::mem::size_of;
 
-use libc::{
-    c_float, c_int, c_long, c_uchar, c_uint, c_ulong,
-};
+use libc::{c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
 use crate::{
     aaccoder::ff_quantize_and_encode_band_cost,
     aacenc_is::ff_aac_is_encoding_err,
     aactab::{ff_aac_pow34sf_tab, ff_aac_pred_sfb_max},
+    common::*,
     types::*,
 };
-
-#[inline(always)]
-unsafe fn av_clip_c(mut a: c_int, mut amin: c_int, mut amax: c_int) -> c_int {
-    if a < amin {
-        amin
-    } else if a > amax {
-        return amax;
-    } else {
-        return a;
-    }
-}
 
 static mut BUF_BITS: c_int = 0;
 #[inline]

@@ -2,11 +2,10 @@
 
 use std::{
     alloc::{alloc_zeroed, Layout},
+    f64::consts::PI,
 };
 
-use libc::{
-    c_double, c_float, c_int, c_long,
-};
+use libc::{c_double, c_float, c_int, c_long};
 
 use crate::{common::*, types::*};
 
@@ -35,7 +34,7 @@ unsafe fn compute_ref_coefs(
         / (if 0 as c_int != 0 || err != 0. {
             err
         } else {
-            1 as c_int as c_double
+            1.
         });
     err += gen1[0 as c_int as usize] * *ref_0.offset(0 as c_int as isize);
     if !error.is_null() {
@@ -56,7 +55,7 @@ unsafe fn compute_ref_coefs(
             / (if 0 as c_int != 0 || err != 0. {
                 err
             } else {
-                1 as c_int as c_double
+                1.
             });
         err += gen1[0 as c_int as usize] * *ref_0.offset(i as isize);
         if !error.is_null() {
@@ -156,83 +155,19 @@ pub(crate) unsafe fn ff_lpc_calc_ref_coefs_f(
     let mut signal: c_double = 0.0f32 as c_double;
     let mut avg_err: c_double = 0.0f32 as c_double;
     let mut autoc: [c_double; 33] = [
-        0 as c_int as c_double,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
+        0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+        0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
     ];
     let mut error: [c_double; 33] = [
-        0 as c_int as c_double,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
+        0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+        0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
     ];
     let a: c_double = 0.5f32 as c_double;
     let b: c_double = 1.0f32 as c_double - a;
     i = 0 as c_int;
     while i <= len / 2 as c_int {
-        let weight: c_double = a - b * cos(2 as c_int as c_double
-            * 3.141_592_653_589_793_f64
-            * i as c_double
-            / (len - 1 as c_int) as c_double);
+        let weight: c_double =
+            a - b * cos(2. * PI * i as c_double / (len - 1 as c_int) as c_double);
         *((*s).windowed_samples).offset(i as isize) =
             weight * *samples.offset(i as isize) as c_double;
         *((*s).windowed_samples).offset((len - 1 as c_int - i) as isize) =

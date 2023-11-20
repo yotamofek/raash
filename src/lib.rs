@@ -5,7 +5,8 @@
     clippy::nonminimal_bool,
     clippy::no_effect,
     path_statements,
-    clippy::unnecessary_mut_passed
+    clippy::unnecessary_mut_passed,
+    clippy::too_many_arguments
 )]
 #![warn(clippy::approx_constant)]
 #![deny(dead_code)]

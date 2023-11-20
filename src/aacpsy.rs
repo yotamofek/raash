@@ -10,9 +10,7 @@
 
 use std::alloc::{alloc_zeroed, Layout};
 
-use libc::{
-    c_double, c_float, c_int, c_long, c_uchar, c_uint,
-};
+use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
 use crate::{common::*, psymodel::ff_psy_find_group, types::*};
 
@@ -80,30 +78,7 @@ pub(crate) struct PsyLamePreset {
     pub(crate) quality: c_int,
     pub(crate) st_lrm: c_float,
 }
-#[inline(always)]
-unsafe fn ff_exp10(mut x: c_double) -> c_double {
-    exp2(3.321_928_094_887_362_f64 * x)
-}
-#[inline(always)]
-unsafe fn av_clip_c(mut a: c_int, mut amin: c_int, mut amax: c_int) -> c_int {
-    if a < amin {
-        amin
-    } else if a > amax {
-        return amax;
-    } else {
-        return a;
-    }
-}
-#[inline(always)]
-unsafe fn av_clipf_c(mut a: c_float, mut amin: c_float, mut amax: c_float) -> c_float {
-    if (if a > amin { a } else { amin }) > amax {
-        amax
-    } else if a > amin {
-        a
-    } else {
-        amin
-    }
-}
+
 static mut psy_abr_map: [PsyLamePreset; 13] = [
     {
         PsyLamePreset {
@@ -253,16 +228,16 @@ static mut psy_vbr_map: [PsyLamePreset; 11] = [
     },
 ];
 static mut psy_fir_coeffs: [c_float; 10] = [
-    (-8.65163e-18f64 * 2 as c_int as c_double) as c_float,
-    (-0.00851586f64 * 2 as c_int as c_double) as c_float,
-    (-6.74764e-18f64 * 2 as c_int as c_double) as c_float,
-    (0.0209036f64 * 2 as c_int as c_double) as c_float,
-    (-3.36639e-17f64 * 2 as c_int as c_double) as c_float,
-    (-0.0438162f64 * 2 as c_int as c_double) as c_float,
-    (-1.54175e-17f64 * 2 as c_int as c_double) as c_float,
-    (0.0931738f64 * 2 as c_int as c_double) as c_float,
-    (-5.52212e-17f64 * 2 as c_int as c_double) as c_float,
-    (-0.313819f64 * 2 as c_int as c_double) as c_float,
+    (-8.65163e-18f64 * 2.) as c_float,
+    (-0.00851586f64 * 2.) as c_float,
+    (-6.74764e-18f64 * 2.) as c_float,
+    (0.0209036f64 * 2.) as c_float,
+    (-3.36639e-17f64 * 2.) as c_float,
+    (-0.0438162f64 * 2.) as c_float,
+    (-1.54175e-17f64 * 2.) as c_float,
+    (0.0931738f64 * 2.) as c_float,
+    (-5.52212e-17f64 * 2.) as c_float,
+    (-0.313819f64 * 2.) as c_float,
 ];
 unsafe fn lame_calc_attack_threshold(mut bitrate: c_int) -> c_float {
     let mut lower_range: c_int = 12 as c_int;
@@ -780,10 +755,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     (*ctx).bitres.size = 6144 as c_int - (*pctx).frame_bits;
     (*ctx).bitres.size -= (*ctx).bitres.size % 8 as c_int;
     (*pctx).fill_level = (*ctx).bitres.size;
-    minath = ath(
-        (3410 as c_int as c_double - 0.733f64 * 4 as c_int as c_double) as c_float,
-        4 as c_int as c_float,
-    );
+    minath = ath((3410. - 0.733f64 * 4.) as c_float, 4 as c_int as c_float);
     j = 0 as c_int;
     while j < 2 as c_int {
         let mut coeffs: *mut AacPsyCoeffs = ((*pctx).psy_coef[j as usize]).as_mut_ptr();
