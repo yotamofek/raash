@@ -8,9 +8,7 @@
     unused_mut
 )]
 
-use libc::{
-    c_int,
-};
+use libc::c_int;
 
 pub(crate) static mut ff_mpeg4audio_sample_rates: [c_int; 16] = [
     96000 as c_int,

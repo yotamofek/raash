@@ -1,4 +1,4 @@
-#![deny(dead_code)]
+#![warn(dead_code)]
 
 mod tx_double;
 mod tx_float;
@@ -764,7 +764,7 @@ unsafe extern "C" fn mulinv(mut n: c_int, m: c_int) -> c_int {
     }
     0 as c_int
 }
-#[no_mangle]
+
 pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
     s: *mut AVTXContext,
     opts: *mut FFTXCodeletOptions,
@@ -825,7 +825,7 @@ pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
     }) as FFTXMapDirection;
     0 as c_int
 }
-#[no_mangle]
+
 pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
     s: *mut AVTXContext,
     opts: *mut FFTXCodeletOptions,
@@ -904,11 +904,7 @@ pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
     0 as c_int
 }
 #[inline]
-unsafe extern "C" fn split_radix_permutation(
-    i: c_int,
-    mut len: c_int,
-    inv: c_int,
-) -> c_int {
+unsafe extern "C" fn split_radix_permutation(i: c_int, mut len: c_int, inv: c_int) -> c_int {
     len >>= 1 as c_int;
     if len <= 1 as c_int {
         return i & 1 as c_int;
@@ -920,7 +916,7 @@ unsafe extern "C" fn split_radix_permutation(
     split_radix_permutation(i, len, inv) * 4 as c_int + 1 as c_int
         - 2 as c_int * ((i & len == 0) as c_int ^ inv)
 }
-#[no_mangle]
+
 pub unsafe extern "C" fn ff_tx_gen_ptwo_revtab(
     s: *mut AVTXContext,
     opts: *mut FFTXCodeletOptions,
@@ -956,7 +952,7 @@ pub unsafe extern "C" fn ff_tx_gen_ptwo_revtab(
     }) as FFTXMapDirection;
     0 as c_int
 }
-#[no_mangle]
+
 pub unsafe extern "C" fn ff_tx_gen_inplace_map(s: *mut AVTXContext, len: c_int) -> c_int {
     let mut src_map: *mut c_int = std::ptr::null_mut::<c_int>();
     let mut out_map_idx: c_int = 0 as c_int;
@@ -1104,7 +1100,7 @@ unsafe extern "C" fn parity_revtab_generator(
         inv_lookup,
     );
 }
-#[no_mangle]
+
 pub unsafe extern "C" fn ff_tx_gen_split_radix_parity_revtab(
     s: *mut AVTXContext,
     len: c_int,
@@ -1167,7 +1163,7 @@ pub unsafe extern "C" fn ff_tx_gen_split_radix_parity_revtab(
     }) as FFTXMapDirection;
     0 as c_int
 }
-#[no_mangle]
+
 pub unsafe extern "C" fn ff_tx_gen_default_map(
     s: *mut AVTXContext,
     _opts: *mut FFTXCodeletOptions,
@@ -1197,7 +1193,6 @@ pub unsafe extern "C" fn ff_tx_gen_default_map(
     0 as c_int
 }
 
-#[no_mangle]
 pub unsafe extern "C" fn ff_tx_decompose_length(
     dst: *mut c_int,
     type_0: AVTXType,
@@ -1450,7 +1445,6 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
     nb_decomp
 }
 
-#[no_mangle]
 pub unsafe extern "C" fn ff_tx_clear_ctx(s: *mut AVTXContext) {
     reset_ctx(s, 0 as c_int);
 }

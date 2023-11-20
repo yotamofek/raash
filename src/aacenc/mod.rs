@@ -2559,8 +2559,8 @@ unsafe extern "C" fn put_audio_specific_config(mut avctx: *mut AVCodecContext) -
     (*avctx).extradata_size = put_bytes_output(&mut pb);
     0 as c_int
 }
-#[no_mangle]
-pub unsafe extern "C" fn ff_quantize_band_cost_cache_init(mut s: *mut AACEncContext) {
+
+pub(crate) unsafe fn ff_quantize_band_cost_cache_init(mut s: *mut AACEncContext) {
     (*s).quantize_band_cost_cache_generation =
         ((*s).quantize_band_cost_cache_generation).wrapping_add(1);
     (*s).quantize_band_cost_cache_generation;

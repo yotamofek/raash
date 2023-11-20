@@ -80,49 +80,49 @@ unsafe extern "C" fn av_clip64_c(a: c_long, amin: c_long, amax: c_long) -> c_lon
         return a;
     }
 }
-#[no_mangle]
+
 pub static mut ff_tx_tab_8192_int32: [TXSample; 2049] = [0; 2049];
-#[no_mangle]
+
 pub static mut ff_tx_tab_131072_int32: [TXSample; 32769] = [0; 32769];
-#[no_mangle]
+
 pub static mut ff_tx_tab_1048576_int32: [TXSample; 262145] = [0; 262145];
-#[no_mangle]
+
 pub static mut ff_tx_tab_65536_int32: [TXSample; 16385] = [0; 16385];
-#[no_mangle]
+
 pub static mut ff_tx_tab_64_int32: [TXSample; 17] = [0; 17];
-#[no_mangle]
+
 pub static mut ff_tx_tab_32768_int32: [TXSample; 8193] = [0; 8193];
-#[no_mangle]
+
 pub static mut ff_tx_tab_2097152_int32: [TXSample; 524289] = [0; 524289];
-#[no_mangle]
+
 pub static mut ff_tx_tab_16384_int32: [TXSample; 4097] = [0; 4097];
-#[no_mangle]
+
 pub static mut ff_tx_tab_524288_int32: [TXSample; 131073] = [0; 131073];
-#[no_mangle]
+
 pub static mut ff_tx_tab_262144_int32: [TXSample; 65537] = [0; 65537];
-#[no_mangle]
+
 pub static mut ff_tx_tab_4096_int32: [TXSample; 1025] = [0; 1025];
-#[no_mangle]
+
 pub static mut ff_tx_tab_2048_int32: [TXSample; 513] = [0; 513];
-#[no_mangle]
+
 pub static mut ff_tx_tab_8_int32: [TXSample; 3] = [0; 3];
-#[no_mangle]
+
 pub static mut ff_tx_tab_1024_int32: [TXSample; 257] = [0; 257];
-#[no_mangle]
+
 pub static mut ff_tx_tab_16_int32: [TXSample; 5] = [0; 5];
-#[no_mangle]
+
 pub static mut ff_tx_tab_512_int32: [TXSample; 129] = [0; 129];
-#[no_mangle]
+
 pub static mut ff_tx_tab_32_int32: [TXSample; 9] = [0; 9];
-#[no_mangle]
+
 pub static mut ff_tx_tab_256_int32: [TXSample; 65] = [0; 65];
-#[no_mangle]
+
 pub static mut ff_tx_tab_128_int32: [TXSample; 33] = [0; 33];
-#[no_mangle]
+
 pub static mut ff_tx_tab_53_int32: [TXSample; 12] = [0; 12];
-#[no_mangle]
+
 pub static mut ff_tx_tab_7_int32: [TXSample; 6] = [0; 6];
-#[no_mangle]
+
 pub static mut ff_tx_tab_9_int32: [TXSample; 8] = [0; 8];
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_2097152_int32() {
@@ -666,7 +666,7 @@ static mut nptwo_tabs_init_data: [FFTabInitData; 3] = unsafe {
     ]
 };
 static mut nptwo_tabs_init_once: [Once; 3] = [Once::new(), Once::new(), Once::new()];
-#[no_mangle]
+
 #[cold]
 pub unsafe extern "C" fn ff_tx_init_tabs_int32(mut len: c_int) {
     let factor_2: c_int = ff_ctz_c(len);
@@ -8914,7 +8914,7 @@ static mut ff_tx_dstI_def_int32_c: FFTXCodelet = unsafe {
         }
     }
 };
-#[no_mangle]
+
 pub unsafe extern "C" fn ff_tx_mdct_gen_exp_int32(
     s: *mut AVTXContext,
     pre_tab: *mut c_int,
@@ -8971,7 +8971,7 @@ pub unsafe extern "C" fn ff_tx_mdct_gen_exp_int32(
     }
     0 as c_int
 }
-#[no_mangle]
+
 pub static mut ff_tx_codelet_list_int32_c: [*const FFTXCodelet; 63] = unsafe {
     [
         &ff_tx_fft2_ns_def_int32_c,

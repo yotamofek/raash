@@ -1,10 +1,7 @@
 use std::mem::size_of;
 
 use ::libc;
-use libc::{
-    c_char, c_int, c_long, c_uint, c_ulong,
-    c_void,
-};
+use libc::{c_char, c_int, c_long, c_uint, c_ulong, c_void};
 
 use crate::{avutil::mathematics::av_rescale_q, types::*};
 extern "C" {
@@ -26,7 +23,6 @@ unsafe extern "C" fn ff_samples_to_time_base(
     av_rescale_q(
         samples,
         {
-            
             AVRational {
                 num: 1 as c_int,
                 den: (*avctx).sample_rate,
@@ -37,10 +33,7 @@ unsafe extern "C" fn ff_samples_to_time_base(
 }
 
 #[cold]
-pub unsafe extern "C" fn ff_af_queue_init(
-    avctx: *mut AVCodecContext,
-    afq: *mut AudioFrameQueue,
-) {
+pub unsafe extern "C" fn ff_af_queue_init(avctx: *mut AVCodecContext, afq: *mut AudioFrameQueue) {
     (*afq).avctx = avctx;
     (*afq).remaining_delay = (*avctx).initial_padding;
     (*afq).remaining_samples = (*avctx).initial_padding;
@@ -64,10 +57,7 @@ pub unsafe extern "C" fn ff_af_queue_close(afq: *mut AudioFrameQueue) {
     );
 }
 
-pub unsafe extern "C" fn ff_af_queue_add(
-    afq: *mut AudioFrameQueue,
-    f: *const AVFrame,
-) -> c_int {
+pub unsafe extern "C" fn ff_af_queue_add(afq: *mut AudioFrameQueue, f: *const AVFrame) -> c_int {
     let mut new: *mut AudioFrame = av_fast_realloc(
         (*afq).frames as *mut c_void,
         &mut (*afq).frame_alloc,
@@ -83,7 +73,6 @@ pub unsafe extern "C" fn ff_af_queue_add(
     (*new).duration += (*afq).remaining_delay;
     if (*f).pts != 0x8000000000000000 as c_ulong as c_long {
         (*new).pts = av_rescale_q((*f).pts, (*(*afq).avctx).time_base, {
-            
             AVRational {
                 num: 1 as c_int,
                 den: (*(*afq).avctx).sample_rate,
@@ -116,7 +105,9 @@ pub unsafe extern "C" fn ff_af_queue_remove(
     let mut out_pts: c_long = 0x8000000000000000 as c_ulong as c_long;
     let mut removed_samples: c_int = 0 as c_int;
     let mut i: c_int = 0;
-    if ((*afq).frame_count != 0 || (*afq).frame_alloc != 0) && (*(*afq).frames).pts != 0x8000000000000000 as c_ulong as c_long {
+    if ((*afq).frame_count != 0 || (*afq).frame_alloc != 0)
+        && (*(*afq).frames).pts != 0x8000000000000000 as c_ulong as c_long
+    {
         out_pts = (*(*afq).frames).pts;
     }
     if (*afq).frame_count == 0 {

@@ -10,10 +10,7 @@
 
 use std::{mem::size_of, ptr};
 
-use libc::{
-    c_double, c_float, c_int, c_long, c_schar, c_short, c_uint,
-    c_ulong,
-};
+use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
 
 use crate::{aaccoder::ff_quantize_and_encode_band_cost, common::*, types::*};
 

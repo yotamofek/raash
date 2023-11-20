@@ -84,49 +84,49 @@ unsafe extern "C" fn ff_ctz_c(v: c_int) -> c_int {
     debruijn_ctz32[(((v & -v) as c_uint).wrapping_mul(0x77cb531 as c_uint) >> 27 as c_int) as usize]
         as c_int
 }
-#[no_mangle]
+
 pub static mut ff_tx_tab_2097152_float: [TXSample; 524289] = [0.; 524289];
-#[no_mangle]
+
 pub static mut ff_tx_tab_1048576_float: [TXSample; 262145] = [0.; 262145];
-#[no_mangle]
+
 pub static mut ff_tx_tab_65536_float: [TXSample; 16385] = [0.; 16385];
-#[no_mangle]
+
 pub static mut ff_tx_tab_32768_float: [TXSample; 8193] = [0.; 8193];
-#[no_mangle]
+
 pub static mut ff_tx_tab_16384_float: [TXSample; 4097] = [0.; 4097];
-#[no_mangle]
+
 pub static mut ff_tx_tab_32_float: [TXSample; 9] = [0.; 9];
-#[no_mangle]
+
 pub static mut ff_tx_tab_8192_float: [TXSample; 2049] = [0.; 2049];
-#[no_mangle]
+
 pub static mut ff_tx_tab_131072_float: [TXSample; 32769] = [0.; 32769];
-#[no_mangle]
+
 pub static mut ff_tx_tab_4096_float: [TXSample; 1025] = [0.; 1025];
-#[no_mangle]
+
 pub static mut ff_tx_tab_262144_float: [TXSample; 65537] = [0.; 65537];
-#[no_mangle]
+
 pub static mut ff_tx_tab_2048_float: [TXSample; 513] = [0.; 513];
-#[no_mangle]
+
 pub static mut ff_tx_tab_1024_float: [TXSample; 257] = [0.; 257];
-#[no_mangle]
+
 pub static mut ff_tx_tab_524288_float: [TXSample; 131073] = [0.; 131073];
-#[no_mangle]
+
 pub static mut ff_tx_tab_512_float: [TXSample; 129] = [0.; 129];
-#[no_mangle]
+
 pub static mut ff_tx_tab_8_float: [TXSample; 3] = [0.; 3];
-#[no_mangle]
+
 pub static mut ff_tx_tab_256_float: [TXSample; 65] = [0.; 65];
-#[no_mangle]
+
 pub static mut ff_tx_tab_16_float: [TXSample; 5] = [0.; 5];
-#[no_mangle]
+
 pub static mut ff_tx_tab_128_float: [TXSample; 33] = [0.; 33];
-#[no_mangle]
+
 pub static mut ff_tx_tab_64_float: [TXSample; 17] = [0.; 17];
-#[no_mangle]
+
 pub static mut ff_tx_tab_53_float: [TXSample; 12] = [0.; 12];
-#[no_mangle]
+
 pub static mut ff_tx_tab_7_float: [TXSample; 6] = [0.; 6];
-#[no_mangle]
+
 pub static mut ff_tx_tab_9_float: [TXSample; 8] = [0.; 8];
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_524288_float() {
@@ -482,7 +482,7 @@ static mut nptwo_tabs_init_data: [FFTabInitData; 3] = unsafe {
     ]
 };
 static mut nptwo_tabs_init_once: [pthread_once_t; 3] = [0 as c_int, 0 as c_int, 0 as c_int];
-#[no_mangle]
+
 #[cold]
 pub unsafe extern "C" fn ff_tx_init_tabs_float(mut len: c_int) {
     let factor_2: c_int = ff_ctz_c(len);
@@ -7698,7 +7698,7 @@ static mut ff_tx_dstI_def_float_c: FFTXCodelet = unsafe {
         }
     }
 };
-#[no_mangle]
+
 pub unsafe extern "C" fn ff_tx_mdct_gen_exp_float(
     s: *mut AVTXContext,
     pre_tab: *mut c_int,
@@ -7747,7 +7747,7 @@ pub unsafe extern "C" fn ff_tx_mdct_gen_exp_float(
     }
     0 as c_int
 }
-#[no_mangle]
+
 pub static mut ff_tx_codelet_list_float_c: [*const FFTXCodelet; 63] = unsafe {
     [
         &ff_tx_fft2_ns_def_float_c as *const FFTXCodelet,
