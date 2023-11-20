@@ -11,11 +11,11 @@
 use std::sync::Once;
 
 use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong, c_ulonglong,
-    c_ushort, c_void,
+    c_float, c_int, c_uchar, c_uint,
+    c_ushort,
 };
 
-use crate::{kbdwin::avpriv_kbd_window_init, sinewin::ff_init_ff_sine_windows, types::*};
+use crate::{kbdwin::avpriv_kbd_window_init, sinewin::ff_init_ff_sine_windows};
 
 pub(crate) static mut ff_aac_pow2sf_tab: [c_float; 428] = [0.; 428];
 

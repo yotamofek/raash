@@ -11,15 +11,13 @@
 use std::mem::size_of;
 
 use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong, c_ulonglong,
-    c_void,
+    c_float, c_int, c_long, c_uchar, c_uint, c_ulong,
 };
 
 use crate::{
     aaccoder::ff_quantize_and_encode_band_cost,
     aacenc_is::ff_aac_is_encoding_err,
     aactab::{ff_aac_pow34sf_tab, ff_aac_pred_sfb_max},
-    common::*,
     types::*,
 };
 

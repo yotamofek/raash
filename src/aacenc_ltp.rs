@@ -11,8 +11,8 @@
 use std::{mem::size_of, ptr};
 
 use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint,
-    c_ulong, c_ulonglong, c_void,
+    c_double, c_float, c_int, c_long, c_schar, c_short, c_uint,
+    c_ulong,
 };
 
 use crate::{aaccoder::ff_quantize_and_encode_band_cost, common::*, types::*};

@@ -11,8 +11,7 @@
 use std::alloc::{alloc_zeroed, Layout};
 
 use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong, c_ulonglong,
-    c_void,
+    c_double, c_float, c_int, c_long, c_uchar, c_uint,
 };
 
 use crate::{common::*, psymodel::ff_psy_find_group, types::*};

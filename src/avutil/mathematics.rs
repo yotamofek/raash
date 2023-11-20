@@ -103,9 +103,9 @@ pub(crate) unsafe fn av_bessel_i0(mut x: c_double) -> c_double {
 }
 
 pub(crate) unsafe fn av_rescale_rnd(
-    mut a: c_long,
-    mut b: c_long,
-    mut c: c_long,
+    a: c_long,
+    b: c_long,
+    c: c_long,
     mut rnd: AVRounding,
 ) -> c_long {
     let mut r: c_long = 0 as c_int as c_long;
@@ -146,25 +146,25 @@ pub(crate) unsafe fn av_rescale_rnd(
     }
     if b <= 2147483647 as c_int as c_long && c <= 2147483647 as c_int as c_long {
         if a <= 2147483647 as c_int as c_long {
-            return (a * b + r) / c;
+            (a * b + r) / c
         } else {
-            let mut ad: c_long = a / c;
-            let mut a2: c_long = (a % c * b + r) / c;
+            let ad: c_long = a / c;
+            let a2: c_long = (a % c * b + r) / c;
             if ad >= 2147483647 as c_int as c_long
                 && b != 0
                 && ad > (9223372036854775807 as c_long - a2) / b
             {
                 return -(9223372036854775807 as c_long) - 1 as c_int as c_long;
             }
-            return ad * b + a2;
+            ad * b + a2
         }
     } else {
         let mut a0: c_ulong = (a & 0xffffffff as c_uint as c_long) as c_ulong;
         let mut a1: c_ulong = (a >> 32 as c_int) as c_ulong;
-        let mut b0: c_ulong = (b & 0xffffffff as c_uint as c_long) as c_ulong;
-        let mut b1: c_ulong = (b >> 32 as c_int) as c_ulong;
+        let b0: c_ulong = (b & 0xffffffff as c_uint as c_long) as c_ulong;
+        let b1: c_ulong = (b >> 32 as c_int) as c_ulong;
         let mut t1: c_ulong = a0.wrapping_mul(b1).wrapping_add(a1.wrapping_mul(b0));
-        let mut t1a: c_ulong = t1 << 32 as c_int;
+        let t1a: c_ulong = t1 << 32 as c_int;
         let mut i: c_int = 0;
         a0 = a0.wrapping_mul(b0).wrapping_add(t1a);
         a1 = a1
@@ -190,23 +190,23 @@ pub(crate) unsafe fn av_rescale_rnd(
         if t1 > 9223372036854775807 as c_long as c_ulong {
             return -(9223372036854775807 as c_long) - 1 as c_int as c_long;
         }
-        return t1 as c_long;
-    };
+        t1 as c_long
+    }
 }
 #[allow(dead_code)]
-pub(crate) unsafe fn av_rescale(mut a: c_long, mut b: c_long, mut c: c_long) -> c_long {
-    return av_rescale_rnd(a, b, c, AV_ROUND_NEAR_INF);
+pub(crate) unsafe fn av_rescale(a: c_long, b: c_long, c: c_long) -> c_long {
+    av_rescale_rnd(a, b, c, AV_ROUND_NEAR_INF)
 }
 pub(crate) unsafe fn av_rescale_q_rnd(
-    mut a: c_long,
-    mut bq: AVRational,
-    mut cq: AVRational,
-    mut rnd: AVRounding,
+    a: c_long,
+    bq: AVRational,
+    cq: AVRational,
+    rnd: AVRounding,
 ) -> c_long {
-    let mut b: c_long = bq.num as c_long * cq.den as c_long;
-    let mut c: c_long = cq.num as c_long * bq.den as c_long;
-    return av_rescale_rnd(a, b, c, rnd);
+    let b: c_long = bq.num as c_long * cq.den as c_long;
+    let c: c_long = cq.num as c_long * bq.den as c_long;
+    av_rescale_rnd(a, b, c, rnd)
 }
-pub(crate) unsafe fn av_rescale_q(mut a: c_long, mut bq: AVRational, mut cq: AVRational) -> c_long {
-    return av_rescale_q_rnd(a, bq, cq, AV_ROUND_NEAR_INF);
+pub(crate) unsafe fn av_rescale_q(a: c_long, bq: AVRational, cq: AVRational) -> c_long {
+    av_rescale_q_rnd(a, bq, cq, AV_ROUND_NEAR_INF)
 }

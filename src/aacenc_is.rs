@@ -11,8 +11,7 @@
 use std::mem::size_of;
 
 use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong, c_ulonglong,
-    c_void,
+    c_double, c_float, c_int, c_uchar, c_uint, c_ulong,
 };
 
 use crate::{

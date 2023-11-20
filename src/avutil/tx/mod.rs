@@ -741,8 +741,8 @@ unsafe fn run_static_initializers() {
 static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];
 
 #[inline(always)]
-unsafe extern "C" fn mulinv(mut n: c_int, mut m: c_int) -> c_int {
-    n = n % m;
+unsafe extern "C" fn mulinv(mut n: c_int, m: c_int) -> c_int {
+    n %= m;
     let mut x: c_int = 1 as c_int;
     while x < m {
         if n * x % m == 1 as c_int {
@@ -753,7 +753,7 @@ unsafe extern "C" fn mulinv(mut n: c_int, mut m: c_int) -> c_int {
     }
     if 0 as c_int == 0 {
         av_log(
-            0 as *mut c_void,
+            std::ptr::null_mut::<c_void>(),
             0 as c_int,
             b"Assertion %s failed at %s:%d\n\0" as *const u8 as *const c_char,
             b"0\0" as *const u8 as *const c_char,
@@ -762,14 +762,14 @@ unsafe extern "C" fn mulinv(mut n: c_int, mut m: c_int) -> c_int {
         );
         abort();
     }
-    return 0 as c_int;
+    0 as c_int
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
-    mut s: *mut AVTXContext,
-    mut opts: *mut FFTXCodeletOptions,
-    mut d1: c_int,
-    mut d2: c_int,
+    s: *mut AVTXContext,
+    opts: *mut FFTXCodeletOptions,
+    d1: c_int,
+    d2: c_int,
 ) -> c_int {
     let sl: c_int = d1 * d2;
     (*s).map =
@@ -809,7 +809,7 @@ pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
         if (*s).inv != 0 {
             let mut w: c_int = 1 as c_int;
             while w <= sl >> 1 as c_int {
-                let mut SWAP_tmp: c_int = *((*s).map).offset((k + sl - w) as isize);
+                let SWAP_tmp: c_int = *((*s).map).offset((k + sl - w) as isize);
                 *((*s).map).offset((k + sl - w) as isize) = *((*s).map).offset((k + w) as isize);
                 *((*s).map).offset((k + w) as isize) = SWAP_tmp;
                 w += 1;
@@ -823,18 +823,18 @@ pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
     } else {
         FF_TX_MAP_GATHER as c_int as c_uint
     }) as FFTXMapDirection;
-    return 0 as c_int;
+    0 as c_int
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
-    mut s: *mut AVTXContext,
-    mut opts: *mut FFTXCodeletOptions,
-    mut inv: c_int,
-    mut n: c_int,
-    mut m: c_int,
+    s: *mut AVTXContext,
+    opts: *mut FFTXCodeletOptions,
+    inv: c_int,
+    n: c_int,
+    m: c_int,
 ) -> c_int {
-    let mut in_map: *mut c_int = 0 as *mut c_int;
-    let mut out_map: *mut c_int = 0 as *mut c_int;
+    let mut in_map: *mut c_int = std::ptr::null_mut::<c_int>();
+    let mut out_map: *mut c_int = std::ptr::null_mut::<c_int>();
     let len: c_int = n * m;
     let mut m_inv: c_int = 0;
     let mut n_inv: c_int = 0;
@@ -882,11 +882,11 @@ pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
     if inv != 0 {
         let mut i_1: c_int = 0 as c_int;
         while i_1 < m {
-            let mut in_0: *mut c_int =
+            let in_0: *mut c_int =
                 &mut *in_map.offset((i_1 * n + 1 as c_int) as isize) as *mut c_int;
             let mut j_1: c_int = 0 as c_int;
             while j_1 < n - 1 as c_int >> 1 as c_int {
-                let mut SWAP_tmp: c_int = *in_0.offset((n - j_1 - 2 as c_int) as isize);
+                let SWAP_tmp: c_int = *in_0.offset((n - j_1 - 2 as c_int) as isize);
                 *in_0.offset((n - j_1 - 2 as c_int) as isize) = *in_0.offset(j_1 as isize);
                 *in_0.offset(j_1 as isize) = SWAP_tmp;
                 j_1 += 1;
@@ -901,13 +901,13 @@ pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
     } else {
         FF_TX_MAP_GATHER as c_int as c_uint
     }) as FFTXMapDirection;
-    return 0 as c_int;
+    0 as c_int
 }
 #[inline]
 unsafe extern "C" fn split_radix_permutation(
-    mut i: c_int,
+    i: c_int,
     mut len: c_int,
-    mut inv: c_int,
+    inv: c_int,
 ) -> c_int {
     len >>= 1 as c_int;
     if len <= 1 as c_int {
@@ -917,15 +917,15 @@ unsafe extern "C" fn split_radix_permutation(
         return split_radix_permutation(i, len, inv) * 2 as c_int;
     }
     len >>= 1 as c_int;
-    return split_radix_permutation(i, len, inv) * 4 as c_int + 1 as c_int
-        - 2 as c_int * ((i & len == 0) as c_int ^ inv);
+    split_radix_permutation(i, len, inv) * 4 as c_int + 1 as c_int
+        - 2 as c_int * ((i & len == 0) as c_int ^ inv)
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_tx_gen_ptwo_revtab(
-    mut s: *mut AVTXContext,
-    mut opts: *mut FFTXCodeletOptions,
+    s: *mut AVTXContext,
+    opts: *mut FFTXCodeletOptions,
 ) -> c_int {
-    let mut len: c_int = (*s).len;
+    let len: c_int = (*s).len;
     (*s).map =
         av_malloc((len as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong)) as *mut c_int;
     if ((*s).map).is_null() {
@@ -954,11 +954,11 @@ pub unsafe extern "C" fn ff_tx_gen_ptwo_revtab(
     } else {
         FF_TX_MAP_GATHER as c_int as c_uint
     }) as FFTXMapDirection;
-    return 0 as c_int;
+    0 as c_int
 }
 #[no_mangle]
-pub unsafe extern "C" fn ff_tx_gen_inplace_map(mut s: *mut AVTXContext, mut len: c_int) -> c_int {
-    let mut src_map: *mut c_int = 0 as *mut c_int;
+pub unsafe extern "C" fn ff_tx_gen_inplace_map(s: *mut AVTXContext, len: c_int) -> c_int {
+    let mut src_map: *mut c_int = std::ptr::null_mut::<c_int>();
     let mut out_map_idx: c_int = 0 as c_int;
     if ((*s).sub).is_null() || ((*(*s).sub).map).is_null() {
         return -(22 as c_int);
@@ -992,7 +992,7 @@ pub unsafe extern "C" fn ff_tx_gen_inplace_map(mut s: *mut AVTXContext, mut len:
             }
             if found == 0 {
                 let fresh0 = out_map_idx;
-                out_map_idx = out_map_idx + 1;
+                out_map_idx += 1;
                 *((*s).map).offset(fresh0 as isize) = src;
             }
         }
@@ -1000,21 +1000,21 @@ pub unsafe extern "C" fn ff_tx_gen_inplace_map(mut s: *mut AVTXContext, mut len:
         src;
     }
     let fresh1 = out_map_idx;
-    out_map_idx = out_map_idx + 1;
+    out_map_idx += 1;
     *((*s).map).offset(fresh1 as isize) = 0 as c_int;
-    return 0 as c_int;
+    0 as c_int
 }
 unsafe extern "C" fn parity_revtab_generator(
-    mut revtab: *mut c_int,
-    mut n: c_int,
-    mut inv: c_int,
-    mut offset: c_int,
+    revtab: *mut c_int,
+    n: c_int,
+    inv: c_int,
+    offset: c_int,
     mut is_dual: c_int,
     mut dual_high: c_int,
     mut len: c_int,
-    mut basis: c_int,
-    mut dual_stride: c_int,
-    mut inv_lookup: c_int,
+    basis: c_int,
+    dual_stride: c_int,
+    inv_lookup: c_int,
 ) {
     len >>= 1 as c_int;
     if len <= basis {
@@ -1024,7 +1024,7 @@ unsafe extern "C" fn parity_revtab_generator(
         let mut even_idx: c_int = 0;
         let mut odd_idx: c_int = 0;
         is_dual = (is_dual != 0 && dual_stride != 0) as c_int;
-        dual_high = is_dual & dual_high;
+        dual_high &= is_dual;
         stride = if is_dual != 0 {
             if dual_stride > len {
                 len
@@ -1045,17 +1045,17 @@ unsafe extern "C" fn parity_revtab_generator(
                 & n - 1 as c_int;
             if inv_lookup != 0 {
                 let fresh2 = even_idx;
-                even_idx = even_idx + 1;
+                even_idx += 1;
                 *revtab.offset(fresh2 as isize) = k1;
                 let fresh3 = odd_idx;
-                odd_idx = odd_idx + 1;
+                odd_idx += 1;
                 *revtab.offset(fresh3 as isize) = k2;
             } else {
                 let fresh4 = even_idx;
-                even_idx = even_idx + 1;
+                even_idx += 1;
                 *revtab.offset(k1 as isize) = fresh4;
                 let fresh5 = odd_idx;
-                odd_idx = odd_idx + 1;
+                odd_idx += 1;
                 *revtab.offset(k2 as isize) = fresh5;
             }
             if stride != 0 && (i + 1 as c_int) % stride == 0 {
@@ -1106,12 +1106,12 @@ unsafe extern "C" fn parity_revtab_generator(
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_tx_gen_split_radix_parity_revtab(
-    mut s: *mut AVTXContext,
-    mut len: c_int,
-    mut inv: c_int,
-    mut opts: *mut FFTXCodeletOptions,
+    s: *mut AVTXContext,
+    len: c_int,
+    inv: c_int,
+    opts: *mut FFTXCodeletOptions,
     mut basis: c_int,
-    mut dual_stride: c_int,
+    dual_stride: c_int,
 ) -> c_int {
     basis >>= 1 as c_int;
     if len < basis {
@@ -1124,7 +1124,7 @@ pub unsafe extern "C" fn ff_tx_gen_split_radix_parity_revtab(
     }
     if !(dual_stride == 0 || dual_stride & dual_stride - 1 as c_int == 0) {
         av_log(
-            0 as *mut c_void,
+            std::ptr::null_mut::<c_void>(),
             0 as c_int,
             b"Assertion %s failed at %s:%d\n\0" as *const u8 as *const c_char,
             b"!dual_stride || !(dual_stride & (dual_stride - 1))\0" as *const u8 as *const c_char,
@@ -1135,7 +1135,7 @@ pub unsafe extern "C" fn ff_tx_gen_split_radix_parity_revtab(
     }
     if !(dual_stride <= basis) {
         av_log(
-            0 as *mut c_void,
+            std::ptr::null_mut::<c_void>(),
             0 as c_int,
             b"Assertion %s failed at %s:%d\n\0" as *const u8 as *const c_char,
             b"dual_stride <= basis\0" as *const u8 as *const c_char,
@@ -1165,12 +1165,12 @@ pub unsafe extern "C" fn ff_tx_gen_split_radix_parity_revtab(
     } else {
         FF_TX_MAP_GATHER as c_int as c_uint
     }) as FFTXMapDirection;
-    return 0 as c_int;
+    0 as c_int
 }
 #[no_mangle]
 pub unsafe extern "C" fn ff_tx_gen_default_map(
-    mut s: *mut AVTXContext,
-    mut opts: *mut FFTXCodeletOptions,
+    s: *mut AVTXContext,
+    _opts: *mut FFTXCodeletOptions,
 ) -> c_int {
     (*s).map =
         av_malloc(((*s).len as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong)) as *mut c_int;
@@ -1194,35 +1194,35 @@ pub unsafe extern "C" fn ff_tx_gen_default_map(
         }
     }
     (*s).map_dir = FF_TX_MAP_GATHER;
-    return 0 as c_int;
+    0 as c_int
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ff_tx_decompose_length(
-    mut dst: *mut c_int,
-    mut type_0: AVTXType,
-    mut len: c_int,
-    mut inv: c_int,
+    dst: *mut c_int,
+    type_0: AVTXType,
+    len: c_int,
+    inv: c_int,
 ) -> c_int {
-    let mut current_block: u64;
+    let current_block: u64;
     let mut nb_decomp: c_int = 0 as c_int;
     let mut ld: [FFTXLenDecomp; 512] = [FFTXLenDecomp {
         len: 0,
         len2: 0,
         prio: 0,
-        cd: 0 as *const FFTXCodelet,
+        cd: std::ptr::null::<FFTXCodelet>(),
     }; 512];
     let mut codelet_list_idx: c_int = codelet_list_num;
     let cpu_flags: c_int = av_get_cpu_flags();
     's_9: loop {
         let fresh6 = codelet_list_idx;
-        codelet_list_idx = codelet_list_idx - 1;
+        codelet_list_idx -= 1;
         if !(fresh6 != 0) {
             current_block = 4567019141635105728;
             break;
         }
         let mut list: *const *const FFTXCodelet = codelet_list[codelet_list_idx as usize];
-        let mut cd: *const FFTXCodelet = 0 as *const FFTXCodelet;
+        let mut cd: *const FFTXCodelet = std::ptr::null::<FFTXCodelet>();
         loop {
             let fresh7 = list;
             list = list.offset(1);
@@ -1279,7 +1279,7 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
                     factors_mod += 1;
                     factors_mod;
                     if (*cd).factors[i as usize] == 2 as c_int {
-                        let mut b: c_int = ff_ctz_c(fl);
+                        let b: c_int = ff_ctz_c(fl);
                         fl >>= b;
                         factors_product <<= b;
                     } else {
@@ -1338,7 +1338,7 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
         }
         _ => {}
     }
-    let mut stack: [[*mut c_void; 2]; 64] = [[0 as *mut c_void; 2]; 64];
+    let mut stack: [[*mut c_void; 2]; 64] = [[std::ptr::null_mut::<c_void>(); 2]; 64];
     let mut sp: c_int = 1 as c_int;
     stack[0 as c_int as usize][0 as c_int as usize] = ld.as_mut_ptr() as *mut c_void;
     stack[0 as c_int as usize][1 as c_int as usize] =
@@ -1360,31 +1360,23 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
                     start.offset((end.offset_from(start) as c_long >> 1 as c_int) as isize);
                 if cmp_decomp(start, end) > 0 as c_int {
                     if cmp_decomp(end, mid) > 0 as c_int {
-                        let mut SWAP_tmp: FFTXLenDecomp = *mid;
-                        *mid = *start;
-                        *start = SWAP_tmp;
+                        core::ptr::swap(mid, start);
                     } else {
-                        let mut SWAP_tmp_0: FFTXLenDecomp = *end;
-                        *end = *start;
-                        *start = SWAP_tmp_0;
+                        core::ptr::swap(end, start);
                     }
                 } else if cmp_decomp(start, mid) > 0 as c_int {
-                    let mut SWAP_tmp_1: FFTXLenDecomp = *mid;
-                    *mid = *start;
-                    *start = SWAP_tmp_1;
+                    core::ptr::swap(mid, start);
                 } else {
                     checksort = 1 as c_int;
                 }
                 if cmp_decomp(mid, end) > 0 as c_int {
-                    let mut SWAP_tmp_2: FFTXLenDecomp = *end;
-                    *end = *mid;
-                    *mid = SWAP_tmp_2;
+                    core::ptr::swap(end, mid);
                     checksort = 0 as c_int;
                 }
                 if start == end.offset(-(2 as c_int as isize)) {
                     break;
                 }
-                let mut SWAP_tmp_3: FFTXLenDecomp = *mid;
+                let SWAP_tmp_3: FFTXLenDecomp = *mid;
                 *mid = *end.offset(-(1 as c_int) as isize);
                 *end.offset(-(1 as c_int) as isize) = SWAP_tmp_3;
                 while left <= right {
@@ -1401,16 +1393,14 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
                         right;
                     }
                     if left <= right {
-                        let mut SWAP_tmp_4: FFTXLenDecomp = *right;
-                        *right = *left;
-                        *left = SWAP_tmp_4;
+                        core::ptr::swap(right, left);
                         left = left.offset(1);
                         left;
                         right = right.offset(-1);
                         right;
                     }
                 }
-                let mut SWAP_tmp_5: FFTXLenDecomp = *left;
+                let SWAP_tmp_5: FFTXLenDecomp = *left;
                 *left = *end.offset(-(1 as c_int) as isize);
                 *end.offset(-(1 as c_int) as isize) = SWAP_tmp_5;
                 if checksort != 0 && (mid == left.offset(-(1 as c_int as isize)) || mid == left) {
@@ -1428,22 +1418,20 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
                 if (end.offset_from(left) as c_long) < left.offset_from(start) as c_long {
                     stack[sp as usize][0 as c_int as usize] = start as *mut c_void;
                     let fresh8 = sp;
-                    sp = sp + 1;
+                    sp += 1;
                     stack[fresh8 as usize][1 as c_int as usize] = right as *mut c_void;
                     start = left.offset(1 as c_int as isize);
                 } else {
                     stack[sp as usize][0 as c_int as usize] =
                         left.offset(1 as c_int as isize) as *mut c_void;
                     let fresh9 = sp;
-                    sp = sp + 1;
+                    sp += 1;
                     stack[fresh9 as usize][1 as c_int as usize] = end as *mut c_void;
                     end = right;
                 }
             } else {
                 if cmp_decomp(start, end) > 0 as c_int {
-                    let mut SWAP_tmp_6: FFTXLenDecomp = *end;
-                    *end = *start;
-                    *start = SWAP_tmp_6;
+                    core::ptr::swap(end, start);
                 }
                 break;
             }
@@ -1459,14 +1447,14 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
         i_1 += 1;
         i_1;
     }
-    return nb_decomp;
+    nb_decomp
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ff_tx_clear_ctx(mut s: *mut AVTXContext) {
+pub unsafe extern "C" fn ff_tx_clear_ctx(s: *mut AVTXContext) {
     reset_ctx(s, 0 as c_int);
 }
 
-unsafe extern "C" fn cmp_decomp(mut a: *mut FFTXLenDecomp, mut b: *mut FFTXLenDecomp) -> c_int {
-    return ((*b).prio > (*a).prio) as c_int - ((*b).prio < (*a).prio) as c_int;
+unsafe extern "C" fn cmp_decomp(a: *mut FFTXLenDecomp, b: *mut FFTXLenDecomp) -> c_int {
+    ((*b).prio > (*a).prio) as c_int - ((*b).prio < (*a).prio) as c_int
 }

@@ -9,8 +9,7 @@
 )]
 
 use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong, c_ulonglong,
-    c_void,
+    c_int,
 };
 
 pub(crate) static mut ff_mpeg4audio_sample_rates: [c_int; 16] = [

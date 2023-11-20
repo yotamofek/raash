@@ -10,11 +10,11 @@
 use std::alloc::{alloc, Layout};
 
 use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong, c_ulonglong,
+    c_double, c_float, c_int,
     c_void,
 };
 
-use crate::{avutil::mathematics::av_bessel_i0, common::*, types::*};
+use crate::{avutil::mathematics::av_bessel_i0, common::*};
 
 #[cold]
 unsafe fn kbd_window_init(
