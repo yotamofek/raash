@@ -3,7 +3,8 @@
     c_str_literals,
     array_chunks,
     inline_const,
-    generic_const_exprs
+    generic_const_exprs,
+    slice_take
 )]
 #![allow(
     clippy::eq_op,
@@ -38,3 +39,5 @@ mod common;
 mod types;
 
 mod avutil;
+
+mod bessel;

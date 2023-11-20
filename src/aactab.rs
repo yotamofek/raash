@@ -19,10 +19,7 @@ use std::{
 use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_ushort};
 use once_cell::sync::Lazy;
 
-use crate::{
-    avutil::mathematics::av_bessel_i0, kbdwin::avpriv_kbd_window_init,
-    sinewin::ff_init_ff_sine_windows,
-};
+use crate::{bessel, kbdwin::avpriv_kbd_window_init, sinewin::ff_init_ff_sine_windows};
 
 pub(crate) struct PowSfTables {
     pub pow2: [c_float; 428],
@@ -91,7 +88,7 @@ where
     i = 0 as c_int;
     while i <= (N / 2) as c_int {
         tmp = alpha2 * i as c_double * (N as c_int - i) as c_double;
-        temp[i as usize] = unsafe { av_bessel_i0(tmp.sqrt()) };
+        temp[i as usize] = bessel::i0(tmp.sqrt());
         scale +=
             temp[i as usize] * (1 as c_int + (i != 0 && i < (N / 2) as c_int) as c_int) as c_double;
         i += 1;

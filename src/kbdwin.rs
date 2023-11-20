@@ -14,8 +14,9 @@ use std::{
 
 use libc::{c_double, c_float, c_int, c_void};
 
-use crate::{avutil::mathematics::av_bessel_i0, common::*};
+use crate::{bessel, common::*};
 
+// rustified in aactab
 #[cold]
 pub(crate) unsafe fn kbd_window_init(
     mut float_window: *mut c_float,
@@ -41,7 +42,7 @@ pub(crate) unsafe fn kbd_window_init(
     i = 0 as c_int;
     while i <= n / 2 as c_int {
         tmp = alpha2 * i as c_double * (n - i) as c_double;
-        *temp.offset(i as isize) = av_bessel_i0(sqrt(tmp));
+        *temp.offset(i as isize) = bessel::i0(sqrt(tmp));
         scale += *temp.offset(i as isize)
             * (1 as c_int + (i != 0 && i < n / 2 as c_int) as c_int) as c_double;
         i += 1;
