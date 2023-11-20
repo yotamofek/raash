@@ -3819,7 +3819,7 @@ unsafe extern "C" fn aac_encode_frame(
             i += 1;
             i;
         }
-        if (*avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+        if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
             break;
         }
         frame_bits = put_bits_count(&mut (*s).pb);
@@ -4740,7 +4740,7 @@ unsafe extern "C" fn run_static_initializers() {
                     long_name: c"AAC (Advanced Audio Coding)".as_ptr(),
                     type_0: AVMEDIA_TYPE_AUDIO,
                     id: AV_CODEC_ID_AAC,
-                    capabilities: (1 as c_int) << 1 as c_int
+                    capabilities: AV_CODEC_FLAG_QSCALE
                         | (1 as c_int) << 5 as c_int
                         | (1 as c_int) << 6 as c_int,
                     max_lowres: 0,
@@ -4770,7 +4770,7 @@ unsafe extern "C" fn run_static_initializers() {
             hw_configs: ptr::null::<*const AVCodecHWConfigInternal>(),
             codec_tags: ptr::null::<c_uint>(),
         };
-        init.set_caps_internal(((1 as c_int) << 1 as c_int) as c_uint);
+        init.set_caps_internal((AV_CODEC_FLAG_QSCALE) as c_uint);
         init.set_cb_type(FF_CODEC_CB_TYPE_ENCODE as c_int as c_uint);
         init
     };

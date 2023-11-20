@@ -262,13 +262,11 @@ unsafe fn find_form_factor(
         1.0f32
     }
 }
-#[inline]
-unsafe fn coef2minsf(mut coef: c_float) -> c_uchar {
-    clip_uint8_c(
-        (log2f(coef) * 4 as c_int as c_float - 69 as c_int as c_float + 140 as c_int as c_float
-            - 36 as c_int as c_float) as c_int,
-    )
+
+fn coef2minsf(mut coef: c_float) -> c_uchar {
+    clip_uint8_c((coef.log2() * 4. - 69. + 140. - 36.) as c_int)
 }
+
 #[inline(always)]
 unsafe fn ff_fast_powf(mut x: c_float, mut y: c_float) -> c_float {
     expf(logf(x) * y)
@@ -2938,7 +2936,7 @@ unsafe extern "C" fn search_for_pns(
     };
     let mut refbits: c_int = ((*avctx).bit_rate as c_double * 1024.0f64
         / (*avctx).sample_rate as c_double
-        / (if (*avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+        / (if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
             2.0f32
         } else {
             (*avctx).ch_layout.nb_channels as c_float
@@ -2947,7 +2945,7 @@ unsafe extern "C" fn search_for_pns(
     let mut rate_bandwidth_multiplier: c_float = 1.5f32;
     let mut prev: c_int = -(1000 as c_int);
     let mut prev_sf: c_int = -(1 as c_int);
-    let mut frame_bit_rate: c_int = (if (*avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+    let mut frame_bit_rate: c_int = (if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
         refbits as c_float * rate_bandwidth_multiplier * (*avctx).sample_rate as c_float
             / 1024 as c_int as c_float
     } else {
@@ -3507,14 +3505,14 @@ unsafe extern "C" fn mark_pns(
     };
     let mut refbits: c_int = ((*avctx).bit_rate as c_double * 1024.0f64
         / (*avctx).sample_rate as c_double
-        / (if (*avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+        / (if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
             2.0f32
         } else {
             (*avctx).ch_layout.nb_channels as c_float
         }) as c_double
         * (lambda / 120.0f32) as c_double) as c_int;
     let mut rate_bandwidth_multiplier: c_float = 1.5f32;
-    let mut frame_bit_rate: c_int = (if (*avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+    let mut frame_bit_rate: c_int = (if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
         refbits as c_float * rate_bandwidth_multiplier * (*avctx).sample_rate as c_float
             / 1024 as c_int as c_float
     } else {

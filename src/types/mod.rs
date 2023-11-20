@@ -2860,3 +2860,5 @@ pub struct AVComplexInt32 {
     pub re: c_int,
     pub im: c_int,
 }
+
+pub const AV_CODEC_FLAG_QSCALE: c_int = 1 << 1;

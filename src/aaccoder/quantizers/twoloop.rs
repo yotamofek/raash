@@ -31,17 +31,17 @@ pub(crate) unsafe extern "C" fn search(
     let mut w2: c_int = 0;
     let mut g: c_int = 0;
     let mut recomprd: c_int = 0;
-    let mut destbits: c_int = (avctx.bit_rate as c_double * 1024.0f64
+    let mut dest_bits: c_int = (avctx.bit_rate as c_double * 1024.0f64
         / avctx.sample_rate as c_double
-        / (if avctx.flags & (1 as c_int) << 1 as c_int != 0 {
+        / (if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
             2.0f32
         } else {
             avctx.ch_layout.nb_channels as c_float
         }) as c_double
         * (lambda / 120.0f32) as c_double) as c_int;
-    let mut refbits: c_int = destbits;
-    let mut toomanybits: c_int = 0;
-    let mut toofewbits: c_int = 0;
+    let mut refbits: c_int = dest_bits;
+    let mut too_many_bits: c_int = 0;
+    let mut too_few_bits: c_int = 0;
     let mut nzs: [c_char; 128] = [0; 128];
     let mut nextband: [c_uchar; 128] = [0; 128];
     let mut maxsf: [c_int; 128] = [0; 128];
@@ -73,26 +73,27 @@ pub(crate) unsafe extern "C" fn search(
     let mut prev: c_int = 0;
     let zeroscale = zeroscale(lambda);
     if s.psy.bitres.alloc >= 0 as c_int {
-        destbits = (s.psy.bitres.alloc as c_float
+        dest_bits = (s.psy.bitres.alloc as c_float
             * (lambda
                 / (if avctx.global_quality != 0 {
                     avctx.global_quality
                 } else {
-                    120 as c_int
+                    120
                 }) as c_float)) as c_int;
     }
-    if avctx.flags & (1 as c_int) << 1 as c_int != 0 {
+
+    if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
         if s.options.mid_side != 0 && s.cur_type == TYPE_CPE {
-            destbits *= 2 as c_int;
+            dest_bits *= 2 as c_int;
         }
-        toomanybits = 5800 as c_int;
-        toofewbits = destbits / 16;
+        too_many_bits = 5800 as c_int;
+        too_few_bits = dest_bits / 16;
         sfoffs = (sce.ics.num_windows - 1 as c_int) as c_float;
         rdlambda = sqrtf(rdlambda);
         maxits *= 2 as c_int;
     } else {
-        toomanybits = destbits + destbits / 8 as c_int;
-        toofewbits = destbits - destbits / 8 as c_int;
+        too_many_bits = dest_bits + dest_bits / 8 as c_int;
+        too_few_bits = dest_bits - dest_bits / 8 as c_int;
         sfoffs = 0 as c_int as c_float;
         rdlambda = sqrtf(rdlambda);
     }
@@ -108,90 +109,26 @@ pub(crate) unsafe extern "C" fn search(
     s.psy.cutoff = bandwidth;
     cutoff = bandwidth * 2 * wlen / avctx.sample_rate;
     pns_start_pos = 4000 * 2 * wlen / avctx.sample_rate;
-    destbits = destbits.min(5800);
-    toomanybits = toomanybits.min(5800);
-    toofewbits = toofewbits.min(5800);
+    dest_bits = dest_bits.min(5800);
+    too_many_bits = too_many_bits.min(5800);
+    too_few_bits = too_few_bits.min(5800);
     min_spread_thr_r = -1.;
     max_spread_thr_r = -1.;
-    w = 0 as c_int;
-    while w < sce.ics.num_windows {
-        start = 0 as c_int;
-        g = start;
-        while g < sce.ics.num_swb {
-            let mut nz: c_int = 0 as c_int;
-            let mut uplim: c_float = 0.0f32;
-            let mut energy: c_float = 0.0f32;
-            let mut spread: c_float = 0.0f32;
-            w2 = 0 as c_int;
-            while w2 < sce.ics.group_len[w as usize] as c_int {
-                let mut band: *mut FFPsyBand =
-                    &mut *((*(s.psy.ch).offset(s.cur_channel as isize)).psy_bands)
-                        .as_mut_ptr()
-                        .offset(((w + w2) * 16 + g) as isize) as *mut FFPsyBand;
-                if start >= cutoff
-                    || (*band).energy <= (*band).threshold * zeroscale
-                    || (*band).threshold == 0.0f32
-                {
-                    sce.zeroes[((w + w2) * 16 + g) as usize] = 1;
-                } else {
-                    nz = 1;
-                }
-                w2 += 1;
-                w2;
-            }
-            if nz == 0 {
-                uplim = 0.0f32;
-            } else {
-                nz = 0;
-                w2 = 0;
-                while w2 < sce.ics.group_len[w as usize] as c_int {
-                    let mut band_0: *mut FFPsyBand =
-                        &mut *((*(s.psy.ch).offset(s.cur_channel as isize)).psy_bands)
-                            .as_mut_ptr()
-                            .offset(((w + w2) * 16 + g) as isize)
-                            as *mut FFPsyBand;
-                    if !((*band_0).energy <= (*band_0).threshold * zeroscale
-                        || (*band_0).threshold == 0.0f32)
-                    {
-                        uplim += (*band_0).threshold;
-                        energy += (*band_0).energy;
-                        spread += (*band_0).spread;
-                        nz += 1;
-                        nz;
-                    }
-                    w2 += 1;
-                    w2;
-                }
-            }
-            uplims[(w * 16 + g) as usize] = uplim;
-            energies[(w * 16 + g) as usize] = energy;
-            nzs[(w * 16 + g) as usize] = nz as c_char;
-            sce.zeroes[(w * 16 + g) as usize] = (nz == 0) as c_int as c_uchar;
-            allz |= nz;
-            if nz != 0 && sce.can_pns[(w * 16 + g) as usize] as c_int != 0 {
-                spread_thr_r[(w * 16 + g) as usize] = energy * nz as c_float / (uplim * spread);
-                if min_spread_thr_r < 0 as c_int as c_float {
-                    max_spread_thr_r = spread_thr_r[(w * 16 + g) as usize];
-                    min_spread_thr_r = max_spread_thr_r;
-                } else {
-                    min_spread_thr_r = if min_spread_thr_r > spread_thr_r[(w * 16 + g) as usize] {
-                        spread_thr_r[(w * 16 + g) as usize]
-                    } else {
-                        min_spread_thr_r
-                    };
-                    max_spread_thr_r = if max_spread_thr_r > spread_thr_r[(w * 16 + g) as usize] {
-                        max_spread_thr_r
-                    } else {
-                        spread_thr_r[(w * 16 + g) as usize]
-                    };
-                }
-            }
-            let fresh1 = g;
-            g += 1;
-            start += *(sce.ics.swb_sizes).offset(fresh1 as isize) as c_int;
-        }
-        w += sce.ics.group_len[w as usize] as c_int;
-    }
+
+    loop1(
+        sce,
+        s,
+        cutoff,
+        zeroscale,
+        &mut uplims,
+        &mut energies,
+        &mut nzs,
+        &mut allz,
+        &mut spread_thr_r,
+        &mut min_spread_thr_r,
+        &mut max_spread_thr_r,
+    );
+
     minscaler = 65535;
     w = 0;
     while w < sce.ics.num_windows {
@@ -233,37 +170,29 @@ pub(crate) unsafe extern "C" fn search(
         }
         w += sce.ics.group_len[w as usize] as c_int;
     }
+
     if allz == 0 {
         return;
     }
-    (s.abs_pow34).expect("non-null function pointer")(
-        (s.scoefs).as_mut_ptr(),
-        (sce.coeffs).as_mut_ptr(),
-        1024,
-    );
+
+    s.abs_pow34.unwrap()((s.scoefs).as_mut_ptr(), (sce.coeffs).as_mut_ptr(), 1024);
     ff_quantize_band_cost_cache_init(s);
-    i = 0 as c_int;
-    while (i as c_ulong)
-        < (size_of::<[c_int; 128]>() as c_ulong).wrapping_div(size_of::<c_int>() as c_ulong)
-    {
-        minsf[i as usize] = 0 as c_int;
-        i += 1;
-        i;
-    }
-    w = 0 as c_int;
+    minsf.fill(0);
+    w = 0;
     while w < sce.ics.num_windows {
         start = w * 128 as c_int;
         g = 0 as c_int;
         while g < sce.ics.num_swb {
-            let mut scaled: *const c_float = (s.scoefs).as_mut_ptr().offset(start as isize);
-            let mut minsfidx: c_int = 0;
+            let mut scaled = s.scoefs[start as usize..].as_ptr();
+
             maxvals[(w * 16 + g) as usize] = find_max_val(
                 sce.ics.group_len[w as usize] as c_int,
                 *(sce.ics.swb_sizes).offset(g as isize) as c_int,
                 scaled,
             );
-            if maxvals[(w * 16 + g) as usize] > 0 as c_int as c_float {
-                minsfidx = coef2minsf(maxvals[(w * 16 + g) as usize]) as c_int;
+
+            if maxvals[(w * 16 + g) as usize] > 0. {
+                let minsfidx = coef2minsf(maxvals[(w * 16 + g) as usize]) as c_int;
                 w2 = 0 as c_int;
                 while w2 < sce.ics.group_len[w as usize] as c_int {
                     minsf[((w + w2) * 16 + g) as usize] = minsfidx;
@@ -302,21 +231,10 @@ pub(crate) unsafe extern "C" fn search(
                     nzslope * cleanup_factor,
                 );
                 energy2uplim *= de_psy_factor;
-                if avctx.flags & (1 as c_int) << 1 as c_int == 0 {
+                if avctx.flags & AV_CODEC_FLAG_QSCALE == 0 {
                     energy2uplim = sqrtf(energy2uplim);
                 }
-                energy2uplim = if 0.015625f32
-                    > (if 1.0f32 > energy2uplim {
-                        energy2uplim
-                    } else {
-                        1.0f32
-                    }) {
-                    0.015625f32
-                } else if 1.0f32 > energy2uplim {
-                    energy2uplim
-                } else {
-                    1.0f32
-                };
+                energy2uplim = energy2uplim.clamp(0.015625, 1.);
                 uplims[(w * 16 + g) as usize] *= (rdlambda * energy2uplim).clamp(rdmin, rdmax)
                     * sce.ics.group_len[w as usize] as c_int as c_float;
                 energy2uplim = find_form_factor(
@@ -330,21 +248,10 @@ pub(crate) unsafe extern "C" fn search(
                     2.0f32,
                 );
                 energy2uplim *= de_psy_factor;
-                if avctx.flags & (1 as c_int) << 1 as c_int == 0 {
-                    energy2uplim = sqrtf(energy2uplim);
+                if avctx.flags & AV_CODEC_FLAG_QSCALE == 0 {
+                    energy2uplim = energy2uplim.sqrt();
                 }
-                energy2uplim = if 0.015625f32
-                    > (if 1.0f32 > energy2uplim {
-                        energy2uplim
-                    } else {
-                        1.0f32
-                    }) {
-                    0.015625f32
-                } else if 1.0f32 > energy2uplim {
-                    energy2uplim
-                } else {
-                    1.0f32
-                };
+                energy2uplim = energy2uplim.clamp(0.015625, 1.);
                 euplims[(w * 16 + g) as usize] *=
                     (rdlambda * energy2uplim * sce.ics.group_len[w as usize] as c_int as c_float)
                         .clamp(0.5, 1.);
@@ -355,14 +262,7 @@ pub(crate) unsafe extern "C" fn search(
         }
         w += sce.ics.group_len[w as usize] as c_int;
     }
-    i = 0 as c_int;
-    while (i as c_ulong)
-        < (size_of::<[c_int; 128]>() as c_ulong).wrapping_div(size_of::<c_int>() as c_ulong)
-    {
-        maxsf[i as usize] = 255 as c_int;
-        i += 1;
-        i;
-    }
+    maxsf.fill(255);
     loop {
         let mut overdist: c_int = 0;
         let mut qstep: c_int = if its != 0 { 1 as c_int } else { 32 as c_int };
@@ -437,7 +337,7 @@ pub(crate) unsafe extern "C" fn search(
                 }
                 w += sce.ics.group_len[w as usize] as c_int;
             }
-            if tbits > toomanybits {
+            if tbits > too_many_bits {
                 recomprd = 1 as c_int;
                 i = 0 as c_int;
                 while i < 128 as c_int {
@@ -460,7 +360,7 @@ pub(crate) unsafe extern "C" fn search(
                     i += 1;
                     i;
                 }
-            } else if tbits < toofewbits {
+            } else if tbits < too_few_bits {
                 recomprd = 1 as c_int;
                 i = 0 as c_int;
                 while i < 128 as c_int {
@@ -490,7 +390,7 @@ pub(crate) unsafe extern "C" fn search(
             }
             qstep >>= 1 as c_int;
             if qstep == 0
-                && tbits > toomanybits
+                && tbits > too_many_bits
                 && sce.sf_idx[0 as c_int as usize] < 217 as c_int
                 && changed != 0
             {
@@ -501,7 +401,7 @@ pub(crate) unsafe extern "C" fn search(
             }
         }
         overdist = 1 as c_int;
-        fflag = (tbits < toofewbits) as c_int;
+        fflag = (tbits < too_few_bits) as c_int;
         i = 0 as c_int;
         while i < 2 as c_int && (overdist != 0 || recomprd != 0) {
             if recomprd != 0 {
@@ -576,7 +476,7 @@ pub(crate) unsafe extern "C" fn search(
                     w += sce.ics.group_len[w as usize] as c_int;
                 }
             }
-            if i == 0 && s.options.pns != 0 && its > maxits / 2 as c_int && tbits > toofewbits {
+            if i == 0 && s.options.pns != 0 && its > maxits / 2 as c_int && tbits > too_few_bits {
                 let mut maxoverdist: c_float = 0.0f32;
                 let mut ovrfactor: c_float =
                     1.0f32 + (maxits - its) as c_float * 16.0f32 / maxits as c_float;
@@ -654,13 +554,13 @@ pub(crate) unsafe extern "C" fn search(
                         zspread
                     } else {
                         min_spread_thr_r * 8.0f32
-                    }) > ((toomanybits - tbits) as c_float * min_spread_thr_r
-                        + (tbits - toofewbits) as c_float * max_spread_thr_r)
-                        / (toomanybits - toofewbits + 1 as c_int) as c_float
+                    }) > ((too_many_bits - tbits) as c_float * min_spread_thr_r
+                        + (tbits - too_few_bits) as c_float * max_spread_thr_r)
+                        / (too_many_bits - too_few_bits + 1 as c_int) as c_float
                     {
-                        ((toomanybits - tbits) as c_float * min_spread_thr_r
-                            + (tbits - toofewbits) as c_float * max_spread_thr_r)
-                            / (toomanybits - toofewbits + 1 as c_int) as c_float
+                        ((too_many_bits - tbits) as c_float * min_spread_thr_r
+                            + (tbits - too_few_bits) as c_float * max_spread_thr_r)
+                            / (too_many_bits - too_few_bits + 1 as c_int) as c_float
                     } else if min_spread_thr_r * 8.0f32 > zspread {
                         zspread
                     } else {
@@ -791,20 +691,20 @@ pub(crate) unsafe extern "C" fn search(
             };
             let mut edepth: c_int = depth + 2 as c_int;
             let mut uplmax: c_float = its as c_float / (maxits as c_float * 0.25f32) + 1.0f32;
-            uplmax *= if tbits > destbits {
+            uplmax *= if tbits > dest_bits {
                 if 2.0f32
                     > tbits as c_float
-                        / (if 1 as c_int > destbits {
+                        / (if 1 as c_int > dest_bits {
                             1 as c_int
                         } else {
-                            destbits
+                            dest_bits
                         }) as c_float
                 {
                     tbits as c_float
-                        / (if 1 as c_int > destbits {
+                        / (if 1 as c_int > dest_bits {
                             1 as c_int
                         } else {
-                            destbits
+                            dest_bits
                         }) as c_float
                 } else {
                     2.0f32
@@ -937,7 +837,7 @@ pub(crate) unsafe extern "C" fn search(
                             i += 1;
                             i;
                         }
-                    } else if tbits > toofewbits
+                    } else if tbits > too_few_bits
                         && sce.sf_idx[(w * 16 + g) as usize]
                             < (if maxdeltasf > maxsf[(w * 16 + g) as usize] {
                                 maxsf[(w * 16 + g) as usize]
@@ -950,7 +850,8 @@ pub(crate) unsafe extern "C" fn search(
                             } else {
                                 euplims[(w * 16 + g) as usize]
                             })
-                        && fabsf(qenergies[(w * 16 + g) as usize] - energies[(w * 16 + g) as usize])
+                        && (qenergies[(w * 16 + g) as usize] - energies[(w * 16 + g) as usize])
+                            .abs()
                             < euplims[(w * 16 + g) as usize]
                     {
                         i = 0 as c_int;
@@ -993,13 +894,8 @@ pub(crate) unsafe extern "C" fn search(
                                 }
                                 dist_2 -= bits_2 as c_float;
                                 if !(dist_2
-                                    < (if euplims[(w * 16 + g) as usize]
-                                        > uplims[(w * 16 + g) as usize]
-                                    {
-                                        uplims[(w * 16 + g) as usize]
-                                    } else {
-                                        euplims[(w * 16 + g) as usize]
-                                    }))
+                                    < uplims[(w * 16 + g) as usize]
+                                        .min(euplims[(w * 16 + g) as usize]))
                                 {
                                     break;
                                 }
@@ -1010,13 +906,8 @@ pub(crate) unsafe extern "C" fn search(
                                 i += 1;
                                 i;
                             } else {
-                                maxsf[(w * 16 + g) as usize] = if sce.sf_idx[(w * 16 + g) as usize]
-                                    > maxsf[(w * 16 + g) as usize]
-                                {
-                                    maxsf[(w * 16 + g) as usize]
-                                } else {
-                                    sce.sf_idx[(w * 16 + g) as usize]
-                                };
+                                maxsf[(w * 16 + g) as usize] = sce.sf_idx[(w * 16 + g) as usize]
+                                    .min(maxsf[(w * 16 + g) as usize]);
                                 break;
                             }
                         }
@@ -1043,8 +934,8 @@ pub(crate) unsafe extern "C" fn search(
             }
             w += sce.ics.group_len[w as usize] as c_int;
         }
-        prev = -(1 as c_int);
-        w = 0 as c_int;
+        prev = -1;
+        w = 0;
         while w < sce.ics.num_windows {
             g = 0 as c_int;
             while g < sce.ics.num_swb {
@@ -1117,6 +1008,95 @@ pub(crate) unsafe extern "C" fn search(
     }
 }
 
+// TODO: name
+unsafe fn loop1(
+    sce: &mut SingleChannelElement,
+    s: &AACEncContext,
+    cutoff: i32,
+    zeroscale: f32,
+    uplims: &mut [f32; 128],
+    energies: &mut [f32; 128],
+    nzs: &mut [i8; 128],
+    allz: &mut i32,
+    spread_thr_r: &mut [f32; 128],
+    min_spread_thr_r: &mut f32,
+    max_spread_thr_r: &mut f32,
+) {
+    let mut w = 0 as c_int;
+    let mut start;
+    let mut g;
+    while w < sce.ics.num_windows {
+        start = 0 as c_int;
+        g = start;
+        while g < sce.ics.num_swb {
+            let mut nz: c_int = 0 as c_int;
+            let mut uplim: c_float = 0.0f32;
+            let mut energy: c_float = 0.0f32;
+            let mut spread: c_float = 0.0f32;
+            let mut w2 = 0;
+            while w2 < sce.ics.group_len[w as usize] as c_int {
+                let ch = &*s.psy.ch.offset(s.cur_channel as isize);
+                let band = ch.psy_bands[((w + w2) * 16 + g) as usize];
+                if start >= cutoff
+                    || band.energy <= band.threshold * zeroscale
+                    || band.threshold == 0.0f32
+                {
+                    sce.zeroes[((w + w2) * 16 + g) as usize] = 1;
+                } else {
+                    nz = 1;
+                }
+                w2 += 1;
+                w2;
+            }
+            if nz == 0 {
+                uplim = 0.0f32;
+            } else {
+                nz = 0;
+                w2 = 0;
+                while w2 < sce.ics.group_len[w as usize] as c_int {
+                    let ch = &*s.psy.ch.offset(s.cur_channel as isize);
+                    let band = ch.psy_bands[((w + w2) * 16 + g) as usize];
+                    if !(band.energy <= band.threshold * zeroscale || band.threshold == 0.0f32) {
+                        uplim += band.threshold;
+                        energy += band.energy;
+                        spread += band.spread;
+                        nz += 1;
+                    }
+                    w2 += 1;
+                    w2;
+                }
+            }
+            uplims[(w * 16 + g) as usize] = uplim;
+            energies[(w * 16 + g) as usize] = energy;
+            nzs[(w * 16 + g) as usize] = nz as c_char;
+            sce.zeroes[(w * 16 + g) as usize] = (nz == 0) as c_int as c_uchar;
+            *allz |= nz;
+            if nz != 0 && sce.can_pns[(w * 16 + g) as usize] as c_int != 0 {
+                spread_thr_r[(w * 16 + g) as usize] = energy * nz as c_float / (uplim * spread);
+                if *min_spread_thr_r < 0. {
+                    *max_spread_thr_r = spread_thr_r[(w * 16 + g) as usize];
+                    *min_spread_thr_r = *max_spread_thr_r;
+                } else {
+                    *min_spread_thr_r = if *min_spread_thr_r > spread_thr_r[(w * 16 + g) as usize] {
+                        spread_thr_r[(w * 16 + g) as usize]
+                    } else {
+                        *min_spread_thr_r
+                    };
+                    *max_spread_thr_r = if *max_spread_thr_r > spread_thr_r[(w * 16 + g) as usize] {
+                        *max_spread_thr_r
+                    } else {
+                        spread_thr_r[(w * 16 + g) as usize]
+                    };
+                }
+            }
+            let fresh1 = g;
+            g += 1;
+            start += *(sce.ics.swb_sizes).offset(fresh1 as isize) as c_int;
+        }
+        w += sce.ics.group_len[w as usize] as c_int;
+    }
+}
+
 fn zeroscale(lambda: f32) -> f32 {
     if lambda > 120.0f32 {
         (120.0f32 / lambda).powf(0.25f32).clamp(0.0625f32, 1.0f32)
@@ -1131,7 +1111,7 @@ fn frame_bit_rate(
     refbits: i32,
     rate_bandwidth_multiplier: f32,
 ) -> i32 {
-    let mut frame_bit_rate: c_int = (if avctx.flags & (1 as c_int) << 1 as c_int != 0 {
+    let mut frame_bit_rate: c_int = (if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
         refbits as c_float * rate_bandwidth_multiplier * avctx.sample_rate as c_float
             / 1024 as c_int as c_float
     } else {

@@ -276,7 +276,7 @@ unsafe fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecC
     while i < (*avctx).ch_layout.nb_channels {
         let mut pch: *mut AacPsyChannel =
             &mut *((*ctx).ch).offset(i as isize) as *mut AacPsyChannel;
-        if (*avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+        if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
             (*pch).attack_threshold = psy_vbr_map[av_clip_c(
                 (*avctx).global_quality / 118 as c_int,
                 0 as c_int,
@@ -331,14 +331,14 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     let mut minsnr: c_float = 0.;
     let mut pe_min: c_float = 0.;
     let mut chan_bitrate: c_int = ((*(*ctx).avctx).bit_rate as c_float
-        / (if (*(*ctx).avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+        / (if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
             2.0f32
         } else {
             (*(*ctx).avctx).ch_layout.nb_channels as c_float
         })) as c_int;
     let bandwidth: c_int = (if (*ctx).cutoff != 0 {
         (*ctx).cutoff as c_long
-    } else if (*(*ctx).avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+    } else if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
         ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
     } else if (*(*ctx).avctx).bit_rate != 0 {
         if (if (if (if (if (*(*ctx).avctx).bit_rate
@@ -733,7 +733,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
         120 as c_int
     }) as c_float
         * 0.01f32;
-    if (*(*ctx).avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+    if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
         chan_bitrate = (chan_bitrate as c_double / 120.0f64
             * (if (*(*ctx).avctx).global_quality != 0 {
                 (*(*ctx).avctx).global_quality
@@ -1243,7 +1243,7 @@ unsafe fn psy_3gpp_analyze_channel(
     };
     let bandwidth: c_int = (if (*ctx).cutoff != 0 {
         (*ctx).cutoff as c_long
-    } else if (*(*ctx).avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+    } else if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
         ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
     } else if (*(*ctx).avctx).bit_rate != 0 {
         if (if (if (if (if (*(*ctx).avctx).bit_rate
@@ -1717,7 +1717,7 @@ unsafe fn psy_3gpp_analyze_channel(
         w += 16 as c_int;
     }
     (*((*ctx).ch).offset(channel as isize)).entropy = pe;
-    if (*(*ctx).avctx).flags & (1 as c_int) << 1 as c_int != 0 {
+    if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
         desired_pe = pe
             * (if (*(*ctx).avctx).global_quality != 0 {
                 (*(*ctx).avctx).global_quality
