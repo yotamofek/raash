@@ -20,6 +20,10 @@ use crate::aactab::{
     ff_aac_num_swb_128, ff_aac_scalefactor_bits, ff_aac_scalefactor_code, ff_swb_offset_1024,
     ff_swb_offset_128, ff_tns_max_bands_1024, ff_tns_max_bands_128,
 };
+use crate::audio_frame_queue::{
+    ff_af_queue_add, ff_af_queue_close, ff_af_queue_init, ff_af_queue_remove,
+};
+use crate::avutil::log::av_default_item_name;
 use crate::avutil::tx::{av_tx_init, av_tx_uninit};
 use crate::common::*;
 use crate::lpc::{ff_lpc_end, ff_lpc_init};
@@ -45,26 +49,11 @@ extern "C" {
     fn av_calloc(nmemb: size_t, size: size_t) -> *mut libc::c_void;
     fn av_freep(ptr: *mut libc::c_void);
     fn av_log(avcl: *mut libc::c_void, level: libc::c_int, fmt: *const libc::c_char, _: ...);
-    fn av_default_item_name(ctx: *mut libc::c_void) -> *const libc::c_char;
     fn ff_alloc_packet(
         avctx: *mut AVCodecContext,
         avpkt: *mut AVPacket,
         size: int64_t,
     ) -> libc::c_int;
-    fn ff_put_string(
-        pb: *mut PutBitContext,
-        string: *const libc::c_char,
-        terminate_string: libc::c_int,
-    );
-    fn ff_af_queue_init(avctx: *mut AVCodecContext, afq: *mut AudioFrameQueue);
-    fn ff_af_queue_add(afq: *mut AudioFrameQueue, f: *const AVFrame) -> libc::c_int;
-    fn ff_af_queue_remove(
-        afq: *mut AudioFrameQueue,
-        nb_samples: libc::c_int,
-        pts: *mut int64_t,
-        duration: *mut int64_t,
-    );
-    fn ff_af_queue_close(afq: *mut AudioFrameQueue);
 }
 #[inline(always)]
 unsafe extern "C" fn av_clipf_c(
@@ -3552,7 +3541,7 @@ unsafe extern "C" fn encode_individual_channel(
     encode_spectral_coeffs(s, sce);
     0 as libc::c_int
 }
-unsafe extern "C" fn put_bitstream_info(mut s: *mut AACEncContext, mut name: &CStr) {
+unsafe fn put_bitstream_info(mut s: *mut AACEncContext, mut name: &CStr) {
     let mut i: libc::c_int = 0;
     let mut namelen: libc::c_int = 0;
     let mut padbits: libc::c_int = 0;
@@ -3640,6 +3629,7 @@ unsafe extern "C" fn aac_encode_frame(
     mut frame: *const AVFrame,
     mut got_packet_ptr: *mut libc::c_int,
 ) -> libc::c_int {
+    panic!();
     let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
     let mut samples: *mut *mut libc::c_float = ((*s).planar_samples).as_mut_ptr();
     let mut samples2: *mut libc::c_float = std::ptr::null_mut::<libc::c_float>();

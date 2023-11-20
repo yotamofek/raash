@@ -1,5 +1,9 @@
 #![deny(dead_code)]
 
+mod tx_double;
+mod tx_float;
+mod tx_int32;
+
 use crate::types::*;
 use std::{
     alloc::{alloc, alloc_zeroed, Layout},
@@ -7,11 +11,13 @@ use std::{
 };
 
 use ::libc;
+
+use self::{
+    tx_double::ff_tx_codelet_list_double_c, tx_float::ff_tx_codelet_list_float_c,
+    tx_int32::ff_tx_codelet_list_int32_c,
+};
 extern "C" {
     fn av_get_cpu_flags() -> libc::c_int;
-    static ff_tx_codelet_list_float_c: [*const FFTXCodelet; 0];
-    static ff_tx_codelet_list_double_c: [*const FFTXCodelet; 0];
-    static ff_tx_codelet_list_int32_c: [*const FFTXCodelet; 0];
     fn av_fast_realloc(
         ptr: *mut libc::c_void,
         size: *mut libc::c_uint,
@@ -78,12 +84,13 @@ unsafe fn reset_ctx(s: *mut AVTXContext, free_sub: libc::c_int) {
     if !((*s).cd_self).is_null() && ((*(*s).cd_self).uninit).is_some() {
         ((*(*s).cd_self).uninit).expect("non-null function pointer")(s);
     }
+    // TODO: this leaks 🚿
     if free_sub != 0 {
-        av_freep(&mut (*s).sub as *mut *mut AVTXContext as *mut libc::c_void);
+        // av_freep(&mut (*s).sub as *mut *mut AVTXContext as *mut libc::c_void);
     }
-    av_freep(&mut (*s).map as *mut *mut libc::c_int as *mut libc::c_void);
-    av_freep(&mut (*s).exp as *mut *mut libc::c_void as *mut libc::c_void);
-    av_freep(&mut (*s).tmp as *mut *mut libc::c_void as *mut libc::c_void);
+    // av_freep(&mut (*s).map as *mut *mut libc::c_int as *mut libc::c_void);
+    // av_freep(&mut (*s).exp as *mut *mut libc::c_void as *mut libc::c_void);
+    // av_freep(&mut (*s).tmp as *mut *mut libc::c_void as *mut libc::c_void);
     (*s).nb_sub = 0 as libc::c_int;
     (*s).opaque = std::ptr::null_mut::<libc::c_void>();
     (*s).fn_0[0] = None;
@@ -714,8 +721,12 @@ pub(crate) unsafe fn av_tx_init(
             len: 0 as libc::c_int,
             inv: 0,
             map: std::ptr::null_mut::<libc::c_int>(),
-            exp: std::ptr::null_mut::<libc::c_void>(),
-            tmp: std::ptr::null_mut::<libc::c_void>(),
+            exp: AVTXNum {
+                void: std::ptr::null_mut(),
+            },
+            tmp: AVTXNum {
+                void: std::ptr::null_mut(),
+            },
             sub: std::ptr::null_mut::<AVTXContext>(),
             fn_0: [None; 4],
             nb_sub: 0,

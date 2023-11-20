@@ -19,13 +19,15 @@ mod aacenc_tns;
 mod aacenctab;
 mod aacpsy;
 mod aactab;
-mod common;
+mod audio_frame_queue;
 mod iirfilter;
 mod kbdwin;
 mod lpc;
 mod mpeg4audio_sample_rates;
 mod psymodel;
 mod sinewin;
+
+mod common;
 mod types;
 
 mod avutil;

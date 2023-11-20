@@ -1,4 +1,5 @@
-use crate::{common::*};
+use crate::common::*;
+use crate::types::*;
 
 use ::libc;
 
@@ -105,4 +106,125 @@ pub(crate) unsafe fn av_bessel_i0(mut x: libc::c_double) -> libc::c_double {
         factor = exp(x) / sqrt(x);
         factor * r
     }
+}
+
+pub(crate) unsafe fn av_rescale_rnd(
+    mut a: int64_t,
+    mut b: int64_t,
+    mut c: int64_t,
+    mut rnd: AVRounding,
+) -> int64_t {
+    let mut r: int64_t = 0 as libc::c_int as int64_t;
+    if c <= 0 as libc::c_int as libc::c_long
+        || b < 0 as libc::c_int as libc::c_long
+        || !(rnd as libc::c_uint & !(AV_ROUND_PASS_MINMAX as libc::c_int) as libc::c_uint
+            <= 5 as libc::c_int as libc::c_uint
+            && rnd as libc::c_uint & !(AV_ROUND_PASS_MINMAX as libc::c_int) as libc::c_uint
+                != 4 as libc::c_int as libc::c_uint)
+    {
+        return -(9223372036854775807 as libc::c_long) - 1 as libc::c_int as libc::c_long;
+    }
+    if rnd as libc::c_uint & AV_ROUND_PASS_MINMAX as libc::c_int as libc::c_uint != 0 {
+        if a == -(9223372036854775807 as libc::c_long) - 1 as libc::c_int as libc::c_long
+            || a == 9223372036854775807 as libc::c_long
+        {
+            return a;
+        }
+        rnd = ::core::mem::transmute::<libc::c_uint, AVRounding>(
+            (rnd as libc::c_uint).wrapping_sub(AV_ROUND_PASS_MINMAX as libc::c_int as libc::c_uint),
+        ) as AVRounding;
+    }
+    if a < 0 as libc::c_int as libc::c_long {
+        return (av_rescale_rnd(
+            -if a > -(9223372036854775807 as libc::c_long) {
+                a
+            } else {
+                -(9223372036854775807 as libc::c_long)
+            },
+            b,
+            c,
+            (rnd as libc::c_uint
+                ^ rnd as libc::c_uint >> 1 as libc::c_int & 1 as libc::c_int as libc::c_uint)
+                as AVRounding,
+        ) as uint64_t)
+            .wrapping_neg() as int64_t;
+    }
+    if rnd as libc::c_uint == AV_ROUND_NEAR_INF as libc::c_int as libc::c_uint {
+        r = c / 2 as libc::c_int as libc::c_long;
+    } else if rnd as libc::c_uint & 1 as libc::c_int as libc::c_uint != 0 {
+        r = c - 1 as libc::c_int as libc::c_long;
+    }
+    if b <= 2147483647 as libc::c_int as libc::c_long
+        && c <= 2147483647 as libc::c_int as libc::c_long
+    {
+        if a <= 2147483647 as libc::c_int as libc::c_long {
+            return (a * b + r) / c;
+        } else {
+            let mut ad: int64_t = a / c;
+            let mut a2: int64_t = (a % c * b + r) / c;
+            if ad >= 2147483647 as libc::c_int as libc::c_long
+                && b != 0
+                && ad > (9223372036854775807 as libc::c_long - a2) / b
+            {
+                return -(9223372036854775807 as libc::c_long) - 1 as libc::c_int as libc::c_long;
+            }
+            return ad * b + a2;
+        }
+    } else {
+        let mut a0: uint64_t = (a & 0xffffffff as libc::c_uint as libc::c_long) as uint64_t;
+        let mut a1: uint64_t = (a >> 32 as libc::c_int) as uint64_t;
+        let mut b0: uint64_t = (b & 0xffffffff as libc::c_uint as libc::c_long) as uint64_t;
+        let mut b1: uint64_t = (b >> 32 as libc::c_int) as uint64_t;
+        let mut t1: uint64_t = a0.wrapping_mul(b1).wrapping_add(a1.wrapping_mul(b0));
+        let mut t1a: uint64_t = t1 << 32 as libc::c_int;
+        let mut i: libc::c_int = 0;
+        a0 = a0.wrapping_mul(b0).wrapping_add(t1a);
+        a1 = a1
+            .wrapping_mul(b1)
+            .wrapping_add(t1 >> 32 as libc::c_int)
+            .wrapping_add((a0 < t1a) as libc::c_int as libc::c_ulong);
+        a0 = (a0 as libc::c_ulong).wrapping_add(r as libc::c_ulong) as uint64_t as uint64_t;
+        a1 = (a1 as libc::c_ulong)
+            .wrapping_add((a0 < r as libc::c_ulong) as libc::c_int as libc::c_ulong)
+            as uint64_t as uint64_t;
+        i = 63 as libc::c_int;
+        while i >= 0 as libc::c_int {
+            a1 = (a1 as libc::c_ulong)
+                .wrapping_add(a1.wrapping_add(a0 >> i & 1 as libc::c_int as libc::c_ulong))
+                as uint64_t as uint64_t;
+            t1 = (t1 as libc::c_ulong).wrapping_add(t1) as uint64_t as uint64_t;
+            if c as libc::c_ulong <= a1 {
+                a1 = (a1 as libc::c_ulong).wrapping_sub(c as libc::c_ulong) as uint64_t as uint64_t;
+                t1 = t1.wrapping_add(1);
+                t1;
+            }
+            i -= 1;
+            i;
+        }
+        if t1 > 9223372036854775807 as libc::c_long as libc::c_ulong {
+            return -(9223372036854775807 as libc::c_long) - 1 as libc::c_int as libc::c_long;
+        }
+        return t1 as int64_t;
+    };
+}
+#[allow(dead_code)]
+pub(crate) unsafe fn av_rescale(mut a: int64_t, mut b: int64_t, mut c: int64_t) -> int64_t {
+    return av_rescale_rnd(a, b, c, AV_ROUND_NEAR_INF);
+}
+pub(crate) unsafe fn av_rescale_q_rnd(
+    mut a: int64_t,
+    mut bq: AVRational,
+    mut cq: AVRational,
+    mut rnd: AVRounding,
+) -> int64_t {
+    let mut b: int64_t = bq.num as libc::c_long * cq.den as int64_t;
+    let mut c: int64_t = cq.num as libc::c_long * bq.den as int64_t;
+    return av_rescale_rnd(a, b, c, rnd);
+}
+pub(crate) unsafe fn av_rescale_q(
+    mut a: int64_t,
+    mut bq: AVRational,
+    mut cq: AVRational,
+) -> int64_t {
+    return av_rescale_q_rnd(a, bq, cq, AV_ROUND_NEAR_INF);
 }

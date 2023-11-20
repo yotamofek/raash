@@ -2884,8 +2884,8 @@ pub struct AVTXContext {
     pub len: libc::c_int,
     pub inv: libc::c_int,
     pub map: *mut libc::c_int,
-    pub exp: *mut libc::c_void,
-    pub tmp: *mut libc::c_void,
+    pub exp: AVTXNum,
+    pub tmp: AVTXNum,
     pub sub: *mut AVTXContext,
     pub fn_0: [av_tx_fn; 4],
     pub nb_sub: libc::c_int,
@@ -2897,6 +2897,13 @@ pub struct AVTXContext {
     pub scale_f: libc::c_float,
     pub scale_d: libc::c_double,
     pub opaque: *mut libc::c_void,
+}
+#[derive(Copy, Clone)]
+pub union AVTXNum {
+    pub double: *mut AVComplexDouble,
+    pub float: *mut AVComplexFloat,
+    pub int32: *mut AVComplexInt32,
+    pub void: *mut libc::c_void,
 }
 pub type FFTXMapDirection = libc::c_uint;
 pub const FF_TX_MAP_SCATTER: FFTXMapDirection = 2;
@@ -2933,7 +2940,6 @@ pub struct FFTXCodelet {
 pub struct FFTXCodeletOptions {
     pub map_dir: FFTXMapDirection,
 }
-pub type TXComplex = ();
 pub type AVTXFlags = libc::c_uint;
 pub const AV_TX_REAL_TO_IMAGINARY: AVTXFlags = 16;
 pub const AV_TX_REAL_TO_REAL: AVTXFlags = 8;
@@ -2957,4 +2963,38 @@ pub struct FFTXLenDecomp {
     pub len2: libc::c_int,
     pub prio: libc::c_int,
     pub cd: *const FFTXCodelet,
+}
+
+pub type AVRounding = libc::c_uint;
+pub const AV_ROUND_PASS_MINMAX: AVRounding = 8192;
+pub const AV_ROUND_NEAR_INF: AVRounding = 5;
+pub const AV_ROUND_UP: AVRounding = 3;
+pub const AV_ROUND_DOWN: AVRounding = 2;
+pub const AV_ROUND_INF: AVRounding = 1;
+pub const AV_ROUND_ZERO: AVRounding = 0;
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct AVComplexDouble {
+    pub re: libc::c_double,
+    pub im: libc::c_double,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FFTabInitData {
+    pub func: Option<unsafe extern "C" fn() -> ()>,
+    pub factors: [libc::c_int; 4],
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct AVComplexFloat {
+    pub re: libc::c_float,
+    pub im: libc::c_float,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct AVComplexInt32 {
+    pub re: int32_t,
+    pub im: int32_t,
 }
