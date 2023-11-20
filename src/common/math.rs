@@ -34,9 +34,6 @@ pub(crate) fn roundf(n: c_float) -> c_float {
     n.round()
 }
 
-pub(crate) fn powf(n: c_float, i: c_float) -> c_float {
-    n.powf(i)
-}
 pub(crate) fn atanf(n: c_float) -> c_float {
     n.atan()
 }

@@ -78,40 +78,28 @@ fn ff_log2_c(mut v: c_uint) -> c_int {
     // n += ff_log2_tab[v as usize] as c_int;
     // return n;
 }
-#[inline(always)]
-unsafe fn av_clip_uint8_c(mut a: c_int) -> c_uchar {
-    if a & !(0xff as c_int) != 0 {
-        (!a >> 31 as c_int) as c_uchar
-    } else {
-        a as c_uchar
-    }
+
+fn clip_uint8_c(mut a: c_int) -> c_uchar {
+    a.clamp(c_uchar::MIN.into(), c_uchar::MAX.into()) as u8
 }
-#[inline(always)]
-unsafe fn av_clip_uintp2_c(mut a: c_int, mut p: c_int) -> c_uint {
+
+fn clip_uintp2_c(mut a: c_int, mut p: c_int) -> c_uint {
     if a & !(((1 as c_int) << p) - 1 as c_int) != 0 {
         (!a >> 31 as c_int & ((1 as c_int) << p) - 1 as c_int) as c_uint
     } else {
         a as c_uint
     }
 }
-#[inline(always)]
-unsafe fn av_mod_uintp2_c(mut a: c_uint, mut p: c_uint) -> c_uint {
+
+/// Clear high bits from an unsigned integer starting with specific bit position.
+fn mod_uintp2_c(mut a: c_uint, mut p: c_uint) -> c_uint {
     a & ((1 as c_uint) << p).wrapping_sub(1 as c_int as c_uint)
 }
-#[inline(always)]
-unsafe fn av_clipf_c(mut a: c_float, mut amin: c_float, mut amax: c_float) -> c_float {
-    if (if a > amin { a } else { amin }) > amax {
-        amax
-    } else if a > amin {
-        a
-    } else {
-        amin
-    }
-}
+
 static mut BUF_BITS: c_int = 0;
 #[inline]
 unsafe fn put_sbits(mut pb: *mut PutBitContext, mut n: c_int, mut value: c_int) {
-    put_bits(pb, n, av_mod_uintp2_c(value as c_uint, n as c_uint));
+    put_bits(pb, n, mod_uintp2_c(value as c_uint, n as c_uint));
 }
 #[inline]
 unsafe fn put_bits(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
@@ -274,7 +262,7 @@ unsafe fn find_form_factor(
 }
 #[inline]
 unsafe fn coef2minsf(mut coef: c_float) -> c_uchar {
-    av_clip_uint8_c(
+    clip_uint8_c(
         (log2f(coef) * 4 as c_int as c_float - 69 as c_int as c_float + 140 as c_int as c_float
             - 36 as c_int as c_float) as c_int,
     )
@@ -301,7 +289,7 @@ unsafe fn ff_sfdelta_can_remove_band(
 }
 #[inline]
 unsafe fn coef2maxsf(mut coef: c_float) -> c_uchar {
-    av_clip_uint8_c(
+    clip_uint8_c(
         (log2f(coef) * 4 as c_int as c_float + 6 as c_int as c_float + 140 as c_int as c_float
             - 36 as c_int as c_float) as c_int,
     )
@@ -509,266 +497,8 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
     let mut nextband: [c_uchar; 128] = [0; 128];
     let mut maxsf: [c_int; 128] = [0; 128];
     let mut minsf: [c_int; 128] = [0; 128];
-    let mut dists: [c_float; 128] = [
-        0 as c_int as c_float,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-    ];
-    let mut qenergies: [c_float; 128] = [
-        0 as c_int as c_float,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-    ];
+    let mut dists: [c_float; 128] = [0.; 128];
+    let mut qenergies: [c_float; 128] = [0.; 128];
     let mut uplims: [c_float; 128] = [0.; 128];
     let mut euplims: [c_float; 128] = [0.; 128];
     let mut energies: [c_float; 128] = [0.; 128];
@@ -776,15 +506,11 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
     let mut spread_thr_r: [c_float; 128] = [0.; 128];
     let mut min_spread_thr_r: c_float = 0.;
     let mut max_spread_thr_r: c_float = 0.;
-    let mut rdlambda: c_float = av_clipf_c(2.0f32 * 120.0f32 / lambda, 0.0625f32, 16.0f32);
+    let mut rdlambda: c_float = (2.0f32 * 120.0f32 / lambda).clamp(0.0625f32, 16.0f32);
     let nzslope: c_float = 1.5f32;
     let mut rdmin: c_float = 0.03125f32;
     let mut rdmax: c_float = 1.0f32;
-    let mut sfoffs: c_float = av_clipf_c(
-        log2f(120.0f32 / lambda) * 4.0f32,
-        -(5 as c_int) as c_float,
-        10 as c_int as c_float,
-    );
+    let mut sfoffs: c_float = ((120.0f32 / lambda).log2() * 4.0f32).clamp(-5., 10.);
     let mut fflag: c_int = 0;
     let mut minscaler: c_int = 0;
     let mut maxscaler: c_int = 0;
@@ -798,7 +524,7 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
     let mut prev: c_int = 0;
     let mut zeroscale: c_float = 0.;
     if lambda > 120.0f32 {
-        zeroscale = av_clipf_c(powf(120.0f32 / lambda, 0.25f32), 0.0625f32, 1.0f32);
+        zeroscale = (120.0f32 / lambda).powf(0.25f32).clamp(0.0625f32, 1.0f32);
     } else {
         zeroscale = 1.0f32;
     }
@@ -1341,11 +1067,8 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
         g = 0 as c_int;
         while g < (*sce).ics.num_swb {
             if nzs[g as usize] as c_int > 0 as c_int {
-                let mut cleanup_factor: c_float = ff_sqrf(av_clipf_c(
-                    start as c_float / (cutoff as c_float * 0.75f32),
-                    1.0f32,
-                    2.0f32,
-                ));
+                let mut cleanup_factor: c_float =
+                    ((start as c_float / (cutoff as c_float * 0.75f32)).clamp(1., 2.)).powi(2);
                 let mut energy2uplim: c_float = find_form_factor(
                     (*sce).ics.group_len[w as usize] as c_int,
                     *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
@@ -1372,9 +1095,9 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                 } else {
                     1.0f32
                 };
-                uplims[(w * 16 as c_int + g) as usize] *=
-                    av_clipf_c(rdlambda * energy2uplim, rdmin, rdmax)
-                        * (*sce).ics.group_len[w as usize] as c_int as c_float;
+                uplims[(w * 16 as c_int + g) as usize] *= (rdlambda * energy2uplim)
+                    .clamp(rdmin, rdmax)
+                    * (*sce).ics.group_len[w as usize] as c_int as c_float;
                 energy2uplim = find_form_factor(
                     (*sce).ics.group_len[w as usize] as c_int,
                     *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
@@ -1401,11 +1124,10 @@ unsafe extern "C" fn search_for_quantizers_twoloop(
                 } else {
                     1.0f32
                 };
-                euplims[(w * 16 as c_int + g) as usize] *= av_clipf_c(
-                    rdlambda * energy2uplim * (*sce).ics.group_len[w as usize] as c_int as c_float,
-                    0.5f32,
-                    1.0f32,
-                );
+                euplims[(w * 16 as c_int + g) as usize] *= (rdlambda
+                    * energy2uplim
+                    * (*sce).ics.group_len[w as usize] as c_int as c_float)
+                    .clamp(0.5, 1.);
             }
             start += *((*sce).ics.swb_sizes).offset(g as isize) as c_int;
             g += 1;
@@ -2544,7 +2266,7 @@ unsafe fn quantize_and_encode_band_cost_template(
                         curbits += 21 as c_int;
                     } else {
                         let mut c: c_int =
-                            av_clip_uintp2_c(quant(t, Q, ROUNDING), 13 as c_int) as c_int;
+                            clip_uintp2_c(quant(t, Q, ROUNDING), 13 as c_int) as c_int;
                         quantized = c as c_float * cbrtf(c as c_float) * IQ;
                         curbits += ff_log2_c(c as c_uint) * 2 as c_int - 4 as c_int + 1 as c_int;
                     }
@@ -2617,7 +2339,7 @@ unsafe fn quantize_and_encode_band_cost_template(
                     if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * 2 + j_4) as usize]
                         == 64.0f32
                     {
-                        let mut coef: c_int = av_clip_uintp2_c(
+                        let mut coef: c_int = clip_uintp2_c(
                             quant(fabsf(*in_0.offset((i_1 + j_4) as isize)), Q, ROUNDING),
                             13 as c_int,
                         ) as c_int;
@@ -3866,7 +3588,7 @@ unsafe extern "C" fn search_for_quantizers_anmr(
     if q1 - q0 > 60 as c_int {
         let mut q0low: c_int = q0;
         let mut q1high: c_int = q1;
-        let mut qnrg: c_int = av_clip_uint8_c(
+        let mut qnrg: c_int = clip_uint8_c(
             (log2f(sqrtf(qnrgf / qcnt as c_float)) * 4 as c_int as c_float - 31 as c_int as c_float
                 + 140 as c_int as c_float
                 - 36 as c_int as c_float) as c_int,
@@ -4654,7 +4376,7 @@ unsafe extern "C" fn search_for_pns(
     } else {
         0.75f32
     };
-    let dist_bias: c_float = av_clipf_c(4.0f32 * 120 as c_int as c_float / lambda, 0.25f32, 4.0f32);
+    let dist_bias: c_float = (4.0f32 * 120 as c_int as c_float / lambda).clamp(0.25, 4.);
     let pns_transient_energy_r: c_float = if 0.7f32 > lambda / 140.0f32 {
         lambda / 140.0f32
     } else {
@@ -5041,8 +4763,8 @@ unsafe extern "C" fn search_for_pns(
                     w2 += 1;
                     w2;
                 }
-                dist_thresh = av_clipf_c(2.5f32 * 4000 as c_int as c_float / freq, 0.5f32, 2.5f32)
-                    * dist_bias;
+                dist_thresh =
+                    (2.5f32 * 4000 as c_int as c_float / freq).clamp(0.5, 2.5) * dist_bias;
                 if (*sce).zeroes[(w * 16 as c_int + g) as usize] == 0
                     && ff_sfdelta_can_remove_band(
                         sce,
