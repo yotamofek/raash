@@ -8,20 +8,25 @@
     unused_mut
 )]
 
-pub(crate) static mut ff_mpeg4audio_sample_rates: [libc::c_int; 16] = [
-    96000 as libc::c_int,
-    88200 as libc::c_int,
-    64000 as libc::c_int,
-    48000 as libc::c_int,
-    44100 as libc::c_int,
-    32000 as libc::c_int,
-    24000 as libc::c_int,
-    22050 as libc::c_int,
-    16000 as libc::c_int,
-    12000 as libc::c_int,
-    11025 as libc::c_int,
-    8000 as libc::c_int,
-    7350 as libc::c_int,
+use libc::{
+    c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong, c_ulonglong,
+    c_void,
+};
+
+pub(crate) static mut ff_mpeg4audio_sample_rates: [c_int; 16] = [
+    96000 as c_int,
+    88200 as c_int,
+    64000 as c_int,
+    48000 as c_int,
+    44100 as c_int,
+    32000 as c_int,
+    24000 as c_int,
+    22050 as c_int,
+    16000 as c_int,
+    12000 as c_int,
+    11025 as c_int,
+    8000 as c_int,
+    7350 as c_int,
     0,
     0,
     0,
