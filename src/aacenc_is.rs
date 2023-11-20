@@ -8,46 +8,34 @@
     unused_mut
 )]
 
-use std::mem::size_of;
+use std::{mem::size_of, slice};
 
-use libc::{
-    c_double, c_float, c_int, c_uchar, c_uint, c_ulong,
-};
+use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_ulong};
 
 use crate::{
     aaccoder::ff_quantize_and_encode_band_cost, aactab::ff_aac_pow34sf_tab, common::*, types::*,
 };
 
 #[inline]
-unsafe fn pos_pow34(mut a: c_float) -> c_float {
+fn pos_pow34(mut a: c_float) -> c_float {
     sqrtf(a * sqrtf(a))
 }
+
 #[inline]
 unsafe fn find_max_val(
     mut group_len: c_int,
     mut swb_size: c_int,
     mut scaled: *const c_float,
 ) -> c_float {
-    let mut maxval: c_float = 0.0f32;
-    let mut w2: c_int = 0;
-    let mut i: c_int = 0;
-    w2 = 0 as c_int;
-    while w2 < group_len {
-        i = 0 as c_int;
-        while i < swb_size {
-            maxval = if maxval > *scaled.offset((w2 * 128 as c_int + i) as isize) {
-                maxval
-            } else {
-                *scaled.offset((w2 * 128 as c_int + i) as isize)
-            };
-            i += 1;
-            i;
-        }
-        w2 += 1;
-        w2;
-    }
-    maxval
+    let scaled = slice::from_raw_parts::<c_float>(scaled, 128 * group_len as usize);
+    scaled
+        .array_chunks::<128>()
+        .flat_map(|row| &row[..swb_size as usize])
+        .copied()
+        .max_by(f32::total_cmp)
+        .unwrap()
 }
+
 #[inline]
 unsafe fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
     let mut Q34: c_float =
