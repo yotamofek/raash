@@ -1,3 +1,5 @@
+use libc::c_uint;
+
 pub(crate) fn sqrtf(n: libc::c_float) -> libc::c_float {
     n.sqrt()
 }

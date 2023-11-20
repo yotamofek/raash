@@ -155,7 +155,7 @@ unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: libc::c_int, mut 
         if ((*s).buf_end).offset_from((*s).buf_ptr) as libc::c_long as libc::c_ulong
             >= ::core::mem::size_of::<BitBuf>() as libc::c_ulong
         {
-            (*((*s).buf_ptr as *mut unaligned_32)).l = av_bswap32(bit_buf);
+            (*((*s).buf_ptr as *mut unaligned_32)).l = bit_buf.swap_bytes();
             (*s).buf_ptr =
                 ((*s).buf_ptr).offset(::core::mem::size_of::<BitBuf>() as libc::c_ulong as isize);
         } else {
@@ -166,14 +166,6 @@ unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: libc::c_int, mut 
     }
     (*s).bit_buf = bit_buf;
     (*s).bit_left = bit_left;
-}
-#[inline(always)]
-unsafe fn av_bswap32(mut x: uint32_t) -> uint32_t {
-    (x << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
-        | x >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
-        << 16 as libc::c_int
-        | ((x >> 16 as libc::c_int) << 8 as libc::c_int & 0xff00 as libc::c_int as libc::c_uint
-            | x >> 16 as libc::c_int >> 8 as libc::c_int & 0xff as libc::c_int as libc::c_uint)
 }
 static mut run_value_bits_long: [uint8_t; 64] = [
     5 as libc::c_int as uint8_t,
