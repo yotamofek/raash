@@ -1301,7 +1301,7 @@ pub struct RcOverride {
     pub qscale: c_int,
     pub quality_factor: c_float,
 }
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[repr(C)]
 pub struct AVCodecContext {
     pub av_class: *const AVClass,
