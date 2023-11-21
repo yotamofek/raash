@@ -18,7 +18,7 @@ mod window;
 use std::{
     ffi::CStr,
     mem::size_of,
-    ptr::{self, addr_of_mut},
+    ptr::{self, addr_of_mut, null, null_mut},
 };
 
 use ffi::{
@@ -31,6 +31,7 @@ use ffi::{
     },
     num::AVRational,
 };
+use itertools::Itertools;
 use libc::{
     c_char, c_double, c_float, c_int, c_long, c_schar, c_uchar, c_uint, c_ulong, c_ulonglong,
     c_ushort, c_void,
@@ -55,10 +56,7 @@ use crate::{
     },
     aacenc_pred::{adjust_common_pred, apply_main_pred, encode_main_pred, search_for_pred},
     aacenc_tns::{apply_tns, encode_tns_info, search_for_tns},
-    aacenctab::{
-        ff_aac_swb_size_1024, ff_aac_swb_size_1024_len, ff_aac_swb_size_128,
-        ff_aac_swb_size_128_len,
-    },
+    aacenctab::{ff_aac_swb_size_1024, ff_aac_swb_size_128},
     aactab::{
         ff_aac_float_common_init, ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits,
         ff_aac_scalefactor_code, ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024,
@@ -226,7 +224,7 @@ unsafe extern "C" fn put_pce(mut pb: *mut PutBitContext, mut avctx: *mut AVCodec
     let mut i: c_int = 0;
     let mut j: c_int = 0;
     let mut s: *mut AACEncContext = (*((*avctx).priv_data as *mut PrivData)).ctx;
-    let mut pce: *mut pce::Info = &mut (*s).pce;
+    let mut pce: *mut pce::Info = &mut (*s).pce.unwrap();
     let bitexact: c_int = (*avctx).flags & (1 as c_int) << 23 as c_int;
     let mut aux_data = if bitexact != 0 {
         c"Lavc"
@@ -1448,99 +1446,116 @@ unsafe extern "C" fn alloc_buffers(
 
 #[cold]
 unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
-    let ctx = &mut (*((*avctx).priv_data as *mut PrivData)).ctx;
-    debug_assert!(ctx.is_null());
-    *ctx = {
-        let mut s = Box::<AACEncContext>::new_zeroed();
-        addr_of_mut!((*s.as_mut_ptr()).av_class)
-            .write((*((*avctx).priv_data as *mut PrivData)).class);
-        addr_of_mut!((*s.as_mut_ptr()).options)
-            .write((*((*avctx).priv_data as *mut PrivData)).options);
-        addr_of_mut!((*s.as_mut_ptr()).planar_samples)
-            .write(vec![[0.; _]; (*avctx).ch_layout.nb_channels as usize].into_boxed_slice());
+    let priv_data = (*avctx).priv_data as *mut PrivData;
+    debug_assert!((*priv_data).ctx.is_null());
 
-        let coder: Box<dyn CoeffsEncoder> =
-            match (*((*avctx).priv_data as *mut PrivData)).options.coder as c_uint {
-                AAC_CODER_ANMR => Box::new(coder::Anmr),
-                AAC_CODER_TWOLOOP => Box::new(coder::TwoLoop),
-                AAC_CODER_FAST => Box::new(coder::Fast),
-                _ => panic!("Unknown coder"),
-            };
-        addr_of_mut!((*s.as_mut_ptr()).coder).write(coder);
-
-        Box::into_raw(s.assume_init())
+    let needs_pce = if channel_layout::NORMAL_LAYOUTS
+        .iter()
+        .any(|layout| av_channel_layout_compare(&(*avctx).ch_layout, layout) == 0)
+    {
+        (*priv_data).options.pce
+    } else {
+        1
     };
-    let mut s: *mut AACEncContext = *ctx;
+
+    let samplerate_index = ff_mpeg4audio_sample_rates
+        .iter()
+        .find_position(|&&sample_rate| (*avctx).sample_rate == sample_rate)
+        .map(|(i, _)| i)
+        .filter(|&i| i < ff_aac_swb_size_1024.len() && i < ff_aac_swb_size_128.len())
+        .unwrap_or_else(|| panic!("Unsupported sample rate {}", (*avctx).sample_rate))
+        as c_int;
+
+    let ctx = Box::new(AACEncContext {
+        av_class: (*priv_data).class,
+        options: (*priv_data).options,
+        pb: PutBitContext::zero(),
+        mdct1024: null_mut(),
+        mdct1024_fn: None,
+        mdct128: null_mut(),
+        mdct128_fn: None,
+        fdsp: null_mut(),
+        pce: None,
+        planar_samples: vec![[0.; _]; (*avctx).ch_layout.nb_channels as usize].into_boxed_slice(),
+        profile: 0,
+        needs_pce,
+        lpc: LPCContext::zero(),
+        samplerate_index,
+        channels: (*avctx).ch_layout.nb_channels,
+        reorder_map: null(),
+        chan_map: null(),
+        cpe: null_mut(),
+        psy: FFPsyContext::zero(),
+        psypp: null_mut(),
+        coder: match (*priv_data).options.coder as c_uint {
+            AAC_CODER_ANMR => &coder::Anmr,
+            AAC_CODER_TWOLOOP => &coder::TwoLoop,
+            AAC_CODER_FAST => &coder::Fast,
+            _ => panic!("Unknown coder"),
+        },
+        cur_channel: 0,
+        random_state: 0x1f2e3d4c,
+        lambda: if (*avctx).global_quality > 0 as c_int {
+            (*avctx).global_quality as c_float
+        } else {
+            120.
+        },
+        last_frame_pb_count: 0,
+        lambda_sum: 0.,
+        lambda_count: 0,
+        cur_type: 0,
+        afq: AudioFrameQueue::zero(),
+        qcoefs: [0; _],
+        scoefs: [0.; _],
+        quantize_band_cost_cache_generation: 0,
+        quantize_band_cost_cache: [[AACQuantizeBandCostCacheEntry::default(); _]; _],
+    });
+    (*priv_data).ctx = Box::into_raw(ctx);
+
+    let mut s: *mut AACEncContext = (*priv_data).ctx;
 
     let mut i: c_int = 0;
     let mut ret: c_int = 0 as c_int;
     let mut sizes: [*const c_uchar; 2] = [ptr::null::<c_uchar>(); 2];
     let mut grouping: [c_uchar; 16] = [0; 16];
     let mut lengths: [c_int; 2] = [0; 2];
-    (*s).last_frame_pb_count = 0 as c_int;
     (*avctx).frame_size = 1024 as c_int;
     (*avctx).initial_padding = 1024 as c_int;
-    (*s).lambda = (if (*avctx).global_quality > 0 as c_int {
-        (*avctx).global_quality
-    } else {
-        120 as c_int
-    }) as c_float;
-    (*s).channels = (*avctx).ch_layout.nb_channels;
-    (*s).needs_pce = 1 as c_int;
-
-    if channel_layout::NORMAL_LAYOUTS
-        .iter()
-        .any(|layout| av_channel_layout_compare(&(*avctx).ch_layout, layout) == 0)
-    {
-        (*s).needs_pce = (*s).options.pce;
-    }
 
     if (*s).needs_pce != 0 {
         let mut buf: [c_char; 64] = [0; 64];
-        i = 0 as c_int;
-        while (i as c_ulong)
-            < (size_of::<[pce::Info; 29]>() as c_ulong)
-                .wrapping_div(size_of::<pce::Info>() as c_ulong)
-        {
-            if av_channel_layout_compare(&mut (*avctx).ch_layout, &pce::CONFIGS[i as usize].layout)
-                == 0
-            {
-                break;
-            }
-            i += 1;
-            i;
-        }
         av_channel_layout_describe(
             &mut (*avctx).ch_layout,
             buf.as_mut_ptr(),
-            size_of::<[c_char; 64]>() as c_ulong,
+            buf.len() as c_ulong,
         );
-        if i as c_ulong
-            == (size_of::<[pce::Info; 29]>() as c_ulong)
-                .wrapping_div(size_of::<pce::Info>() as c_ulong)
-        {
-            av_log(
-                avctx as *mut c_void,
-                16 as c_int,
-                b"Unsupported channel layout \"%s\"\n\0" as *const u8 as *const c_char,
-                buf.as_mut_ptr(),
-            );
-            return -(22 as c_int);
-        }
+
+        let config = pce::CONFIGS
+            .iter()
+            .find(|config| av_channel_layout_compare(&(*avctx).ch_layout, &config.layout) == 0)
+            .unwrap_or_else(|| {
+                panic!(
+                    "Unsupported channel layout {}",
+                    CStr::from_ptr(buf.as_ptr()).to_string_lossy()
+                )
+            });
+
         av_log(
             avctx as *mut c_void,
             32 as c_int,
             b"Using a PCE to encode channel layout \"%s\"\n\0" as *const u8 as *const c_char,
             buf.as_mut_ptr(),
         );
-        (*s).pce = pce::CONFIGS[i as usize];
-        (*s).reorder_map = ((*s).pce.reorder_map).as_mut_ptr();
-        (*s).chan_map = ((*s).pce.config_map).as_mut_ptr();
+
+        (*s).pce = Some(*config);
+        (*s).reorder_map = (config.reorder_map).as_ptr();
+        (*s).chan_map = (config.config_map).as_ptr();
     } else {
         (*s).reorder_map =
             (channel_layout::REORDER_MAPS[((*s).channels - 1 as c_int) as usize]).as_ptr();
         (*s).chan_map = (channel_layout::CONFIGS[((*s).channels - 1 as c_int) as usize]).as_ptr();
     }
+
     if (*avctx).bit_rate == 0 {
         i = 1 as c_int;
         while i <= *((*s).chan_map).offset(0 as c_int as isize) as c_int {
@@ -1556,27 +1571,7 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
             i;
         }
     }
-    i = 0 as c_int;
-    while i < 16 as c_int {
-        if (*avctx).sample_rate == ff_mpeg4audio_sample_rates[i as usize] {
-            break;
-        }
-        i += 1;
-        i;
-    }
-    (*s).samplerate_index = i;
-    if (*s).samplerate_index == 16 as c_int
-        || (*s).samplerate_index >= ff_aac_swb_size_1024_len
-        || (*s).samplerate_index >= ff_aac_swb_size_128_len
-    {
-        av_log(
-            avctx as *mut c_void,
-            16 as c_int,
-            b"Unsupported sample rate %d\n\0" as *const u8 as *const c_char,
-            (*avctx).sample_rate,
-        );
-        return -(22 as c_int);
-    }
+
     if 1024.0f64 * (*avctx).bit_rate as c_double / (*avctx).sample_rate as c_double
         > (6144 as c_int * (*s).channels) as c_double
     {
@@ -1697,28 +1692,15 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         }
     }
     (*s).profile = (*avctx).profile;
-    // (*s).coder = &CODERS[(*s).options.coder as usize];
     if (*s).options.coder == AAC_CODER_ANMR as c_int {
         if (*avctx).strict_std_compliance > -(2 as c_int) {
-            av_log(
-                avctx as *mut c_void,
-                16 as c_int,
-                b"The ANMR coder is considered experimental, add -strict -2 to enable!\n\0"
-                    as *const u8 as *const c_char,
-            );
-            return -(22 as c_int);
+            panic!("The ANMR coder is considered experimental, add -strict -2 to enable!");
         }
         (*s).options.intensity_stereo = 0 as c_int;
         (*s).options.pns = 0 as c_int;
     }
     if (*s).options.ltp != 0 && (*avctx).strict_std_compliance > -(2 as c_int) {
-        av_log(
-            avctx as *mut c_void,
-            16 as c_int,
-            b"The LPT profile requires experimental compliance, add -strict -2 to enable!\n\0"
-                as *const u8 as *const c_char,
-        );
-        return -(22 as c_int);
+        panic!("The LPT profile requires experimental compliance, add -strict -2 to enable!");
     }
     if (*s).channels > 3 as c_int {
         (*s).options.mid_side = 0 as c_int;
@@ -1774,7 +1756,6 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         20 as c_int,
         FF_LPC_TYPE_LEVINSON,
     );
-    (*s).random_state = 0x1f2e3d4c as c_int;
     ff_af_queue_init(avctx, &mut (*s).afq);
     0 as c_int
 }

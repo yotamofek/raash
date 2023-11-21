@@ -82,20 +82,3 @@ pub(crate) static mut ff_aac_swb_size_1024: [*const c_uchar; 13] = unsafe {
         swb_size_1024_8.as_ptr(),
     ]
 };
-
-pub(crate) static mut ff_aac_swb_size_128_len: c_int = 0;
-
-pub(crate) static mut ff_aac_swb_size_1024_len: c_int = 0;
-unsafe fn run_static_initializers() {
-    ff_aac_swb_size_128_len = (size_of::<[*const c_uchar; 13]>() as c_ulong)
-        .wrapping_div(size_of::<*const c_uchar>() as c_ulong)
-        as c_int;
-    ff_aac_swb_size_1024_len = (size_of::<[*const c_uchar; 13]>() as c_ulong)
-        .wrapping_div(size_of::<*const c_uchar>() as c_ulong)
-        as c_int;
-}
-#[used]
-#[cfg_attr(target_os = "linux", link_section = ".init_array")]
-#[cfg_attr(target_os = "windows", link_section = ".CRT$XIB")]
-#[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];
