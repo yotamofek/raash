@@ -1,5 +1,8 @@
 #![feature(
     extern_types,
+    const_for,
+    const_trait_impl,
+    const_mut_refs,
     c_str_literals,
     array_chunks,
     inline_const,

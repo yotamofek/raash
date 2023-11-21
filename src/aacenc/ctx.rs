@@ -4,6 +4,7 @@ use ffi::{
 };
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort, c_void};
 
+use super::channel_layout::pce;
 use crate::{aaccoder::coder::CoeffsEncoder, types::*};
 
 // TODO: I think this can be opaque?
@@ -82,7 +83,7 @@ pub(crate) struct AACEncContext {
     pub mdct128: *mut AVTXContext,
     pub mdct128_fn: av_tx_fn,
     pub fdsp: *mut AVFloatDSPContext,
-    pub pce: AACPCEInfo,
+    pub pce: pce::Info,
     pub planar_samples: Box<[[c_float; 3 * 1024]]>,
     pub profile: c_int,
     pub needs_pce: c_int,

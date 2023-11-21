@@ -1,8 +1,8 @@
 use libc::{c_int, c_long, c_uchar, c_uint, c_ulong, c_void};
 
 use super::{
-    AVBufferRef, AVChannelLayout, AVChromaLocation, AVColorPrimaries, AVColorRange, AVColorSpace,
-    AVColorTransferCharacteristic, AVDictionary, AVPictureType,
+    channel::AVChannelLayout, AVBufferRef, AVChromaLocation, AVColorPrimaries, AVColorRange,
+    AVColorSpace, AVColorTransferCharacteristic, AVDictionary, AVPictureType,
 };
 use crate::num::AVRational;
 

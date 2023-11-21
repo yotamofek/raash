@@ -1,3 +1,4 @@
+pub mod channel;
 pub mod frame;
 pub mod subtitle;
 
@@ -6,7 +7,11 @@ use std::{ffi::CStr, ptr};
 use c2rust_bitfields::BitfieldStruct;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
-use self::{frame::AVFrame, subtitle::AVSubtitle};
+use self::{
+    channel::{AVChannel, AVChannelLayout, AVChannelOrder},
+    frame::AVFrame,
+    subtitle::AVSubtitle,
+};
 use super::{class::AVClass, num::AVRational};
 
 extern "C" {
@@ -21,8 +26,6 @@ pub type AVMediaType = c_int;
 pub type AVCodecID = c_uint;
 pub type AVSampleFormat = c_int;
 pub type AVPixelFormat = c_int;
-pub type AVChannel = c_int;
-pub type AVChannelOrder = c_uint;
 pub type AVPictureType = c_uint;
 pub type AVDiscard = c_int;
 pub type AVFieldOrder = c_uint;
@@ -38,32 +41,9 @@ pub struct AVBufferRef {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct AVChannelCustom {
-    pub id: AVChannel,
-    pub name: [c_char; 16],
-    pub opaque: *mut c_void,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
 pub struct AVProfile {
     pub profile: c_int,
     pub name: *const c_char,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct AVChannelLayout {
-    pub order: AVChannelOrder,
-    pub nb_channels: c_int,
-    pub u: C2RustUnnamed,
-    pub opaque: *mut c_void,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union C2RustUnnamed {
-    pub mask: c_ulong,
-    pub map: *mut AVChannelCustom,
 }
 
 #[derive(Copy, Clone)]

@@ -2,10 +2,7 @@
 
 use ffi::{
     class::{option::AVOptionType, AVClassCategory},
-    codec::{
-        AVChannel, AVChannelLayout, AVChannelOrder, AVCodecContext, AVCodecID, AVMediaType,
-        AVSampleFormat,
-    },
+    codec::{channel::AVChannelLayout, AVCodecContext, AVCodecID, AVMediaType, AVSampleFormat},
     num::{AVComplexDouble, AVComplexFloat, AVComplexInt32},
 };
 use libc::{
@@ -14,29 +11,6 @@ use libc::{
 };
 
 use crate::aacenc::ctx::{AACContext, AACEncContext};
-
-pub(crate) const AV_CHAN_WIDE_RIGHT: AVChannel = 32;
-pub(crate) const AV_CHAN_WIDE_LEFT: AVChannel = 31;
-pub(crate) const AV_CHAN_TOP_BACK_RIGHT: AVChannel = 17;
-pub(crate) const AV_CHAN_TOP_BACK_CENTER: AVChannel = 16;
-pub(crate) const AV_CHAN_TOP_BACK_LEFT: AVChannel = 15;
-pub(crate) const AV_CHAN_TOP_FRONT_RIGHT: AVChannel = 14;
-pub(crate) const AV_CHAN_TOP_FRONT_CENTER: AVChannel = 13;
-pub(crate) const AV_CHAN_TOP_FRONT_LEFT: AVChannel = 12;
-pub(crate) const AV_CHAN_TOP_CENTER: AVChannel = 11;
-pub(crate) const AV_CHAN_SIDE_RIGHT: AVChannel = 10;
-pub(crate) const AV_CHAN_SIDE_LEFT: AVChannel = 9;
-pub(crate) const AV_CHAN_BACK_CENTER: AVChannel = 8;
-pub(crate) const AV_CHAN_FRONT_RIGHT_OF_CENTER: AVChannel = 7;
-pub(crate) const AV_CHAN_FRONT_LEFT_OF_CENTER: AVChannel = 6;
-pub(crate) const AV_CHAN_BACK_RIGHT: AVChannel = 5;
-pub(crate) const AV_CHAN_BACK_LEFT: AVChannel = 4;
-pub(crate) const AV_CHAN_LOW_FREQUENCY: AVChannel = 3;
-pub(crate) const AV_CHAN_FRONT_CENTER: AVChannel = 2;
-pub(crate) const AV_CHAN_FRONT_RIGHT: AVChannel = 1;
-pub(crate) const AV_CHAN_FRONT_LEFT: AVChannel = 0;
-
-pub(crate) const AV_CHANNEL_ORDER_NATIVE: AVChannelOrder = 1;
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -749,16 +723,6 @@ pub(crate) struct AACQuantizeBandCostCacheEntry {
     pub(crate) cb: c_char,
     pub(crate) rtz: c_char,
     pub(crate) generation: c_ushort,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct AACPCEInfo {
-    pub(crate) layout: AVChannelLayout,
-    pub(crate) num_ele: [c_int; 4],
-    pub(crate) pairing: [[c_int; 8]; 3],
-    pub(crate) index: [[c_int; 8]; 4],
-    pub(crate) config_map: [c_uchar; 16],
-    pub(crate) reorder_map: [c_uchar; 16],
 }
 
 pub(crate) static aac_maxval_cb: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
