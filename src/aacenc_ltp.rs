@@ -12,7 +12,12 @@ use std::{mem::size_of, ptr};
 
 use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
 
-use crate::{aaccoder::ff_quantize_and_encode_band_cost, common::*, types::*};
+use crate::{
+    aaccoder::ff_quantize_and_encode_band_cost,
+    aacenc::{abs_pow34_v, ctx::AACEncContext},
+    common::*,
+    types::*,
+};
 
 #[inline(always)]
 unsafe fn av_clip_uintp2_c(mut a: c_int, mut p: c_int) -> c_uint {
@@ -170,14 +175,8 @@ pub(crate) unsafe extern "C" fn ff_aac_ltp_insert_new_frame(mut s: *mut AACEncCo
             sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
             cur_channel = start_ch + ch;
             (*sce).ltp_state.copy_within(1024..2048, 0);
-            ptr::copy_nonoverlapping(
-                &*(*((*s).planar_samples).as_ptr().offset(cur_channel as isize))
-                    .offset(2048 as c_int as isize),
-                &mut *((*sce).ltp_state)
-                    .as_mut_ptr()
-                    .offset(1024 as c_int as isize),
-                1024,
-            );
+            (*s).planar_samples[cur_channel as usize][2048..][..1024]
+                .copy_from_slice(&(*sce).ltp_state[1024..][..1024]);
             (*sce).ltp_state[2048..][..1024].copy_from_slice(&(*sce).ret_buf[..1024]);
             (*sce).ics.ltp.lag = 0 as c_int as c_short;
             ch += 1;
@@ -266,10 +265,8 @@ pub(crate) unsafe extern "C" fn ff_aac_update_ltp(
 ) {
     let mut pred_signal: *mut c_float =
         &mut *((*sce).ltp_state).as_mut_ptr().offset(0 as c_int as isize) as *mut c_float;
-    let mut samples: *const c_float = &mut *(*((*s).planar_samples)
-        .as_mut_ptr()
-        .offset((*s).cur_channel as isize))
-    .offset(1024 as c_int as isize) as *mut c_float;
+    let mut samples: *const c_float =
+        ((*s).planar_samples)[(*s).cur_channel as usize][1024..].as_mut_ptr();
     if (*s).profile != 3 as c_int {
         return;
     }
@@ -394,14 +391,14 @@ pub(crate) unsafe extern "C" fn ff_aac_search_for_ltp(
                         i += 1;
                         i;
                     }
-                    ((*s).abs_pow34).expect("non-null function pointer")(
+                    abs_pow34_v(
                         C34,
                         &mut *((*sce).coeffs)
                             .as_mut_ptr()
                             .offset((start + (w + w2) * 128 as c_int) as isize),
                         *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
                     );
-                    ((*s).abs_pow34).expect("non-null function pointer")(
+                    abs_pow34_v(
                         PCD34,
                         PCD,
                         *((*sce).ics.swb_sizes).offset(g as isize) as c_int,

@@ -166,26 +166,21 @@ pub(crate) unsafe fn ff_psy_preprocess_init(
 
 pub(crate) unsafe fn ff_psy_preprocess(
     mut ctx: *mut FFPsyPreprocessContext,
-    mut audio: *mut *mut c_float,
-    mut channels: c_int,
+    mut audio: &mut [[c_float; 3 * 1024]],
 ) {
-    let mut ch: c_int = 0;
     let mut frame_size: c_int = (*(*ctx).avctx).frame_size;
     let mut iir: *mut FFIIRFilterContext = &mut (*ctx).fiir;
     if !((*ctx).fstate).is_null() {
-        ch = 0 as c_int;
-        while ch < channels {
+        for (ch, audio) in audio.iter_mut().enumerate() {
             ((*iir).filter_flt).expect("non-null function pointer")(
                 (*ctx).fcoeffs,
-                *((*ctx).fstate).offset(ch as isize),
+                *((*ctx).fstate).add(ch),
                 frame_size,
-                &mut *(*audio.offset(ch as isize)).offset(frame_size as isize),
-                1 as c_int as ptrdiff_t,
-                &mut *(*audio.offset(ch as isize)).offset(frame_size as isize),
-                1 as c_int as ptrdiff_t,
+                audio[frame_size as usize..].as_ptr(),
+                1,
+                audio[frame_size as usize..].as_mut_ptr(),
+                1,
             );
-            ch += 1;
-            ch;
         }
     }
 }

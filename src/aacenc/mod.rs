@@ -8,15 +8,22 @@
     unused_mut
 )]
 
+pub(crate) mod ctx;
 pub(crate) mod pow;
 
-use std::{ffi::CStr, mem::size_of, ptr};
+use std::{
+    ffi::CStr,
+    mem::{size_of, MaybeUninit},
+    process::abort,
+    ptr::{self, addr_of_mut},
+};
 
 use libc::{
     c_char, c_double, c_float, c_int, c_long, c_schar, c_uchar, c_uint, c_ulong, c_ulonglong,
     c_ushort, c_void,
 };
 
+use self::ctx::{AACEncContext, PrivData};
 use crate::{
     aaccoder::ff_aac_coders,
     aacenctab::{
@@ -70,7 +77,9 @@ unsafe extern "C" fn av_clipf_c(mut a: c_float, mut amin: c_float, mut amax: c_f
         amin
     }
 }
-static mut BUF_BITS: c_int = 0;
+
+const BUF_BITS: c_int = size_of::<BitBuf>() as c_int * 8;
+
 #[inline]
 unsafe extern "C" fn init_put_bits(
     mut s: *mut PutBitContext,
@@ -473,8 +482,9 @@ static mut aac_chan_maps: [[c_uchar; 16]; 16] = [
     [0; 16],
 ];
 static mut aacenc_profiles: [c_int; 4] = [0 as c_int, 1 as c_int, 3 as c_int, 128 as c_int];
+
 #[inline]
-unsafe extern "C" fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float, size: c_int) {
+pub(crate) unsafe fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float, size: c_int) {
     let mut i: c_int = 0;
     i = 0 as c_int;
     while i < size {
@@ -485,8 +495,7 @@ unsafe extern "C" fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float
     }
 }
 
-#[inline]
-unsafe extern "C" fn quantize_bands(
+pub(crate) unsafe fn quantize_bands(
     mut out: *mut c_int,
     mut in_0: *const c_float,
     mut scaled: *const c_float,
@@ -2460,7 +2469,7 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
 unsafe extern "C" fn put_pce(mut pb: *mut PutBitContext, mut avctx: *mut AVCodecContext) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
-    let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
+    let mut s: *mut AACEncContext = (*(*avctx).priv_data).ctx;
     let mut pce: *mut AACPCEInfo = &mut (*s).pce;
     let bitexact: c_int = (*avctx).flags & (1 as c_int) << 23 as c_int;
     let mut aux_data = if bitexact != 0 {
@@ -2532,7 +2541,8 @@ unsafe extern "C" fn put_audio_specific_config(mut avctx: *mut AVCodecContext) -
         buf_ptr: ptr::null_mut::<c_uchar>(),
         buf_end: ptr::null_mut::<c_uchar>(),
     };
-    let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
+
+    let mut s: *mut AACEncContext = (*(*avctx).priv_data).ctx;
     let mut channels: c_int = ((*s).needs_pce == 0) as c_int
         * ((*s).channels
             - (if (*s).channels == 8 as c_int {
@@ -3312,28 +3322,19 @@ unsafe extern "C" fn copy_input_samples(mut s: *mut AACEncContext, mut frame: *c
     let mut channel_map: *const c_uchar = (*s).reorder_map;
     ch = 0 as c_int;
     while ch < (*s).channels {
-        ptr::copy_nonoverlapping(
-            &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize))
-                .offset(2048 as c_int as isize) as *mut c_float,
-            &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize))
-                .offset(1024 as c_int as isize) as *mut c_float,
-            1024,
-        );
+        let mut planar_samples = &mut (*s).planar_samples[ch as usize];
+
+        planar_samples.copy_within(2048..2048 + 1024, 1024);
         if !frame.is_null() {
             ptr::copy_nonoverlapping(
                 *((*frame).extended_data).offset(*channel_map.offset(ch as isize) as isize)
                     as *mut c_float,
-                &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize))
-                    .offset(2048 as c_int as isize),
+                planar_samples[2048..][..(*frame).nb_samples as usize].as_mut_ptr(),
                 (*frame).nb_samples as usize,
             );
         }
-        ptr::write_bytes(
-            &mut *(*((*s).planar_samples).as_mut_ptr().offset(ch as isize)).offset(end as isize)
-                as *mut c_float,
-            0,
-            (3072 as c_int - end) as usize,
-        );
+
+        planar_samples[end as usize..].fill(0.);
         ch += 1;
         ch;
     }
@@ -3344,8 +3345,8 @@ unsafe extern "C" fn aac_encode_frame(
     mut frame: *const AVFrame,
     mut got_packet_ptr: *mut c_int,
 ) -> c_int {
-    let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
-    let mut samples: *mut *mut c_float = ((*s).planar_samples).as_mut_ptr();
+    let mut s: *mut AACEncContext = (*(*avctx).priv_data).ctx;
+    // let mut samples: *mut *mut c_float = ((*s).planar_samples).as_mut_ptr();
     let mut samples2: *mut c_float = ptr::null_mut::<c_float>();
     let mut la: *mut c_float = ptr::null_mut::<c_float>();
     let mut overlap: *mut c_float = ptr::null_mut::<c_float>();
@@ -3390,11 +3391,7 @@ unsafe extern "C" fn aac_encode_frame(
     }
     copy_input_samples(s, frame);
     if !((*s).psypp).is_null() {
-        ff_psy_preprocess(
-            (*s).psypp,
-            ((*s).planar_samples).as_mut_ptr(),
-            (*s).channels,
-        );
+        ff_psy_preprocess((*s).psypp, &mut (*s).planar_samples);
     }
     if (*avctx).frame_num == 0 {
         return 0 as c_int;
@@ -3417,8 +3414,9 @@ unsafe extern "C" fn aac_encode_frame(
             sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
             ics = &mut (*sce).ics;
             (*s).cur_channel = start_ch + ch;
-            overlap = &mut *(*samples.offset((*s).cur_channel as isize)).offset(0 as c_int as isize)
-                as *mut c_float;
+            overlap = &mut *(*s).planar_samples[(*s).cur_channel as usize]
+                .as_mut_ptr()
+                .offset(0 as c_int as isize) as *mut c_float;
             samples2 = overlap.offset(1024 as c_int as isize);
             la = samples2.offset((448 as c_int + 64 as c_int) as isize);
             if frame.is_null() {
@@ -3929,9 +3927,10 @@ unsafe extern "C" fn aac_encode_frame(
     *got_packet_ptr = 1 as c_int;
     0 as c_int
 }
+
 #[cold]
 unsafe extern "C" fn aac_encode_end(mut avctx: *mut AVCodecContext) -> c_int {
-    let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
+    let mut s: *mut AACEncContext = (*(*avctx).priv_data).ctx;
     av_log(
         avctx as *mut c_void,
         32 as c_int,
@@ -3949,10 +3948,10 @@ unsafe extern "C" fn aac_encode_end(mut avctx: *mut AVCodecContext) -> c_int {
     if !((*s).psypp).is_null() {
         ff_psy_preprocess_end((*s).psypp);
     }
-    av_freep(&mut (*s).buffer.samples as *mut *mut c_float as *mut c_void);
     av_freep(&mut (*s).cpe as *mut *mut ChannelElement as *mut c_void);
     av_freep(&mut (*s).fdsp as *mut *mut AVFloatDSPContext as *mut c_void);
     ff_af_queue_close(&mut (*s).afq);
+    drop(Box::from_raw(s));
     0 as c_int
 }
 #[cold]
@@ -3995,31 +3994,34 @@ unsafe extern "C" fn alloc_buffers(
     mut s: *mut AACEncContext,
 ) -> c_int {
     let mut ch: c_int = 0;
-    (*s).buffer.samples = av_calloc(
-        ((*s).channels * 3 as c_int * 1024 as c_int) as c_ulong,
-        size_of::<c_float>() as c_ulong,
-    ) as *mut c_float;
-    if ((*s).buffer.samples).is_null() || {
-        (*s).cpe = av_calloc(
-            *((*s).chan_map).offset(0 as c_int as isize) as c_ulong,
-            size_of::<ChannelElement>() as c_ulong,
-        ) as *mut ChannelElement;
-        ((*s).cpe).is_null()
-    } {
+    (*s).cpe = av_calloc(
+        *((*s).chan_map).offset(0 as c_int as isize) as c_ulong,
+        size_of::<ChannelElement>() as c_ulong,
+    ) as *mut ChannelElement;
+    if ((*s).cpe).is_null() {
         return -(12 as c_int);
-    }
-    ch = 0 as c_int;
-    while ch < (*s).channels {
-        (*s).planar_samples[ch as usize] =
-            ((*s).buffer.samples).offset((3 as c_int * 1024 as c_int * ch) as isize);
-        ch += 1;
-        ch;
     }
     0 as c_int
 }
 #[cold]
 unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
-    let mut s: *mut AACEncContext = (*avctx).priv_data as *mut AACEncContext;
+    // dbg!((*avctx).priv_data);
+    // dbg!(*((*avctx).priv_data));
+    // abort();
+    let ctx = &mut (*(*avctx).priv_data).ctx;
+    debug_assert!(ctx.is_null());
+    *ctx = {
+        let mut s = Box::<AACEncContext>::new_zeroed();
+        addr_of_mut!((*s.as_mut_ptr()).av_class).write((*(*avctx).priv_data).class);
+        addr_of_mut!((*s.as_mut_ptr()).options).write((*(*avctx).priv_data).options);
+        addr_of_mut!((*s.as_mut_ptr()).planar_samples)
+            .write(vec![[0.; _]; (*avctx).ch_layout.nb_channels as usize].into_boxed_slice());
+        Box::into_raw(s.assume_init())
+    };
+    dbg!((**ctx).options);
+    dbg!((*(*avctx).priv_data).options);
+    let mut s: *mut AACEncContext = *ctx;
+
     let mut i: c_int = 0;
     let mut ret: c_int = 0 as c_int;
     let mut sizes: [*const c_uchar; 2] = [ptr::null::<c_uchar>(); 2];
@@ -4333,8 +4335,6 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         FF_LPC_TYPE_LEVINSON,
     );
     (*s).random_state = 0x1f2e3d4c as c_int;
-    (*s).abs_pow34 = Some(abs_pow34_v);
-    (*s).quant_bands = Some(quantize_bands);
     ff_af_queue_init(avctx, &mut (*s).afq);
     0 as c_int
 }
@@ -4699,6 +4699,7 @@ static mut aac_encode_defaults: [FFCodecDefault; 2] = [
         }
     },
 ];
+
 #[no_mangle]
 pub static mut ff_aac_encoder: FFCodec = FFCodec {
     p: AVCodec {
@@ -4732,8 +4733,8 @@ pub static mut ff_aac_encoder: FFCodec = FFCodec {
     hw_configs: 0 as *const *const AVCodecHWConfigInternal,
     codec_tags: 0 as *const c_uint,
 };
+
 unsafe extern "C" fn run_static_initializers() {
-    BUF_BITS = (8 as c_int as c_ulong).wrapping_mul(size_of::<BitBuf>() as c_ulong) as c_int;
     ff_aac_encoder = {
         let mut init = FFCodec {
             caps_internal_cb_type: [0; 4],
@@ -4758,7 +4759,7 @@ unsafe extern "C" fn run_static_initializers() {
                     ch_layouts: ptr::null::<AVChannelLayout>(),
                 }
             },
-            priv_data_size: size_of::<AACEncContext>() as c_ulong as c_int,
+            priv_data_size: size_of::<PrivData>() as c_int,
             update_thread_context: None,
             update_thread_context_for_user: None,
             defaults: aac_encode_defaults.as_ptr(),

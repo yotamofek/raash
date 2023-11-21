@@ -16,8 +16,14 @@ use ilog::IntLog;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
 use crate::{
-    aacenc::ff_quantize_band_cost_cache_init, aacenc_is::*, aacenc_ltp::*, aacenc_pred::*,
-    aacenc_tns::*, aactab::*, common::*, types::*,
+    aacenc::{abs_pow34_v, ctx::AACEncContext, ff_quantize_band_cost_cache_init, quantize_bands},
+    aacenc_is::*,
+    aacenc_ltp::*,
+    aacenc_pred::*,
+    aacenc_tns::*,
+    aactab::*,
+    common::*,
+    types::*,
 };
 
 type quantize_and_encode_band_func = unsafe fn(
@@ -518,7 +524,7 @@ unsafe extern "C" fn codebook_trellis_rate(
     let mut stack_len: c_int = 0;
     let mut next_minbits: c_float = ::core::f32::INFINITY;
     let mut next_mincb: c_int = 0 as c_int;
-    ((*s).abs_pow34).expect("non-null function pointer")(
+    abs_pow34_v(
         ((*s).scoefs).as_mut_ptr(),
         ((*sce).coeffs).as_mut_ptr(),
         1024 as c_int,
@@ -767,14 +773,10 @@ unsafe fn quantize_and_encode_band_cost_template(
         return cost * lambda;
     }
     if scaled.is_null() {
-        ((*s).abs_pow34).expect("non-null function pointer")(
-            ((*s).scoefs).as_mut_ptr(),
-            in_0,
-            size,
-        );
+        abs_pow34_v(((*s).scoefs).as_mut_ptr(), in_0, size);
         scaled = ((*s).scoefs).as_mut_ptr();
     }
-    ((*s).quant_bands).expect("non-null function pointer")(
+    quantize_bands(
         ((*s).qcoefs).as_mut_ptr(),
         in_0,
         scaled,
@@ -1833,7 +1835,7 @@ unsafe extern "C" fn encode_window_bands_info(
     let mut stack_len: c_int = 0;
     let mut next_minrd: c_float = ::core::f32::INFINITY;
     let mut next_mincb: c_int = 0 as c_int;
-    ((*s).abs_pow34).expect("non-null function pointer")(
+    abs_pow34_v(
         ((*s).scoefs).as_mut_ptr(),
         ((*sce).coeffs).as_mut_ptr(),
         1024 as c_int,
@@ -2179,7 +2181,7 @@ unsafe extern "C" fn search_for_quantizers_anmr(
         j;
     }
     idx = 1 as c_int;
-    ((*s).abs_pow34).expect("non-null function pointer")(
+    abs_pow34_v(
         ((*s).scoefs).as_mut_ptr(),
         ((*sce).coeffs).as_mut_ptr(),
         1024 as c_int,
@@ -2706,7 +2708,7 @@ unsafe extern "C" fn search_for_quantizers_fast(
     if allz == 0 {
         return;
     }
-    ((*s).abs_pow34).expect("non-null function pointer")(
+    abs_pow34_v(
         ((*s).scoefs).as_mut_ptr(),
         ((*sce).coeffs).as_mut_ptr(),
         1024 as c_int,
@@ -3406,12 +3408,12 @@ unsafe extern "C" fn search_for_pns(
                                     *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
                                 );
                                 pns_energy += pns_senergy;
-                                ((*s).abs_pow34).expect("non-null function pointer")(
+                                abs_pow34_v(
                                     NOR34,
                                     &mut *((*sce).coeffs).as_mut_ptr().offset(start_c as isize),
                                     *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
                                 );
-                                ((*s).abs_pow34).expect("non-null function pointer")(
+                                abs_pow34_v(
                                     PNS34,
                                     PNS,
                                     *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
@@ -3961,16 +3963,8 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                         i += 1;
                         i;
                     }
-                    ((*s).abs_pow34).expect("non-null function pointer")(
-                        M34,
-                        M,
-                        *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,
-                    );
-                    ((*s).abs_pow34).expect("non-null function pointer")(
-                        S34,
-                        S,
-                        *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,
-                    );
+                    abs_pow34_v(M34, M, *((*sce0).ics.swb_sizes).offset(g as isize) as c_int);
+                    abs_pow34_v(S34, S, *((*sce0).ics.swb_sizes).offset(g as isize) as c_int);
                     i = 0 as c_int;
                     while i < *((*sce0).ics.swb_sizes).offset(g as isize) as c_int {
                         Mmax = if Mmax > *M34.offset(i as isize) {
@@ -4082,7 +4076,7 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 i += 1;
                                 i;
                             }
-                            ((*s).abs_pow34).expect("non-null function pointer")(
+                            abs_pow34_v(
                                 L34,
                                 ((*sce0).coeffs)
                                     .as_mut_ptr()
@@ -4090,7 +4084,7 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                     .offset(((w + w2) * 128 as c_int) as isize),
                                 *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,
                             );
-                            ((*s).abs_pow34).expect("non-null function pointer")(
+                            abs_pow34_v(
                                 R34,
                                 ((*sce1).coeffs)
                                     .as_mut_ptr()
@@ -4098,12 +4092,12 @@ unsafe extern "C" fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                     .offset(((w + w2) * 128 as c_int) as isize),
                                 *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,
                             );
-                            ((*s).abs_pow34).expect("non-null function pointer")(
+                            abs_pow34_v(
                                 M34,
                                 M,
                                 *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,
                             );
-                            ((*s).abs_pow34).expect("non-null function pointer")(
+                            abs_pow34_v(
                                 S34,
                                 S,
                                 *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,

@@ -4,6 +4,8 @@
     array_chunks,
     inline_const,
     generic_const_exprs,
+    generic_arg_infer,
+    new_uninit,
     slice_take
 )]
 #![allow(

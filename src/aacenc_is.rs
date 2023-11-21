@@ -13,7 +13,11 @@ use std::{mem::size_of, slice};
 use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_ulong};
 
 use crate::{
-    aaccoder::ff_quantize_and_encode_band_cost, aactab::POW_SF_TABLES, common::*, types::*,
+    aaccoder::ff_quantize_and_encode_band_cost,
+    aacenc::{abs_pow34_v, ctx::AACEncContext},
+    aactab::POW_SF_TABLES,
+    common::*,
+    types::*,
 };
 
 #[inline]
@@ -210,17 +214,17 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
             i += 1;
             i;
         }
-        ((*s).abs_pow34).expect("non-null function pointer")(
+        abs_pow34_v(
             L34,
             &mut *L.offset((start + (w + w2) * 128 as c_int) as isize),
             *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,
         );
-        ((*s).abs_pow34).expect("non-null function pointer")(
+        abs_pow34_v(
             R34,
             &mut *R.offset((start + (w + w2) * 128 as c_int) as isize),
             *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,
         );
-        ((*s).abs_pow34).expect("non-null function pointer")(
+        abs_pow34_v(
             I34,
             IS,
             *((*sce0).ics.swb_sizes).offset(g as isize) as c_int,

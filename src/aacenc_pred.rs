@@ -14,6 +14,7 @@ use libc::{c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
 use crate::{
     aaccoder::ff_quantize_and_encode_band_cost,
+    aacenc::{abs_pow34_v, ctx::AACEncContext},
     aacenc_is::ff_aac_is_encoding_err,
     aactab::{ff_aac_pred_sfb_max, POW_SF_TABLES},
     common::*,
@@ -539,7 +540,7 @@ pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
                 && (*sce).band_type[sfb as usize] as c_uint >= INTENSITY_BT2 as c_int as c_uint
             || (*sce).band_type[sfb as usize] as c_uint == NOISE_BT as c_int as c_uint)
         {
-            ((*s).abs_pow34).expect("non-null function pointer")(
+            abs_pow34_v(
                 O34,
                 &mut *((*sce).coeffs).as_mut_ptr().offset(start_coef as isize),
                 num_coeffs,
@@ -566,7 +567,7 @@ pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
                 i += 1;
                 i;
             }
-            ((*s).abs_pow34).expect("non-null function pointer")(S34, SENT, num_coeffs);
+            abs_pow34_v(S34, SENT, num_coeffs);
             if cb_n < RESERVED_BT as c_int {
                 cb_p = av_clip_c(
                     find_min_book(
@@ -604,7 +605,7 @@ pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
                 i += 1;
                 i;
             }
-            ((*s).abs_pow34).expect("non-null function pointer")(
+            abs_pow34_v(
                 P34,
                 &mut *((*sce).prcoeffs).as_mut_ptr().offset(start_coef as isize),
                 num_coeffs,

@@ -9,7 +9,7 @@ use crate::{
         ff_sfdelta_can_remove_band, find_form_factor, find_max_val, find_min_book,
         quantize_band_cost_cached,
     },
-    aacenc::{ff_quantize_band_cost_cache_init, pow::Pow34},
+    aacenc::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
     aactab::ff_aac_scalefactor_bits,
     common::*,
     types::*,
