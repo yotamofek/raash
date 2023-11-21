@@ -9,6 +9,7 @@
 )]
 
 pub(crate) mod ctx;
+pub mod options;
 pub(crate) mod pow;
 
 use std::{
@@ -19,7 +20,7 @@ use std::{
 
 use ffi::{
     class::{
-        option::{AVOption, C2RustUnnamed_0},
+        option::{AVOption, DefaultValue},
         AVClass,
     },
     codec::{
@@ -34,7 +35,10 @@ use libc::{
     c_ushort, c_void,
 };
 
-use self::ctx::{AACEncContext, PrivData};
+use self::{
+    ctx::{AACEncContext, PrivData},
+    options::OPTIONS,
+};
 use crate::{
     aaccoder::{
         coder::{self, CoeffsEncoder},
@@ -4267,298 +4271,11 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
     0 as c_int
 }
 
-const aacenc_options: [AVOption; 22] = [
-    AVOption {
-        name: c"aac_coder".as_ptr(),
-        help: c"Coding algorithm".as_ptr(),
-        offset: 8 as c_ulong as c_int,
-        type_0: AV_OPT_TYPE_INT,
-        default_val: C2RustUnnamed_0 {
-            i64_0: AAC_CODER_TWOLOOP as c_int as c_long,
-        },
-        min: 0.,
-        max: (AAC_CODER_NB as c_int - 1 as c_int) as c_double,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"coder".as_ptr(),
-    },
-    AVOption {
-        name: c"anmr".as_ptr(),
-        help: c"ANMR method".as_ptr(),
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: AAC_CODER_ANMR as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"coder".as_ptr(),
-    },
-    AVOption {
-        name: c"twoloop".as_ptr(),
-        help: c"Two loop searching method".as_ptr(),
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: AAC_CODER_TWOLOOP as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"coder".as_ptr(),
-    },
-    AVOption {
-        name: c"fast".as_ptr(),
-        help: c"Default fast search".as_ptr(),
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: AAC_CODER_FAST as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"coder".as_ptr(),
-    },
-    AVOption {
-        name: c"aac_ms".as_ptr(),
-        help: c"Force M/S stereo coding".as_ptr(),
-        offset: 32 as c_ulong as c_int,
-        type_0: AV_OPT_TYPE_BOOL,
-        default_val: C2RustUnnamed_0 {
-            i64_0: -(1 as c_int) as c_long,
-        },
-        min: -(1 as c_int) as c_double,
-        max: 1.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: 0 as *const c_char,
-    },
-    AVOption {
-        name: c"aac_is".as_ptr(),
-        help: c"Intensity stereo coding".as_ptr(),
-        offset: 36 as c_ulong as c_int,
-        type_0: AV_OPT_TYPE_BOOL,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 1 as c_int as c_long,
-        },
-        min: -(1 as c_int) as c_double,
-        max: 1.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: 0 as *const c_char,
-    },
-    AVOption {
-        name: c"aac_pns".as_ptr(),
-        help: c"Perceptual noise substitution".as_ptr(),
-        offset: 12 as c_ulong as c_int,
-        type_0: AV_OPT_TYPE_BOOL,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 1 as c_int as c_long,
-        },
-        min: -(1 as c_int) as c_double,
-        max: 1.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: 0 as *const c_char,
-    },
-    AVOption {
-        name: c"aac_tns".as_ptr(),
-        help: c"Temporal noise shaping".as_ptr(),
-        offset: 16 as c_ulong as c_int,
-        type_0: AV_OPT_TYPE_BOOL,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 1 as c_int as c_long,
-        },
-        min: -(1 as c_int) as c_double,
-        max: 1.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: 0 as *const c_char,
-    },
-    AVOption {
-        name: c"aac_ltp".as_ptr(),
-        help: c"Long term prediction".as_ptr(),
-        offset: 20 as c_ulong as c_int,
-        type_0: AV_OPT_TYPE_BOOL,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 0 as c_int as c_long,
-        },
-        min: -(1 as c_int) as c_double,
-        max: 1.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: 0 as *const c_char,
-    },
-    AVOption {
-        name: c"aac_pred".as_ptr(),
-        help: c"AAC-Main prediction".as_ptr(),
-        offset: 28 as c_ulong as c_int,
-        type_0: AV_OPT_TYPE_BOOL,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 0 as c_int as c_long,
-        },
-        min: -(1 as c_int) as c_double,
-        max: 1.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: 0 as *const c_char,
-    },
-    AVOption {
-        name: c"aac_pce".as_ptr(),
-        help: c"Forces the use of PCEs".as_ptr(),
-        offset: 24 as c_ulong as c_int,
-        type_0: AV_OPT_TYPE_BOOL,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 0 as c_int as c_long,
-        },
-        min: -(1 as c_int) as c_double,
-        max: 1.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: 0 as *const c_char,
-    },
-    AVOption {
-        name: c"aac_main".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 0 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"aac_low".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 1 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"aac_ssr".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 2 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"aac_ltp".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 3 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"aac_he".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 4 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"aac_he_v2".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 28 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"aac_ld".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 22 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"aac_eld".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 38 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"mpeg2_aac_low".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 128 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: c"mpeg2_aac_he".as_ptr(),
-        help: 0 as *const c_char,
-        offset: 0 as c_int,
-        type_0: AV_OPT_TYPE_CONST,
-        default_val: C2RustUnnamed_0 {
-            i64_0: 131 as c_int as c_long,
-        },
-        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-        max: 2147483647.,
-        flags: 1 as c_int | 8 as c_int,
-        unit: c"avctx.profile".as_ptr(),
-    },
-    AVOption {
-        name: 0 as *const c_char,
-        help: 0 as *const c_char,
-        offset: 0,
-        type_0: AV_OPT_TYPE_FLAGS,
-        default_val: C2RustUnnamed_0 { i64_0: 0 },
-        min: 0.,
-        max: 0.,
-        flags: 0,
-        unit: 0 as *const c_char,
-    },
-];
-
 const ENCODER_CLASS: AVClass = AVClass {
     class_name: c"AAC encoder".as_ptr(),
     item_name: Some(av_default_item_name),
-    option: aacenc_options.as_ptr(),
-    version: (58 as c_int) << 16 as c_int | (32 as c_int) << 8 as c_int | 100 as c_int,
+    option: OPTIONS.as_ptr(),
+    version: (58 << 16) | (32 << 8) | 100,
     log_level_offset_offset: 0,
     parent_log_context_offset: 0,
     category: AV_CLASS_CATEGORY_NA,

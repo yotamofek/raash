@@ -9,7 +9,7 @@ pub struct AVOption {
     pub help: *const c_char,
     pub offset: c_int,
     pub type_0: AVOptionType,
-    pub default_val: C2RustUnnamed_0,
+    pub default_val: DefaultValue,
     pub min: c_double,
     pub max: c_double,
     pub flags: c_int,
@@ -17,7 +17,7 @@ pub struct AVOption {
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub union C2RustUnnamed_0 {
+pub union DefaultValue {
     pub i64_0: c_long,
     pub dbl: c_double,
     pub str_0: *const c_char,

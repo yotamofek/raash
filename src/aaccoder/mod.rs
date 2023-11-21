@@ -18,13 +18,9 @@ use ffi::codec::AVCodecContext;
 use ilog::IntLog;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
-use self::quantize_and_encode_band::{quantize_and_encode_band, quantize_and_encode_band_cost};
+use self::quantize_and_encode_band::quantize_and_encode_band_cost;
 use crate::{
     aacenc::{abs_pow34_v, ctx::AACEncContext, ff_quantize_band_cost_cache_init},
-    aacenc_is::*,
-    aacenc_ltp::*,
-    aacenc_pred::*,
-    aacenc_tns::*,
     aactab::*,
     common::*,
     types::*,
@@ -264,13 +260,15 @@ fn coef2minsf(mut coef: c_float) -> c_uchar {
 }
 
 #[inline(always)]
-unsafe fn ff_fast_powf(mut x: c_float, mut y: c_float) -> c_float {
+fn ff_fast_powf(mut x: c_float, mut y: c_float) -> c_float {
     expf(logf(x) * y)
 }
+
 #[inline(always)]
-unsafe fn bval2bmax(mut b: c_float) -> c_float {
+fn bval2bmax(mut b: c_float) -> c_float {
     0.001f32 + 0.0035f32 * (b * b * b) / (15.5f32 * 15.5f32 * 15.5f32)
 }
+
 #[inline]
 unsafe fn ff_sfdelta_can_remove_band(
     mut sce: *const SingleChannelElement,
@@ -285,10 +283,7 @@ unsafe fn ff_sfdelta_can_remove_band(
 }
 #[inline]
 unsafe fn coef2maxsf(mut coef: c_float) -> c_uchar {
-    clip_uint8_c(
-        (log2f(coef) * 4 as c_int as c_float + 6 as c_int as c_float + 140 as c_int as c_float
-            - 36 as c_int as c_float) as c_int,
-    )
+    clip_uint8_c((coef.log2() * 4. + 6. + 140. - 36.) as c_int)
 }
 #[inline(always)]
 unsafe fn lcg_random(mut previous_val: c_uint) -> c_int {
@@ -299,6 +294,7 @@ unsafe fn lcg_random(mut previous_val: c_uint) -> c_int {
     };
     v.s
 }
+
 #[inline]
 unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut c_uchar) {
     let mut prevband: c_uchar = 0 as c_int as c_uchar;
