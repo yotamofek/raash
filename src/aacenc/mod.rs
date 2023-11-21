@@ -13,8 +13,7 @@ pub(crate) mod pow;
 
 use std::{
     ffi::CStr,
-    mem::{size_of, MaybeUninit},
-    process::abort,
+    mem::size_of,
     ptr::{self, addr_of_mut},
 };
 
@@ -37,7 +36,7 @@ use libc::{
 
 use self::ctx::{AACEncContext, PrivData};
 use crate::{
-    aaccoder::ff_aac_coders,
+    aaccoder::CODERS,
     aacenctab::{
         ff_aac_swb_size_1024, ff_aac_swb_size_1024_len, ff_aac_swb_size_128,
         ff_aac_swb_size_128_len,
@@ -2492,26 +2491,10 @@ unsafe extern "C" fn put_pce(mut pb: *mut PutBitContext, mut avctx: *mut AVCodec
     put_bits(pb, 4 as c_int, 0 as c_int as BitBuf);
     put_bits(pb, 2 as c_int, (*avctx).profile as BitBuf);
     put_bits(pb, 4 as c_int, (*s).samplerate_index as BitBuf);
-    put_bits(
-        pb,
-        4 as c_int,
-        (*pce).num_ele[0 as c_int as usize] as BitBuf,
-    );
-    put_bits(
-        pb,
-        4 as c_int,
-        (*pce).num_ele[1 as c_int as usize] as BitBuf,
-    );
-    put_bits(
-        pb,
-        4 as c_int,
-        (*pce).num_ele[2 as c_int as usize] as BitBuf,
-    );
-    put_bits(
-        pb,
-        2 as c_int,
-        (*pce).num_ele[3 as c_int as usize] as BitBuf,
-    );
+    put_bits(pb, 4 as c_int, (*pce).num_ele[0] as BitBuf);
+    put_bits(pb, 4 as c_int, (*pce).num_ele[1] as BitBuf);
+    put_bits(pb, 4 as c_int, (*pce).num_ele[2] as BitBuf);
+    put_bits(pb, 2 as c_int, (*pce).num_ele[3] as BitBuf);
     put_bits(pb, 3 as c_int, 0 as c_int as BitBuf);
     put_bits(pb, 4 as c_int, 0 as c_int as BitBuf);
     put_bits(pb, 1 as c_int, 0 as c_int as BitBuf);
@@ -2599,14 +2582,12 @@ unsafe extern "C" fn apply_only_long_window(
     mut sce: *mut SingleChannelElement,
     mut audio: *const c_float,
 ) {
-    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[0 as c_int as usize] as c_int != 0
-    {
+    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
         KBD_LONG.as_ptr()
     } else {
         ff_sine_1024.as_ptr()
     };
-    let mut pwindow: *const c_float = if (*sce).ics.use_kb_window[1 as c_int as usize] as c_int != 0
-    {
+    let mut pwindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
         KBD_LONG.as_ptr()
     } else {
         ff_sine_1024.as_ptr()
@@ -2625,14 +2606,12 @@ unsafe extern "C" fn apply_long_start_window(
     mut sce: *mut SingleChannelElement,
     mut audio: *const c_float,
 ) {
-    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[1 as c_int as usize] as c_int != 0
-    {
+    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
         KBD_LONG.as_ptr()
     } else {
         ff_sine_1024.as_ptr()
     };
-    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[0 as c_int as usize] as c_int != 0
-    {
+    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
         KBD_SHORT.as_ptr()
     } else {
         ff_sine_128.as_ptr()
@@ -2665,14 +2644,12 @@ unsafe extern "C" fn apply_long_stop_window(
     mut sce: *mut SingleChannelElement,
     mut audio: *const c_float,
 ) {
-    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[0 as c_int as usize] as c_int != 0
-    {
+    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
         KBD_LONG.as_ptr()
     } else {
         ff_sine_1024.as_ptr()
     };
-    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[1 as c_int as usize] as c_int != 0
-    {
+    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
         KBD_SHORT.as_ptr()
     } else {
         ff_sine_128.as_ptr()
@@ -2702,14 +2679,12 @@ unsafe extern "C" fn apply_eight_short_window(
     mut sce: *mut SingleChannelElement,
     mut audio: *const c_float,
 ) {
-    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[0 as c_int as usize] as c_int != 0
-    {
+    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
         KBD_SHORT.as_ptr()
     } else {
         ff_sine_128.as_ptr()
     };
-    let mut pwindow: *const c_float = if (*sce).ics.use_kb_window[1 as c_int as usize] as c_int != 0
-    {
+    let mut pwindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
         KBD_SHORT.as_ptr()
     } else {
         ff_sine_128.as_ptr()
@@ -2738,44 +2713,18 @@ unsafe extern "C" fn apply_eight_short_window(
         w;
     }
 }
-static mut apply_window: [Option<
-    unsafe extern "C" fn(*mut AVFloatDSPContext, *mut SingleChannelElement, *const c_float) -> (),
->; 4] = unsafe {
-    [
-        Some(
-            apply_only_long_window
-                as unsafe extern "C" fn(
-                    *mut AVFloatDSPContext,
-                    *mut SingleChannelElement,
-                    *const c_float,
-                ) -> (),
-        ),
-        Some(
-            apply_long_start_window
-                as unsafe extern "C" fn(
-                    *mut AVFloatDSPContext,
-                    *mut SingleChannelElement,
-                    *const c_float,
-                ) -> (),
-        ),
-        Some(
-            apply_eight_short_window
-                as unsafe extern "C" fn(
-                    *mut AVFloatDSPContext,
-                    *mut SingleChannelElement,
-                    *const c_float,
-                ) -> (),
-        ),
-        Some(
-            apply_long_stop_window
-                as unsafe extern "C" fn(
-                    *mut AVFloatDSPContext,
-                    *mut SingleChannelElement,
-                    *const c_float,
-                ) -> (),
-        ),
-    ]
-};
+
+const apply_window: [unsafe extern "C" fn(
+    *mut AVFloatDSPContext,
+    *mut SingleChannelElement,
+    *const c_float,
+) -> (); 4] = [
+    apply_only_long_window,
+    apply_long_start_window,
+    apply_eight_short_window,
+    apply_long_stop_window,
+];
+
 unsafe extern "C" fn apply_window_and_mdct(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
@@ -2783,11 +2732,8 @@ unsafe extern "C" fn apply_window_and_mdct(
 ) {
     let mut i: c_int = 0;
     let mut output: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
-    (apply_window[(*sce).ics.window_sequence[0 as c_int as usize] as usize])
-        .expect("non-null function pointer")((*s).fdsp, sce, audio);
-    if (*sce).ics.window_sequence[0 as c_int as usize] as c_uint
-        != EIGHT_SHORT_SEQUENCE as c_int as c_uint
-    {
+    apply_window[(*sce).ics.window_sequence[0] as usize]((*s).fdsp, sce, audio);
+    if (*sce).ics.window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE as c_int as c_uint {
         ((*s).mdct1024_fn).expect("non-null function pointer")(
             (*s).mdct1024,
             ((*sce).coeffs).as_mut_ptr() as *mut c_void,
@@ -2819,16 +2765,10 @@ unsafe extern "C" fn put_ics_info(
     put_bits(
         &mut (*s).pb,
         2 as c_int,
-        (*info).window_sequence[0 as c_int as usize] as BitBuf,
+        (*info).window_sequence[0] as BitBuf,
     );
-    put_bits(
-        &mut (*s).pb,
-        1 as c_int,
-        (*info).use_kb_window[0 as c_int as usize] as BitBuf,
-    );
-    if (*info).window_sequence[0 as c_int as usize] as c_uint
-        != EIGHT_SHORT_SEQUENCE as c_int as c_uint
-    {
+    put_bits(&mut (*s).pb, 1 as c_int, (*info).use_kb_window[0] as BitBuf);
+    if (*info).window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE as c_int as c_uint {
         put_bits(&mut (*s).pb, 6 as c_int, (*info).max_sfb as BitBuf);
         put_bits(
             &mut (*s).pb,
@@ -2855,9 +2795,9 @@ unsafe extern "C" fn encode_ms_info(mut pb: *mut PutBitContext, mut cpe: *mut Ch
     put_bits(pb, 2 as c_int, (*cpe).ms_mode as BitBuf);
     if (*cpe).ms_mode == 1 as c_int {
         w = 0 as c_int;
-        while w < (*cpe).ch[0 as c_int as usize].ics.num_windows {
+        while w < (*cpe).ch[0].ics.num_windows {
             i = 0 as c_int;
-            while i < (*cpe).ch[0 as c_int as usize].ics.max_sfb as c_int {
+            while i < (*cpe).ch[0].ics.max_sfb as c_int {
                 put_bits(
                     pb,
                     1 as c_int,
@@ -2866,7 +2806,7 @@ unsafe extern "C" fn encode_ms_info(mut pb: *mut PutBitContext, mut cpe: *mut Ch
                 i += 1;
                 i;
             }
-            w += (*cpe).ch[0 as c_int as usize].ics.group_len[w as usize] as c_int;
+            w += (*cpe).ch[0].ics.group_len[w as usize] as c_int;
         }
     }
 }
@@ -2984,13 +2924,11 @@ unsafe extern "C" fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
             while g < (*ics).num_swb {
                 let mut p: c_int = (-(1 as c_int) as c_uint).wrapping_add(
                     (2 as c_int as c_uint).wrapping_mul(
-                        ((*cpe).ch[1 as c_int as usize].band_type[(w * 16 as c_int + g) as usize]
-                            as c_uint)
+                        ((*cpe).ch[1].band_type[(w * 16 as c_int + g) as usize] as c_uint)
                             .wrapping_sub(14 as c_int as c_uint),
                     ),
                 ) as c_int;
-                let mut scale: c_float =
-                    (*cpe).ch[0 as c_int as usize].is_ener[(w * 16 as c_int + g) as usize];
+                let mut scale: c_float = (*cpe).ch[0].is_ener[(w * 16 as c_int + g) as usize];
                 if (*cpe).is_mask[(w * 16 as c_int + g) as usize] == 0 {
                     start += *((*ics).swb_sizes).offset(g as isize) as c_int;
                 } else {
@@ -2999,13 +2937,11 @@ unsafe extern "C" fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
                     }
                     i = 0 as c_int;
                     while i < *((*ics).swb_sizes).offset(g as isize) as c_int {
-                        let mut sum: c_float = ((*cpe).ch[0 as c_int as usize].coeffs
-                            [(start + i) as usize]
-                            + p as c_float
-                                * (*cpe).ch[1 as c_int as usize].coeffs[(start + i) as usize])
+                        let mut sum: c_float = ((*cpe).ch[0].coeffs[(start + i) as usize]
+                            + p as c_float * (*cpe).ch[1].coeffs[(start + i) as usize])
                             * scale;
-                        (*cpe).ch[0 as c_int as usize].coeffs[(start + i) as usize] = sum;
-                        (*cpe).ch[1 as c_int as usize].coeffs[(start + i) as usize] = 0.0f32;
+                        (*cpe).ch[0].coeffs[(start + i) as usize] = sum;
+                        (*cpe).ch[1].coeffs[(start + i) as usize] = 0.0f32;
                         i += 1;
                         i;
                     }
@@ -3039,25 +2975,21 @@ unsafe extern "C" fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
             while g < (*ics).num_swb {
                 if (*cpe).ms_mask[(w * 16 as c_int + g) as usize] == 0
                     || (*cpe).is_mask[(w * 16 as c_int + g) as usize] as c_int != 0
-                    || (*cpe).ch[0 as c_int as usize].band_type[(w * 16 as c_int + g) as usize]
-                        as c_uint
+                    || (*cpe).ch[0].band_type[(w * 16 as c_int + g) as usize] as c_uint
                         >= NOISE_BT as c_int as c_uint
-                    || (*cpe).ch[1 as c_int as usize].band_type[(w * 16 as c_int + g) as usize]
-                        as c_uint
+                    || (*cpe).ch[1].band_type[(w * 16 as c_int + g) as usize] as c_uint
                         >= NOISE_BT as c_int as c_uint
                 {
                     start += *((*ics).swb_sizes).offset(g as isize) as c_int;
                 } else {
                     i = 0 as c_int;
                     while i < *((*ics).swb_sizes).offset(g as isize) as c_int {
-                        let mut L: c_float = ((*cpe).ch[0 as c_int as usize].coeffs
-                            [(start + i) as usize]
-                            + (*cpe).ch[1 as c_int as usize].coeffs[(start + i) as usize])
+                        let mut L: c_float = ((*cpe).ch[0].coeffs[(start + i) as usize]
+                            + (*cpe).ch[1].coeffs[(start + i) as usize])
                             * 0.5f32;
-                        let mut R: c_float =
-                            L - (*cpe).ch[1 as c_int as usize].coeffs[(start + i) as usize];
-                        (*cpe).ch[0 as c_int as usize].coeffs[(start + i) as usize] = L;
-                        (*cpe).ch[1 as c_int as usize].coeffs[(start + i) as usize] = R;
+                        let mut R: c_float = L - (*cpe).ch[1].coeffs[(start + i) as usize];
+                        (*cpe).ch[0].coeffs[(start + i) as usize] = L;
+                        (*cpe).ch[1].coeffs[(start + i) as usize] = R;
                         i += 1;
                         i;
                     }
@@ -3098,8 +3030,8 @@ unsafe extern "C" fn encode_scale_factors(
     mut sce: *mut SingleChannelElement,
 ) {
     let mut diff: c_int = 0;
-    let mut off_sf: c_int = (*sce).sf_idx[0 as c_int as usize];
-    let mut off_pns: c_int = (*sce).sf_idx[0 as c_int as usize] - 90 as c_int;
+    let mut off_sf: c_int = (*sce).sf_idx[0];
+    let mut off_pns: c_int = (*sce).sf_idx[0] - 90 as c_int;
     let mut off_is: c_int = 0 as c_int;
     let mut noise_flag: c_int = 1 as c_int;
     let mut i: c_int = 0;
@@ -3261,11 +3193,7 @@ unsafe extern "C" fn encode_individual_channel(
     mut sce: *mut SingleChannelElement,
     mut common_window: c_int,
 ) -> c_int {
-    put_bits(
-        &mut (*s).pb,
-        8 as c_int,
-        (*sce).sf_idx[0 as c_int as usize] as BitBuf,
-    );
+    put_bits(&mut (*s).pb, 8 as c_int, (*sce).sf_idx[0] as BitBuf);
     if common_window == 0 {
         put_ics_info(s, &mut (*sce).ics);
         if ((*(*s).coder).encode_main_pred).is_some() {
@@ -3435,13 +3363,13 @@ unsafe extern "C" fn aac_encode_frame(
                 la = ptr::null_mut::<c_float>();
             }
             if tag == TYPE_LFE as c_int {
-                let fresh2 = &mut (*wi.offset(ch as isize)).window_type[1 as c_int as usize];
+                let fresh2 = &mut (*wi.offset(ch as isize)).window_type[1];
                 *fresh2 = ONLY_LONG_SEQUENCE as c_int;
-                (*wi.offset(ch as isize)).window_type[0 as c_int as usize] = *fresh2;
+                (*wi.offset(ch as isize)).window_type[0] = *fresh2;
                 (*wi.offset(ch as isize)).window_shape = 0 as c_int;
                 (*wi.offset(ch as isize)).num_windows = 1 as c_int;
-                (*wi.offset(ch as isize)).grouping[0 as c_int as usize] = 1 as c_int;
-                (*wi.offset(ch as isize)).clipping[0 as c_int as usize] = 0 as c_int as c_float;
+                (*wi.offset(ch as isize)).grouping[0] = 1 as c_int;
+                (*wi.offset(ch as isize)).clipping[0] = 0 as c_int as c_float;
                 (*ics).num_swb = if (*s).samplerate_index >= 8 as c_int {
                     1 as c_int
                 } else {
@@ -3454,16 +3382,13 @@ unsafe extern "C" fn aac_encode_frame(
                     samples2,
                     la,
                     (*s).cur_channel,
-                    (*ics).window_sequence[0 as c_int as usize] as c_int,
+                    (*ics).window_sequence[0] as c_int,
                 );
             }
-            (*ics).window_sequence[1 as c_int as usize] =
-                (*ics).window_sequence[0 as c_int as usize];
-            (*ics).window_sequence[0 as c_int as usize] =
-                (*wi.offset(ch as isize)).window_type[0 as c_int as usize] as WindowSequence;
-            (*ics).use_kb_window[1 as c_int as usize] = (*ics).use_kb_window[0 as c_int as usize];
-            (*ics).use_kb_window[0 as c_int as usize] =
-                (*wi.offset(ch as isize)).window_shape as c_uchar;
+            (*ics).window_sequence[1] = (*ics).window_sequence[0];
+            (*ics).window_sequence[0] = (*wi.offset(ch as isize)).window_type[0] as WindowSequence;
+            (*ics).use_kb_window[1] = (*ics).use_kb_window[0];
+            (*ics).use_kb_window[0] = (*wi.offset(ch as isize)).window_shape as c_uchar;
             (*ics).num_windows = (*wi.offset(ch as isize)).num_windows;
             (*ics).swb_sizes =
                 *((*s).psy.bands).offset(((*ics).num_windows == 8 as c_int) as c_int as isize);
@@ -3477,20 +3402,18 @@ unsafe extern "C" fn aac_encode_frame(
             } else {
                 (*ics).max_sfb as c_int
             }) as c_uchar;
-            (*ics).swb_offset = if (*wi.offset(ch as isize)).window_type[0 as c_int as usize]
-                == EIGHT_SHORT_SEQUENCE as c_int
-            {
-                ff_swb_offset_128[(*s).samplerate_index as usize]
-            } else {
-                ff_swb_offset_1024[(*s).samplerate_index as usize]
-            };
-            (*ics).tns_max_bands = if (*wi.offset(ch as isize)).window_type[0 as c_int as usize]
-                == EIGHT_SHORT_SEQUENCE as c_int
-            {
-                ff_tns_max_bands_128[(*s).samplerate_index as usize] as c_int
-            } else {
-                ff_tns_max_bands_1024[(*s).samplerate_index as usize] as c_int
-            };
+            (*ics).swb_offset =
+                if (*wi.offset(ch as isize)).window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
+                    ff_swb_offset_128[(*s).samplerate_index as usize].as_ptr()
+                } else {
+                    ff_swb_offset_1024[(*s).samplerate_index as usize].as_ptr()
+                };
+            (*ics).tns_max_bands =
+                if (*wi.offset(ch as isize)).window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
+                    ff_tns_max_bands_128[(*s).samplerate_index as usize] as c_int
+                } else {
+                    ff_tns_max_bands_1024[(*s).samplerate_index as usize] as c_int
+                };
             w = 0 as c_int;
             while w < (*ics).num_windows {
                 (*ics).group_len[w as usize] =
@@ -3543,8 +3466,7 @@ unsafe extern "C" fn aac_encode_frame(
             apply_window_and_mdct(s, sce, overlap);
             if (*s).options.ltp != 0 && ((*(*s).coder).update_ltp).is_some() {
                 ((*(*s).coder).update_ltp).expect("non-null function pointer")(s, sce);
-                (apply_window[(*sce).ics.window_sequence[0 as c_int as usize] as usize])
-                    .expect("non-null function pointer")(
+                apply_window[(*sce).ics.window_sequence[0] as usize](
                     (*s).fdsp,
                     sce,
                     &mut *((*sce).ltp_state).as_mut_ptr().offset(0 as c_int as isize),
@@ -3672,8 +3594,8 @@ unsafe extern "C" fn aac_encode_frame(
                 ch;
             }
             if chans > 1 as c_int
-                && (*wi_0.offset(0 as c_int as isize)).window_type[0 as c_int as usize]
-                    == (*wi_0.offset(1 as c_int as isize)).window_type[0 as c_int as usize]
+                && (*wi_0.offset(0 as c_int as isize)).window_type[0]
+                    == (*wi_0.offset(1 as c_int as isize)).window_type[0]
                 && (*wi_0.offset(0 as c_int as isize)).window_shape
                     == (*wi_0.offset(1 as c_int as isize)).window_shape
             {
@@ -4000,12 +3922,12 @@ unsafe extern "C" fn dsp_init(mut avctx: *mut AVCodecContext, mut s: *mut AACEnc
     }
     0 as c_int
 }
+
 #[cold]
 unsafe extern "C" fn alloc_buffers(
     mut _avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
 ) -> c_int {
-    let mut ch: c_int = 0;
     (*s).cpe = av_calloc(
         *((*s).chan_map).offset(0 as c_int as isize) as c_ulong,
         size_of::<ChannelElement>() as c_ulong,
@@ -4015,11 +3937,9 @@ unsafe extern "C" fn alloc_buffers(
     }
     0 as c_int
 }
+
 #[cold]
 unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
-    // dbg!((*avctx).priv_data);
-    // dbg!(*((*avctx).priv_data));
-    // abort();
     let ctx = &mut (*((*avctx).priv_data as *mut PrivData)).ctx;
     debug_assert!(ctx.is_null());
     *ctx = {
@@ -4269,7 +4189,7 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         }
     }
     (*s).profile = (*avctx).profile;
-    (*s).coder = &ff_aac_coders[(*s).options.coder as usize];
+    (*s).coder = &CODERS[(*s).options.coder as usize];
     if (*s).options.coder == AAC_CODER_ANMR as c_int {
         if (*avctx).strict_std_compliance > -(2 as c_int) {
             av_log(
@@ -4308,16 +4228,16 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
     if ret != 0 {
         return ret;
     }
-    sizes[0 as c_int as usize] = *ff_aac_swb_size_1024
+    sizes[0] = *ff_aac_swb_size_1024
         .as_ptr()
         .offset((*s).samplerate_index as isize);
-    sizes[1 as c_int as usize] = *ff_aac_swb_size_128
+    sizes[1] = *ff_aac_swb_size_128
         .as_ptr()
         .offset((*s).samplerate_index as isize);
-    lengths[0 as c_int as usize] = *ff_aac_num_swb_1024
+    lengths[0] = *ff_aac_num_swb_1024
         .as_ptr()
         .offset((*s).samplerate_index as isize) as c_int;
-    lengths[1 as c_int as usize] = *ff_aac_num_swb_128
+    lengths[1] = *ff_aac_num_swb_128
         .as_ptr()
         .offset((*s).samplerate_index as isize) as c_int;
     i = 0 as c_int;

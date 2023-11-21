@@ -1,30 +1,19 @@
 #![deny(dead_code)]
 
-use c2rust_bitfields::BitfieldStruct;
 use ffi::{
-    class::{
-        option::{AVOption, AVOptionRange, AVOptionRanges, AVOptionType},
-        AVClass, AVClassCategory,
-    },
+    class::{option::AVOptionType, AVClassCategory},
     codec::{
-        AVAudioServiceType, AVBuffer, AVBufferRef, AVChannel, AVChannelCustom, AVChannelLayout,
-        AVChannelOrder, AVChromaLocation, AVCodec, AVCodecContext, AVCodecDescriptor, AVCodecID,
-        AVCodecInternal, AVColorPrimaries, AVColorRange, AVColorSpace,
-        AVColorTransferCharacteristic, AVDictionary, AVDiscard, AVFieldOrder, AVHWAccel,
-        AVMediaType, AVPacket, AVPacketSideData, AVPacketSideDataType, AVPictureType,
-        AVPixelFormat, AVProfile, AVSampleFormat, C2RustUnnamed,
+        AVChannel, AVChannelLayout, AVChannelOrder, AVCodecContext, AVCodecID, AVMediaType,
+        AVSampleFormat,
     },
-    num::{AVComplexDouble, AVComplexFloat, AVComplexInt32, AVRational},
+    num::{AVComplexDouble, AVComplexFloat, AVComplexInt32},
 };
 use libc::{
     c_char, c_double, c_float, c_int, c_long, c_schar, c_short, c_uchar, c_uint, c_ulong, c_ushort,
     c_void,
 };
 
-use crate::aacenc::{
-    self,
-    ctx::{AACContext, AACEncContext},
-};
+use crate::aacenc::ctx::{AACContext, AACEncContext};
 
 pub(crate) const AV_CHAN_WIDE_RIGHT: AVChannel = 32;
 pub(crate) const AV_CHAN_WIDE_LEFT: AVChannel = 31;
@@ -768,7 +757,7 @@ pub(crate) struct AACQuantizeBandCostCacheEntry {
 #[repr(C)]
 pub(crate) struct AACCoefficientsEncoder {
     pub(crate) search_for_quantizers: Option<
-        unsafe extern "C" fn(
+        unsafe fn(
             *mut AVCodecContext,
             *mut AACEncContext,
             *mut SingleChannelElement,
@@ -776,16 +765,10 @@ pub(crate) struct AACCoefficientsEncoder {
         ) -> (),
     >,
     pub(crate) encode_window_bands_info: Option<
-        unsafe extern "C" fn(
-            *mut AACEncContext,
-            *mut SingleChannelElement,
-            c_int,
-            c_int,
-            c_float,
-        ) -> (),
+        unsafe fn(*mut AACEncContext, *mut SingleChannelElement, c_int, c_int, c_float) -> (),
     >,
     pub(crate) quantize_and_encode_band: Option<
-        unsafe extern "C" fn(
+        unsafe fn(
             *mut AACEncContext,
             *mut PutBitContext,
             *const c_float,
@@ -798,49 +781,34 @@ pub(crate) struct AACCoefficientsEncoder {
         ) -> (),
     >,
     pub(crate) encode_tns_info:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
     pub(crate) encode_ltp_info:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement, c_int) -> ()>,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement, c_int) -> ()>,
     pub(crate) encode_main_pred:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) adjust_common_pred:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
-    pub(crate) adjust_common_ltp:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub(crate) adjust_common_pred: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
+    pub(crate) adjust_common_ltp: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
     pub(crate) apply_main_pred:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
     pub(crate) apply_tns_filt:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) update_ltp:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) ltp_insert_new_frame: Option<unsafe extern "C" fn(*mut AACEncContext) -> ()>,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub(crate) update_ltp: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub(crate) ltp_insert_new_frame: Option<unsafe fn(*mut AACEncContext) -> ()>,
     pub(crate) set_special_band_scalefactors:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) search_for_pns: Option<
-        unsafe extern "C" fn(
-            *mut AACEncContext,
-            *mut AVCodecContext,
-            *mut SingleChannelElement,
-        ) -> (),
-    >,
-    pub(crate) mark_pns: Option<
-        unsafe extern "C" fn(
-            *mut AACEncContext,
-            *mut AVCodecContext,
-            *mut SingleChannelElement,
-        ) -> (),
-    >,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+    pub(crate) search_for_pns:
+        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut SingleChannelElement) -> ()>,
+    pub(crate) mark_pns:
+        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut SingleChannelElement) -> ()>,
     pub(crate) search_for_tns:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
     pub(crate) search_for_ltp:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement, c_int) -> ()>,
-    pub(crate) search_for_ms:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
-    pub(crate) search_for_is: Option<
-        unsafe extern "C" fn(*mut AACEncContext, *mut AVCodecContext, *mut ChannelElement) -> (),
-    >,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement, c_int) -> ()>,
+    pub(crate) search_for_ms: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
+    pub(crate) search_for_is:
+        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut ChannelElement) -> ()>,
     pub(crate) search_for_pred:
-        Option<unsafe extern "C" fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
+        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]

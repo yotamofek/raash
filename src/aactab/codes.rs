@@ -1,29 +1,27 @@
 #![allow(overflowing_literals, clippy::excessive_precision)]
 
-use std::ptr;
-
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
 
-pub(crate) static ff_aac_num_swb_1024: [c_uchar; 13] =
+pub(crate) const ff_aac_num_swb_1024: [c_uchar; 13] =
     [41, 41, 47, 49, 49, 51, 47, 47, 43, 43, 43, 40, 40];
 
-pub(crate) static ff_aac_num_swb_960: [c_uchar; 13] =
+pub(crate) const ff_aac_num_swb_960: [c_uchar; 13] =
     [40, 40, 46, 49, 49, 49, 46, 46, 42, 42, 42, 40, 40];
 
-pub(crate) static ff_aac_num_swb_512: [c_uchar; 13] = [0, 0, 0, 36, 36, 37, 31, 31, 0, 0, 0, 0, 0];
+pub(crate) const ff_aac_num_swb_512: [c_uchar; 13] = [0, 0, 0, 36, 36, 37, 31, 31, 0, 0, 0, 0, 0];
 
-pub(crate) static ff_aac_num_swb_480: [c_uchar; 13] = [0, 0, 0, 35, 35, 37, 30, 30, 0, 0, 0, 0, 0];
+pub(crate) const ff_aac_num_swb_480: [c_uchar; 13] = [0, 0, 0, 35, 35, 37, 30, 30, 0, 0, 0, 0, 0];
 
-pub(crate) static ff_aac_num_swb_128: [c_uchar; 13] =
+pub(crate) const ff_aac_num_swb_128: [c_uchar; 13] =
     [12, 12, 12, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15];
 
-pub(crate) static ff_aac_num_swb_120: [c_uchar; 13] =
+pub(crate) const ff_aac_num_swb_120: [c_uchar; 13] =
     [12, 12, 12, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15];
 
-pub(crate) static ff_aac_pred_sfb_max: [c_uchar; 13] =
+pub(crate) const ff_aac_pred_sfb_max: [c_uchar; 13] =
     [33, 33, 38, 40, 40, 40, 41, 41, 37, 37, 37, 34, 34];
 
-pub(crate) static ff_aac_scalefactor_code: [c_uint; 121] = [
+pub(crate) const ff_aac_scalefactor_code: [c_uint; 121] = [
     0x3ffe8, 0x3ffe6, 0x3ffe7, 0x3ffe5, 0x7fff5, 0x7fff1, 0x7ffed, 0x7fff6, 0x7ffee, 0x7ffef,
     0x7fff0, 0x7fffc, 0x7fffd, 0x7ffff, 0x7fffe, 0x7fff7, 0x7fff8, 0x7fffb, 0x7fff9, 0x3ffe4,
     0x7fffa, 0x3ffe3, 0x1ffef, 0x1fff0, 0xfff5, 0x1ffee, 0xfff2, 0xfff3, 0xfff4, 0xfff1, 0x7ff6,
@@ -37,14 +35,14 @@ pub(crate) static ff_aac_scalefactor_code: [c_uint; 121] = [
     0x7ffd7, 0x7ffec, 0x7fff4, 0x7fff3,
 ];
 
-pub(crate) static ff_aac_scalefactor_bits: [c_uchar; 121] = [
+pub(crate) const ff_aac_scalefactor_bits: [c_uchar; 121] = [
     18, 18, 18, 18, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 18, 19, 18, 17, 17,
     16, 17, 16, 16, 16, 16, 15, 15, 14, 14, 14, 14, 14, 14, 13, 13, 12, 12, 12, 11, 12, 11, 10, 10,
     10, 9, 9, 8, 8, 8, 7, 6, 6, 5, 4, 3, 1, 4, 4, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11,
     11, 11, 12, 12, 13, 13, 13, 14, 14, 16, 15, 16, 15, 18, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
     19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
 ];
-static codes1: [c_ushort; 81] = [
+const codes1: [c_ushort; 81] = [
     0x7f8, 0x1f1, 0x7fd, 0x3f5, 0x68, 0x3f0, 0x7f7, 0x1ec, 0x7f5, 0x3f1, 0x72, 0x3f4, 0x74, 0x11,
     0x76, 0x1eb, 0x6c, 0x3f6, 0x7fc, 0x1e1, 0x7f1, 0x1f0, 0x61, 0x1f6, 0x7f2, 0x1ea, 0x7fb, 0x1f2,
     0x69, 0x1ed, 0x77, 0x17, 0x6f, 0x1e6, 0x64, 0x1e5, 0x67, 0x15, 0x62, 0x12, 0, 0x14, 0x65, 0x16,
@@ -52,12 +50,12 @@ static codes1: [c_ushort; 81] = [
     0x60, 0x1ee, 0x7f0, 0x1e2, 0x7fa, 0x3f3, 0x6a, 0x1e8, 0x75, 0x10, 0x73, 0x1f4, 0x6e, 0x3f7,
     0x7f6, 0x1e0, 0x7f9, 0x3f2, 0x66, 0x1f5, 0x7ff, 0x1f7, 0x7f4,
 ];
-static bits1: [c_uchar; 81] = [
+const bits1: [c_uchar; 81] = [
     11, 9, 11, 10, 7, 10, 11, 9, 11, 10, 7, 10, 7, 5, 7, 9, 7, 10, 11, 9, 11, 9, 7, 9, 11, 9, 11,
     9, 7, 9, 7, 5, 7, 9, 7, 9, 7, 5, 7, 5, 1, 5, 7, 5, 7, 9, 7, 9, 7, 5, 7, 9, 7, 9, 11, 9, 11, 9,
     7, 9, 11, 9, 11, 10, 7, 9, 7, 5, 7, 9, 7, 10, 11, 9, 11, 10, 7, 9, 11, 9, 11,
 ];
-static codes2: [c_ushort; 81] = [
+const codes2: [c_ushort; 81] = [
     0x1f3, 0x6f, 0x1fd, 0xeb, 0x23, 0xea, 0x1f7, 0xe8, 0x1fa, 0xf2, 0x2d, 0x70, 0x20, 0x6, 0x2b,
     0x6e, 0x28, 0xe9, 0x1f9, 0x66, 0xf8, 0xe7, 0x1b, 0xf1, 0x1f4, 0x6b, 0x1f5, 0xec, 0x2a, 0x6c,
     0x2c, 0xa, 0x27, 0x67, 0x1a, 0xf5, 0x24, 0x8, 0x1f, 0x9, 0, 0x7, 0x1d, 0xb, 0x30, 0xef, 0x1c,
@@ -65,12 +63,12 @@ static codes2: [c_ushort; 81] = [
     0x1f8, 0xee, 0x22, 0x65, 0x31, 0x2, 0x26, 0xed, 0x25, 0x6a, 0x1fb, 0x72, 0x1fe, 0x69, 0x2e,
     0xf6, 0x1ff, 0x6d, 0x1f6,
 ];
-static bits2: [c_uchar; 81] = [
+const bits2: [c_uchar; 81] = [
     9, 7, 9, 8, 6, 8, 9, 8, 9, 8, 6, 7, 6, 5, 6, 7, 6, 8, 9, 7, 8, 8, 6, 8, 9, 7, 9, 8, 6, 7, 6, 5,
     6, 7, 6, 8, 6, 5, 6, 5, 3, 5, 6, 5, 6, 8, 6, 7, 6, 5, 6, 8, 6, 8, 9, 7, 9, 8, 6, 8, 8, 7, 9, 8,
     6, 7, 6, 4, 6, 8, 6, 7, 9, 7, 9, 7, 6, 8, 9, 7, 9,
 ];
-static codes3: [c_ushort; 81] = [
+const codes3: [c_ushort; 81] = [
     0, 0x9, 0xef, 0xb, 0x19, 0xf0, 0x1eb, 0x1e6, 0x3f2, 0xa, 0x35, 0x1ef, 0x34, 0x37, 0x1e9, 0x1ed,
     0x1e7, 0x3f3, 0x1ee, 0x3ed, 0x1ffa, 0x1ec, 0x1f2, 0x7f9, 0x7f8, 0x3f8, 0xff8, 0x8, 0x38, 0x3f6,
     0x36, 0x75, 0x3f1, 0x3eb, 0x3ec, 0xff4, 0x18, 0x76, 0x7f4, 0x39, 0x74, 0x3ef, 0x1f3, 0x1f4,
@@ -78,13 +76,13 @@ static codes3: [c_ushort; 81] = [
     0x1f0, 0x7f5, 0x7ffd, 0x1ffb, 0x3ffa, 0xffff, 0xf1, 0x3f0, 0x3ffc, 0x1ea, 0x3ee, 0x3ffb, 0xff6,
     0xffa, 0x7ffc, 0x7f2, 0xff5, 0xfffe, 0x3f4, 0x7f7, 0x7ffb, 0xff7, 0xff9, 0x7ffa,
 ];
-static bits3: [c_uchar; 81] = [
+const bits3: [c_uchar; 81] = [
     1, 4, 8, 4, 5, 8, 9, 9, 10, 4, 6, 9, 6, 6, 9, 9, 9, 10, 9, 10, 13, 9, 9, 11, 11, 10, 12, 4, 6,
     10, 6, 7, 10, 10, 10, 12, 5, 7, 11, 6, 7, 10, 9, 9, 11, 9, 10, 13, 8, 9, 12, 10, 11, 12, 8, 10,
     15, 9, 11, 15, 13, 14, 16, 8, 10, 14, 9, 10, 14, 12, 12, 15, 11, 12, 16, 10, 11, 15, 12, 12,
     15,
 ];
-static codes4: [c_ushort; 81] = [
+const codes4: [c_ushort; 81] = [
     0x7, 0x16, 0xf6, 0x18, 0x8, 0xef, 0x1ef, 0xf3, 0x7f8, 0x19, 0x17, 0xed, 0x15, 0x1, 0xe2, 0xf0,
     0x70, 0x3f0, 0x1ee, 0xf1, 0x7fa, 0xee, 0xe4, 0x3f2, 0x7f6, 0x3ef, 0x7fd, 0x5, 0x14, 0xf2, 0x9,
     0x4, 0xe5, 0xf4, 0xe8, 0x3f4, 0x6, 0x2, 0xe7, 0x3, 0, 0x6b, 0xe3, 0x69, 0x1f3, 0xeb, 0xe6,
@@ -92,12 +90,12 @@ static codes4: [c_ushort; 81] = [
     0x3f3, 0xfff, 0xe9, 0x6d, 0x3f8, 0x6c, 0x68, 0x1f5, 0x3ee, 0x1f2, 0x7f4, 0x7f7, 0x3f1, 0xffe,
     0x3ed, 0x1f1, 0x7f5, 0x7fe, 0x3f5, 0x7fc,
 ];
-static bits4: [c_uchar; 81] = [
+const bits4: [c_uchar; 81] = [
     4, 5, 8, 5, 4, 8, 9, 8, 11, 5, 5, 8, 5, 4, 8, 8, 7, 10, 9, 8, 11, 8, 8, 10, 11, 10, 11, 4, 5,
     8, 4, 4, 8, 8, 8, 10, 4, 4, 8, 4, 4, 7, 8, 7, 9, 8, 8, 10, 7, 7, 9, 10, 9, 10, 8, 8, 11, 8, 7,
     10, 11, 10, 12, 8, 7, 10, 7, 7, 9, 10, 9, 11, 11, 10, 12, 10, 9, 11, 11, 10, 11,
 ];
-static codes5: [c_ushort; 81] = [
+const codes5: [c_ushort; 81] = [
     0x1fff, 0xff7, 0x7f4, 0x7e8, 0x3f1, 0x7ee, 0x7f9, 0xff8, 0x1ffd, 0xffd, 0x7f1, 0x3e8, 0x1e8,
     0xf0, 0x1ec, 0x3ee, 0x7f2, 0xffa, 0xff4, 0x3ef, 0x1f2, 0xe8, 0x70, 0xec, 0x1f0, 0x3ea, 0x7f3,
     0x7eb, 0x1eb, 0xea, 0x1a, 0x8, 0x19, 0xee, 0x1ef, 0x7ed, 0x3f0, 0xf2, 0x73, 0xb, 0, 0xa, 0x71,
@@ -105,12 +103,12 @@ static codes5: [c_ushort; 81] = [
     0xed, 0x72, 0xe9, 0x1f1, 0x3ed, 0x7f7, 0xff6, 0x7f0, 0x3e9, 0x1ed, 0xf1, 0x1ea, 0x3ec, 0x7f8,
     0xff9, 0x1ffc, 0xffc, 0xff5, 0x7ea, 0x3f3, 0x3f2, 0x7f5, 0xffb, 0x1ffe,
 ];
-static bits5: [c_uchar; 81] = [
+const bits5: [c_uchar; 81] = [
     13, 12, 11, 11, 10, 11, 11, 12, 13, 12, 11, 10, 9, 8, 9, 10, 11, 12, 12, 10, 9, 8, 7, 8, 9, 10,
     11, 11, 9, 8, 5, 4, 5, 8, 9, 11, 10, 8, 7, 4, 1, 4, 7, 8, 11, 11, 9, 8, 5, 4, 5, 8, 9, 11, 11,
     10, 9, 8, 7, 8, 9, 10, 11, 12, 11, 10, 9, 8, 9, 10, 11, 12, 13, 12, 12, 11, 10, 10, 11, 12, 13,
 ];
-static codes6: [c_ushort; 81] = [
+const codes6: [c_ushort; 81] = [
     0x7fe, 0x3fd, 0x1f1, 0x1eb, 0x1f4, 0x1ea, 0x1f0, 0x3fc, 0x7fd, 0x3f6, 0x1e5, 0xea, 0x6c, 0x71,
     0x68, 0xf0, 0x1e6, 0x3f7, 0x1f3, 0xef, 0x32, 0x27, 0x28, 0x26, 0x31, 0xeb, 0x1f7, 0x1e8, 0x6f,
     0x2e, 0x8, 0x4, 0x6, 0x29, 0x6b, 0x1ee, 0x1ef, 0x72, 0x2d, 0x2, 0, 0x3, 0x2f, 0x73, 0x1fa,
@@ -118,36 +116,36 @@ static codes6: [c_ushort; 81] = [
     0xec, 0x1f2, 0x3f8, 0x1e4, 0xed, 0x6a, 0x70, 0x69, 0x74, 0xf1, 0x3fa, 0x7ff, 0x3f9, 0x1f6,
     0x1ed, 0x1f8, 0x1e9, 0x1f5, 0x3fb, 0x7fc,
 ];
-static bits6: [c_uchar; 81] = [
+const bits6: [c_uchar; 81] = [
     11, 10, 9, 9, 9, 9, 9, 10, 11, 10, 9, 8, 7, 7, 7, 8, 9, 10, 9, 8, 6, 6, 6, 6, 6, 8, 9, 9, 7, 6,
     4, 4, 4, 6, 7, 9, 9, 7, 6, 4, 4, 4, 6, 7, 9, 9, 7, 6, 4, 4, 4, 6, 7, 9, 9, 8, 6, 6, 6, 6, 6, 8,
     9, 10, 9, 8, 7, 7, 7, 7, 8, 10, 11, 10, 9, 9, 9, 9, 9, 10, 11,
 ];
-static codes7: [c_ushort; 64] = [
+const codes7: [c_ushort; 64] = [
     0, 0x5, 0x37, 0x74, 0xf2, 0x1eb, 0x3ed, 0x7f7, 0x4, 0xc, 0x35, 0x71, 0xec, 0xee, 0x1ee, 0x1f5,
     0x36, 0x34, 0x72, 0xea, 0xf1, 0x1e9, 0x1f3, 0x3f5, 0x73, 0x70, 0xeb, 0xf0, 0x1f1, 0x1f0, 0x3ec,
     0x3fa, 0xf3, 0xed, 0x1e8, 0x1ef, 0x3ef, 0x3f1, 0x3f9, 0x7fb, 0x1ed, 0xef, 0x1ea, 0x1f2, 0x3f3,
     0x3f8, 0x7f9, 0x7fc, 0x3ee, 0x1ec, 0x1f4, 0x3f4, 0x3f7, 0x7f8, 0xffd, 0xffe, 0x7f6, 0x3f0,
     0x3f2, 0x3f6, 0x7fa, 0x7fd, 0xffc, 0xfff,
 ];
-static bits7: [c_uchar; 64] = [
+const bits7: [c_uchar; 64] = [
     1, 3, 6, 7, 8, 9, 10, 11, 3, 4, 6, 7, 8, 8, 9, 9, 6, 6, 7, 8, 8, 9, 9, 10, 7, 7, 8, 8, 9, 9,
     10, 10, 8, 8, 9, 9, 10, 10, 10, 11, 9, 8, 9, 9, 10, 10, 11, 11, 10, 9, 9, 10, 10, 11, 12, 12,
     11, 10, 10, 10, 11, 11, 12, 12,
 ];
-static codes8: [c_ushort; 64] = [
+const codes8: [c_ushort; 64] = [
     0xe, 0x5, 0x10, 0x30, 0x6f, 0xf1, 0x1fa, 0x3fe, 0x3, 0, 0x4, 0x12, 0x2c, 0x6a, 0x75, 0xf8, 0xf,
     0x2, 0x6, 0x14, 0x2e, 0x69, 0x72, 0xf5, 0x2f, 0x11, 0x13, 0x2a, 0x32, 0x6c, 0xec, 0xfa, 0x71,
     0x2b, 0x2d, 0x31, 0x6d, 0x70, 0xf2, 0x1f9, 0xef, 0x68, 0x33, 0x6b, 0x6e, 0xee, 0xf9, 0x3fc,
     0x1f8, 0x74, 0x73, 0xed, 0xf0, 0xf6, 0x1f6, 0x1fd, 0x3fd, 0xf3, 0xf4, 0xf7, 0x1f7, 0x1fb,
     0x1fc, 0x3ff,
 ];
-static bits8: [c_uchar; 64] = [
+const bits8: [c_uchar; 64] = [
     5, 4, 5, 6, 7, 8, 9, 10, 4, 3, 4, 5, 6, 7, 7, 8, 5, 4, 4, 5, 6, 7, 7, 8, 6, 5, 5, 6, 6, 7, 8,
     8, 7, 6, 6, 6, 7, 7, 8, 9, 8, 7, 6, 7, 7, 8, 8, 10, 9, 7, 7, 8, 8, 8, 9, 9, 10, 8, 8, 8, 9, 9,
     9, 10,
 ];
-static codes9: [c_ushort; 169] = [
+const codes9: [c_ushort; 169] = [
     0, 0x5, 0x37, 0xe7, 0x1de, 0x3ce, 0x3d9, 0x7c8, 0x7cd, 0xfc8, 0xfdd, 0x1fe4, 0x1fec, 0x4, 0xc,
     0x35, 0x72, 0xea, 0xed, 0x1e2, 0x3d1, 0x3d3, 0x3e0, 0x7d8, 0xfcf, 0xfd5, 0x36, 0x34, 0x71,
     0xe8, 0xec, 0x1e1, 0x3cf, 0x3dd, 0x3db, 0x7d0, 0xfc7, 0xfd4, 0xfe4, 0xe6, 0x70, 0xe9, 0x1dd,
@@ -162,7 +160,7 @@ static codes9: [c_ushort; 169] = [
     0xfc9, 0xfd7, 0xfdc, 0x1fdc, 0x1fdf, 0x1fed, 0x1ff5, 0x3ff9, 0x3ffb, 0x7ffd, 0x7ffe, 0x1fe7,
     0xfcc, 0xfd6, 0xfdf, 0x1fde, 0x1fda, 0x1fe5, 0x1ff2, 0x3ffa, 0x3ff7, 0x3ffc, 0x3ffd, 0x7fff,
 ];
-static bits9: [c_uchar; 169] = [
+const bits9: [c_uchar; 169] = [
     1, 3, 6, 8, 9, 10, 10, 11, 11, 12, 12, 13, 13, 3, 4, 6, 7, 8, 8, 9, 10, 10, 10, 11, 12, 12, 6,
     6, 7, 8, 8, 9, 10, 10, 10, 11, 12, 12, 12, 8, 7, 8, 9, 9, 10, 10, 11, 11, 11, 12, 12, 13, 9, 8,
     9, 9, 10, 10, 11, 11, 11, 12, 12, 12, 13, 10, 9, 9, 10, 11, 11, 11, 12, 11, 12, 12, 13, 13, 11,
@@ -171,7 +169,7 @@ static bits9: [c_uchar; 169] = [
     14, 14, 14, 12, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 14, 15, 12, 11, 12, 12, 12, 13, 13, 13,
     13, 14, 14, 15, 15, 13, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15,
 ];
-static codes10: [c_ushort; 169] = [
+const codes10: [c_ushort; 169] = [
     0x22, 0x8, 0x1d, 0x26, 0x5f, 0xd3, 0x1cf, 0x3d0, 0x3d7, 0x3ed, 0x7f0, 0x7f6, 0xffd, 0x7, 0,
     0x1, 0x9, 0x20, 0x54, 0x60, 0xd5, 0xdc, 0x1d4, 0x3cd, 0x3de, 0x7e7, 0x1c, 0x2, 0x6, 0xc, 0x1e,
     0x28, 0x5b, 0xcd, 0xd9, 0x1ce, 0x1dc, 0x3d9, 0x3f1, 0x25, 0xb, 0xa, 0xd, 0x24, 0x57, 0x61,
@@ -185,7 +183,7 @@ static codes10: [c_ushort; 169] = [
     0x3ce, 0x1e4, 0x3cb, 0x3d8, 0x3d6, 0x3e2, 0x3e5, 0x7e8, 0x7f4, 0x7f5, 0x7f7, 0xffb, 0x7fa,
     0x3ec, 0x3df, 0x3e1, 0x3e4, 0x3e6, 0x3f0, 0x7e9, 0x7ef, 0xff8, 0xffe, 0xffc, 0xfff,
 ];
-static bits10: [c_uchar; 169] = [
+const bits10: [c_uchar; 169] = [
     6, 5, 6, 6, 7, 8, 9, 10, 10, 10, 11, 11, 12, 5, 4, 4, 5, 6, 7, 7, 8, 8, 9, 10, 10, 11, 6, 4, 5,
     5, 6, 6, 7, 8, 8, 9, 9, 10, 10, 6, 5, 5, 5, 6, 7, 7, 8, 8, 9, 9, 10, 10, 7, 6, 6, 6, 6, 7, 7,
     8, 8, 9, 9, 10, 10, 8, 7, 6, 7, 7, 7, 8, 8, 8, 9, 10, 10, 11, 9, 7, 7, 7, 7, 8, 8, 9, 9, 9, 10,
@@ -194,7 +192,7 @@ static bits10: [c_uchar; 169] = [
     11, 10, 9, 10, 10, 10, 10, 10, 11, 11, 11, 11, 12, 11, 10, 10, 10, 10, 10, 10, 11, 11, 12, 12,
     12, 12,
 ];
-static codes11: [c_ushort; 289] = [
+const codes11: [c_ushort; 289] = [
     0, 0x6, 0x19, 0x3d, 0x9c, 0xc6, 0x1a7, 0x390, 0x3c2, 0x3df, 0x7e6, 0x7f3, 0xffb, 0x7ec, 0xffa,
     0xffe, 0x38e, 0x5, 0x1, 0x8, 0x14, 0x37, 0x42, 0x92, 0xaf, 0x191, 0x1a5, 0x1b5, 0x39e, 0x3c0,
     0x3a2, 0x3cd, 0x7d6, 0xae, 0x17, 0x7, 0x9, 0x18, 0x39, 0x40, 0x8e, 0xa3, 0xb8, 0x199, 0x1ac,
@@ -217,7 +215,7 @@ static codes11: [c_ushort; 289] = [
     0x3d9, 0x3da, 0x7d3, 0x7e1, 0x7ee, 0x7ef, 0x7f5, 0x7f6, 0xffc, 0xfff, 0x19d, 0x1c2, 0xb5, 0xa1,
     0x96, 0x97, 0x95, 0x99, 0xa0, 0xa2, 0xac, 0xa9, 0xb1, 0xb3, 0xbb, 0xc0, 0x18f, 0x4,
 ];
-static bits11: [c_uchar; 289] = [
+const bits11: [c_uchar; 289] = [
     4, 5, 6, 7, 8, 8, 9, 10, 10, 10, 11, 11, 12, 11, 12, 12, 10, 5, 4, 5, 6, 7, 7, 8, 8, 9, 9, 9,
     10, 10, 10, 10, 11, 8, 6, 5, 5, 6, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 8, 7, 6, 6, 6, 7, 7,
     8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 8, 8, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 8, 8,
@@ -231,18 +229,18 @@ static bits11: [c_uchar; 289] = [
     11, 12, 12, 9, 9, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 5,
 ];
 
-pub(crate) static ff_aac_spectral_codes: [&[c_ushort]; 11] = [
+pub(crate) const ff_aac_spectral_codes: [&[c_ushort]; 11] = [
     &codes1, &codes2, &codes3, &codes4, &codes5, &codes6, &codes7, &codes8, &codes9, &codes10,
     &codes11,
 ];
 
-pub(crate) static ff_aac_spectral_bits: [&[c_uchar]; 11] = [
+pub(crate) const ff_aac_spectral_bits: [&[c_uchar]; 11] = [
     &bits1, &bits2, &bits3, &bits4, &bits5, &bits6, &bits7, &bits8, &bits9, &bits10, &bits11,
 ];
 
-pub(crate) static ff_aac_spectral_sizes: [c_ushort; 11] =
+pub(crate) const ff_aac_spectral_sizes: [c_ushort; 11] =
     [81, 81, 81, 81, 81, 81, 64, 64, 169, 169, 289];
-static codebook_vector0: [c_float; 324] = [
+const codebook_vector0: [c_float; 324] = [
     -1.0000000, -1.0000000, -1.0000000, -1.0000000, -1.0000000, -1.0000000, -1.0000000, 0.0000000,
     -1.0000000, -1.0000000, -1.0000000, 1.0000000, -1.0000000, -1.0000000, 0.0000000, -1.0000000,
     -1.0000000, -1.0000000, 0.0000000, 0.0000000, -1.0000000, -1.0000000, 0.0000000, 1.0000000,
@@ -285,7 +283,7 @@ static codebook_vector0: [c_float; 324] = [
     1.0000000, 1.0000000, 1.0000000, -1.0000000, 1.0000000, 1.0000000, 1.0000000, 0.0000000,
     1.0000000, 1.0000000, 1.0000000, 1.0000000,
 ];
-static codebook_vector2: [c_float; 324] = [
+const codebook_vector2: [c_float; 324] = [
     0.0000000, 0.0000000, 0.0000000, 0.0000000, 0.0000000, 0.0000000, 0.0000000, 1.0000000,
     0.0000000, 0.0000000, 0.0000000, 2.5198421, 0.0000000, 0.0000000, 1.0000000, 0.0000000,
     0.0000000, 0.0000000, 1.0000000, 1.0000000, 0.0000000, 0.0000000, 1.0000000, 2.5198421,
@@ -328,7 +326,7 @@ static codebook_vector2: [c_float; 324] = [
     2.5198421, 2.5198421, 2.5198421, 0.0000000, 2.5198421, 2.5198421, 2.5198421, 1.0000000,
     2.5198421, 2.5198421, 2.5198421, 2.5198421,
 ];
-static codebook_vector4: [c_float; 162] = [
+const codebook_vector4: [c_float; 162] = [
     -6.3496042, -6.3496042, -6.3496042, -4.3267487, -6.3496042, -2.5198421, -6.3496042, -1.0000000,
     -6.3496042, 0.0000000, -6.3496042, 1.0000000, -6.3496042, 2.5198421, -6.3496042, 4.3267487,
     -6.3496042, 6.3496042, -4.3267487, -6.3496042, -4.3267487, -4.3267487, -4.3267487, -2.5198421,
@@ -351,7 +349,7 @@ static codebook_vector4: [c_float; 162] = [
     6.3496042, 0.0000000, 6.3496042, 1.0000000, 6.3496042, 2.5198421, 6.3496042, 4.3267487,
     6.3496042, 6.3496042,
 ];
-static codebook_vector6: [c_float; 128] = [
+const codebook_vector6: [c_float; 128] = [
     0.0000000, 0.0000000, 0.0000000, 1.0000000, 0.0000000, 2.5198421, 0.0000000, 4.3267487,
     0.0000000, 6.3496042, 0.0000000, 8.5498797, 0.0000000, 10.9027236, 0.0000000, 13.3905183,
     1.0000000, 0.0000000, 1.0000000, 1.0000000, 1.0000000, 2.5198421, 1.0000000, 4.3267487,
@@ -369,7 +367,7 @@ static codebook_vector6: [c_float; 128] = [
     13.3905183, 0.0000000, 13.3905183, 1.0000000, 13.3905183, 2.5198421, 13.3905183, 4.3267487,
     13.3905183, 6.3496042, 13.3905183, 8.5498797, 13.3905183, 10.9027236, 13.3905183, 13.3905183,
 ];
-static codebook_vector8: [c_float; 338] = [
+const codebook_vector8: [c_float; 338] = [
     0.0000000, 0.0000000, 0.0000000, 1.0000000, 0.0000000, 2.5198421, 0.0000000, 4.3267487,
     0.0000000, 6.3496042, 0.0000000, 8.5498797, 0.0000000, 10.9027236, 0.0000000, 13.3905183,
     0.0000000, 16.0000000, 0.0000000, 18.7207544, 0.0000000, 21.5443469, 0.0000000, 24.4637810,
@@ -414,7 +412,7 @@ static codebook_vector8: [c_float; 338] = [
     27.4731418, 16.0000000, 27.4731418, 18.7207544, 27.4731418, 21.5443469, 27.4731418, 24.4637810,
     27.4731418, 27.4731418,
 ];
-static codebook_vector10: [c_float; 578] = [
+const codebook_vector10: [c_float; 578] = [
     0.0000000, 0.0000000, 0.0000000, 1.0000000, 0.0000000, 2.5198421, 0.0000000, 4.3267487,
     0.0000000, 6.3496042, 0.0000000, 8.5498797, 0.0000000, 10.9027236, 0.0000000, 13.3905183,
     0.0000000, 16.0000000, 0.0000000, 18.7207544, 0.0000000, 21.5443469, 0.0000000, 24.4637810,
@@ -489,7 +487,7 @@ static codebook_vector10: [c_float; 578] = [
     30.5673509, 64.0f32, 33.7419917, 64.0f32, 36.9931811, 64.0f32, 64.0f32,
 ];
 
-pub(crate) static ff_aac_codebook_vectors: [&[c_float]; 11] = [
+pub(crate) const ff_aac_codebook_vectors: [&[c_float]; 11] = [
     &codebook_vector0,
     &codebook_vector0,
     &codebook_vector2,
@@ -502,8 +500,8 @@ pub(crate) static ff_aac_codebook_vectors: [&[c_float]; 11] = [
     &codebook_vector8,
     &codebook_vector10,
 ];
-static codebook_vector0_vals: [c_float; 3] = [-1.0000000, 0.0000000, 1.0000000];
-static codebook_vector02_idx: [c_ushort; 81] = [
+const codebook_vector0_vals: [c_float; 3] = [-1.0000000, 0.0000000, 1.0000000];
+const codebook_vector02_idx: [c_ushort; 81] = [
     0, 0x8140, 0x8180, 0x4110, 0xc250, 0xc290, 0x4120, 0xc260, 0xc2a0, 0x2104, 0xa244, 0xa284,
     0x6214, 0xe354, 0xe394, 0x6224, 0xe364, 0xe3a4, 0x2108, 0xa248, 0xa288, 0x6218, 0xe358, 0xe398,
     0x6228, 0xe368, 0xe3a8, 0x1101, 0x9241, 0x9281, 0x5211, 0xd351, 0xd391, 0x5221, 0xd361, 0xd3a1,
@@ -512,11 +510,11 @@ static codebook_vector02_idx: [c_ushort; 81] = [
     0x5222, 0xd362, 0xd3a2, 0x3206, 0xb346, 0xb386, 0x7316, 0xf456, 0xf496, 0x7326, 0xf466, 0xf4a6,
     0x320a, 0xb34a, 0xb38a, 0x731a, 0xf45a, 0xf49a, 0x732a, 0xf46a, 0xf4aa,
 ];
-static codebook_vector4_vals: [c_float; 9] = [
+const codebook_vector4_vals: [c_float; 9] = [
     -6.3496042, -4.3267487, -2.5198421, -1.0000000, 0.0000000, 1.0000000, 2.5198421, 4.3267487,
     6.3496042,
 ];
-static codebook_vector4_idx: [c_ushort; 81] = [
+const codebook_vector4_idx: [c_ushort; 81] = [
     0, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x1, 0x11, 0x21, 0x31, 0x41, 0x51, 0x61,
     0x71, 0x81, 0x2, 0x12, 0x22, 0x32, 0x42, 0x52, 0x62, 0x72, 0x82, 0x3, 0x13, 0x23, 0x33, 0x43,
     0x53, 0x63, 0x73, 0x83, 0x4, 0x14, 0x24, 0x34, 0x44, 0x54, 0x64, 0x74, 0x84, 0x5, 0x15, 0x25,
@@ -524,14 +522,14 @@ static codebook_vector4_idx: [c_ushort; 81] = [
     0x17, 0x27, 0x37, 0x47, 0x57, 0x67, 0x77, 0x87, 0x8, 0x18, 0x28, 0x38, 0x48, 0x58, 0x68, 0x78,
     0x88,
 ];
-static codebook_vector6_idx: [c_ushort; 64] = [
+const codebook_vector6_idx: [c_ushort; 64] = [
     0, 0x110, 0x120, 0x130, 0x140, 0x150, 0x160, 0x170, 0x1101, 0x211, 0x221, 0x231, 0x241, 0x251,
     0x261, 0x271, 0x1102, 0x212, 0x222, 0x232, 0x242, 0x252, 0x262, 0x272, 0x1103, 0x213, 0x223,
     0x233, 0x243, 0x253, 0x263, 0x273, 0x1104, 0x214, 0x224, 0x234, 0x244, 0x254, 0x264, 0x274,
     0x1105, 0x215, 0x225, 0x235, 0x245, 0x255, 0x265, 0x275, 0x1106, 0x216, 0x226, 0x236, 0x246,
     0x256, 0x266, 0x276, 0x1107, 0x217, 0x227, 0x237, 0x247, 0x257, 0x267, 0x277,
 ];
-static codebook_vector8_idx: [c_ushort; 169] = [
+const codebook_vector8_idx: [c_ushort; 169] = [
     0, 0x110, 0x120, 0x130, 0x140, 0x150, 0x160, 0x170, 0x180, 0x190, 0x1a0, 0x1b0, 0x1c0, 0x1101,
     0x211, 0x221, 0x231, 0x241, 0x251, 0x261, 0x271, 0x281, 0x291, 0x2a1, 0x2b1, 0x2c1, 0x1102,
     0x212, 0x222, 0x232, 0x242, 0x252, 0x262, 0x272, 0x282, 0x292, 0x2a2, 0x2b2, 0x2c2, 0x1103,
@@ -546,11 +544,11 @@ static codebook_vector8_idx: [c_ushort; 169] = [
     0x21b, 0x22b, 0x23b, 0x24b, 0x25b, 0x26b, 0x27b, 0x28b, 0x29b, 0x2ab, 0x2bb, 0x2cb, 0x110c,
     0x21c, 0x22c, 0x23c, 0x24c, 0x25c, 0x26c, 0x27c, 0x28c, 0x29c, 0x2ac, 0x2bc, 0x2cc,
 ];
-static codebook_vector10_vals: [c_float; 16] = [
+const codebook_vector10_vals: [c_float; 16] = [
     0.0000000, 1.0000000, 2.5198421, 4.3267487, 6.3496042, 8.5498797, 10.9027236, 13.3905183,
     16.0000000, 18.7207544, 21.5443469, 24.4637810, 27.4731418, 30.5673509, 33.7419917, 36.9931811,
 ];
-static codebook_vector10_idx: [c_ushort; 289] = [
+const codebook_vector10_idx: [c_ushort; 289] = [
     0, 0x1010, 0x1020, 0x1030, 0x1040, 0x1050, 0x1060, 0x1070, 0x1080, 0x1090, 0x10a0, 0x10b0,
     0x10c0, 0x10d0, 0x10e0, 0x10f0, 0x1200, 0x1001, 0x2011, 0x2021, 0x2031, 0x2041, 0x2051, 0x2061,
     0x2071, 0x2081, 0x2091, 0x20a1, 0x20b1, 0x20c1, 0x20d1, 0x20e1, 0x20f1, 0x2201, 0x1002, 0x2012,
@@ -578,270 +576,253 @@ static codebook_vector10_idx: [c_ushort; 289] = [
     0x2300,
 ];
 
-pub(crate) static mut ff_aac_codebook_vector_vals: [*const c_float; 11] = unsafe {
-    [
-        codebook_vector0_vals.as_ptr(),
-        codebook_vector0_vals.as_ptr(),
-        codebook_vector10_vals.as_ptr(),
-        codebook_vector10_vals.as_ptr(),
-        codebook_vector4_vals.as_ptr(),
-        codebook_vector4_vals.as_ptr(),
-        codebook_vector10_vals.as_ptr(),
-        codebook_vector10_vals.as_ptr(),
-        codebook_vector10_vals.as_ptr(),
-        codebook_vector10_vals.as_ptr(),
-        codebook_vector10_vals.as_ptr(),
-    ]
-};
+pub(crate) const ff_aac_codebook_vector_vals: [&[c_float]; 11] = [
+    &codebook_vector0_vals,
+    &codebook_vector0_vals,
+    &codebook_vector10_vals,
+    &codebook_vector10_vals,
+    &codebook_vector4_vals,
+    &codebook_vector4_vals,
+    &codebook_vector10_vals,
+    &codebook_vector10_vals,
+    &codebook_vector10_vals,
+    &codebook_vector10_vals,
+    &codebook_vector10_vals,
+];
 
-pub(crate) static mut ff_aac_codebook_vector_idx: [*const c_ushort; 11] = unsafe {
-    [
-        codebook_vector02_idx.as_ptr(),
-        codebook_vector02_idx.as_ptr(),
-        codebook_vector02_idx.as_ptr(),
-        codebook_vector02_idx.as_ptr(),
-        codebook_vector4_idx.as_ptr(),
-        codebook_vector4_idx.as_ptr(),
-        codebook_vector6_idx.as_ptr(),
-        codebook_vector6_idx.as_ptr(),
-        codebook_vector8_idx.as_ptr(),
-        codebook_vector8_idx.as_ptr(),
-        codebook_vector10_idx.as_ptr(),
-    ]
-};
-static swb_offset_1024_96: [c_ushort; 42] = [
+pub(crate) const ff_aac_codebook_vector_idx: [&[c_ushort]; 11] = [
+    &codebook_vector02_idx,
+    &codebook_vector02_idx,
+    &codebook_vector02_idx,
+    &codebook_vector02_idx,
+    &codebook_vector4_idx,
+    &codebook_vector4_idx,
+    &codebook_vector6_idx,
+    &codebook_vector6_idx,
+    &codebook_vector8_idx,
+    &codebook_vector8_idx,
+    &codebook_vector10_idx,
+];
+
+const swb_offset_1024_96: [c_ushort; 42] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 64, 72, 80, 88, 96, 108, 120, 132,
     144, 156, 172, 188, 212, 240, 276, 320, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024,
 ];
-static swb_offset_128_96: [c_ushort; 13] = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 92, 128];
-static swb_offset_1024_64: [c_ushort; 48] = [
+const swb_offset_128_96: [c_ushort; 13] = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 92, 128];
+const swb_offset_1024_64: [c_ushort; 48] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 64, 72, 80, 88, 100, 112, 124, 140,
     156, 172, 192, 216, 240, 268, 304, 344, 384, 424, 464, 504, 544, 584, 624, 664, 704, 744, 784,
     824, 864, 904, 944, 984, 1024,
 ];
-static swb_offset_1024_48: [c_ushort; 50] = [
+const swb_offset_1024_48: [c_ushort; 50] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 88, 96, 108, 120, 132, 144, 160,
     176, 196, 216, 240, 264, 292, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704,
     736, 768, 800, 832, 864, 896, 928, 1024,
 ];
-static swb_offset_512_48: [c_ushort; 37] = [
+const swb_offset_512_48: [c_ushort; 37] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 68, 76, 84, 92, 100, 112, 124,
     136, 148, 164, 184, 208, 236, 268, 300, 332, 364, 396, 428, 460, 512,
 ];
-static swb_offset_480_48: [c_ushort; 36] = [
+const swb_offset_480_48: [c_ushort; 36] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 64, 72, 80, 88, 96, 108, 120, 132,
     144, 156, 172, 188, 212, 240, 272, 304, 336, 368, 400, 432, 480,
 ];
-static swb_offset_128_48: [c_ushort; 15] =
+const swb_offset_128_48: [c_ushort; 15] =
     [0, 4, 8, 12, 16, 20, 28, 36, 44, 56, 68, 80, 96, 112, 128];
-static swb_offset_1024_32: [c_ushort; 52] = [
+const swb_offset_1024_32: [c_ushort; 52] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 88, 96, 108, 120, 132, 144, 160,
     176, 196, 216, 240, 264, 292, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704,
     736, 768, 800, 832, 864, 896, 928, 960, 992, 1024,
 ];
-static swb_offset_512_32: [c_ushort; 38] = [
+const swb_offset_512_32: [c_ushort; 38] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 64, 72, 80, 88, 96, 108, 120, 132,
     144, 160, 176, 192, 212, 236, 260, 288, 320, 352, 384, 416, 448, 480, 512,
 ];
-static swb_offset_480_32: [c_ushort; 38] = [
+const swb_offset_480_32: [c_ushort; 38] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 124,
     136, 148, 164, 180, 200, 224, 256, 288, 320, 352, 384, 416, 448, 480,
 ];
-static swb_offset_1024_24: [c_ushort; 48] = [
+const swb_offset_1024_24: [c_ushort; 48] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 52, 60, 68, 76, 84, 92, 100, 108, 116, 124, 136,
     148, 160, 172, 188, 204, 220, 240, 260, 284, 308, 336, 364, 396, 432, 468, 508, 552, 600, 652,
     704, 768, 832, 896, 960, 1024,
 ];
-static swb_offset_512_24: [c_ushort; 32] = [
+const swb_offset_512_24: [c_ushort; 32] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 52, 60, 68, 80, 92, 104, 120, 140, 164, 192, 224,
     256, 288, 320, 352, 384, 416, 448, 480, 512,
 ];
-static swb_offset_480_24: [c_ushort; 31] = [
+const swb_offset_480_24: [c_ushort; 31] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 52, 60, 68, 80, 92, 104, 120, 140, 164, 192, 224,
     256, 288, 320, 352, 384, 416, 448, 480,
 ];
-static swb_offset_128_24: [c_ushort; 16] = [
+const swb_offset_128_24: [c_ushort; 16] = [
     0, 4, 8, 12, 16, 20, 24, 28, 36, 44, 52, 64, 76, 92, 108, 128,
 ];
-static swb_offset_1024_16: [c_ushort; 44] = [
+const swb_offset_1024_16: [c_ushort; 44] = [
     0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 100, 112, 124, 136, 148, 160, 172, 184, 196, 212,
     228, 244, 260, 280, 300, 320, 344, 368, 396, 424, 456, 492, 532, 572, 616, 664, 716, 772, 832,
     896, 960, 1024,
 ];
-static swb_offset_128_16: [c_ushort; 16] = [
+const swb_offset_128_16: [c_ushort; 16] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 60, 72, 88, 108, 128,
 ];
-static swb_offset_1024_8: [c_ushort; 41] = [
+const swb_offset_1024_8: [c_ushort; 41] = [
     0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 172, 188, 204, 220, 236, 252, 268,
     288, 308, 328, 348, 372, 396, 420, 448, 476, 508, 544, 580, 620, 664, 712, 764, 820, 880, 944,
     1024,
 ];
-static swb_offset_128_8: [c_ushort; 16] = [
+const swb_offset_128_8: [c_ushort; 16] = [
     0, 4, 8, 12, 16, 20, 24, 28, 36, 44, 52, 60, 72, 88, 108, 128,
 ];
-static swb_offset_960_96: [c_ushort; 41] = [
+const swb_offset_960_96: [c_ushort; 41] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 64, 72, 80, 88, 96, 108, 120, 132,
     144, 156, 172, 188, 212, 240, 276, 320, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960,
 ];
-static swb_offset_960_64: [c_ushort; 47] = [
+const swb_offset_960_64: [c_ushort; 47] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 64, 72, 80, 88, 100, 112, 124, 140,
     156, 172, 192, 216, 240, 268, 304, 344, 384, 424, 464, 504, 544, 584, 624, 664, 704, 744, 784,
     824, 864, 904, 944, 960,
 ];
-static swb_offset_960_48: [c_ushort; 50] = [
+const swb_offset_960_48: [c_ushort; 50] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 88, 96, 108, 120, 132, 144, 160,
     176, 196, 216, 240, 264, 292, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704,
     736, 768, 800, 832, 864, 896, 928, 960,
 ];
-static swb_offset_960_24: [c_ushort; 47] = [
+const swb_offset_960_24: [c_ushort; 47] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 52, 60, 68, 76, 84, 92, 100, 108, 116, 124, 136,
     148, 160, 172, 188, 204, 220, 240, 260, 284, 308, 336, 364, 396, 432, 468, 508, 552, 600, 652,
     704, 768, 832, 896, 960,
 ];
-static swb_offset_960_16: [c_ushort; 43] = [
+const swb_offset_960_16: [c_ushort; 43] = [
     0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 100, 112, 124, 136, 148, 160, 172, 184, 196, 212,
     228, 244, 260, 280, 300, 320, 344, 368, 396, 424, 456, 492, 532, 572, 616, 664, 716, 772, 832,
     896, 960,
 ];
-static swb_offset_960_8: [c_ushort; 41] = [
+const swb_offset_960_8: [c_ushort; 41] = [
     0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 172, 188, 204, 220, 236, 252, 268,
     288, 308, 328, 348, 372, 396, 420, 448, 476, 508, 544, 580, 620, 664, 712, 764, 820, 880, 944,
     960,
 ];
-static swb_offset_120_96: [c_ushort; 13] = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 92, 120];
-static swb_offset_120_48: [c_ushort; 15] =
+const swb_offset_120_96: [c_ushort; 13] = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 92, 120];
+const swb_offset_120_48: [c_ushort; 15] =
     [0, 4, 8, 12, 16, 20, 28, 36, 44, 56, 68, 80, 96, 112, 120];
-static swb_offset_120_24: [c_ushort; 16] = [
+const swb_offset_120_24: [c_ushort; 16] = [
     0, 4, 8, 12, 16, 20, 24, 28, 36, 44, 52, 64, 76, 92, 108, 120,
 ];
-static swb_offset_120_16: [c_ushort; 16] = [
+const swb_offset_120_16: [c_ushort; 16] = [
     0, 4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 60, 72, 88, 108, 120,
 ];
-static swb_offset_120_8: [c_ushort; 16] = [
+const swb_offset_120_8: [c_ushort; 16] = [
     0, 4, 8, 12, 16, 20, 24, 28, 36, 44, 52, 60, 72, 88, 108, 120,
 ];
 
-pub(crate) static mut ff_swb_offset_1024: [*const c_ushort; 13] = unsafe {
-    [
-        swb_offset_1024_96.as_ptr(),
-        swb_offset_1024_96.as_ptr(),
-        swb_offset_1024_64.as_ptr(),
-        swb_offset_1024_48.as_ptr(),
-        swb_offset_1024_48.as_ptr(),
-        swb_offset_1024_32.as_ptr(),
-        swb_offset_1024_24.as_ptr(),
-        swb_offset_1024_24.as_ptr(),
-        swb_offset_1024_16.as_ptr(),
-        swb_offset_1024_16.as_ptr(),
-        swb_offset_1024_16.as_ptr(),
-        swb_offset_1024_8.as_ptr(),
-        swb_offset_1024_8.as_ptr(),
-    ]
-};
+pub(crate) const ff_swb_offset_1024: [&[c_ushort]; 13] = [
+    &swb_offset_1024_96,
+    &swb_offset_1024_96,
+    &swb_offset_1024_64,
+    &swb_offset_1024_48,
+    &swb_offset_1024_48,
+    &swb_offset_1024_32,
+    &swb_offset_1024_24,
+    &swb_offset_1024_24,
+    &swb_offset_1024_16,
+    &swb_offset_1024_16,
+    &swb_offset_1024_16,
+    &swb_offset_1024_8,
+    &swb_offset_1024_8,
+];
 
-pub(crate) static mut ff_swb_offset_960: [*const c_ushort; 13] = unsafe {
-    [
-        swb_offset_960_96.as_ptr(),
-        swb_offset_960_96.as_ptr(),
-        swb_offset_960_64.as_ptr(),
-        swb_offset_960_48.as_ptr(),
-        swb_offset_960_48.as_ptr(),
-        swb_offset_960_48.as_ptr(),
-        swb_offset_960_24.as_ptr(),
-        swb_offset_960_24.as_ptr(),
-        swb_offset_960_16.as_ptr(),
-        swb_offset_960_16.as_ptr(),
-        swb_offset_960_16.as_ptr(),
-        swb_offset_960_8.as_ptr(),
-        swb_offset_960_8.as_ptr(),
-    ]
-};
+pub(crate) const ff_swb_offset_960: [&[c_ushort]; 13] = [
+    &swb_offset_960_96,
+    &swb_offset_960_96,
+    &swb_offset_960_64,
+    &swb_offset_960_48,
+    &swb_offset_960_48,
+    &swb_offset_960_48,
+    &swb_offset_960_24,
+    &swb_offset_960_24,
+    &swb_offset_960_16,
+    &swb_offset_960_16,
+    &swb_offset_960_16,
+    &swb_offset_960_8,
+    &swb_offset_960_8,
+];
 
-pub(crate) static mut ff_swb_offset_512: [*const c_ushort; 13] = unsafe {
-    [
-        ptr::null(),
-        ptr::null(),
-        ptr::null(),
-        swb_offset_512_48.as_ptr(),
-        swb_offset_512_48.as_ptr(),
-        swb_offset_512_32.as_ptr(),
-        swb_offset_512_24.as_ptr(),
-        swb_offset_512_24.as_ptr(),
-        ptr::null(),
-        ptr::null(),
-        ptr::null(),
-        ptr::null(),
-        ptr::null(),
-    ]
-};
+pub(crate) const ff_swb_offset_512: [&[c_ushort]; 13] = [
+    &[],
+    &[],
+    &[],
+    &swb_offset_512_48,
+    &swb_offset_512_48,
+    &swb_offset_512_32,
+    &swb_offset_512_24,
+    &swb_offset_512_24,
+    &[],
+    &[],
+    &[],
+    &[],
+    &[],
+];
 
-pub(crate) static mut ff_swb_offset_480: [*const c_ushort; 13] = unsafe {
-    [
-        ptr::null(),
-        ptr::null(),
-        ptr::null(),
-        swb_offset_480_48.as_ptr(),
-        swb_offset_480_48.as_ptr(),
-        swb_offset_480_32.as_ptr(),
-        swb_offset_480_24.as_ptr(),
-        swb_offset_480_24.as_ptr(),
-        ptr::null(),
-        ptr::null(),
-        ptr::null(),
-        ptr::null(),
-        ptr::null(),
-    ]
-};
+pub(crate) const ff_swb_offset_480: [&[c_ushort]; 13] = [
+    &[],
+    &[],
+    &[],
+    &swb_offset_480_48,
+    &swb_offset_480_48,
+    &swb_offset_480_32,
+    &swb_offset_480_24,
+    &swb_offset_480_24,
+    &[],
+    &[],
+    &[],
+    &[],
+    &[],
+];
 
-pub(crate) static mut ff_swb_offset_128: [*const c_ushort; 13] = unsafe {
-    [
-        swb_offset_128_96.as_ptr(),
-        swb_offset_128_96.as_ptr(),
-        swb_offset_128_96.as_ptr(),
-        swb_offset_128_48.as_ptr(),
-        swb_offset_128_48.as_ptr(),
-        swb_offset_128_48.as_ptr(),
-        swb_offset_128_24.as_ptr(),
-        swb_offset_128_24.as_ptr(),
-        swb_offset_128_16.as_ptr(),
-        swb_offset_128_16.as_ptr(),
-        swb_offset_128_16.as_ptr(),
-        swb_offset_128_8.as_ptr(),
-        swb_offset_128_8.as_ptr(),
-    ]
-};
+pub(crate) const ff_swb_offset_128: [&[c_ushort]; 13] = [
+    &swb_offset_128_96,
+    &swb_offset_128_96,
+    &swb_offset_128_96,
+    &swb_offset_128_48,
+    &swb_offset_128_48,
+    &swb_offset_128_48,
+    &swb_offset_128_24,
+    &swb_offset_128_24,
+    &swb_offset_128_16,
+    &swb_offset_128_16,
+    &swb_offset_128_16,
+    &swb_offset_128_8,
+    &swb_offset_128_8,
+];
 
-pub(crate) static mut ff_swb_offset_120: [*const c_ushort; 13] = unsafe {
-    [
-        swb_offset_120_96.as_ptr(),
-        swb_offset_120_96.as_ptr(),
-        swb_offset_120_96.as_ptr(),
-        swb_offset_120_48.as_ptr(),
-        swb_offset_120_48.as_ptr(),
-        swb_offset_120_48.as_ptr(),
-        swb_offset_120_24.as_ptr(),
-        swb_offset_120_24.as_ptr(),
-        swb_offset_120_16.as_ptr(),
-        swb_offset_120_16.as_ptr(),
-        swb_offset_120_16.as_ptr(),
-        swb_offset_120_8.as_ptr(),
-        swb_offset_120_8.as_ptr(),
-    ]
-};
+pub(crate) const ff_swb_offset_120: [&[c_ushort]; 13] = [
+    &swb_offset_120_96,
+    &swb_offset_120_96,
+    &swb_offset_120_96,
+    &swb_offset_120_48,
+    &swb_offset_120_48,
+    &swb_offset_120_48,
+    &swb_offset_120_24,
+    &swb_offset_120_24,
+    &swb_offset_120_16,
+    &swb_offset_120_16,
+    &swb_offset_120_16,
+    &swb_offset_120_8,
+    &swb_offset_120_8,
+];
 
-pub(crate) static ff_tns_max_bands_1024: [c_uchar; 13] =
+pub(crate) const ff_tns_max_bands_1024: [c_uchar; 13] =
     [31, 31, 34, 40, 42, 51, 46, 46, 42, 42, 42, 39, 39];
 
-pub(crate) static ff_tns_max_bands_512: [c_uchar; 13] =
-    [0, 0, 0, 31, 32, 37, 31, 31, 0, 0, 0, 0, 0];
+pub(crate) const ff_tns_max_bands_512: [c_uchar; 13] = [0, 0, 0, 31, 32, 37, 31, 31, 0, 0, 0, 0, 0];
 
-pub(crate) static ff_tns_max_bands_480: [c_uchar; 13] =
-    [0, 0, 0, 31, 32, 37, 30, 30, 0, 0, 0, 0, 0];
+pub(crate) const ff_tns_max_bands_480: [c_uchar; 13] = [0, 0, 0, 31, 32, 37, 30, 30, 0, 0, 0, 0, 0];
 
-pub(crate) static ff_tns_max_bands_128: [c_uchar; 13] =
+pub(crate) const ff_tns_max_bands_128: [c_uchar; 13] =
     [9, 9, 10, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14];
 
-pub(crate) static ff_aac_eld_window_512: [c_float; 1920] = [
+pub(crate) const ff_aac_eld_window_512: [c_float; 1920] = [
     0.00338834,
     0.00567745,
     0.00847677,
@@ -2765,7 +2746,7 @@ pub(crate) static ff_aac_eld_window_512: [c_float; 1920] = [
 ];
 
 #[allow(overflowing_literals)]
-pub(crate) static ff_aac_eld_window_512_fixed: [c_int; 1920] = [
+pub(crate) const ff_aac_eld_window_512_fixed: [c_int; 1920] = [
     0x3783ba, 0x5d04f4, 0x8ae226, 0xc02021, 0xfb1804, 0x13a30a8, 0x17be9e6, 0x1bf296c, 0x2033204,
     0x247502c, 0x28adab0, 0x2cd9568, 0x30fa980, 0x3513dc0, 0x3927274, 0x3d363e0, 0x4142e40,
     0x454edc0, 0x495bd48, 0x4d6a060, 0x51786d8, 0x5586548, 0x59935e8, 0x5d9feb0, 0x61acea0,
@@ -2999,7 +2980,7 @@ pub(crate) static ff_aac_eld_window_512_fixed: [c_int; 1920] = [
     0xffed90b2, 0xffedca48, 0xffee042a, 0xffee3e57, 0xffee788e,
 ];
 
-pub(crate) static ff_aac_eld_window_480: [c_float; 1800] = [
+pub(crate) const ff_aac_eld_window_480: [c_float; 1800] = [
     0.00101191,
     0.00440397,
     0.00718669,
@@ -4802,7 +4783,7 @@ pub(crate) static ff_aac_eld_window_480: [c_float; 1800] = [
     -0.00105995,
 ];
 
-pub(crate) static ff_aac_eld_window_480_fixed: [c_int; 1800] = [
+pub(crate) const ff_aac_eld_window_480_fixed: [c_int; 1800] = [
     0x109442, 0x482797, 0x75bf2a, 0xafa864, 0xef2aa5, 0x1335b36, 0x17a4df0, 0x1c2cffe, 0x20bfb4c,
     0x254fd74, 0x29d557c, 0x2e50574, 0x32c41a8, 0x3732c08, 0x3b9cb88, 0x40032e8, 0x44686f0,
     0x48cd578, 0x4d30738, 0x5190500, 0x55ec210, 0x5a44750, 0x5e9aeb8, 0x62f0c80, 0x67477a0,

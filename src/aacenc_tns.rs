@@ -238,7 +238,7 @@ unsafe fn compress_coeffs(mut coef: *mut c_int, mut order: c_int, mut c_bits: c_
     1 as c_int
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_encode_tns_info(
+pub(crate) unsafe fn encode_tns_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -312,10 +312,7 @@ pub(crate) unsafe extern "C" fn ff_aac_encode_tns_info(
     }
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_apply_tns(
-    mut _s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-) {
+pub(crate) unsafe fn apply_tns(mut _s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
     let mut ics: *mut IndividualChannelStream = &mut (*sce).ics;
     let mut w: c_int = 0;
@@ -415,10 +412,7 @@ unsafe fn quantize_coefs(
     }
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_search_for_tns(
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-) {
+pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
     let mut w: c_int = 0;
     let mut g: c_int = 0;

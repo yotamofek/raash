@@ -13,7 +13,7 @@ use std::mem::size_of;
 use libc::{c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
 use crate::{
-    aaccoder::ff_quantize_and_encode_band_cost,
+    aaccoder::quantize_and_encode_band::quantize_and_encode_band_cost,
     aacenc::{abs_pow34_v, ctx::AACEncContext},
     aacenc_is::ff_aac_is_encoding_err,
     aactab::{ff_aac_pred_sfb_max, POW_SF_TABLES},
@@ -212,7 +212,7 @@ unsafe fn reset_predictor_group(mut sce: *mut SingleChannelElement, mut group_nu
     }
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_apply_main_pred(
+pub(crate) unsafe fn apply_main_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -272,10 +272,7 @@ unsafe fn update_counters(mut ics: *mut IndividualChannelStream, mut inc: c_int)
     0 as c_int
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_adjust_common_pred(
-    mut s: *mut AACEncContext,
-    mut cpe: *mut ChannelElement,
-) {
+pub(crate) unsafe fn adjust_common_pred(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut start: c_int = 0;
     let mut w: c_int = 0;
     let mut w2: c_int = 0;
@@ -446,7 +443,7 @@ unsafe fn update_pred_resets(mut sce: *mut SingleChannelElement) {
     };
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
+pub(crate) unsafe fn search_for_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -545,7 +542,7 @@ pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
                 &mut *((*sce).coeffs).as_mut_ptr().offset(start_coef as isize),
                 num_coeffs,
             );
-            dist1 = ff_quantize_and_encode_band_cost(
+            dist1 = quantize_and_encode_band_cost(
                 s,
                 std::ptr::null_mut::<PutBitContext>(),
                 &mut *((*sce).coeffs).as_mut_ptr().offset(start_coef as isize),
@@ -580,7 +577,7 @@ pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
             } else {
                 cb_p = cb_n;
             }
-            ff_quantize_and_encode_band_cost(
+            quantize_and_encode_band_cost(
                 s,
                 std::ptr::null_mut::<PutBitContext>(),
                 SENT,
@@ -622,7 +619,7 @@ pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
             } else {
                 cb_p = cb_n;
             }
-            dist2 = ff_quantize_and_encode_band_cost(
+            dist2 = quantize_and_encode_band_cost(
                 s,
                 std::ptr::null_mut::<PutBitContext>(),
                 &mut *((*sce).prcoeffs).as_mut_ptr().offset(start_coef as isize),
@@ -676,7 +673,7 @@ pub(crate) unsafe extern "C" fn ff_aac_search_for_pred(
     (*sce).ics.predictor_present = (count != 0) as c_int;
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_encode_main_pred(
+pub(crate) unsafe fn encode_main_pred(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {

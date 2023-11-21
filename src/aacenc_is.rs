@@ -8,13 +8,13 @@
     unused_mut
 )]
 
-use std::{mem::size_of, slice};
+use std::slice;
 
 use ffi::codec::AVCodecContext;
-use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_ulong};
+use libc::{c_double, c_float, c_int, c_uchar, c_uint};
 
 use crate::{
-    aaccoder::ff_quantize_and_encode_band_cost,
+    aaccoder::quantize_and_encode_band::quantize_and_encode_band_cost,
     aacenc::{abs_pow34_v, ctx::AACEncContext},
     aactab::POW_SF_TABLES,
     common::*,
@@ -104,7 +104,7 @@ unsafe fn quantize_band_cost(
     mut bits: *mut c_int,
     mut energy: *mut c_float,
 ) -> c_float {
-    ff_quantize_and_encode_band_cost(
+    quantize_and_encode_band_cost(
         s,
         std::ptr::null_mut::<PutBitContext>(),
         in_0,
@@ -295,7 +295,7 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
     is_error
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_search_for_is(
+pub(crate) unsafe fn search_for_is(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut cpe: *mut ChannelElement,

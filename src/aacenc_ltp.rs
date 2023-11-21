@@ -13,7 +13,7 @@ use std::{mem::size_of, ptr};
 use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
 
 use crate::{
-    aaccoder::ff_quantize_and_encode_band_cost,
+    aaccoder::quantize_and_encode_band::quantize_and_encode_band_cost,
     aacenc::{abs_pow34_v, ctx::AACEncContext},
     common::*,
     types::*,
@@ -72,7 +72,7 @@ unsafe fn quantize_band_cost(
     mut bits: *mut c_int,
     mut energy: *mut c_float,
 ) -> c_float {
-    ff_quantize_and_encode_band_cost(
+    quantize_and_encode_band_cost(
         s,
         std::ptr::null_mut::<PutBitContext>(),
         in_0,
@@ -115,7 +115,7 @@ static mut ltp_coef: [c_float; 8] = [
     1.369533f64 as c_float,
 ];
 
-pub(crate) unsafe extern "C" fn ff_aac_encode_ltp_info(
+pub(crate) unsafe fn encode_ltp_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut common_window: c_int,
@@ -152,7 +152,7 @@ pub(crate) unsafe extern "C" fn ff_aac_encode_ltp_info(
     }
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_ltp_insert_new_frame(mut s: *mut AACEncContext) {
+pub(crate) unsafe fn ltp_insert_new_frame(mut s: *mut AACEncContext) {
     let mut i: c_int = 0;
     let mut ch: c_int = 0;
     let mut tag: c_int = 0;
@@ -259,10 +259,7 @@ unsafe fn generate_samples(mut buf: *mut c_float, mut ltp: *mut LongTermPredicti
     );
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_update_ltp(
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-) {
+pub(crate) unsafe fn update_ltp(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     let mut pred_signal: *mut c_float =
         &mut *((*sce).ltp_state).as_mut_ptr().offset(0 as c_int as isize) as *mut c_float;
     let mut samples: *const c_float =
@@ -274,10 +271,7 @@ pub(crate) unsafe extern "C" fn ff_aac_update_ltp(
     generate_samples(pred_signal, &mut (*sce).ics.ltp);
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_adjust_common_ltp(
-    mut _s: *mut AACEncContext,
-    mut cpe: *mut ChannelElement,
-) {
+pub(crate) unsafe fn adjust_common_ltp(mut _s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut sfb: c_int = 0;
     let mut count: c_int = 0 as c_int;
     let mut sce0: *mut SingleChannelElement =
@@ -316,7 +310,7 @@ pub(crate) unsafe extern "C" fn ff_aac_adjust_common_ltp(
     (*sce0).ics.predictor_present = (count != 0) as c_int;
 }
 
-pub(crate) unsafe extern "C" fn ff_aac_search_for_ltp(
+pub(crate) unsafe fn search_for_ltp(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut _common_window: c_int,

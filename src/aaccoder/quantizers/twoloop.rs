@@ -1,8 +1,8 @@
-use std::{iter::zip, mem::size_of, ptr, slice};
+use std::{iter::zip, slice};
 
 use ffi::codec::AVCodecContext;
 use itertools::izip;
-use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
+use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
 use crate::{
     aaccoder::{
@@ -16,7 +16,7 @@ use crate::{
     types::*,
 };
 
-pub(crate) unsafe extern "C" fn search(
+pub(crate) unsafe fn search(
     mut avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,

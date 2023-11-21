@@ -10,19 +10,13 @@
 
 mod codes;
 
-use std::{
-    f32::consts::SQRT_2,
-    f64::consts::PI,
-    iter::zip,
-    ptr,
-    sync::{Once, OnceLock},
-};
+use std::{f32::consts::SQRT_2, f64::consts::PI, iter::zip, ptr, sync::Once};
 
-use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_ushort};
+use libc::{c_double, c_float, c_int};
 use once_cell::sync::Lazy;
 
 pub(crate) use self::codes::*;
-use crate::{bessel, kbdwin::avpriv_kbd_window_init, sinewin::ff_init_ff_sine_windows};
+use crate::{bessel, sinewin::ff_init_ff_sine_windows};
 
 pub(crate) struct PowSfTables {
     pub pow2: [c_float; 428],
@@ -87,7 +81,6 @@ where
     let mut alpha2: c_double =
         4. * (alpha as c_double * PI / N as c_double) * (alpha as c_double * PI / N as c_double);
 
-    i = 0 as c_int;
     for (i, temp) in temp.iter_mut().enumerate() {
         let tmp = alpha2 * i as c_double * (N - i) as c_double;
         *temp = bessel::i0(tmp.sqrt());
@@ -96,7 +89,7 @@ where
 
     scale = 1.0f64 / (scale + 1.);
 
-    i = 0 as c_int;
+    let mut i = 0;
     while i <= (N / 2) as c_int {
         sum += temp[i as usize];
         float_window[i as usize] = (sum * scale).sqrt() as c_float;
