@@ -4,7 +4,7 @@ use ffi::{
 };
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort, c_void};
 
-use crate::types::*;
+use crate::{aaccoder::coder::CoeffsEncoder, types::*};
 
 // TODO: I think this can be opaque?
 #[derive(Copy, Clone)]
@@ -72,7 +72,6 @@ pub(crate) struct AACContext {
     >,
 }
 
-#[derive(Clone)]
 #[repr(C)]
 pub(crate) struct AACEncContext {
     pub av_class: *mut AVClass,
@@ -95,7 +94,7 @@ pub(crate) struct AACEncContext {
     pub cpe: *mut ChannelElement,
     pub psy: FFPsyContext,
     pub psypp: *mut FFPsyPreprocessContext,
-    pub coder: *const AACCoefficientsEncoder,
+    pub coder: Box<dyn CoeffsEncoder>,
     pub cur_channel: c_int,
     pub random_state: c_int,
     pub lambda: c_float,

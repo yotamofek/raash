@@ -524,7 +524,7 @@ pub(crate) unsafe fn quantize_and_encode_band_cost(
 }
 
 #[inline]
-pub(super) unsafe fn quantize_and_encode_band(
+pub(crate) unsafe fn quantize_and_encode_band(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
     mut in_0: *const c_float,

@@ -1,6 +1,8 @@
 pub mod frame;
 pub mod subtitle;
 
+use std::{ffi::CStr, ptr};
+
 use c2rust_bitfields::BitfieldStruct;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
@@ -338,6 +340,22 @@ pub struct RcOverride {
 pub struct FFCodecDefault {
     pub key: *const c_char,
     pub value: *const c_char,
+}
+
+impl FFCodecDefault {
+    pub const fn new(key: &'static CStr, value: &'static CStr) -> Self {
+        Self {
+            key: key.as_ptr(),
+            value: value.as_ptr(),
+        }
+    }
+
+    pub const fn null() -> Self {
+        Self {
+            key: ptr::null(),
+            value: ptr::null(),
+        }
+    }
 }
 
 pub type FFCodecType = c_uint;

@@ -8,6 +8,7 @@
     unused_mut
 )]
 
+pub(crate) mod coder;
 pub(crate) mod quantize_and_encode_band;
 mod quantizers;
 
@@ -702,7 +703,7 @@ unsafe fn codebook_trellis_rate(
     }
 }
 
-unsafe fn encode_window_bands_info(
+pub(crate) unsafe fn encode_window_bands_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
     mut win: c_int,
@@ -904,7 +905,7 @@ unsafe fn encode_window_bands_info(
     }
 }
 
-unsafe fn set_special_band_scalefactors(
+pub(crate) unsafe fn set_special_band_scalefactors(
     mut _s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
@@ -1788,7 +1789,7 @@ unsafe fn search_for_quantizers_fast(
         }
     }
 }
-unsafe fn search_for_pns(
+pub(crate) unsafe fn search_for_pns(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
@@ -2373,7 +2374,8 @@ unsafe fn search_for_pns(
         w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }
-unsafe fn mark_pns(
+
+pub(crate) unsafe fn mark_pns(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
@@ -2790,7 +2792,8 @@ unsafe fn mark_pns(
         w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }
-unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
+
+pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut start: c_int = 0 as c_int;
     let mut i: c_int = 0;
     let mut w: c_int = 0;
@@ -3118,72 +3121,3 @@ unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement)
         w += (*sce0).ics.group_len[w as usize] as c_int;
     }
 }
-
-pub(crate) const CODERS: [AACCoefficientsEncoder; 3] = [
-    AACCoefficientsEncoder {
-        search_for_quantizers: Some(search_for_quantizers_anmr),
-        encode_window_bands_info: Some(encode_window_bands_info),
-        quantize_and_encode_band: Some(quantize_and_encode_band),
-        encode_tns_info: Some(encode_tns_info),
-        encode_ltp_info: Some(encode_ltp_info),
-        encode_main_pred: Some(encode_main_pred),
-        adjust_common_pred: Some(adjust_common_pred),
-        adjust_common_ltp: Some(adjust_common_ltp),
-        apply_main_pred: Some(apply_main_pred),
-        apply_tns_filt: Some(apply_tns),
-        update_ltp: Some(update_ltp),
-        ltp_insert_new_frame: Some(ltp_insert_new_frame),
-        set_special_band_scalefactors: Some(set_special_band_scalefactors),
-        search_for_pns: Some(search_for_pns),
-        mark_pns: Some(mark_pns),
-        search_for_tns: Some(search_for_tns),
-        search_for_ltp: Some(search_for_ltp),
-        search_for_ms: Some(search_for_ms),
-        search_for_is: Some(search_for_is),
-        search_for_pred: Some(search_for_pred),
-    },
-    AACCoefficientsEncoder {
-        search_for_quantizers: Some(quantizers::twoloop::search),
-        encode_window_bands_info: Some(codebook_trellis_rate),
-        quantize_and_encode_band: Some(quantize_and_encode_band),
-        encode_tns_info: Some(encode_tns_info),
-        encode_ltp_info: Some(encode_ltp_info),
-        encode_main_pred: Some(encode_main_pred),
-        adjust_common_pred: Some(adjust_common_pred),
-        adjust_common_ltp: Some(adjust_common_ltp),
-        apply_main_pred: Some(apply_main_pred),
-        apply_tns_filt: Some(apply_tns),
-        update_ltp: Some(update_ltp),
-        ltp_insert_new_frame: Some(ltp_insert_new_frame),
-        set_special_band_scalefactors: Some(set_special_band_scalefactors),
-        search_for_pns: Some(search_for_pns),
-        mark_pns: Some(mark_pns),
-        search_for_tns: Some(search_for_tns),
-        search_for_ltp: Some(search_for_ltp),
-        search_for_ms: Some(search_for_ms),
-        search_for_is: Some(search_for_is),
-        search_for_pred: Some(search_for_pred),
-    },
-    AACCoefficientsEncoder {
-        search_for_quantizers: Some(search_for_quantizers_fast),
-        encode_window_bands_info: Some(codebook_trellis_rate),
-        quantize_and_encode_band: Some(quantize_and_encode_band),
-        encode_tns_info: Some(encode_tns_info),
-        encode_ltp_info: Some(encode_ltp_info),
-        encode_main_pred: Some(encode_main_pred),
-        adjust_common_pred: Some(adjust_common_pred),
-        adjust_common_ltp: Some(adjust_common_ltp),
-        apply_main_pred: Some(apply_main_pred),
-        apply_tns_filt: Some(apply_tns),
-        update_ltp: Some(update_ltp),
-        ltp_insert_new_frame: Some(ltp_insert_new_frame),
-        set_special_band_scalefactors: Some(set_special_band_scalefactors),
-        search_for_pns: Some(search_for_pns),
-        mark_pns: Some(mark_pns),
-        search_for_tns: Some(search_for_tns),
-        search_for_ltp: Some(search_for_ltp),
-        search_for_ms: Some(search_for_ms),
-        search_for_is: Some(search_for_is),
-        search_for_pred: Some(search_for_pred),
-    },
-];

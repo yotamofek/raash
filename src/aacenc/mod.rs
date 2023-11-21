@@ -36,7 +36,18 @@ use libc::{
 
 use self::ctx::{AACEncContext, PrivData};
 use crate::{
-    aaccoder::CODERS,
+    aaccoder::{
+        coder::{self, CoeffsEncoder},
+        encode_window_bands_info, mark_pns,
+        quantize_and_encode_band::{self, quantize_and_encode_band},
+        search_for_ms, search_for_pns, set_special_band_scalefactors,
+    },
+    aacenc_is::search_for_is,
+    aacenc_ltp::{
+        adjust_common_ltp, encode_ltp_info, ltp_insert_new_frame, search_for_ltp, update_ltp,
+    },
+    aacenc_pred::{adjust_common_pred, apply_main_pred, encode_main_pred, search_for_pred},
+    aacenc_tns::{apply_tns, encode_tns_info, search_for_tns},
     aacenctab::{
         ff_aac_swb_size_1024, ff_aac_swb_size_1024_len, ff_aac_swb_size_128,
         ff_aac_swb_size_128_len,
@@ -3009,12 +3020,10 @@ unsafe extern "C" fn encode_band_info(
     mut sce: *mut SingleChannelElement,
 ) {
     let mut w: c_int = 0;
-    if ((*(*s).coder).set_special_band_scalefactors).is_some() {
-        ((*(*s).coder).set_special_band_scalefactors).expect("non-null function pointer")(s, sce);
-    }
+    set_special_band_scalefactors(s, sce);
     w = 0 as c_int;
     while w < (*sce).ics.num_windows {
-        ((*(*s).coder).encode_window_bands_info).expect("non-null function pointer")(
+        encode_window_bands_info(
             s,
             sce,
             w,
@@ -3130,7 +3139,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
             } else {
                 w2 = w;
                 while w2 < w + (*sce).ics.group_len[w as usize] as c_int {
-                    ((*(*s).coder).quantize_and_encode_band).expect("non-null function pointer")(
+                    quantize_and_encode_band(
                         s,
                         &mut (*s).pb,
                         &mut *((*sce).coeffs)
@@ -3196,12 +3205,8 @@ unsafe extern "C" fn encode_individual_channel(
     put_bits(&mut (*s).pb, 8 as c_int, (*sce).sf_idx[0] as BitBuf);
     if common_window == 0 {
         put_ics_info(s, &mut (*sce).ics);
-        if ((*(*s).coder).encode_main_pred).is_some() {
-            ((*(*s).coder).encode_main_pred).expect("non-null function pointer")(s, sce);
-        }
-        if ((*(*s).coder).encode_ltp_info).is_some() {
-            ((*(*s).coder).encode_ltp_info).expect("non-null function pointer")(s, sce, 0 as c_int);
-        }
+        encode_main_pred(s, sce);
+        encode_ltp_info(s, sce, 0 as c_int);
     }
     encode_band_info(s, sce);
     encode_scale_factors(avctx, s, sce);
@@ -3211,9 +3216,7 @@ unsafe extern "C" fn encode_individual_channel(
         1 as c_int,
         ((*sce).tns.present != 0) as c_int as BitBuf,
     );
-    if ((*(*s).coder).encode_tns_info).is_some() {
-        ((*(*s).coder).encode_tns_info).expect("non-null function pointer")(s, sce);
-    }
+    encode_tns_info(s, sce);
     put_bits(&mut (*s).pb, 1 as c_int, 0 as c_int as BitBuf);
     encode_spectral_coeffs(s, sce);
     0 as c_int
@@ -3464,8 +3467,8 @@ unsafe extern "C" fn aac_encode_frame(
                 (*ics).clip_avoidance_factor = 1.0f32;
             }
             apply_window_and_mdct(s, sce, overlap);
-            if (*s).options.ltp != 0 && ((*(*s).coder).update_ltp).is_some() {
-                ((*(*s).coder).update_ltp).expect("non-null function pointer")(s, sce);
+            if (*s).options.ltp != 0 {
+                update_ltp(s, sce);
                 apply_window[(*sce).ics.window_sequence[0] as usize](
                     (*s).fdsp,
                     sce,
@@ -3577,14 +3580,10 @@ unsafe extern "C" fn aac_encode_frame(
             ch = 0 as c_int;
             while ch < chans {
                 (*s).cur_channel = start_ch + ch;
-                if (*s).options.pns != 0 && ((*(*s).coder).mark_pns).is_some() {
-                    ((*(*s).coder).mark_pns).expect("non-null function pointer")(
-                        s,
-                        avctx,
-                        &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
-                    );
+                if (*s).options.pns != 0 {
+                    mark_pns(s, avctx, &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize));
                 }
-                ((*(*s).coder).search_for_quantizers).expect("non-null function pointer")(
+                (*(*s).coder).search_for_quantizers(
                     avctx,
                     s,
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
@@ -3618,30 +3617,24 @@ unsafe extern "C" fn aac_encode_frame(
                 sce =
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
                 (*s).cur_channel = start_ch + ch;
-                if (*s).options.tns != 0 && ((*(*s).coder).search_for_tns).is_some() {
-                    ((*(*s).coder).search_for_tns).expect("non-null function pointer")(s, sce);
+                if (*s).options.tns != 0 {
+                    search_for_tns(s, sce);
                 }
-                if (*s).options.tns != 0 && ((*(*s).coder).apply_tns_filt).is_some() {
-                    ((*(*s).coder).apply_tns_filt).expect("non-null function pointer")(s, sce);
+                if (*s).options.tns != 0 {
+                    apply_tns(s, sce);
                 }
                 if (*sce).tns.present != 0 {
                     tns_mode = 1 as c_int;
                 }
-                if (*s).options.pns != 0 && ((*(*s).coder).search_for_pns).is_some() {
-                    ((*(*s).coder).search_for_pns).expect("non-null function pointer")(
-                        s, avctx, sce,
-                    );
+                if (*s).options.pns != 0 {
+                    search_for_pns(s, avctx, sce);
                 }
                 ch += 1;
                 ch;
             }
             (*s).cur_channel = start_ch;
             if (*s).options.intensity_stereo != 0 {
-                if ((*(*s).coder).search_for_is).is_some() {
-                    ((*(*s).coder).search_for_is).expect("non-null function pointer")(
-                        s, avctx, cpe,
-                    );
-                }
+                search_for_is(s, avctx, cpe);
                 if (*cpe).is_mode != 0 {
                     is_mode = 1 as c_int;
                 }
@@ -3653,8 +3646,8 @@ unsafe extern "C" fn aac_encode_frame(
                     sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize)
                         as *mut SingleChannelElement;
                     (*s).cur_channel = start_ch + ch;
-                    if (*s).options.pred != 0 && ((*(*s).coder).search_for_pred).is_some() {
-                        ((*(*s).coder).search_for_pred).expect("non-null function pointer")(s, sce);
+                    if (*s).options.pred != 0 {
+                        search_for_pred(s, sce);
                     }
                     if (*cpe).ch[ch as usize].ics.predictor_present != 0 {
                         pred_mode = 1 as c_int;
@@ -3662,16 +3655,16 @@ unsafe extern "C" fn aac_encode_frame(
                     ch += 1;
                     ch;
                 }
-                if ((*(*s).coder).adjust_common_pred).is_some() {
-                    ((*(*s).coder).adjust_common_pred).expect("non-null function pointer")(s, cpe);
-                }
+
+                adjust_common_pred(s, cpe);
+
                 ch = 0 as c_int;
                 while ch < chans {
                     sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize)
                         as *mut SingleChannelElement;
                     (*s).cur_channel = start_ch + ch;
-                    if (*s).options.pred != 0 && ((*(*s).coder).apply_main_pred).is_some() {
-                        ((*(*s).coder).apply_main_pred).expect("non-null function pointer")(s, sce);
+                    if (*s).options.pred != 0 {
+                        apply_main_pred(s, sce);
                     }
                     ch += 1;
                     ch;
@@ -3679,9 +3672,8 @@ unsafe extern "C" fn aac_encode_frame(
                 (*s).cur_channel = start_ch;
             }
             if (*s).options.mid_side != 0 {
-                if (*s).options.mid_side == -(1 as c_int) && ((*(*s).coder).search_for_ms).is_some()
-                {
-                    ((*(*s).coder).search_for_ms).expect("non-null function pointer")(s, cpe);
+                if (*s).options.mid_side == -(1 as c_int) {
+                    search_for_ms(s, cpe);
                 } else if (*cpe).common_window != 0 {
                     (*cpe).ms_mask.fill(1);
                 }
@@ -3694,13 +3686,9 @@ unsafe extern "C" fn aac_encode_frame(
                     sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize)
                         as *mut SingleChannelElement;
                     (*s).cur_channel = start_ch + ch;
-                    if ((*(*s).coder).search_for_ltp).is_some() {
-                        ((*(*s).coder).search_for_ltp).expect("non-null function pointer")(
-                            s,
-                            sce,
-                            (*cpe).common_window,
-                        );
-                    }
+
+                    search_for_ltp(s, sce, (*cpe).common_window);
+
                     if (*sce).ics.ltp.present != 0 {
                         pred_mode = 1 as c_int;
                     }
@@ -3708,9 +3696,8 @@ unsafe extern "C" fn aac_encode_frame(
                     ch;
                 }
                 (*s).cur_channel = start_ch;
-                if ((*(*s).coder).adjust_common_ltp).is_some() {
-                    ((*(*s).coder).adjust_common_ltp).expect("non-null function pointer")(s, cpe);
-                }
+
+                adjust_common_ltp(s, cpe);
             }
             if chans == 2 as c_int {
                 put_bits(&mut (*s).pb, 1 as c_int, (*cpe).common_window as BitBuf);
@@ -3719,19 +3706,18 @@ unsafe extern "C" fn aac_encode_frame(
                         s,
                         &mut (*((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize)).ics,
                     );
-                    if ((*(*s).coder).encode_main_pred).is_some() {
-                        ((*(*s).coder).encode_main_pred).expect("non-null function pointer")(
-                            s,
-                            &mut *((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize),
-                        );
-                    }
-                    if ((*(*s).coder).encode_ltp_info).is_some() {
-                        ((*(*s).coder).encode_ltp_info).expect("non-null function pointer")(
-                            s,
-                            &mut *((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize),
-                            1 as c_int,
-                        );
-                    }
+
+                    encode_main_pred(
+                        s,
+                        &mut *((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize),
+                    );
+
+                    encode_ltp_info(
+                        s,
+                        &mut *((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize),
+                        1 as c_int,
+                    );
+
                     encode_ms_info(&mut (*s).pb, cpe);
                     if (*cpe).ms_mode != 0 {
                         ms_mode = 1 as c_int;
@@ -3842,8 +3828,8 @@ unsafe extern "C" fn aac_encode_frame(
             its;
         }
     }
-    if (*s).options.ltp != 0 && ((*(*s).coder).ltp_insert_new_frame).is_some() {
-        ((*(*s).coder).ltp_insert_new_frame).expect("non-null function pointer")(s);
+    if (*s).options.ltp != 0 {
+        ltp_insert_new_frame(s);
     }
     put_bits(&mut (*s).pb, 3 as c_int, TYPE_END as c_int as BitBuf);
     flush_put_bits(&mut (*s).pb);
@@ -3950,6 +3936,16 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
             .write((*((*avctx).priv_data as *mut PrivData)).options);
         addr_of_mut!((*s.as_mut_ptr()).planar_samples)
             .write(vec![[0.; _]; (*avctx).ch_layout.nb_channels as usize].into_boxed_slice());
+
+        let coder: Box<dyn CoeffsEncoder> =
+            match (*((*avctx).priv_data as *mut PrivData)).options.coder as c_uint {
+                AAC_CODER_ANMR => Box::new(coder::Anmr),
+                AAC_CODER_TWOLOOP => Box::new(coder::TwoLoop),
+                AAC_CODER_FAST => Box::new(coder::Fast),
+                _ => panic!("Unknown coder"),
+            };
+        addr_of_mut!((*s.as_mut_ptr()).coder).write(coder);
+
         Box::into_raw(s.assume_init())
     };
     let mut s: *mut AACEncContext = *ctx;
@@ -4189,7 +4185,7 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         }
     }
     (*s).profile = (*avctx).profile;
-    (*s).coder = &CODERS[(*s).options.coder as usize];
+    // (*s).coder = &CODERS[(*s).options.coder as usize];
     if (*s).options.coder == AAC_CODER_ANMR as c_int {
         if (*avctx).strict_std_compliance > -(2 as c_int) {
             av_log(
@@ -4270,449 +4266,347 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
     ff_af_queue_init(avctx, &mut (*s).afq);
     0 as c_int
 }
-static mut aacenc_options: [AVOption; 22] = [
-    {
-        AVOption {
-            name: c"aac_coder".as_ptr(),
-            help: c"Coding algorithm".as_ptr(),
-            offset: 8 as c_ulong as c_int,
-            type_0: AV_OPT_TYPE_INT,
-            default_val: C2RustUnnamed_0 {
-                i64_0: AAC_CODER_TWOLOOP as c_int as c_long,
-            },
-            min: 0.,
-            max: (AAC_CODER_NB as c_int - 1 as c_int) as c_double,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"coder".as_ptr(),
-        }
+
+const aacenc_options: [AVOption; 22] = [
+    AVOption {
+        name: c"aac_coder".as_ptr(),
+        help: c"Coding algorithm".as_ptr(),
+        offset: 8 as c_ulong as c_int,
+        type_0: AV_OPT_TYPE_INT,
+        default_val: C2RustUnnamed_0 {
+            i64_0: AAC_CODER_TWOLOOP as c_int as c_long,
+        },
+        min: 0.,
+        max: (AAC_CODER_NB as c_int - 1 as c_int) as c_double,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"coder".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"anmr".as_ptr(),
-            help: c"ANMR method".as_ptr(),
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: AAC_CODER_ANMR as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"coder".as_ptr(),
-        }
+    AVOption {
+        name: c"anmr".as_ptr(),
+        help: c"ANMR method".as_ptr(),
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: AAC_CODER_ANMR as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"coder".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"twoloop".as_ptr(),
-            help: c"Two loop searching method".as_ptr(),
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: AAC_CODER_TWOLOOP as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"coder".as_ptr(),
-        }
+    AVOption {
+        name: c"twoloop".as_ptr(),
+        help: c"Two loop searching method".as_ptr(),
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: AAC_CODER_TWOLOOP as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"coder".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"fast".as_ptr(),
-            help: c"Default fast search".as_ptr(),
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: AAC_CODER_FAST as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"coder".as_ptr(),
-        }
+    AVOption {
+        name: c"fast".as_ptr(),
+        help: c"Default fast search".as_ptr(),
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: AAC_CODER_FAST as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"coder".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"aac_ms".as_ptr(),
-            help: c"Force M/S stereo coding".as_ptr(),
-            offset: 32 as c_ulong as c_int,
-            type_0: AV_OPT_TYPE_BOOL,
-            default_val: C2RustUnnamed_0 {
-                i64_0: -(1 as c_int) as c_long,
-            },
-            min: -(1 as c_int) as c_double,
-            max: 1.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: 0 as *const c_char,
-        }
+    AVOption {
+        name: c"aac_ms".as_ptr(),
+        help: c"Force M/S stereo coding".as_ptr(),
+        offset: 32 as c_ulong as c_int,
+        type_0: AV_OPT_TYPE_BOOL,
+        default_val: C2RustUnnamed_0 {
+            i64_0: -(1 as c_int) as c_long,
+        },
+        min: -(1 as c_int) as c_double,
+        max: 1.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: 0 as *const c_char,
     },
-    {
-        AVOption {
-            name: c"aac_is".as_ptr(),
-            help: c"Intensity stereo coding".as_ptr(),
-            offset: 36 as c_ulong as c_int,
-            type_0: AV_OPT_TYPE_BOOL,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 1 as c_int as c_long,
-            },
-            min: -(1 as c_int) as c_double,
-            max: 1.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: 0 as *const c_char,
-        }
+    AVOption {
+        name: c"aac_is".as_ptr(),
+        help: c"Intensity stereo coding".as_ptr(),
+        offset: 36 as c_ulong as c_int,
+        type_0: AV_OPT_TYPE_BOOL,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 1 as c_int as c_long,
+        },
+        min: -(1 as c_int) as c_double,
+        max: 1.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: 0 as *const c_char,
     },
-    {
-        AVOption {
-            name: c"aac_pns".as_ptr(),
-            help: c"Perceptual noise substitution".as_ptr(),
-            offset: 12 as c_ulong as c_int,
-            type_0: AV_OPT_TYPE_BOOL,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 1 as c_int as c_long,
-            },
-            min: -(1 as c_int) as c_double,
-            max: 1.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: 0 as *const c_char,
-        }
+    AVOption {
+        name: c"aac_pns".as_ptr(),
+        help: c"Perceptual noise substitution".as_ptr(),
+        offset: 12 as c_ulong as c_int,
+        type_0: AV_OPT_TYPE_BOOL,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 1 as c_int as c_long,
+        },
+        min: -(1 as c_int) as c_double,
+        max: 1.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: 0 as *const c_char,
     },
-    {
-        AVOption {
-            name: c"aac_tns".as_ptr(),
-            help: c"Temporal noise shaping".as_ptr(),
-            offset: 16 as c_ulong as c_int,
-            type_0: AV_OPT_TYPE_BOOL,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 1 as c_int as c_long,
-            },
-            min: -(1 as c_int) as c_double,
-            max: 1.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: 0 as *const c_char,
-        }
+    AVOption {
+        name: c"aac_tns".as_ptr(),
+        help: c"Temporal noise shaping".as_ptr(),
+        offset: 16 as c_ulong as c_int,
+        type_0: AV_OPT_TYPE_BOOL,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 1 as c_int as c_long,
+        },
+        min: -(1 as c_int) as c_double,
+        max: 1.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: 0 as *const c_char,
     },
-    {
-        AVOption {
-            name: c"aac_ltp".as_ptr(),
-            help: c"Long term prediction".as_ptr(),
-            offset: 20 as c_ulong as c_int,
-            type_0: AV_OPT_TYPE_BOOL,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 0 as c_int as c_long,
-            },
-            min: -(1 as c_int) as c_double,
-            max: 1.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: 0 as *const c_char,
-        }
+    AVOption {
+        name: c"aac_ltp".as_ptr(),
+        help: c"Long term prediction".as_ptr(),
+        offset: 20 as c_ulong as c_int,
+        type_0: AV_OPT_TYPE_BOOL,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 0 as c_int as c_long,
+        },
+        min: -(1 as c_int) as c_double,
+        max: 1.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: 0 as *const c_char,
     },
-    {
-        AVOption {
-            name: c"aac_pred".as_ptr(),
-            help: c"AAC-Main prediction".as_ptr(),
-            offset: 28 as c_ulong as c_int,
-            type_0: AV_OPT_TYPE_BOOL,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 0 as c_int as c_long,
-            },
-            min: -(1 as c_int) as c_double,
-            max: 1.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: 0 as *const c_char,
-        }
+    AVOption {
+        name: c"aac_pred".as_ptr(),
+        help: c"AAC-Main prediction".as_ptr(),
+        offset: 28 as c_ulong as c_int,
+        type_0: AV_OPT_TYPE_BOOL,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 0 as c_int as c_long,
+        },
+        min: -(1 as c_int) as c_double,
+        max: 1.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: 0 as *const c_char,
     },
-    {
-        AVOption {
-            name: c"aac_pce".as_ptr(),
-            help: c"Forces the use of PCEs".as_ptr(),
-            offset: 24 as c_ulong as c_int,
-            type_0: AV_OPT_TYPE_BOOL,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 0 as c_int as c_long,
-            },
-            min: -(1 as c_int) as c_double,
-            max: 1.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: 0 as *const c_char,
-        }
+    AVOption {
+        name: c"aac_pce".as_ptr(),
+        help: c"Forces the use of PCEs".as_ptr(),
+        offset: 24 as c_ulong as c_int,
+        type_0: AV_OPT_TYPE_BOOL,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 0 as c_int as c_long,
+        },
+        min: -(1 as c_int) as c_double,
+        max: 1.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: 0 as *const c_char,
     },
-    {
-        AVOption {
-            name: c"aac_main".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 0 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"aac_main".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 0 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"aac_low".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 1 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"aac_low".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 1 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"aac_ssr".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 2 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"aac_ssr".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 2 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"aac_ltp".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 3 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"aac_ltp".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 3 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"aac_he".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 4 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"aac_he".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 4 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"aac_he_v2".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 28 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"aac_he_v2".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 28 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"aac_ld".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 22 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"aac_ld".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 22 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"aac_eld".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 38 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"aac_eld".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 38 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"mpeg2_aac_low".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 128 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"mpeg2_aac_low".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 128 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: c"mpeg2_aac_he".as_ptr(),
-            help: 0 as *const c_char,
-            offset: 0 as c_int,
-            type_0: AV_OPT_TYPE_CONST,
-            default_val: C2RustUnnamed_0 {
-                i64_0: 131 as c_int as c_long,
-            },
-            min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
-            max: 2147483647.,
-            flags: 1 as c_int | 8 as c_int,
-            unit: c"avctx.profile".as_ptr(),
-        }
+    AVOption {
+        name: c"mpeg2_aac_he".as_ptr(),
+        help: 0 as *const c_char,
+        offset: 0 as c_int,
+        type_0: AV_OPT_TYPE_CONST,
+        default_val: C2RustUnnamed_0 {
+            i64_0: 131 as c_int as c_long,
+        },
+        min: (-(2147483647 as c_int) - 1 as c_int) as c_double,
+        max: 2147483647.,
+        flags: 1 as c_int | 8 as c_int,
+        unit: c"avctx.profile".as_ptr(),
     },
-    {
-        AVOption {
-            name: 0 as *const c_char,
-            help: 0 as *const c_char,
-            offset: 0,
-            type_0: AV_OPT_TYPE_FLAGS,
-            default_val: C2RustUnnamed_0 { i64_0: 0 },
-            min: 0.,
-            max: 0.,
-            flags: 0,
-            unit: 0 as *const c_char,
-        }
+    AVOption {
+        name: 0 as *const c_char,
+        help: 0 as *const c_char,
+        offset: 0,
+        type_0: AV_OPT_TYPE_FLAGS,
+        default_val: C2RustUnnamed_0 { i64_0: 0 },
+        min: 0.,
+        max: 0.,
+        flags: 0,
+        unit: 0 as *const c_char,
     },
 ];
-static mut aacenc_class: AVClass = unsafe {
-    {
-        AVClass {
-            class_name: c"AAC encoder".as_ptr(),
-            item_name: Some(av_default_item_name),
-            option: aacenc_options.as_ptr(),
-            version: (58 as c_int) << 16 as c_int | (32 as c_int) << 8 as c_int | 100 as c_int,
-            log_level_offset_offset: 0,
-            parent_log_context_offset: 0,
-            category: AV_CLASS_CATEGORY_NA,
-            get_category: None,
-            query_ranges: None,
-            child_next: None,
-            child_class_iterate: None,
-        }
-    }
+
+const ENCODER_CLASS: AVClass = AVClass {
+    class_name: c"AAC encoder".as_ptr(),
+    item_name: Some(av_default_item_name),
+    option: aacenc_options.as_ptr(),
+    version: (58 as c_int) << 16 as c_int | (32 as c_int) << 8 as c_int | 100 as c_int,
+    log_level_offset_offset: 0,
+    parent_log_context_offset: 0,
+    category: AV_CLASS_CATEGORY_NA,
+    get_category: None,
+    query_ranges: None,
+    child_next: None,
+    child_class_iterate: None,
 };
-static mut aac_encode_defaults: [FFCodecDefault; 2] = [
-    {
-        FFCodecDefault {
-            key: b"b\0" as *const u8 as *const c_char,
-            value: b"0\0" as *const u8 as *const c_char,
-        }
-    },
-    {
-        FFCodecDefault {
-            key: 0 as *const c_char,
-            value: 0 as *const c_char,
-        }
-    },
-];
+
+const aac_encode_defaults: [FFCodecDefault; 2] =
+    [FFCodecDefault::new(c"b", c"0"), FFCodecDefault::null()];
 
 #[no_mangle]
 pub static mut ff_aac_encoder: FFCodec = FFCodec {
     p: AVCodec {
-        name: 0 as *const c_char,
-        long_name: 0 as *const c_char,
-        type_0: AVMEDIA_TYPE_VIDEO,
-        id: AV_CODEC_ID_NONE,
-        capabilities: 0,
+        name: c"aac".as_ptr(),
+        long_name: c"AAC (Advanced Audio Coding)".as_ptr(),
+        type_0: AVMEDIA_TYPE_AUDIO,
+        id: AV_CODEC_ID_AAC,
+        capabilities: AV_CODEC_FLAG_QSCALE
+            | (1 as c_int) << 5 as c_int
+            | (1 as c_int) << 6 as c_int,
         max_lowres: 0,
-        supported_framerates: 0 as *const AVRational,
-        pix_fmts: 0 as *const AVPixelFormat,
-        supported_samplerates: 0 as *const c_int,
-        sample_fmts: 0 as *const AVSampleFormat,
-        channel_layouts: 0 as *const c_ulong,
-        priv_class: 0 as *const AVClass,
-        profiles: 0 as *const AVProfile,
-        wrapper_name: 0 as *const c_char,
-        ch_layouts: 0 as *const AVChannelLayout,
+        supported_framerates: ptr::null::<AVRational>(),
+        pix_fmts: ptr::null::<AVPixelFormat>(),
+        supported_samplerates: ff_mpeg4audio_sample_rates.as_ptr(),
+        sample_fmts: [8, -1].as_ptr(),
+        channel_layouts: ptr::null::<c_ulong>(),
+        priv_class: &ENCODER_CLASS,
+        profiles: ptr::null::<AVProfile>(),
+        wrapper_name: ptr::null::<c_char>(),
+        ch_layouts: ptr::null::<AVChannelLayout>(),
     },
-    caps_internal_cb_type: [0; 4],
-    priv_data_size: 0,
+    caps_internal_cb_type: {
+        (AV_CODEC_FLAG_QSCALE as c_uint | FF_CODEC_CB_TYPE_ENCODE << 29).to_le_bytes()
+    },
+    priv_data_size: size_of::<PrivData>() as c_int,
     update_thread_context: None,
     update_thread_context_for_user: None,
-    defaults: 0 as *const FFCodecDefault,
+    defaults: aac_encode_defaults.as_ptr(),
     init_static_data: None,
-    init: None,
-    cb: CodecCallback { decode: None },
-    close: None,
+    init: Some(aac_encode_init),
+    cb: CodecCallback {
+        encode: Some(aac_encode_frame),
+    },
+    close: Some(aac_encode_end),
     flush: None,
-    bsfs: 0 as *const c_char,
-    hw_configs: 0 as *const *const AVCodecHWConfigInternal,
-    codec_tags: 0 as *const c_uint,
+    bsfs: ptr::null::<c_char>(),
+    hw_configs: ptr::null::<*const AVCodecHWConfigInternal>(),
+    codec_tags: ptr::null::<c_uint>(),
 };
-
-unsafe extern "C" fn run_static_initializers() {
-    ff_aac_encoder = {
-        let mut init = FFCodec {
-            caps_internal_cb_type: [0; 4],
-            p: {
-                AVCodec {
-                    name: c"aac".as_ptr(),
-                    long_name: c"AAC (Advanced Audio Coding)".as_ptr(),
-                    type_0: AVMEDIA_TYPE_AUDIO,
-                    id: AV_CODEC_ID_AAC,
-                    capabilities: AV_CODEC_FLAG_QSCALE
-                        | (1 as c_int) << 5 as c_int
-                        | (1 as c_int) << 6 as c_int,
-                    max_lowres: 0,
-                    supported_framerates: ptr::null::<AVRational>(),
-                    pix_fmts: ptr::null::<AVPixelFormat>(),
-                    supported_samplerates: ff_mpeg4audio_sample_rates.as_ptr(),
-                    sample_fmts: [8, -1].as_ptr(),
-                    channel_layouts: ptr::null::<c_ulong>(),
-                    priv_class: &aacenc_class,
-                    profiles: ptr::null::<AVProfile>(),
-                    wrapper_name: ptr::null::<c_char>(),
-                    ch_layouts: ptr::null::<AVChannelLayout>(),
-                }
-            },
-            priv_data_size: size_of::<PrivData>() as c_int,
-            update_thread_context: None,
-            update_thread_context_for_user: None,
-            defaults: aac_encode_defaults.as_ptr(),
-            init_static_data: None,
-            init: Some(aac_encode_init),
-            cb: CodecCallback {
-                encode: Some(aac_encode_frame),
-            },
-            close: Some(aac_encode_end),
-            flush: None,
-            bsfs: ptr::null::<c_char>(),
-            hw_configs: ptr::null::<*const AVCodecHWConfigInternal>(),
-            codec_tags: ptr::null::<c_uint>(),
-        };
-        init.set_caps_internal((AV_CODEC_FLAG_QSCALE) as c_uint);
-        init.set_cb_type(FF_CODEC_CB_TYPE_ENCODE as c_int as c_uint);
-        init
-    };
-}
-#[used]
-#[cfg_attr(target_os = "linux", link_section = ".init_array")]
-#[cfg_attr(target_os = "windows", link_section = ".CRT$XIB")]
-#[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-static INIT_ARRAY: [unsafe extern "C" fn(); 1] = [run_static_initializers];

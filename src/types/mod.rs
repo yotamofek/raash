@@ -80,7 +80,6 @@ pub(crate) struct AVFloatDSPContext {
 }
 
 pub(crate) const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
-pub(crate) const AVMEDIA_TYPE_VIDEO: AVMediaType = 0;
 
 pub(crate) type ptrdiff_t = c_long;
 
@@ -95,8 +94,6 @@ pub(crate) const AV_OPT_TYPE_FLAGS: AVOptionType = 0;
 pub(crate) const AV_SAMPLE_FMT_FLTP: AVSampleFormat = 8;
 
 pub(crate) const AV_CODEC_ID_AAC: AVCodecID = 86018;
-
-pub(crate) const AV_CODEC_ID_NONE: AVCodecID = 0;
 
 #[derive(Copy, Clone)]
 #[repr(C, packed)]
@@ -752,63 +749,6 @@ pub(crate) struct AACQuantizeBandCostCacheEntry {
     pub(crate) cb: c_char,
     pub(crate) rtz: c_char,
     pub(crate) generation: c_ushort,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct AACCoefficientsEncoder {
-    pub(crate) search_for_quantizers: Option<
-        unsafe fn(
-            *mut AVCodecContext,
-            *mut AACEncContext,
-            *mut SingleChannelElement,
-            c_float,
-        ) -> (),
-    >,
-    pub(crate) encode_window_bands_info: Option<
-        unsafe fn(*mut AACEncContext, *mut SingleChannelElement, c_int, c_int, c_float) -> (),
-    >,
-    pub(crate) quantize_and_encode_band: Option<
-        unsafe fn(
-            *mut AACEncContext,
-            *mut PutBitContext,
-            *const c_float,
-            *mut c_float,
-            c_int,
-            c_int,
-            c_int,
-            c_float,
-            c_int,
-        ) -> (),
-    >,
-    pub(crate) encode_tns_info:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) encode_ltp_info:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement, c_int) -> ()>,
-    pub(crate) encode_main_pred:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) adjust_common_pred: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
-    pub(crate) adjust_common_ltp: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
-    pub(crate) apply_main_pred:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) apply_tns_filt:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) update_ltp: Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) ltp_insert_new_frame: Option<unsafe fn(*mut AACEncContext) -> ()>,
-    pub(crate) set_special_band_scalefactors:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) search_for_pns:
-        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) mark_pns:
-        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) search_for_tns:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
-    pub(crate) search_for_ltp:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement, c_int) -> ()>,
-    pub(crate) search_for_ms: Option<unsafe fn(*mut AACEncContext, *mut ChannelElement) -> ()>,
-    pub(crate) search_for_is:
-        Option<unsafe fn(*mut AACEncContext, *mut AVCodecContext, *mut ChannelElement) -> ()>,
-    pub(crate) search_for_pred:
-        Option<unsafe fn(*mut AACEncContext, *mut SingleChannelElement) -> ()>,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
