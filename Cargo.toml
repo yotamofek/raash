@@ -1,3 +1,5 @@
+workspace = { members = ["ffi"] }
+
 [package]
 name = "rsaac"
 version = "0.1.0"
