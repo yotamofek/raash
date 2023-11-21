@@ -38,6 +38,7 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 name = "ffi"
 version = "0.1.0"
 dependencies = [
+ "c2rust-bitfields",
  "libc",
 ]
 
@@ -92,6 +93,7 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "c2rust-bitfields",
+ "ffi",
  "ilog",
  "itertools",
  "libc",

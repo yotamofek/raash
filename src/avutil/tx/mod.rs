@@ -33,43 +33,14 @@ extern "C" {
     fn av_gcd(a: c_long, b: c_long) -> c_long;
 
 }
+
 #[inline(always)]
 unsafe fn ff_ctz_c(v: c_int) -> c_int {
-    static mut debruijn_ctz32: [c_uchar; 32] = [
-        0 as c_int as c_uchar,
-        1 as c_int as c_uchar,
-        28 as c_int as c_uchar,
-        2 as c_int as c_uchar,
-        29 as c_int as c_uchar,
-        14 as c_int as c_uchar,
-        24 as c_int as c_uchar,
-        3 as c_int as c_uchar,
-        30 as c_int as c_uchar,
-        22 as c_int as c_uchar,
-        20 as c_int as c_uchar,
-        15 as c_int as c_uchar,
-        25 as c_int as c_uchar,
-        17 as c_int as c_uchar,
-        4 as c_int as c_uchar,
-        8 as c_int as c_uchar,
-        31 as c_int as c_uchar,
-        27 as c_int as c_uchar,
-        13 as c_int as c_uchar,
-        23 as c_int as c_uchar,
-        21 as c_int as c_uchar,
-        19 as c_int as c_uchar,
-        16 as c_int as c_uchar,
-        7 as c_int as c_uchar,
-        26 as c_int as c_uchar,
-        12 as c_int as c_uchar,
-        18 as c_int as c_uchar,
-        6 as c_int as c_uchar,
-        11 as c_int as c_uchar,
-        5 as c_int as c_uchar,
-        10 as c_int as c_uchar,
-        9 as c_int as c_uchar,
+    static DEBRUIJN_CTZ32: [c_uchar; 32] = [
+        0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7,
+        26, 12, 18, 6, 11, 5, 10, 9,
     ];
-    debruijn_ctz32[(((v & -v) as c_uint).wrapping_mul(0x77cb531 as c_uint) >> 27 as c_int) as usize]
+    DEBRUIJN_CTZ32[(((v & -v) as c_uint).wrapping_mul(0x77cb531 as c_uint) >> 27 as c_int) as usize]
         as c_int
 }
 

@@ -1,5 +1,6 @@
 use std::{iter::zip, mem::size_of, ptr, slice};
 
+use ffi::codec::AVCodecContext;
 use itertools::izip;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 

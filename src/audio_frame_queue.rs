@@ -1,6 +1,10 @@
 use std::mem::size_of;
 
 use ::libc;
+use ffi::{
+    codec::{frame::AVFrame, AVCodecContext},
+    num::AVRational,
+};
 use libc::{c_char, c_int, c_long, c_uint, c_ulong, c_void};
 
 use crate::{avutil::mathematics::av_rescale_q, types::*};

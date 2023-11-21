@@ -5,6 +5,7 @@ use std::{
 };
 
 use ::libc;
+use ffi::num::AVComplexDouble;
 use libc::{
     c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ulonglong, c_void,
 };

@@ -1,5 +1,5 @@
 #![feature(extern_types)]
 
-mod class;
-mod codec;
-mod num;
+pub mod class;
+pub mod codec;
+pub mod num;

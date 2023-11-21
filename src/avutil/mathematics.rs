@@ -1,3 +1,4 @@
+use ffi::num::AVRational;
 use ::libc;
 use libc::{c_int, c_long, c_uint, c_ulong};
 

@@ -10,11 +10,12 @@
 
 use std::alloc::{alloc_zeroed, Layout};
 
+use ffi::codec::AVCodecContext;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
 use crate::{common::*, psymodel::ff_psy_find_group, types::*};
 
-pub(crate) type C2RustUnnamed_1 = c_uint;
+type C2RustUnnamed_1 = c_uint;
 pub(crate) const PSY_3GPP_AH_ACTIVE: C2RustUnnamed_1 = 2;
 pub(crate) const PSY_3GPP_AH_INACTIVE: C2RustUnnamed_1 = 1;
 pub(crate) const PSY_3GPP_AH_NONE: C2RustUnnamed_1 = 0;

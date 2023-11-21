@@ -18,6 +18,18 @@ use std::{
     ptr::{self, addr_of_mut},
 };
 
+use ffi::{
+    class::{
+        option::{AVOption, C2RustUnnamed_0},
+        AVClass,
+    },
+    codec::{
+        frame::AVFrame, AVChannelLayout, AVCodec, AVCodecContext, AVCodecHWConfigInternal,
+        AVPacket, AVPixelFormat, AVProfile, AVSampleFormat, C2RustUnnamed, CodecCallback, FFCodec,
+        FFCodecDefault, FF_CODEC_CB_TYPE_ENCODE,
+    },
+    num::AVRational,
+};
 use libc::{
     c_char, c_double, c_float, c_int, c_long, c_schar, c_uchar, c_uint, c_ulong, c_ulonglong,
     c_ushort, c_void,
@@ -2469,7 +2481,7 @@ static mut aac_pce_configs: [AACPCEInfo; 29] = [
 unsafe extern "C" fn put_pce(mut pb: *mut PutBitContext, mut avctx: *mut AVCodecContext) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
-    let mut s: *mut AACEncContext = (*(*avctx).priv_data).ctx;
+    let mut s: *mut AACEncContext = (*((*avctx).priv_data as *mut PrivData)).ctx;
     let mut pce: *mut AACPCEInfo = &mut (*s).pce;
     let bitexact: c_int = (*avctx).flags & (1 as c_int) << 23 as c_int;
     let mut aux_data = if bitexact != 0 {
@@ -2542,7 +2554,7 @@ unsafe extern "C" fn put_audio_specific_config(mut avctx: *mut AVCodecContext) -
         buf_end: ptr::null_mut::<c_uchar>(),
     };
 
-    let mut s: *mut AACEncContext = (*(*avctx).priv_data).ctx;
+    let mut s: *mut AACEncContext = (*((*avctx).priv_data as *mut PrivData)).ctx;
     let mut channels: c_int = ((*s).needs_pce == 0) as c_int
         * ((*s).channels
             - (if (*s).channels == 8 as c_int {
@@ -3345,7 +3357,7 @@ unsafe extern "C" fn aac_encode_frame(
     mut frame: *const AVFrame,
     mut got_packet_ptr: *mut c_int,
 ) -> c_int {
-    let mut s: *mut AACEncContext = (*(*avctx).priv_data).ctx;
+    let mut s: *mut AACEncContext = (*((*avctx).priv_data as *mut PrivData)).ctx;
     // let mut samples: *mut *mut c_float = ((*s).planar_samples).as_mut_ptr();
     let mut samples2: *mut c_float = ptr::null_mut::<c_float>();
     let mut la: *mut c_float = ptr::null_mut::<c_float>();
@@ -3930,7 +3942,7 @@ unsafe extern "C" fn aac_encode_frame(
 
 #[cold]
 unsafe extern "C" fn aac_encode_end(mut avctx: *mut AVCodecContext) -> c_int {
-    let mut s: *mut AACEncContext = (*(*avctx).priv_data).ctx;
+    let mut s: *mut AACEncContext = (*((*avctx).priv_data as *mut PrivData)).ctx;
     av_log(
         avctx as *mut c_void,
         32 as c_int,
@@ -4008,18 +4020,18 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
     // dbg!((*avctx).priv_data);
     // dbg!(*((*avctx).priv_data));
     // abort();
-    let ctx = &mut (*(*avctx).priv_data).ctx;
+    let ctx = &mut (*((*avctx).priv_data as *mut PrivData)).ctx;
     debug_assert!(ctx.is_null());
     *ctx = {
         let mut s = Box::<AACEncContext>::new_zeroed();
-        addr_of_mut!((*s.as_mut_ptr()).av_class).write((*(*avctx).priv_data).class);
-        addr_of_mut!((*s.as_mut_ptr()).options).write((*(*avctx).priv_data).options);
+        addr_of_mut!((*s.as_mut_ptr()).av_class)
+            .write((*((*avctx).priv_data as *mut PrivData)).class);
+        addr_of_mut!((*s.as_mut_ptr()).options)
+            .write((*((*avctx).priv_data as *mut PrivData)).options);
         addr_of_mut!((*s.as_mut_ptr()).planar_samples)
             .write(vec![[0.; _]; (*avctx).ch_layout.nb_channels as usize].into_boxed_slice());
         Box::into_raw(s.assume_init())
     };
-    dbg!((**ctx).options);
-    dbg!((*(*avctx).priv_data).options);
     let mut s: *mut AACEncContext = *ctx;
 
     let mut i: c_int = 0;
@@ -4726,7 +4738,7 @@ pub static mut ff_aac_encoder: FFCodec = FFCodec {
     defaults: 0 as *const FFCodecDefault,
     init_static_data: None,
     init: None,
-    cb: C2RustUnnamed_1 { decode: None },
+    cb: CodecCallback { decode: None },
     close: None,
     flush: None,
     bsfs: 0 as *const c_char,
@@ -4765,7 +4777,7 @@ unsafe extern "C" fn run_static_initializers() {
             defaults: aac_encode_defaults.as_ptr(),
             init_static_data: None,
             init: Some(aac_encode_init),
-            cb: C2RustUnnamed_1 {
+            cb: CodecCallback {
                 encode: Some(aac_encode_frame),
             },
             close: Some(aac_encode_end),

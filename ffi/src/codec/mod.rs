@@ -1,5 +1,10 @@
+pub mod frame;
+pub mod subtitle;
+
+use c2rust_bitfields::BitfieldStruct;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
+use self::{frame::AVFrame, subtitle::AVSubtitle};
 use super::{class::AVClass, num::AVRational};
 
 extern "C" {
@@ -7,18 +12,7 @@ extern "C" {
     pub type AVBuffer;
     pub type AVDictionary;
     pub type AVCodecDescriptor;
-}
-
-pub type AVFrameSideDataType = c_uint;
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct AVFrameSideData {
-    pub type_0: AVFrameSideDataType,
-    pub data: *mut c_uchar,
-    pub size: c_ulong,
-    pub metadata: *mut AVDictionary,
-    pub buf: *mut AVBufferRef,
+    pub type AVCodecHWConfigInternal;
 }
 
 pub type AVMediaType = c_int;
@@ -38,62 +32,6 @@ pub struct AVBufferRef {
     pub buffer: *mut AVBuffer,
     pub data: *mut c_uchar,
     pub size: c_ulong,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct AVFrame {
-    pub data: [*mut c_uchar; 8],
-    pub linesize: [c_int; 8],
-    pub extended_data: *mut *mut c_uchar,
-    pub width: c_int,
-    pub height: c_int,
-    pub nb_samples: c_int,
-    pub format: c_int,
-    pub key_frame: c_int,
-    pub pict_type: AVPictureType,
-    pub sample_aspect_ratio: AVRational,
-    pub pts: c_long,
-    pub pkt_dts: c_long,
-    pub time_base: AVRational,
-    pub coded_picture_number: c_int,
-    pub display_picture_number: c_int,
-    pub quality: c_int,
-    pub opaque: *mut c_void,
-    pub repeat_pict: c_int,
-    pub interlaced_frame: c_int,
-    pub top_field_first: c_int,
-    pub palette_has_changed: c_int,
-    pub reordered_opaque: c_long,
-    pub sample_rate: c_int,
-    pub channel_layout: c_ulong,
-    pub buf: [*mut AVBufferRef; 8],
-    pub extended_buf: *mut *mut AVBufferRef,
-    pub nb_extended_buf: c_int,
-    pub side_data: *mut *mut AVFrameSideData,
-    pub nb_side_data: c_int,
-    pub flags: c_int,
-    pub color_range: AVColorRange,
-    pub color_primaries: AVColorPrimaries,
-    pub color_trc: AVColorTransferCharacteristic,
-    pub colorspace: AVColorSpace,
-    pub chroma_location: AVChromaLocation,
-    pub best_effort_timestamp: c_long,
-    pub pkt_pos: c_long,
-    pub pkt_duration: c_long,
-    pub metadata: *mut AVDictionary,
-    pub decode_error_flags: c_int,
-    pub channels: c_int,
-    pub pkt_size: c_int,
-    pub hw_frames_ctx: *mut AVBufferRef,
-    pub opaque_ref: *mut AVBufferRef,
-    pub crop_top: c_ulong,
-    pub crop_bottom: c_ulong,
-    pub crop_left: c_ulong,
-    pub crop_right: c_ulong,
-    pub private_ref: *mut AVBufferRef,
-    pub ch_layout: AVChannelLayout,
-    pub duration: c_long,
 }
 
 #[derive(Copy, Clone)]
@@ -393,4 +331,66 @@ pub struct RcOverride {
     pub end_frame: c_int,
     pub qscale: c_int,
     pub quality_factor: c_float,
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FFCodecDefault {
+    pub key: *const c_char,
+    pub value: *const c_char,
+}
+
+pub type FFCodecType = c_uint;
+pub const FF_CODEC_CB_TYPE_ENCODE: FFCodecType = 3;
+
+#[derive(Copy, Clone, BitfieldStruct)]
+#[repr(C)]
+pub struct FFCodec {
+    pub p: AVCodec,
+    #[bitfield(name = "caps_internal", ty = "c_uint", bits = "0..=28")]
+    #[bitfield(name = "cb_type", ty = "c_uint", bits = "29..=31")]
+    pub caps_internal_cb_type: [u8; 4],
+    pub priv_data_size: c_int,
+    pub update_thread_context:
+        Option<unsafe extern "C" fn(*mut AVCodecContext, *const AVCodecContext) -> c_int>,
+    pub update_thread_context_for_user:
+        Option<unsafe extern "C" fn(*mut AVCodecContext, *const AVCodecContext) -> c_int>,
+    pub defaults: *const FFCodecDefault,
+    pub init_static_data: Option<unsafe extern "C" fn(*mut FFCodec) -> ()>,
+    pub init: Option<unsafe extern "C" fn(*mut AVCodecContext) -> c_int>,
+    pub cb: CodecCallback,
+    pub close: Option<unsafe extern "C" fn(*mut AVCodecContext) -> c_int>,
+    pub flush: Option<unsafe extern "C" fn(*mut AVCodecContext) -> ()>,
+    pub bsfs: *const c_char,
+    pub hw_configs: *const *const AVCodecHWConfigInternal,
+    pub codec_tags: *const c_uint,
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub union CodecCallback {
+    pub decode: Option<
+        unsafe extern "C" fn(*mut AVCodecContext, *mut AVFrame, *mut c_int, *mut AVPacket) -> c_int,
+    >,
+    pub decode_sub: Option<
+        unsafe extern "C" fn(
+            *mut AVCodecContext,
+            *mut AVSubtitle,
+            *mut c_int,
+            *const AVPacket,
+        ) -> c_int,
+    >,
+    pub receive_frame: Option<unsafe extern "C" fn(*mut AVCodecContext, *mut AVFrame) -> c_int>,
+    pub encode: Option<
+        unsafe extern "C" fn(
+            *mut AVCodecContext,
+            *mut AVPacket,
+            *const AVFrame,
+            *mut c_int,
+        ) -> c_int,
+    >,
+    pub encode_sub: Option<
+        unsafe extern "C" fn(*mut AVCodecContext, *mut c_uchar, c_int, *const AVSubtitle) -> c_int,
+    >,
+    pub receive_packet: Option<unsafe extern "C" fn(*mut AVCodecContext, *mut AVPacket) -> c_int>,
 }

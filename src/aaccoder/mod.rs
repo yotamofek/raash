@@ -12,6 +12,7 @@ mod quantizers;
 
 use std::{mem::size_of, ptr};
 
+use ffi::codec::AVCodecContext;
 use ilog::IntLog;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 

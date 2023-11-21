@@ -1,3 +1,7 @@
+use ffi::{
+    class::AVClass,
+    codec::{frame::AVFrame, AVCodecContext},
+};
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort, c_void};
 
 use crate::types::*;

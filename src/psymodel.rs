@@ -13,6 +13,7 @@ use std::{
     ptr,
 };
 
+use ffi::codec::AVCodecContext;
 use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_void};
 
 use crate::{
