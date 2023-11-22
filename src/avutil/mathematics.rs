@@ -1,5 +1,5 @@
-use ffi::num::AVRational;
 use ::libc;
+use ffi::num::AVRational;
 use libc::{c_int, c_long, c_uint, c_ulong};
 
 use crate::types::*;

@@ -10,7 +10,7 @@
 
 mod codes;
 
-use std::{f32::consts::SQRT_2, f64::consts::PI, iter::zip, ptr, sync::Once};
+use std::{f32::consts::SQRT_2, f64::consts::PI, iter::zip, sync::Once};
 
 use libc::{c_double, c_float, c_int};
 use once_cell::sync::Lazy;
@@ -75,7 +75,7 @@ where
 {
     let mut float_window: [c_float; N] = [0.; N];
     let mut temp: [c_double; N / 2 + 1] = [0.; N / 2 + 1];
-    let mut i: c_int = 0;
+    let mut _i: c_int = 0;
     let mut sum: c_double = 0.0f64;
     let mut scale: c_double = 0.0f64;
     let mut alpha2: c_double =

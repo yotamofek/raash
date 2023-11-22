@@ -1,5 +1,5 @@
 use ffi::codec::AVCodecContext;
-use libc::{c_float, c_int, c_ulong, c_void};
+use libc::{c_float, c_int, c_void};
 
 use super::{avpriv_float_dsp_alloc, ctx::AACEncContext};
 use crate::{avutil::tx::av_tx_init, types::AV_TX_FLOAT_MDCT};

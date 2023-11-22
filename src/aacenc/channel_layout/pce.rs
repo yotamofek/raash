@@ -1,9 +1,5 @@
-use std::ptr::null_mut;
-
-use ffi::codec::channel::{
-    self as ch, AVChannel, AVChannelLayout, ChannelLayoutMaskOrMap, ORDER_NATIVE,
-};
-use libc::{c_int, c_uchar, c_ulong};
+use ffi::codec::channel::{self as ch, AVChannelLayout};
+use libc::{c_int, c_uchar};
 
 use super::{channel_layout, config_map};
 use crate::types::*;

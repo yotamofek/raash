@@ -8,9 +8,7 @@
     unused_mut
 )]
 
-use std::mem::size_of;
-
-use libc::{c_int, c_uchar, c_ulong};
+use libc::c_uchar;
 
 static mut swb_size_128_96: [c_uchar; 12] = [4, 4, 4, 4, 4, 4, 8, 8, 8, 16, 28, 36];
 static mut swb_size_128_64: [c_uchar; 12] = [4, 4, 4, 4, 4, 4, 8, 8, 8, 16, 28, 36];

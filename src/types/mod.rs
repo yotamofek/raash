@@ -12,7 +12,7 @@ use libc::{
     c_void,
 };
 
-use crate::aacenc::ctx::{AACContext, AACEncContext};
+use crate::aacenc::ctx::AACContext;
 
 #[derive(Copy, Clone)]
 #[repr(C)]

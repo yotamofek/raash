@@ -20,24 +20,22 @@ use std::{
     ffi::CStr,
     iter::zip,
     mem::size_of,
-    ptr::{self, addr_of_mut, null, null_mut},
+    ptr::{self, null, null_mut},
     slice,
 };
 
 use ffi::{
     class::AVClass,
     codec::{
-        channel::{self, AVChannelLayout, ChannelLayoutMaskOrMap},
-        frame::AVFrame,
-        AVCodec, AVCodecContext, AVCodecHWConfigInternal, AVPacket, AVPixelFormat, AVProfile,
-        CodecCallback, FFCodec, FFCodecDefault, FF_CODEC_CB_TYPE_ENCODE,
+        channel::AVChannelLayout, frame::AVFrame, AVCodec, AVCodecContext, AVCodecHWConfigInternal,
+        AVPacket, AVPixelFormat, AVProfile, CodecCallback, FFCodec, FFCodecDefault,
+        FF_CODEC_CB_TYPE_ENCODE,
     },
     num::AVRational,
 };
-use itertools::{izip, Itertools};
+use itertools::Itertools;
 use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_schar, c_uchar, c_uint, c_ulong, c_ulonglong,
-    c_ushort, c_void,
+    c_char, c_double, c_float, c_int, c_long, c_schar, c_uchar, c_uint, c_ulong, c_ushort, c_void,
 };
 
 use self::{

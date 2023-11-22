@@ -7,11 +7,7 @@ use std::{ffi::CStr, ptr};
 use c2rust_bitfields::BitfieldStruct;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
-use self::{
-    channel::{AVChannel, AVChannelLayout, AVChannelOrder},
-    frame::AVFrame,
-    subtitle::AVSubtitle,
-};
+use self::{channel::AVChannelLayout, frame::AVFrame, subtitle::AVSubtitle};
 use super::{class::AVClass, num::AVRational};
 
 extern "C" {

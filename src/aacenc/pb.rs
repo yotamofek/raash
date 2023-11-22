@@ -1,4 +1,4 @@
-use std::{mem::size_of, ptr, ptr::null_mut};
+use std::{mem::size_of, ptr};
 
 use libc::{c_int, c_long, c_uchar, c_ulong};
 
