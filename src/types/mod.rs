@@ -712,62 +712,6 @@ pub(crate) struct FFPsyModel {
     >,
     pub(crate) end: Option<unsafe extern "C" fn(*mut FFPsyContext) -> ()>,
 }
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct LLSModel {
-    pub(crate) covariance: [[c_double; 36]; 36],
-    pub(crate) coeff: [[c_double; 32]; 32],
-    pub(crate) variance: [c_double; 32],
-    pub(crate) indep_count: c_int,
-    pub(crate) update_lls: Option<unsafe extern "C" fn(*mut LLSModel, *const c_double) -> ()>,
-    pub(crate) evaluate_lls:
-        Option<unsafe extern "C" fn(*mut LLSModel, *const c_double, c_int) -> c_double>,
-}
-
-impl LLSModel {
-    pub(crate) const fn zero() -> Self {
-        Self {
-            covariance: [[0.; 36]; 36],
-            coeff: [[0.; 32]; 32],
-            variance: [0.; 32],
-            indep_count: 0,
-            update_lls: None,
-            evaluate_lls: None,
-        }
-    }
-}
-pub(crate) type FFLPCType = c_int;
-pub(crate) const FF_LPC_TYPE_LEVINSON: FFLPCType = 2;
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct LPCContext {
-    pub(crate) blocksize: c_int,
-    pub(crate) max_order: c_int,
-    pub(crate) lpc_type: FFLPCType,
-    pub(crate) windowed_buffer: *mut c_double,
-    pub(crate) windowed_samples: *mut c_double,
-    pub(crate) lpc_apply_welch_window:
-        Option<unsafe extern "C" fn(*const c_int, ptrdiff_t, *mut c_double) -> ()>,
-    pub(crate) lpc_compute_autocorr:
-        Option<unsafe extern "C" fn(*const c_double, ptrdiff_t, c_int, *mut c_double) -> ()>,
-    pub(crate) lls_models: [LLSModel; 2],
-}
-
-impl LPCContext {
-    pub(crate) const fn zero() -> Self {
-        Self {
-            blocksize: 0,
-            max_order: 0,
-            lpc_type: 0,
-            windowed_buffer: null_mut(),
-            windowed_samples: null_mut(),
-            lpc_apply_welch_window: None,
-            lpc_compute_autocorr: None,
-            lls_models: [LLSModel::zero(); 2],
-        }
-    }
-}
 
 pub(crate) type AACCoder = c_uint;
 pub(crate) const AAC_CODER_NB: AACCoder = 3;

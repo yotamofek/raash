@@ -12,7 +12,7 @@ use std::mem::size_of;
 
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
-use crate::{aacenc::ctx::AACEncContext, common::*, lpc::ff_lpc_calc_ref_coefs_f, types::*};
+use crate::{aacenc::ctx::AACEncContext, common::*, types::*};
 
 static mut BUF_BITS: c_int = 0;
 #[inline]
@@ -482,15 +482,13 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
             g += 1;
             g;
         }
-        gain = ff_lpc_calc_ref_coefs_f(
-            &mut (*s).lpc,
-            &mut *((*sce).coeffs)
-                .as_mut_ptr()
-                .offset((w * 128 as c_int + coef_start) as isize),
-            coef_len,
+
+        gain = (*s).lpc.calc_ref_coefs_f(
+            &(*sce).coeffs[(w * 128 as c_int + coef_start) as usize..][..coef_len as usize],
             order,
             coefs.as_mut_ptr(),
         );
+
         if !(order == 0
             || gain.is_finite() as i32 == 0
             || gain < 1.4f32 as c_double

@@ -66,7 +66,7 @@ use crate::{
     audio_frame_queue::{ff_af_queue_add, ff_af_queue_close, ff_af_queue_init, ff_af_queue_remove},
     avutil::{log::av_default_item_name, tx::av_tx_uninit},
     common::*,
-    lpc::{ff_lpc_end, ff_lpc_init},
+    lpc::{LPCContext, FF_LPC_TYPE_LEVINSON},
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
     psymodel::{
         ff_psy_end, ff_psy_init, ff_psy_preprocess, ff_psy_preprocess_end, ff_psy_preprocess_init,
@@ -1329,7 +1329,6 @@ unsafe extern "C" fn aac_encode_end(mut avctx: *mut AVCodecContext) -> c_int {
     av_tx_uninit(&mut (*s).mdct1024);
     av_tx_uninit(&mut (*s).mdct128);
     ff_psy_end(&mut (*s).psy);
-    ff_lpc_end(&mut (*s).lpc);
     if !((*s).psypp).is_null() {
         ff_psy_preprocess_end((*s).psypp);
     }
@@ -1359,6 +1358,9 @@ unsafe extern "C" fn alloc_buffers(
 unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
     let priv_data = (*avctx).priv_data as *mut PrivData;
     debug_assert!((*priv_data).ctx.is_null());
+
+    (*avctx).frame_size = 1024 as c_int;
+    (*avctx).initial_padding = 1024 as c_int;
 
     let needs_pce = if channel_layout::NORMAL_LAYOUTS
         .iter()
@@ -1390,7 +1392,7 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         planar_samples: vec![[0.; _]; (*avctx).ch_layout.nb_channels as usize].into_boxed_slice(),
         profile: 0,
         needs_pce,
-        lpc: LPCContext::zero(),
+        lpc: LPCContext::new(2 * (*avctx).frame_size, 20, FF_LPC_TYPE_LEVINSON),
         samplerate_index,
         channels: (*avctx).ch_layout.nb_channels,
         reorder_map: null(),
@@ -1430,8 +1432,6 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
     let mut sizes: [*const c_uchar; 2] = [ptr::null::<c_uchar>(); 2];
     let mut grouping: [c_uchar; 16] = [0; 16];
     let mut lengths: [c_int; 2] = [0; 2];
-    (*avctx).frame_size = 1024 as c_int;
-    (*avctx).initial_padding = 1024 as c_int;
 
     if (*s).needs_pce != 0 {
         let mut buf: [c_char; 64] = [0; 64];
@@ -1661,12 +1661,7 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         return ret;
     }
     (*s).psypp = ff_psy_preprocess_init(avctx);
-    ff_lpc_init(
-        &mut (*s).lpc,
-        2 as c_int * (*avctx).frame_size,
-        20 as c_int,
-        FF_LPC_TYPE_LEVINSON,
-    );
+    LPCContext::new(2 * (*avctx).frame_size, 20, FF_LPC_TYPE_LEVINSON);
     ff_af_queue_init(avctx, &mut (*s).afq);
     0 as c_int
 }

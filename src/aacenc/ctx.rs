@@ -5,7 +5,7 @@ use ffi::{
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort, c_void};
 
 use super::channel_layout::pce;
-use crate::{aaccoder::coder::CoeffsEncoder, types::*};
+use crate::{aaccoder::coder::CoeffsEncoder, lpc::LPCContext, types::*};
 
 // TODO: I think this can be opaque?
 #[derive(Copy, Clone)]
