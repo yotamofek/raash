@@ -12,13 +12,16 @@ mod channel_layout;
 pub(crate) mod ctx;
 mod dsp;
 pub mod options;
+mod pb;
 pub(crate) mod pow;
 mod window;
 
 use std::{
     ffi::CStr,
+    iter::zip,
     mem::size_of,
     ptr::{self, addr_of_mut, null, null_mut},
+    slice,
 };
 
 use ffi::{
@@ -31,7 +34,7 @@ use ffi::{
     },
     num::AVRational,
 };
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use libc::{
     c_char, c_double, c_float, c_int, c_long, c_schar, c_uchar, c_uint, c_ulong, c_ulonglong,
     c_ushort, c_void,
@@ -41,14 +44,14 @@ use self::{
     channel_layout::pce,
     ctx::{AACEncContext, PrivData},
     options::OPTIONS,
+    pb::*,
+    pow::Pow34,
     window::{apply_window_and_mdct, APPLY_WINDOW},
 };
 use crate::{
     aaccoder::{
-        coder::{self, CoeffsEncoder},
-        encode_window_bands_info, mark_pns,
-        quantize_and_encode_band::quantize_and_encode_band,
-        search_for_ms, search_for_pns, set_special_band_scalefactors,
+        coder, encode_window_bands_info, ms::search_for_ms, pns,
+        quantize_and_encode_band::quantize_and_encode_band, set_special_band_scalefactors,
     },
     aacenc_is::search_for_is,
     aacenc_ltp::{
@@ -60,20 +63,16 @@ use crate::{
     aactab::{
         ff_aac_float_common_init, ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits,
         ff_aac_scalefactor_code, ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024,
-        ff_tns_max_bands_128, KBD_LONG, KBD_SHORT,
+        ff_tns_max_bands_128,
     },
     audio_frame_queue::{ff_af_queue_add, ff_af_queue_close, ff_af_queue_init, ff_af_queue_remove},
-    avutil::{
-        log::av_default_item_name,
-        tx::{av_tx_init, av_tx_uninit},
-    },
+    avutil::{log::av_default_item_name, tx::av_tx_uninit},
     common::*,
     lpc::{ff_lpc_end, ff_lpc_init},
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
     psymodel::{
         ff_psy_end, ff_psy_init, ff_psy_preprocess, ff_psy_preprocess_end, ff_psy_preprocess_init,
     },
-    sinewin::{ff_sine_1024, ff_sine_128},
     types::*,
 };
 
@@ -95,89 +94,6 @@ extern "C" {
     fn ff_alloc_packet(avctx: *mut AVCodecContext, avpkt: *mut AVPacket, size: c_long) -> c_int;
 }
 
-const BUF_BITS: c_int = size_of::<BitBuf>() as c_int * 8;
-
-#[inline]
-unsafe extern "C" fn init_put_bits(
-    mut s: *mut PutBitContext,
-    mut buffer: *mut c_uchar,
-    mut buffer_size: c_int,
-) {
-    if buffer_size < 0 as c_int {
-        buffer_size = 0 as c_int;
-        buffer = ptr::null_mut::<c_uchar>();
-    }
-    (*s).buf = buffer;
-    (*s).buf_end = ((*s).buf).offset(buffer_size as isize);
-    (*s).buf_ptr = (*s).buf;
-    (*s).bit_left = BUF_BITS;
-    (*s).bit_buf = 0 as c_int as BitBuf;
-}
-#[inline]
-unsafe extern "C" fn put_bits_count(mut s: *mut PutBitContext) -> c_int {
-    (((*s).buf_ptr).offset_from((*s).buf) as c_long * 8 as c_int as c_long + BUF_BITS as c_long
-        - (*s).bit_left as c_long) as c_int
-}
-#[inline]
-unsafe extern "C" fn put_bytes_output(mut s: *const PutBitContext) -> c_int {
-    ((*s).buf_ptr).offset_from((*s).buf) as c_long as c_int
-}
-#[inline]
-unsafe extern "C" fn flush_put_bits(mut s: *mut PutBitContext) {
-    if (*s).bit_left < BUF_BITS {
-        (*s).bit_buf <<= (*s).bit_left;
-    }
-    while (*s).bit_left < BUF_BITS {
-        assert!((*s).buf_ptr < (*s).buf_end);
-        let fresh0 = (*s).buf_ptr;
-        (*s).buf_ptr = ((*s).buf_ptr).offset(1);
-        *fresh0 = ((*s).bit_buf >> BUF_BITS - 8 as c_int) as c_uchar;
-        (*s).bit_buf <<= 8 as c_int;
-        (*s).bit_left += 8 as c_int;
-    }
-    (*s).bit_left = BUF_BITS;
-    (*s).bit_buf = 0 as c_int as BitBuf;
-}
-#[inline]
-unsafe extern "C" fn put_bits_no_assert(
-    mut s: *mut PutBitContext,
-    mut n: c_int,
-    mut value: BitBuf,
-) {
-    let mut bit_buf: BitBuf = 0;
-    let mut bit_left: c_int = 0;
-    bit_buf = (*s).bit_buf;
-    bit_left = (*s).bit_left;
-    if n < bit_left {
-        bit_buf = bit_buf << n | value;
-        bit_left -= n;
-    } else {
-        bit_buf <<= bit_left;
-        bit_buf |= value >> n - bit_left;
-        if ((*s).buf_end).offset_from((*s).buf_ptr) as c_long as c_ulong
-            >= size_of::<BitBuf>() as c_ulong
-        {
-            (*((*s).buf_ptr as *mut unaligned_32)).l = bit_buf.swap_bytes();
-            (*s).buf_ptr = ((*s).buf_ptr).offset(size_of::<BitBuf>() as c_ulong as isize);
-        } else {
-            panic!("Internal error, put_bits buffer too small");
-        }
-        bit_left += BUF_BITS - n;
-        bit_buf = value;
-    }
-    (*s).bit_buf = bit_buf;
-    (*s).bit_left = bit_left;
-}
-#[inline]
-unsafe extern "C" fn put_bits(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
-    put_bits_no_assert(s, n, value);
-}
-
-#[inline]
-unsafe extern "C" fn align_put_bits(mut s: *mut PutBitContext) {
-    put_bits(s, (*s).bit_left & 7 as c_int, 0 as c_int as BitBuf);
-}
-
 static mut aacenc_profiles: [c_int; 4] = [0 as c_int, 1 as c_int, 3 as c_int, 128 as c_int];
 
 #[inline]
@@ -185,8 +101,7 @@ pub(crate) unsafe fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float
     let mut i: c_int = 0;
     i = 0 as c_int;
     while i < size {
-        let mut a: c_float = fabsf(*in_0.offset(i as isize));
-        *out.offset(i as isize) = sqrtf(a * sqrtf(a));
+        *out.offset(i as isize) = (*in_0.offset(i as isize)).abs_pow34();
         i += 1;
         i;
     }
@@ -197,27 +112,25 @@ pub(crate) unsafe fn quantize_bands(
     mut in_0: *const c_float,
     mut scaled: *const c_float,
     mut size: c_int,
-    mut is_signed: c_int,
+    mut is_signed: bool,
     mut maxval: c_int,
     Q34: c_float,
     rounding: c_float,
 ) {
-    let mut i: c_int = 0;
-    i = 0 as c_int;
-    while i < size {
-        let mut qc: c_float = *scaled.offset(i as isize) * Q34;
-        let mut tmp: c_int = (if qc + rounding > maxval as c_float {
-            maxval as c_float
-        } else {
-            qc + rounding
-        }) as c_int;
-        if is_signed != 0 && *in_0.offset(i as isize) < 0.0f32 {
-            tmp = -tmp;
-        }
-        *out.offset(i as isize) = tmp;
-        i += 1;
-        i;
-    }
+    let out = slice::from_raw_parts_mut::<c_int>(out, size as usize);
+    let in_0 = slice::from_raw_parts::<c_float>(in_0, size as usize);
+    let scaled = slice::from_raw_parts::<c_float>(scaled, size as usize);
+    zip(in_0, scaled)
+        .map(|(&in_0, &scaled)| {
+            let qc = scaled * Q34;
+            let mut out = (qc + rounding).min(maxval as c_float) as c_int;
+            if is_signed && in_0 < 0.0f32 {
+                out = -out;
+            }
+            out
+        })
+        .zip(out)
+        .for_each(|(val, out)| *out = val);
 }
 
 unsafe extern "C" fn put_pce(mut pb: *mut PutBitContext, mut avctx: *mut AVCodecContext) {
@@ -1135,7 +1048,7 @@ unsafe extern "C" fn aac_encode_frame(
             while ch < chans {
                 (*s).cur_channel = start_ch + ch;
                 if (*s).options.pns != 0 {
-                    mark_pns(s, avctx, &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize));
+                    pns::mark(s, avctx, &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize));
                 }
                 (*(*s).coder).search_for_quantizers(
                     avctx,
@@ -1181,7 +1094,7 @@ unsafe extern "C" fn aac_encode_frame(
                     tns_mode = 1 as c_int;
                 }
                 if (*s).options.pns != 0 {
-                    search_for_pns(s, avctx, sce);
+                    pns::search(s, avctx, sce);
                 }
                 ch += 1;
                 ch;

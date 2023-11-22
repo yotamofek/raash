@@ -2,7 +2,11 @@ use std::ptr;
 
 use libc::{c_float, c_int, c_uint};
 
-use super::{aac_cb_maxval, aac_cb_range, clip_uintp2_c, ff_log2_c, put_bits, put_sbits, quant};
+use super::{
+    aac_cb_maxval, aac_cb_range,
+    math::{clip_uintp2_c, ff_log2_c},
+    put_bits, put_sbits, quant,
+};
 use crate::{
     aacenc::{abs_pow34_v, ctx::AACEncContext, quantize_bands},
     aactab::{ff_aac_codebook_vectors, ff_aac_spectral_bits, ff_aac_spectral_codes, POW_SF_TABLES},
@@ -94,7 +98,7 @@ unsafe fn cost_template(
         in_0,
         scaled,
         size,
-        (BT_UNSIGNED == 0) as c_int,
+        BT_UNSIGNED == 0,
         aac_cb_maxval[cb as usize] as c_int,
         Q34,
         ROUNDING,
@@ -360,7 +364,7 @@ unsafe fn cost_ESC(
     scaled: *const c_float,
     size: c_int,
     scale_idx: c_int,
-    cb: c_int,
+    _cb: c_int,
     lambda: c_float,
     uplim: c_float,
     bits: *mut c_int,
@@ -397,7 +401,7 @@ unsafe fn cost_ESC_RTZ(
     scaled: *const c_float,
     size: c_int,
     scale_idx: c_int,
-    cb: c_int,
+    _cb: c_int,
     lambda: c_float,
     uplim: c_float,
     bits: *mut c_int,

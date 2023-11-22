@@ -1,10 +1,7 @@
 use ffi::codec::AVCodecContext;
 use libc::{c_float, c_int};
 
-use super::{
-    codebook_trellis_rate, encode_window_bands_info, quantizers, search_for_quantizers_anmr,
-    search_for_quantizers_fast,
-};
+use super::{anmr, encode_window_bands_info, quantizers, search_for_quantizers_fast, trellis};
 use crate::{aacenc::ctx::AACEncContext, types::SingleChannelElement};
 
 pub(crate) trait CoeffsEncoder {
@@ -38,7 +35,7 @@ impl CoeffsEncoder for Anmr {
         sce: *mut SingleChannelElement,
         lambda: c_float,
     ) {
-        search_for_quantizers_anmr(avctx, s, sce, lambda)
+        anmr::search_for_quantizers(avctx, s, sce, lambda)
     }
 
     unsafe fn encode_window_bands_info(
@@ -72,7 +69,7 @@ impl CoeffsEncoder for TwoLoop {
         group_len: c_int,
         lambda: c_float,
     ) {
-        codebook_trellis_rate(s, sce, win, group_len, lambda)
+        trellis::codebook_rate(s, sce, win, group_len, lambda)
     }
 }
 
@@ -95,6 +92,6 @@ impl CoeffsEncoder for Fast {
         group_len: c_int,
         lambda: c_float,
     ) {
-        codebook_trellis_rate(s, sce, win, group_len, lambda)
+        trellis::codebook_rate(s, sce, win, group_len, lambda)
     }
 }

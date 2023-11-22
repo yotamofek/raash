@@ -15,12 +15,6 @@ pub(crate) fn fabs(n: c_double) -> c_double {
     n.abs()
 }
 
-pub(crate) fn expf(n: c_float) -> c_float {
-    n.exp()
-}
-pub(crate) fn logf(n: c_float) -> c_float {
-    n.ln()
-}
 pub(crate) fn log2f(n: c_float) -> c_float {
     n.log2()
 }

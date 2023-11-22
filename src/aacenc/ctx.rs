@@ -75,8 +75,10 @@ pub(crate) struct AACContext {
 
 #[repr(C)]
 pub(crate) struct AACEncContext {
+    // TODO: `av_class` and `options` and duplicated (and copied from) `PrivData`.
     pub av_class: *mut AVClass,
     pub options: AACEncOptions,
+
     pub pb: PutBitContext,
     pub mdct1024: *mut AVTXContext,
     pub mdct1024_fn: av_tx_fn,
@@ -113,8 +115,10 @@ pub(crate) struct AACEncContext {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct PrivData {
+    // `class` and `options` are populated by `avcodec_open2`:
+    // https://github.com/FFmpeg/FFmpeg/blob/e9c93009fc34ca9dfcf0c6f2ed90ef1df298abf7/libavcodec/avcodec.c#L186C1-L189C14
     pub class: *mut AVClass,
     pub options: AACEncOptions,
-    pub pb: PutBitContext,
+
     pub ctx: *mut AACEncContext,
 }
