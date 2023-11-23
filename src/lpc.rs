@@ -2,7 +2,7 @@
 
 #![allow(clippy::self_assignment)]
 
-use std::f64::consts::PI;
+use std::{f64::consts::PI, iter::zip};
 
 use itertools::izip;
 use libc::{c_double, c_float, c_int, c_long};
@@ -101,7 +101,7 @@ impl LPCContext {
         }
     }
 
-    unsafe fn compute_autocorr_c(&self, len: usize, lag: c_int, autoc: &mut [c_double]) {
+    fn compute_autocorr_c(&self, len: usize, lag: c_int, autoc: &mut [c_double]) {
         let padding_size = Self::padding_size(self.max_order);
 
         let mut j = 0 as c_int;
@@ -143,32 +143,30 @@ impl LPCContext {
         order: c_int,
         ref_0: *mut c_double,
     ) -> c_double {
-        let mut autoc: [c_double; 33] = [0.; _];
+        let mut autoc = &mut [0.; 33];
         let mut error: [c_double; 33] = [0.; _];
         let a: c_double = 0.5f32 as c_double;
         let b: c_double = 1.0f32 as c_double - a;
 
         let padding_size = Self::padding_size(self.max_order);
 
-        // let weights = (0..=samples.len() / 2)
-        //     .map(|i| a - b * (2. * PI * i as c_double / (samples.len() - 1) as
-        // c_double).cos()); let (windowed_front, windowed_back) = self
-        //     .windowed_samples
-        //     .split_at_mut(padding_size + samples.len() / 2);
-        // let (samples_front, samples_back) = samples.split_at(samples.len() / 2);
-        // for (weight, front, back) in izip!(weights, windowed_front,
-        // windowed_back.iter_mut().rev()) {
-        // }
+        let weights = (0..=samples.len() / 2)
+            .map(|i| a - b * (2. * PI * i as c_double / (samples.len() - 1) as c_double).cos());
 
-        for i in 0..=samples.len() / 2 {
-            let weight: c_double =
-                a - b * cos(2. * PI * i as c_double / (samples.len() as c_int - 1) as c_double);
-            (self.windowed_samples)[padding_size + i] = weight * samples[i] as c_double;
-            (self.windowed_samples)[padding_size + samples.len() - 1 - i] =
-                weight * samples[samples.len() - 1 - i] as c_double;
+        let (windowed_front, windowed_back) =
+            self.windowed_samples[padding_size..].split_at_mut(samples.len() / 2);
+        let (samples_front, samples_back) = samples.split_at(samples.len() / 2);
+
+        for (weight, (windowed_front, windowed_back), (sample_front, sample_back)) in izip!(
+            weights,
+            zip(windowed_front, windowed_back.iter_mut().rev()),
+            zip(samples_front, samples_back.iter().rev())
+        ) {
+            *windowed_front = weight * *sample_front as c_double;
+            *windowed_back = weight * *sample_back as c_double;
         }
 
-        self.compute_autocorr_c(samples.len(), order, &mut autoc);
+        self.compute_autocorr_c(samples.len(), order, &mut *autoc);
 
         let signal = autoc[0];
         compute_ref_coefs(autoc.as_mut_ptr(), order, ref_0, error.as_mut_ptr());
