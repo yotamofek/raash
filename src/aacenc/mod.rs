@@ -37,6 +37,7 @@ use itertools::Itertools;
 use libc::{
     c_char, c_double, c_float, c_int, c_long, c_schar, c_uchar, c_uint, c_ulong, c_ushort, c_void,
 };
+use lpc::LPCContext;
 
 use self::{
     channel_layout::pce,
@@ -66,7 +67,6 @@ use crate::{
     audio_frame_queue::{ff_af_queue_add, ff_af_queue_close, ff_af_queue_init, ff_af_queue_remove},
     avutil::{log::av_default_item_name, tx::av_tx_uninit},
     common::*,
-    lpc::{self, LPCContext},
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
     psymodel::{
         ff_psy_end, ff_psy_init, ff_psy_preprocess, ff_psy_preprocess_end, ff_psy_preprocess_init,

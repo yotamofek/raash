@@ -35,7 +35,6 @@ mod aactab;
 mod audio_frame_queue;
 mod iirfilter;
 mod kbdwin;
-mod lpc;
 mod mpeg4audio_sample_rates;
 mod psymodel;
 mod sinewin;

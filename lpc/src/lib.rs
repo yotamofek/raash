@@ -10,7 +10,7 @@ use libc::{c_double, c_float, c_int, c_long};
 /// Source: [libavcodec/lpc.h](https://github.com/ffmpeg/ffmpeg/blob/c8c4a162fc18c0fd99bada66d9ea3b48c64b2450/libavcodec/lpc.h#L41-L51)
 #[repr(i32)]
 #[derive(Clone, Copy)]
-pub(crate) enum Type {
+pub enum Type {
     /// Levinson-Durbin recursion
     Levinson = 2,
 }
@@ -20,7 +20,7 @@ const MAX_ORDER: c_int = 32;
 
 #[derive(Clone)]
 #[repr(C)]
-pub(crate) struct LPCContext {
+pub struct LPCContext {
     blocksize: c_int,
     max_order: c_int,
     lpc_type: Type,
@@ -48,7 +48,6 @@ fn compute_ref_coefs(
         gen1[i as usize] = autoc[(i + 1) as usize];
         gen0[i as usize] = gen1[i as usize];
         i += 1;
-        i;
     }
     let mut err = autoc[0];
     ref_0[0] = -gen1[0] / if err != 0. { err } else { 1. };
@@ -63,7 +62,6 @@ fn compute_ref_coefs(
             gen1[j as usize] = gen1[(j + 1) as usize] + ref_0[(i - 1) as usize] * gen0[j as usize];
             gen0[j as usize] += gen1[(j + 1) as usize] * ref_0[(i - 1) as usize];
             j += 1;
-            j;
         }
         ref_0[i as usize] = -gen1[0 as c_int as usize] / if err != 0. { err } else { 1. };
         err += gen1[0 as c_int as usize] * ref_0[i as usize];
@@ -71,7 +69,6 @@ fn compute_ref_coefs(
             error[i as usize] = err;
         }
         i += 1;
-        i;
     }
 }
 
@@ -85,7 +82,7 @@ impl LPCContext {
         align(max_order, 4) as usize
     }
 
-    pub(crate) fn new(blocksize: c_int, max_order: c_int, lpc_type: Type) -> Self {
+    pub fn new(blocksize: c_int, max_order: c_int, lpc_type: Type) -> Self {
         Self {
             blocksize,
             max_order,
@@ -115,7 +112,6 @@ impl LPCContext {
                     * self.windowed_samples[padding_size + i as usize - j as usize - 1];
 
                 i += 1;
-                i;
             }
             autoc[j as usize] = sum0;
             autoc[(j + 1 as c_int) as usize] = sum1;
@@ -136,7 +132,7 @@ impl LPCContext {
     }
 
     /// Source: [avcodec/lpc.c](https://github.com/ffmpeg/ffmpeg/blob/0627e6d74ce6f28287ea787c099a0f9fe4baaacb/libavcodec/lpc.c#L178-L199)
-    pub(crate) fn calc_ref_coefs_f(
+    pub fn calc_ref_coefs_f(
         &mut self,
         samples: &[c_float],
         order: c_int,
