@@ -66,7 +66,7 @@ use crate::{
     audio_frame_queue::{ff_af_queue_add, ff_af_queue_close, ff_af_queue_init, ff_af_queue_remove},
     avutil::{log::av_default_item_name, tx::av_tx_uninit},
     common::*,
-    lpc::{LPCContext, FF_LPC_TYPE_LEVINSON},
+    lpc::{self, LPCContext},
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
     psymodel::{
         ff_psy_end, ff_psy_init, ff_psy_preprocess, ff_psy_preprocess_end, ff_psy_preprocess_init,
@@ -1392,7 +1392,7 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         planar_samples: vec![[0.; _]; (*avctx).ch_layout.nb_channels as usize].into_boxed_slice(),
         profile: 0,
         needs_pce,
-        lpc: LPCContext::new(2 * (*avctx).frame_size, 20, FF_LPC_TYPE_LEVINSON),
+        lpc: LPCContext::new(2 * (*avctx).frame_size, 20, lpc::Type::Levinson),
         samplerate_index,
         channels: (*avctx).ch_layout.nb_channels,
         reorder_map: null(),
@@ -1661,7 +1661,6 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         return ret;
     }
     (*s).psypp = ff_psy_preprocess_init(avctx);
-    LPCContext::new(2 * (*avctx).frame_size, 20, FF_LPC_TYPE_LEVINSON);
     ff_af_queue_init(avctx, &mut (*s).afq);
     0 as c_int
 }

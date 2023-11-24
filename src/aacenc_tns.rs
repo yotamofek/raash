@@ -486,7 +486,7 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
         gain = (*s).lpc.calc_ref_coefs_f(
             &(*sce).coeffs[(w * 128 as c_int + coef_start) as usize..][..coef_len as usize],
             order,
-            coefs.as_mut_ptr(),
+            &mut coefs,
         );
 
         if !(order == 0
