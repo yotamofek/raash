@@ -4,12 +4,7 @@ use libc::{c_int, c_long, c_uint, c_ulong};
 
 use crate::types::*;
 
-pub(crate) unsafe fn av_rescale_rnd(
-    a: c_long,
-    b: c_long,
-    c: c_long,
-    mut rnd: AVRounding,
-) -> c_long {
+pub(crate) fn av_rescale_rnd(a: c_long, b: c_long, c: c_long, mut rnd: AVRounding) -> c_long {
     let mut r: c_long = 0 as c_int as c_long;
     if c <= 0 as c_int as c_long
         || b < 0 as c_int as c_long
@@ -24,9 +19,7 @@ pub(crate) unsafe fn av_rescale_rnd(
         {
             return a;
         }
-        rnd = ::core::mem::transmute::<c_uint, AVRounding>(
-            (rnd as c_uint).wrapping_sub(AV_ROUND_PASS_MINMAX as c_int as c_uint),
-        ) as AVRounding;
+        rnd = (rnd as c_uint).wrapping_sub(AV_ROUND_PASS_MINMAX as c_int as c_uint);
     }
     if a < 0 as c_int as c_long {
         return (av_rescale_rnd(
@@ -95,11 +88,13 @@ pub(crate) unsafe fn av_rescale_rnd(
         t1 as c_long
     }
 }
+
 #[allow(dead_code)]
-pub(crate) unsafe fn av_rescale(a: c_long, b: c_long, c: c_long) -> c_long {
+pub(crate) fn av_rescale(a: c_long, b: c_long, c: c_long) -> c_long {
     av_rescale_rnd(a, b, c, AV_ROUND_NEAR_INF)
 }
-pub(crate) unsafe fn av_rescale_q_rnd(
+
+pub(crate) fn av_rescale_q_rnd(
     a: c_long,
     bq: AVRational,
     cq: AVRational,
@@ -109,6 +104,7 @@ pub(crate) unsafe fn av_rescale_q_rnd(
     let c: c_long = cq.num as c_long * bq.den as c_long;
     av_rescale_rnd(a, b, c, rnd)
 }
-pub(crate) unsafe fn av_rescale_q(a: c_long, bq: AVRational, cq: AVRational) -> c_long {
+
+pub(crate) fn av_rescale_q(a: c_long, bq: AVRational, cq: AVRational) -> c_long {
     av_rescale_q_rnd(a, bq, cq, AV_ROUND_NEAR_INF)
 }

@@ -64,7 +64,7 @@ use crate::{
         ff_aac_scalefactor_code, ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024,
         ff_tns_max_bands_128,
     },
-    audio_frame_queue::{ff_af_queue_add, ff_af_queue_close, ff_af_queue_init, ff_af_queue_remove},
+    audio_frame_queue::{AudioFrameQueue, AudioRemoved},
     avutil::{log::av_default_item_name, tx::av_tx_uninit},
     common::*,
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
@@ -788,13 +788,8 @@ unsafe extern "C" fn aac_encode_frame(
         window_sizes: ptr::null_mut::<c_int>(),
     }; 16];
     if !frame.is_null() {
-        ret = ff_af_queue_add(&mut (*s).afq, frame);
-        if ret < 0 as c_int {
-            return ret;
-        }
-    } else if (*s).afq.remaining_samples == 0
-        || (*s).afq.frame_alloc == 0 && (*s).afq.frame_count == 0
-    {
+        (*s).afq.add_frame(&*frame)
+    } else if (*s).afq.is_empty() {
         return 0 as c_int;
     }
     copy_input_samples(s, frame);
@@ -1303,12 +1298,14 @@ unsafe extern "C" fn aac_encode_frame(
     (*s).lambda_sum += (*s).lambda;
     (*s).lambda_count += 1;
     (*s).lambda_count;
-    ff_af_queue_remove(
-        &mut (*s).afq,
-        (*avctx).frame_size,
-        &mut (*avpkt).pts,
-        &mut (*avpkt).duration,
-    );
+    {
+        let AudioRemoved { pts, duration } = (*s).afq.remove((*avctx).frame_size);
+        (*avpkt) = AVPacket {
+            pts,
+            duration,
+            ..*avpkt
+        };
+    }
     *got_packet_ptr = 1 as c_int;
     0 as c_int
 }
@@ -1334,7 +1331,6 @@ unsafe extern "C" fn aac_encode_end(mut avctx: *mut AVCodecContext) -> c_int {
     }
     av_freep(&mut (*s).cpe as *mut *mut ChannelElement as *mut c_void);
     av_freep(&mut (*s).fdsp as *mut *mut AVFloatDSPContext as *mut c_void);
-    ff_af_queue_close(&mut (*s).afq);
     drop(Box::from_raw(s));
     0 as c_int
 }
@@ -1417,7 +1413,7 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         lambda_sum: 0.,
         lambda_count: 0,
         cur_type: 0,
-        afq: AudioFrameQueue::zero(),
+        afq: AudioFrameQueue::new(avctx),
         qcoefs: [0; _],
         scoefs: [0.; _],
         quantize_band_cost_cache_generation: 0,
@@ -1661,7 +1657,6 @@ unsafe extern "C" fn aac_encode_init(mut avctx: *mut AVCodecContext) -> c_int {
         return ret;
     }
     (*s).psypp = ff_psy_preprocess_init(avctx);
-    ff_af_queue_init(avctx, &mut (*s).afq);
     0 as c_int
 }
 

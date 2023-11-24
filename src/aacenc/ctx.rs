@@ -6,7 +6,7 @@ use libc::{c_float, c_int, c_uchar, c_uint, c_ushort, c_void};
 use lpc::LPCContext;
 
 use super::channel_layout::pce;
-use crate::{aaccoder::coder::CoeffsEncoder, types::*};
+use crate::{aaccoder::coder::CoeffsEncoder, audio_frame_queue::AudioFrameQueue, types::*};
 
 // TODO: I think this can be opaque?
 #[derive(Copy, Clone)]

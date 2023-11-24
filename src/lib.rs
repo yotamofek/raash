@@ -3,6 +3,7 @@
     const_for,
     const_trait_impl,
     const_mut_refs,
+    let_chains,
     c_str_literals,
     array_chunks,
     inline_const,

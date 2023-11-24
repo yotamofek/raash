@@ -579,36 +579,6 @@ pub(crate) struct DynamicRangeControl {
     pub(crate) band_top: [c_int; 17],
     pub(crate) prog_ref_level: c_int,
 }
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct AudioFrame {
-    pub(crate) pts: c_long,
-    pub(crate) duration: c_int,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct AudioFrameQueue {
-    pub(crate) avctx: *mut AVCodecContext,
-    pub(crate) remaining_delay: c_int,
-    pub(crate) remaining_samples: c_int,
-    pub(crate) frames: *mut AudioFrame,
-    pub(crate) frame_count: c_uint,
-    pub(crate) frame_alloc: c_uint,
-}
-
-impl AudioFrameQueue {
-    pub(crate) const fn zero() -> Self {
-        Self {
-            avctx: null_mut(),
-            remaining_delay: 0,
-            remaining_samples: 0,
-            frames: null_mut(),
-            frame_count: 0,
-            frame_alloc: 0,
-        }
-    }
-}
 
 #[derive(Copy, Clone)]
 #[repr(C)]
