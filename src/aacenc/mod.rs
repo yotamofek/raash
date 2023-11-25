@@ -21,19 +21,17 @@ use std::{
     ffi::CStr,
     iter::zip,
     mem::size_of,
-    ptr::{self, null, null_mut},
+    ptr::{self, null_mut},
     slice,
 };
 
-use encoder::{class, encoder, Class, Encoder};
+use encoder::{encoder, Class, Encoder};
 use ffi::{
-    class::{option::AVOption, AVClass},
+    class::option::AVOption,
     codec::{
-        channel::AVChannelLayout, frame::AVFrame, profile, AVCodec, AVCodecContext,
-        AVCodecHWConfigInternal, AVCodecID, AVPacket, AVPixelFormat, AVProfile, CodecCallback,
-        FFCodec, FFCodecDefault, FF_CODEC_CB_TYPE_ENCODE,
+        channel::AVChannelLayout, frame::AVFrame, profile, AVCodecContext, AVCodecID, AVPacket,
+        FFCodec, FFCodecDefault,
     },
-    num::AVRational,
 };
 use itertools::Itertools;
 use libc::{
@@ -67,7 +65,7 @@ use crate::{
         ff_tns_max_bands_128,
     },
     audio_frame_queue::{AudioFrameQueue, AudioRemoved},
-    avutil::{log::av_default_item_name, tx::av_tx_uninit},
+    avutil::tx::av_tx_uninit,
     common::*,
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
     psymodel::{
@@ -196,33 +194,33 @@ unsafe extern "C" fn put_audio_specific_config(
         buf_end: ptr::null_mut::<c_uchar>(),
     };
 
-    let mut channels: c_int = ((*s).needs_pce == 0) as c_int
-        * ((*s).channels
-            - (if (*s).channels == 8 as c_int {
+    let mut channels: c_int = (s.needs_pce == 0) as c_int
+        * (s.channels
+            - (if s.channels == 8 as c_int {
                 1 as c_int
             } else {
                 0 as c_int
             }));
     let max_size: c_int = 32 as c_int;
-    (*avctx).extradata = av_mallocz(max_size as c_ulong) as *mut c_uchar;
-    if ((*avctx).extradata).is_null() {
+    avctx.extradata = av_mallocz(max_size as c_ulong) as *mut c_uchar;
+    if (avctx.extradata).is_null() {
         return -(12 as c_int);
     }
-    init_put_bits(&mut pb, (*avctx).extradata, max_size);
-    put_bits(&mut pb, 5 as c_int, ((*s).profile + 1 as c_int) as BitBuf);
-    put_bits(&mut pb, 4 as c_int, (*s).samplerate_index as BitBuf);
+    init_put_bits(&mut pb, avctx.extradata, max_size);
+    put_bits(&mut pb, 5 as c_int, (s.profile + 1 as c_int) as BitBuf);
+    put_bits(&mut pb, 4 as c_int, s.samplerate_index as BitBuf);
     put_bits(&mut pb, 4 as c_int, channels as BitBuf);
     put_bits(&mut pb, 1 as c_int, 0 as c_int as BitBuf);
     put_bits(&mut pb, 1 as c_int, 0 as c_int as BitBuf);
     put_bits(&mut pb, 1 as c_int, 0 as c_int as BitBuf);
-    if (*s).needs_pce != 0 {
+    if s.needs_pce != 0 {
         put_pce(&mut pb, avctx);
     }
     put_bits(&mut pb, 11 as c_int, 0x2b7 as c_int as BitBuf);
     put_bits(&mut pb, 5 as c_int, AOT_SBR as c_int as BitBuf);
     put_bits(&mut pb, 1 as c_int, 0 as c_int as BitBuf);
     flush_put_bits(&mut pb);
-    (*avctx).extradata_size = put_bytes_output(&mut pb);
+    avctx.extradata_size = put_bytes_output(&mut pb);
     0 as c_int
 }
 
@@ -731,7 +729,7 @@ unsafe extern "C" fn copy_input_samples(mut s: *mut AACEncContext, mut frame: *c
         } else {
             0 as c_int
         });
-    let mut channel_map: *const c_uchar = (*s).reorder_map;
+    let mut channel_map: *const c_uchar = (*s).reorder_map.as_ptr();
     ch = 0 as c_int;
     while ch < (*s).channels {
         let mut planar_samples = &mut (*s).planar_samples[ch as usize];
@@ -753,11 +751,11 @@ unsafe extern "C" fn copy_input_samples(mut s: *mut AACEncContext, mut frame: *c
 }
 unsafe extern "C" fn aac_encode_frame(
     mut avctx: *mut AVCodecContext,
+    mut ctx: *mut AACEncContext,
     mut avpkt: *mut AVPacket,
     mut frame: *const AVFrame,
     mut got_packet_ptr: *mut c_int,
 ) -> c_int {
-    let mut s: *mut AACEncContext = (*((*avctx).priv_data as *mut PrivData)).ctx;
     // let mut samples: *mut *mut c_float = ((*s).planar_samples).as_mut_ptr();
     let mut samples2: *mut c_float = ptr::null_mut::<c_float>();
     let mut la: *mut c_float = ptr::null_mut::<c_float>();
@@ -792,36 +790,36 @@ unsafe extern "C" fn aac_encode_frame(
         window_sizes: ptr::null_mut::<c_int>(),
     }; 16];
     if !frame.is_null() {
-        (*s).afq.add_frame(&*frame)
-    } else if (*s).afq.is_empty() {
+        (*ctx).afq.add_frame(&*frame)
+    } else if (*ctx).afq.is_empty() {
         return 0 as c_int;
     }
-    copy_input_samples(s, frame);
-    if !((*s).psypp).is_null() {
-        ff_psy_preprocess((*s).psypp, &mut (*s).planar_samples);
+    copy_input_samples(ctx, frame);
+    if !((*ctx).psypp).is_null() {
+        ff_psy_preprocess((*ctx).psypp, &mut (*ctx).planar_samples);
     }
     if (*avctx).frame_num == 0 {
         return 0 as c_int;
     }
     start_ch = 0 as c_int;
     i = 0 as c_int;
-    while i < *((*s).chan_map).offset(0 as c_int as isize) as c_int {
+    while i < (*ctx).chan_map[0] as c_int {
         let mut wi: *mut FFPsyWindowInfo = windows.as_mut_ptr().offset(start_ch as isize);
-        tag = *((*s).chan_map).offset((i + 1 as c_int) as isize) as c_int;
+        tag = ((*ctx).chan_map[(i + 1) as usize]) as c_int;
         chans = if tag == TYPE_CPE as c_int {
             2 as c_int
         } else {
             1 as c_int
         };
-        cpe = &mut (*s).cpe[i as usize] as *mut ChannelElement;
+        cpe = &mut (*ctx).cpe[i as usize] as *mut ChannelElement;
         ch = 0 as c_int;
         while ch < chans {
             let mut k: c_int = 0;
             let mut clip_avoidance_factor: c_float = 0.;
             sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
             ics = &mut (*sce).ics;
-            (*s).cur_channel = start_ch + ch;
-            overlap = &mut *(*s).planar_samples[(*s).cur_channel as usize]
+            (*ctx).cur_channel = start_ch + ch;
+            overlap = &mut *(*ctx).planar_samples[(*ctx).cur_channel as usize]
                 .as_mut_ptr()
                 .offset(0 as c_int as isize) as *mut c_float;
             samples2 = overlap.offset(1024 as c_int as isize);
@@ -837,18 +835,18 @@ unsafe extern "C" fn aac_encode_frame(
                 (*wi.offset(ch as isize)).num_windows = 1 as c_int;
                 (*wi.offset(ch as isize)).grouping[0] = 1 as c_int;
                 (*wi.offset(ch as isize)).clipping[0] = 0 as c_int as c_float;
-                (*ics).num_swb = if (*s).samplerate_index >= 8 as c_int {
+                (*ics).num_swb = if (*ctx).samplerate_index >= 8 as c_int {
                     1 as c_int
                 } else {
                     3 as c_int
                 };
             } else {
-                *wi.offset(ch as isize) = ((*(*s).psy.model).window)
+                *wi.offset(ch as isize) = ((*(*ctx).psy.model).window)
                     .expect("non-null function pointer")(
-                    &mut (*s).psy,
+                    &mut (*ctx).psy,
                     samples2,
                     la,
-                    (*s).cur_channel,
+                    (*ctx).cur_channel,
                     (*ics).window_sequence[0] as c_int,
                 );
             }
@@ -858,11 +856,11 @@ unsafe extern "C" fn aac_encode_frame(
             (*ics).use_kb_window[0] = (*wi.offset(ch as isize)).window_shape as c_uchar;
             (*ics).num_windows = (*wi.offset(ch as isize)).num_windows;
             (*ics).swb_sizes =
-                *((*s).psy.bands).offset(((*ics).num_windows == 8 as c_int) as c_int as isize);
+                *((*ctx).psy.bands).offset(((*ics).num_windows == 8 as c_int) as c_int as isize);
             (*ics).num_swb = if tag == TYPE_LFE as c_int {
                 (*ics).num_swb
             } else {
-                *((*s).psy.num_bands).offset(((*ics).num_windows == 8 as c_int) as c_int as isize)
+                *((*ctx).psy.num_bands).offset(((*ics).num_windows == 8 as c_int) as c_int as isize)
             };
             (*ics).max_sfb = (if (*ics).max_sfb as c_int > (*ics).num_swb {
                 (*ics).num_swb
@@ -871,15 +869,15 @@ unsafe extern "C" fn aac_encode_frame(
             }) as c_uchar;
             (*ics).swb_offset =
                 if (*wi.offset(ch as isize)).window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                    ff_swb_offset_128[(*s).samplerate_index as usize].as_ptr()
+                    ff_swb_offset_128[(*ctx).samplerate_index as usize].as_ptr()
                 } else {
-                    ff_swb_offset_1024[(*s).samplerate_index as usize].as_ptr()
+                    ff_swb_offset_1024[(*ctx).samplerate_index as usize].as_ptr()
                 };
             (*ics).tns_max_bands =
                 if (*wi.offset(ch as isize)).window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                    ff_tns_max_bands_128[(*s).samplerate_index as usize] as c_int
+                    ff_tns_max_bands_128[(*ctx).samplerate_index as usize] as c_int
                 } else {
-                    ff_tns_max_bands_1024[(*s).samplerate_index as usize] as c_int
+                    ff_tns_max_bands_1024[(*ctx).samplerate_index as usize] as c_int
                 };
             w = 0 as c_int;
             while w < (*ics).num_windows {
@@ -930,16 +928,16 @@ unsafe extern "C" fn aac_encode_frame(
             } else {
                 (*ics).clip_avoidance_factor = 1.0f32;
             }
-            apply_window_and_mdct(s, sce, overlap);
-            if (*s).options.ltp != 0 {
-                update_ltp(s, sce);
+            apply_window_and_mdct(ctx, sce, overlap);
+            if (*ctx).options.ltp != 0 {
+                update_ltp(ctx, sce);
                 APPLY_WINDOW[(*sce).ics.window_sequence[0] as usize](
-                    (*s).fdsp,
+                    (*ctx).fdsp,
                     sce,
                     &mut *((*sce).ltp_state).as_mut_ptr().offset(0 as c_int as isize),
                 );
-                ((*s).mdct1024_fn).expect("non-null function pointer")(
-                    (*s).mdct1024,
+                ((*ctx).mdct1024_fn).expect("non-null function pointer")(
+                    (*ctx).mdct1024,
                     ((*sce).lcoeffs).as_mut_ptr() as *mut c_void,
                     ((*sce).ret_buf).as_mut_ptr() as *mut c_void,
                     size_of::<c_float>() as c_ulong as ptrdiff_t,
@@ -958,7 +956,7 @@ unsafe extern "C" fn aac_encode_frame(
                 k += 1;
                 k;
             }
-            avoid_clipping(s, sce);
+            avoid_clipping(ctx, sce);
             ch += 1;
             ch;
         }
@@ -966,40 +964,40 @@ unsafe extern "C" fn aac_encode_frame(
         i += 1;
         i;
     }
-    ret = ff_alloc_packet(avctx, avpkt, (8192 as c_int * (*s).channels) as c_long);
+    ret = ff_alloc_packet(avctx, avpkt, (8192 as c_int * (*ctx).channels) as c_long);
     if ret < 0 as c_int {
         return ret;
     }
     its = 0 as c_int;
     frame_bits = its;
     loop {
-        init_put_bits(&mut (*s).pb, (*avpkt).data, (*avpkt).size);
+        init_put_bits(&mut (*ctx).pb, (*avpkt).data, (*avpkt).size);
         if (*avctx).frame_num & 0xff as c_int as c_long == 1 as c_int as c_long
             && (*avctx).flags & (1 as c_int) << 23 as c_int == 0
         {
-            put_bitstream_info(s, c"Lavc60.33.100");
+            put_bitstream_info(ctx, c"Lavc60.33.100");
         }
         start_ch = 0 as c_int;
         target_bits = 0 as c_int;
         chan_el_counter.fill(0);
         i = 0 as c_int;
-        while i < *((*s).chan_map).offset(0 as c_int as isize) as c_int {
+        while i < (*ctx).chan_map[0] as c_int {
             let mut wi_0: *mut FFPsyWindowInfo = windows.as_mut_ptr().offset(start_ch as isize);
             let mut coeffs: [*const c_float; 2] = [ptr::null::<c_float>(); 2];
-            tag = *((*s).chan_map).offset((i + 1 as c_int) as isize) as c_int;
+            tag = (*ctx).chan_map[(i + 1) as usize] as c_int;
             chans = if tag == TYPE_CPE as c_int {
                 2 as c_int
             } else {
                 1 as c_int
             };
-            cpe = &mut (*s).cpe[i as usize] as *mut ChannelElement;
+            cpe = &mut (*ctx).cpe[i as usize] as *mut ChannelElement;
             (*cpe).common_window = 0 as c_int;
             (*cpe).is_mask.fill(0);
             (*cpe).ms_mask.fill(0);
-            put_bits(&mut (*s).pb, 3 as c_int, tag as BitBuf);
+            put_bits(&mut (*ctx).pb, 3 as c_int, tag as BitBuf);
             let fresh3 = chan_el_counter[tag as usize];
             chan_el_counter[tag as usize] += 1;
-            put_bits(&mut (*s).pb, 4 as c_int, fresh3 as BitBuf);
+            put_bits(&mut (*ctx).pb, 4 as c_int, fresh3 as BitBuf);
             ch = 0 as c_int;
             while ch < chans {
                 sce =
@@ -1021,37 +1019,41 @@ unsafe extern "C" fn aac_encode_frame(
                 ch += 1;
                 ch;
             }
-            (*s).psy.bitres.alloc = -(1 as c_int);
-            (*s).psy.bitres.bits = (*s).last_frame_pb_count / (*s).channels;
-            ((*(*s).psy.model).analyze).expect("non-null function pointer")(
-                &mut (*s).psy,
+            (*ctx).psy.bitres.alloc = -(1 as c_int);
+            (*ctx).psy.bitres.bits = (*ctx).last_frame_pb_count / (*ctx).channels;
+            ((*(*ctx).psy.model).analyze).expect("non-null function pointer")(
+                &mut (*ctx).psy,
                 start_ch,
                 coeffs.as_mut_ptr(),
                 wi_0,
             );
-            if (*s).psy.bitres.alloc > 0 as c_int {
+            if (*ctx).psy.bitres.alloc > 0 as c_int {
                 target_bits = (target_bits as c_float
-                    + (*s).psy.bitres.alloc as c_float
-                        * ((*s).lambda
+                    + (*ctx).psy.bitres.alloc as c_float
+                        * ((*ctx).lambda
                             / (if (*avctx).global_quality != 0 {
                                 (*avctx).global_quality
                             } else {
                                 120 as c_int
                             }) as c_float)) as c_int;
-                (*s).psy.bitres.alloc /= chans;
+                (*ctx).psy.bitres.alloc /= chans;
             }
-            (*s).cur_type = tag as RawDataBlockType;
+            (*ctx).cur_type = tag as RawDataBlockType;
             ch = 0 as c_int;
             while ch < chans {
-                (*s).cur_channel = start_ch + ch;
-                if (*s).options.pns != 0 {
-                    pns::mark(s, avctx, &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize));
+                (*ctx).cur_channel = start_ch + ch;
+                if (*ctx).options.pns != 0 {
+                    pns::mark(
+                        ctx,
+                        avctx,
+                        &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
+                    );
                 }
-                (*(*s).coder).search_for_quantizers(
+                (*(*ctx).coder).search_for_quantizers(
                     avctx,
-                    s,
+                    ctx,
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
-                    (*s).lambda,
+                    (*ctx).lambda,
                 );
                 ch += 1;
                 ch;
@@ -1080,38 +1082,38 @@ unsafe extern "C" fn aac_encode_frame(
             while ch < chans {
                 sce =
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
-                (*s).cur_channel = start_ch + ch;
-                if (*s).options.tns != 0 {
-                    search_for_tns(s, sce);
+                (*ctx).cur_channel = start_ch + ch;
+                if (*ctx).options.tns != 0 {
+                    search_for_tns(ctx, sce);
                 }
-                if (*s).options.tns != 0 {
-                    apply_tns(s, sce);
+                if (*ctx).options.tns != 0 {
+                    apply_tns(ctx, sce);
                 }
                 if (*sce).tns.present != 0 {
                     tns_mode = 1 as c_int;
                 }
-                if (*s).options.pns != 0 {
-                    pns::search(s, avctx, sce);
+                if (*ctx).options.pns != 0 {
+                    pns::search(ctx, avctx, sce);
                 }
                 ch += 1;
                 ch;
             }
-            (*s).cur_channel = start_ch;
-            if (*s).options.intensity_stereo != 0 {
-                search_for_is(s, avctx, cpe);
+            (*ctx).cur_channel = start_ch;
+            if (*ctx).options.intensity_stereo != 0 {
+                search_for_is(ctx, avctx, cpe);
                 if (*cpe).is_mode != 0 {
                     is_mode = 1 as c_int;
                 }
                 apply_intensity_stereo(cpe);
             }
-            if (*s).options.pred != 0 {
+            if (*ctx).options.pred != 0 {
                 ch = 0 as c_int;
                 while ch < chans {
                     sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize)
                         as *mut SingleChannelElement;
-                    (*s).cur_channel = start_ch + ch;
-                    if (*s).options.pred != 0 {
-                        search_for_pred(s, sce);
+                    (*ctx).cur_channel = start_ch + ch;
+                    if (*ctx).options.pred != 0 {
+                        search_for_pred(ctx, sce);
                     }
                     if (*cpe).ch[ch as usize].ics.predictor_present != 0 {
                         pred_mode = 1 as c_int;
@@ -1120,38 +1122,38 @@ unsafe extern "C" fn aac_encode_frame(
                     ch;
                 }
 
-                adjust_common_pred(s, cpe);
+                adjust_common_pred(ctx, cpe);
 
                 ch = 0 as c_int;
                 while ch < chans {
                     sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize)
                         as *mut SingleChannelElement;
-                    (*s).cur_channel = start_ch + ch;
-                    if (*s).options.pred != 0 {
-                        apply_main_pred(s, sce);
+                    (*ctx).cur_channel = start_ch + ch;
+                    if (*ctx).options.pred != 0 {
+                        apply_main_pred(ctx, sce);
                     }
                     ch += 1;
                     ch;
                 }
-                (*s).cur_channel = start_ch;
+                (*ctx).cur_channel = start_ch;
             }
-            if (*s).options.mid_side != 0 {
-                if (*s).options.mid_side == -(1 as c_int) {
-                    search_for_ms(s, cpe);
+            if (*ctx).options.mid_side != 0 {
+                if (*ctx).options.mid_side == -(1 as c_int) {
+                    search_for_ms(ctx, cpe);
                 } else if (*cpe).common_window != 0 {
                     (*cpe).ms_mask.fill(1);
                 }
                 apply_mid_side_stereo(cpe);
             }
             adjust_frame_information(cpe, chans);
-            if (*s).options.ltp != 0 {
+            if (*ctx).options.ltp != 0 {
                 ch = 0 as c_int;
                 while ch < chans {
                     sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize)
                         as *mut SingleChannelElement;
-                    (*s).cur_channel = start_ch + ch;
+                    (*ctx).cur_channel = start_ch + ch;
 
-                    search_for_ltp(s, sce, (*cpe).common_window);
+                    search_for_ltp(ctx, sce, (*cpe).common_window);
 
                     if (*sce).ics.ltp.present != 0 {
                         pred_mode = 1 as c_int;
@@ -1159,30 +1161,30 @@ unsafe extern "C" fn aac_encode_frame(
                     ch += 1;
                     ch;
                 }
-                (*s).cur_channel = start_ch;
+                (*ctx).cur_channel = start_ch;
 
-                adjust_common_ltp(s, cpe);
+                adjust_common_ltp(ctx, cpe);
             }
             if chans == 2 as c_int {
-                put_bits(&mut (*s).pb, 1 as c_int, (*cpe).common_window as BitBuf);
+                put_bits(&mut (*ctx).pb, 1 as c_int, (*cpe).common_window as BitBuf);
                 if (*cpe).common_window != 0 {
                     put_ics_info(
-                        s,
+                        ctx,
                         &mut (*((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize)).ics,
                     );
 
                     encode_main_pred(
-                        s,
+                        ctx,
                         &mut *((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize),
                     );
 
                     encode_ltp_info(
-                        s,
+                        ctx,
                         &mut *((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize),
                         1 as c_int,
                     );
 
-                    encode_ms_info(&mut (*s).pb, cpe);
+                    encode_ms_info(&mut (*ctx).pb, cpe);
                     if (*cpe).ms_mode != 0 {
                         ms_mode = 1 as c_int;
                     }
@@ -1190,10 +1192,10 @@ unsafe extern "C" fn aac_encode_frame(
             }
             ch = 0 as c_int;
             while ch < chans {
-                (*s).cur_channel = start_ch + ch;
+                (*ctx).cur_channel = start_ch + ch;
                 encode_individual_channel(
                     avctx,
-                    s,
+                    ctx,
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
                     (*cpe).common_window,
                 );
@@ -1207,11 +1209,11 @@ unsafe extern "C" fn aac_encode_frame(
         if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
             break;
         }
-        frame_bits = put_bits_count(&mut (*s).pb);
+        frame_bits = put_bits_count(&mut (*ctx).pb);
         rate_bits =
             ((*avctx).bit_rate * 1024 as c_int as c_long / (*avctx).sample_rate as c_long) as c_int;
-        rate_bits = if rate_bits > 6144 as c_int * (*s).channels - 3 as c_int {
-            6144 as c_int * (*s).channels - 3 as c_int
+        rate_bits = if rate_bits > 6144 as c_int * (*ctx).channels - 3 as c_int {
+            6144 as c_int * (*ctx).channels - 3 as c_int
         } else {
             rate_bits
         };
@@ -1220,8 +1222,8 @@ unsafe extern "C" fn aac_encode_frame(
         } else {
             rate_bits
         };
-        too_many_bits = if too_many_bits > 6144 as c_int * (*s).channels - 3 as c_int {
-            6144 as c_int * (*s).channels - 3 as c_int
+        too_many_bits = if too_many_bits > 6144 as c_int * (*ctx).channels - 3 as c_int {
+            6144 as c_int * (*ctx).channels - 3 as c_int
         } else {
             too_many_bits
         };
@@ -1240,9 +1242,9 @@ unsafe extern "C" fn aac_encode_frame(
         if (*avctx).bit_rate_tolerance == 0 as c_int {
             if rate_bits < frame_bits {
                 let mut ratio: c_float = rate_bits as c_float / frame_bits as c_float;
-                (*s).lambda *= if 0.9f32 > ratio { ratio } else { 0.9f32 };
+                (*ctx).lambda *= if 0.9f32 > ratio { ratio } else { 0.9f32 };
             } else {
-                (*s).lambda = (if (*avctx).global_quality > 0 as c_int {
+                (*ctx).lambda = (if (*avctx).global_quality > 0 as c_int {
                     (*avctx).global_quality
                 } else {
                     120 as c_int
@@ -1254,7 +1256,7 @@ unsafe extern "C" fn aac_encode_frame(
             too_many_bits = too_many_bits + too_many_bits / 2 as c_int;
             if !(its == 0 as c_int
                 || its < 5 as c_int && (frame_bits < too_few_bits || frame_bits > too_many_bits)
-                || frame_bits >= 6144 as c_int * (*s).channels - 3 as c_int)
+                || frame_bits >= 6144 as c_int * (*ctx).channels - 3 as c_int)
             {
                 break;
             }
@@ -1265,19 +1267,19 @@ unsafe extern "C" fn aac_encode_frame(
             } else {
                 ratio_0 = sqrtf(ratio_0);
             }
-            (*s).lambda = av_clipf_c((*s).lambda * ratio_0, 1.192_092_9e-7_f32, 65536.0f32);
+            (*ctx).lambda = av_clipf_c((*ctx).lambda * ratio_0, 1.192_092_9e-7_f32, 65536.0f32);
             if ratio_0 > 0.9f32 && ratio_0 < 1.1f32 {
                 break;
             }
             if is_mode != 0 || ms_mode != 0 || tns_mode != 0 || pred_mode != 0 {
                 i = 0 as c_int;
-                while i < *((*s).chan_map).offset(0 as c_int as isize) as c_int {
+                while i < (*ctx).chan_map[0] as c_int {
                     chans = if tag == TYPE_CPE as c_int {
                         2 as c_int
                     } else {
                         1 as c_int
                     };
-                    cpe = &mut (*s).cpe[i as usize] as *mut ChannelElement;
+                    cpe = &mut (*ctx).cpe[i as usize] as *mut ChannelElement;
                     ch = 0 as c_int;
                     while ch < chans {
                         (*cpe).ch[ch as usize].coeffs = (*cpe).ch[ch as usize].pcoeffs;
@@ -1292,18 +1294,18 @@ unsafe extern "C" fn aac_encode_frame(
             its;
         }
     }
-    if (*s).options.ltp != 0 {
-        ltp_insert_new_frame(s);
+    if (*ctx).options.ltp != 0 {
+        ltp_insert_new_frame(ctx);
     }
-    put_bits(&mut (*s).pb, 3 as c_int, TYPE_END as c_int as BitBuf);
-    flush_put_bits(&mut (*s).pb);
-    (*s).last_frame_pb_count = put_bits_count(&mut (*s).pb);
-    (*avpkt).size = put_bytes_output(&mut (*s).pb);
-    (*s).lambda_sum += (*s).lambda;
-    (*s).lambda_count += 1;
-    (*s).lambda_count;
+    put_bits(&mut (*ctx).pb, 3 as c_int, TYPE_END as c_int as BitBuf);
+    flush_put_bits(&mut (*ctx).pb);
+    (*ctx).last_frame_pb_count = put_bits_count(&mut (*ctx).pb);
+    (*avpkt).size = put_bytes_output(&mut (*ctx).pb);
+    (*ctx).lambda_sum += (*ctx).lambda;
+    (*ctx).lambda_count += 1;
+    (*ctx).lambda_count;
     {
-        let AudioRemoved { pts, duration } = (*s).afq.remove((*avctx).frame_size);
+        let AudioRemoved { pts, duration } = (*ctx).afq.remove((*avctx).frame_size);
         (*avpkt) = AVPacket {
             pts,
             duration,
@@ -1402,7 +1404,6 @@ impl Encoder for AACEncoder {
             };
 
             let mut ctx = Box::new(AACEncContext {
-                av_class: avctx.av_class,
                 options: *options,
                 pb: PutBitContext::zero(),
                 mdct1024: null_mut(),
@@ -1418,8 +1419,8 @@ impl Encoder for AACEncoder {
                 lpc: LPCContext::new(2 * avctx.frame_size, 20, lpc::Type::Levinson),
                 samplerate_index,
                 channels: avctx.ch_layout.nb_channels,
-                reorder_map: reorder_map.as_ptr(),
-                chan_map: chan_map.as_ptr(),
+                reorder_map,
+                chan_map,
                 cpe: vec![ChannelElement::zero(); chan_map[0] as usize].into_boxed_slice(),
                 psy: FFPsyContext::zero(),
                 psypp: null_mut(),
@@ -1455,15 +1456,14 @@ impl Encoder for AACEncoder {
 
             if avctx.bit_rate == 0 {
                 i = 1 as c_int;
-                while i <= *(ctx.chan_map).offset(0 as c_int as isize) as c_int {
-                    avctx.bit_rate +=
-                        (if *(ctx.chan_map).offset(i as isize) as c_int == TYPE_CPE as c_int {
-                            128000 as c_int
-                        } else if *(ctx.chan_map).offset(i as isize) as c_int == TYPE_LFE as c_int {
-                            16000 as c_int
-                        } else {
-                            69000 as c_int
-                        }) as c_long;
+                while i <= ctx.chan_map[0] as c_int {
+                    avctx.bit_rate += (if ctx.chan_map[i as usize] as c_int == TYPE_CPE as c_int {
+                        128000 as c_int
+                    } else if ctx.chan_map[i as usize] as c_int == TYPE_LFE as c_int {
+                        16000 as c_int
+                    } else {
+                        69000 as c_int
+                    }) as c_long;
                     i += 1;
                     i;
                 }
@@ -1581,8 +1581,8 @@ impl Encoder for AACEncoder {
                 .as_ptr()
                 .offset(ctx.samplerate_index as isize) as c_int;
             i = 0 as c_int;
-            while i < *(ctx.chan_map).offset(0 as c_int as isize) as c_int {
-                grouping[i as usize] = (*(ctx.chan_map).offset((i + 1 as c_int) as isize) as c_int
+            while i < ctx.chan_map[0] as c_int {
+                grouping[i as usize] = (ctx.chan_map[(i + 1) as usize] as c_int
                     == TYPE_CPE as c_int) as c_int
                     as c_uchar;
                 i += 1;
@@ -1595,7 +1595,7 @@ impl Encoder for AACEncoder {
                 2 as c_int,
                 sizes.as_mut_ptr(),
                 lengths.as_mut_ptr(),
-                *(ctx.chan_map).offset(0 as c_int as isize) as c_int,
+                ctx.chan_map[0] as c_int,
                 grouping.as_mut_ptr(),
             );
             assert!(ret >= 0, "ff_psy_init failed");
@@ -1613,7 +1613,7 @@ impl Encoder for AACEncoder {
         frame: &AVFrame,
     ) -> encoder::GotPacket {
         let mut got_packet_ptr = 0;
-        let ret = unsafe { aac_encode_frame(avctx, avpkt, frame, &mut got_packet_ptr) };
+        let ret = unsafe { aac_encode_frame(avctx, ctx, avpkt, frame, &mut got_packet_ptr) };
         assert!(ret >= 0, "aac_encode_frame failed");
 
         if got_packet_ptr == 0 {

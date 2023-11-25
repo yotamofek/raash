@@ -74,10 +74,8 @@ pub(crate) struct AACContext {
     >,
 }
 
-#[repr(C)]
 pub(crate) struct AACEncContext {
     // TODO: `av_class` and `options` and duplicated (and copied from) `PrivData`.
-    pub av_class: *const AVClass,
     pub options: AACEncOptions,
 
     pub pb: PutBitContext,
@@ -93,8 +91,8 @@ pub(crate) struct AACEncContext {
     pub lpc: LPCContext,
     pub samplerate_index: c_int,
     pub channels: c_int,
-    pub reorder_map: *const c_uchar,
-    pub chan_map: *const c_uchar,
+    pub reorder_map: &'static [c_uchar],
+    pub chan_map: &'static [c_uchar],
     pub cpe: Box<[ChannelElement]>,
     pub psy: FFPsyContext,
     pub psypp: *mut FFPsyPreprocessContext,

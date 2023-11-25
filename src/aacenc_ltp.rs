@@ -162,9 +162,9 @@ pub(crate) unsafe fn ltp_insert_new_frame(mut s: *mut AACEncContext) {
     let mut cpe: *mut ChannelElement = std::ptr::null_mut::<ChannelElement>();
     let mut sce: *mut SingleChannelElement = std::ptr::null_mut::<SingleChannelElement>();
     i = 0 as c_int;
-    while i < *((*s).chan_map).offset(0 as c_int as isize) as c_int {
+    while i < (*s).chan_map[0] as c_int {
         cpe = &mut *((*s).cpe.as_mut_ptr()).offset(i as isize) as *mut ChannelElement;
-        tag = *((*s).chan_map).offset((i + 1 as c_int) as isize) as c_int;
+        tag = (*s).chan_map[(i + 1) as usize] as c_int;
         chans = if tag == TYPE_CPE as c_int {
             2 as c_int
         } else {

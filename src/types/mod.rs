@@ -122,7 +122,7 @@ pub(crate) struct MPEG4AudioConfig {
 pub(crate) type AudioObjectType = c_uint;
 pub(crate) const AOT_SBR: AudioObjectType = 5;
 
-pub(crate) type AAC_SIGNE = c_uint;
+// pub(crate) type AAC_SIGNE = c_uint;
 pub(crate) type AVTXType = c_uint;
 pub(crate) const AV_TX_NB: AVTXType = 18;
 pub(crate) const AV_TX_INT32_DST_I: AVTXType = 17;
@@ -281,15 +281,14 @@ pub(crate) struct SBRDSPContext {
 }
 
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct SingleChannelElement {
     pub(crate) ics: IndividualChannelStream,
     pub(crate) tns: TemporalNoiseShaping,
     pub(crate) pulse: Pulse,
     pub(crate) band_type: [BandType; 128],
     pub(crate) band_alt: [BandType; 128],
-    pub(crate) band_type_run_end: [c_int; 120],
-    pub(crate) sf: [c_float; 120],
+    // pub(crate) band_type_run_end: [c_int; 120],
+    // pub(crate) sf: [c_float; 120],
     pub(crate) sf_idx: [c_int; 128],
     pub(crate) zeroes: [c_uchar; 128],
     pub(crate) can_pns: [c_uchar; 128],
@@ -297,16 +296,15 @@ pub(crate) struct SingleChannelElement {
     pub(crate) pns_ener: [c_float; 128],
     pub(crate) pcoeffs: [c_float; 1024],
     pub(crate) coeffs: [c_float; 1024],
-    pub(crate) saved: [c_float; 1536],
+    // pub(crate) saved: [c_float; 1536],
     pub(crate) ret_buf: [c_float; 2048],
     pub(crate) ltp_state: [c_float; 3072],
     pub(crate) lcoeffs: [c_float; 1024],
     pub(crate) prcoeffs: [c_float; 1024],
     pub(crate) predictor_state: [PredictorState; 672],
-    pub(crate) ret: *mut c_float,
+    // pub(crate) ret: *mut c_float,
 }
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct PredictorState {
     pub(crate) cor0: c_float,
     pub(crate) cor1: c_float,
@@ -317,6 +315,7 @@ pub(crate) struct PredictorState {
     pub(crate) k1: c_float,
     pub(crate) x_est: c_float,
 }
+
 pub(crate) type BandType = c_uint;
 pub(crate) const INTENSITY_BT: BandType = 15;
 pub(crate) const INTENSITY_BT2: BandType = 14;
@@ -324,16 +323,16 @@ pub(crate) const NOISE_BT: BandType = 13;
 pub(crate) const RESERVED_BT: BandType = 12;
 pub(crate) const ESC_BT: BandType = 11;
 pub(crate) const ZERO_BT: BandType = 0;
+
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct Pulse {
     pub(crate) num_pulse: c_int,
     pub(crate) start: c_int,
     pub(crate) pos: [c_int; 4],
     pub(crate) amp: [c_int; 4],
 }
+
 #[derive(Copy, Clone, Default)]
-#[repr(C)]
 pub(crate) struct TemporalNoiseShaping {
     pub(crate) present: c_int,
     pub(crate) n_filt: [c_int; 8],
@@ -344,12 +343,11 @@ pub(crate) struct TemporalNoiseShaping {
     pub(crate) coef: [[[c_float; 20]; 4]; 8],
 }
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct IndividualChannelStream {
     pub(crate) max_sfb: c_uchar,
     pub(crate) window_sequence: [WindowSequence; 2],
     pub(crate) use_kb_window: [c_uchar; 2],
-    pub(crate) num_window_groups: c_int,
+    // pub(crate) num_window_groups: c_int,
     pub(crate) group_len: [c_uchar; 8],
     pub(crate) ltp: LongTermPrediction,
     pub(crate) swb_offset: *const c_ushort,
@@ -402,18 +400,18 @@ pub(crate) struct OutputConfiguration {
 }
 pub(crate) type OCStatus = c_uint;
 pub(crate) type AACOutputChannelOrder = c_uint;
+
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct ChannelElement {
-    pub(crate) present: c_int,
+    // pub(crate) present: c_int,
     pub(crate) common_window: c_int,
     pub(crate) ms_mode: c_int,
     pub(crate) is_mode: c_uchar,
     pub(crate) ms_mask: [c_uchar; 128],
     pub(crate) is_mask: [c_uchar; 128],
     pub(crate) ch: [SingleChannelElement; 2],
-    pub(crate) coup: ChannelCoupling,
-    pub(crate) sbr: SpectralBandReplication,
+    // pub(crate) coup: ChannelCoupling,
+    // pub(crate) sbr: SpectralBandReplication,
 }
 
 impl ChannelElement {
@@ -422,134 +420,6 @@ impl ChannelElement {
         // TODO: use default
         unsafe { MaybeUninit::zeroed().assume_init() }
     }
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct SpectralBandReplication {
-    pub(crate) sample_rate: c_int,
-    pub(crate) start: c_int,
-    pub(crate) ready_for_dequant: c_int,
-    pub(crate) id_aac: c_int,
-    pub(crate) reset: c_int,
-    pub(crate) spectrum_params: SpectrumParameters,
-    pub(crate) bs_amp_res_header: c_int,
-    pub(crate) bs_limiter_bands: c_uint,
-    pub(crate) bs_limiter_gains: c_uint,
-    pub(crate) bs_interpol_freq: c_uint,
-    pub(crate) bs_smoothing_mode: c_uint,
-    pub(crate) bs_coupling: c_uint,
-    pub(crate) k: [AAC_SIGNE; 5],
-    pub(crate) kx: [AAC_SIGNE; 2],
-    pub(crate) m: [AAC_SIGNE; 2],
-    pub(crate) kx_and_m_pushed: c_uint,
-    pub(crate) n_master: AAC_SIGNE,
-    pub(crate) data: [SBRData; 2],
-    pub(crate) ps: PSContext,
-    pub(crate) n: [AAC_SIGNE; 2],
-    pub(crate) n_q: AAC_SIGNE,
-    pub(crate) n_lim: AAC_SIGNE,
-    pub(crate) f_master: [c_ushort; 49],
-    pub(crate) f_tablelow: [c_ushort; 25],
-    pub(crate) f_tablehigh: [c_ushort; 49],
-    pub(crate) f_tablenoise: [c_ushort; 6],
-    pub(crate) f_tablelim: [c_ushort; 30],
-    pub(crate) num_patches: AAC_SIGNE,
-    pub(crate) patch_num_subbands: [c_uchar; 6],
-    pub(crate) patch_start_subband: [c_uchar; 6],
-    pub(crate) X_low: [[[c_float; 2]; 40]; 32],
-    pub(crate) X_high: [[[c_float; 2]; 40]; 64],
-    pub(crate) X: [[[[c_float; 64]; 38]; 2]; 2],
-    pub(crate) alpha0: [[c_float; 2]; 64],
-    pub(crate) alpha1: [[c_float; 2]; 64],
-    pub(crate) e_origmapped: [[c_float; 48]; 7],
-    pub(crate) q_mapped: [[c_float; 48]; 7],
-    pub(crate) s_mapped: [[c_uchar; 48]; 7],
-    pub(crate) e_curr: [[c_float; 48]; 7],
-    pub(crate) q_m: [[c_float; 48]; 7],
-    pub(crate) s_m: [[c_float; 48]; 7],
-    pub(crate) gain: [[c_float; 48]; 7],
-    pub(crate) qmf_filter_scratch: [[c_float; 64]; 5],
-    pub(crate) mdct_ana: *mut AVTXContext,
-    pub(crate) mdct_ana_fn: av_tx_fn,
-    pub(crate) mdct: *mut AVTXContext,
-    pub(crate) mdct_fn: av_tx_fn,
-    pub(crate) dsp: SBRDSPContext,
-    pub(crate) c: AACSBRContext,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct AACSBRContext {
-    pub(crate) sbr_lf_gen: Option<
-        unsafe extern "C" fn(
-            *mut AACContext,
-            *mut SpectralBandReplication,
-            *mut [[c_float; 2]; 40],
-            *const [[[c_float; 2]; 32]; 32],
-            c_int,
-        ) -> c_int,
-    >,
-    pub(crate) sbr_hf_assemble: Option<
-        unsafe extern "C" fn(
-            *mut [[c_float; 2]; 64],
-            *const [[c_float; 2]; 40],
-            *mut SpectralBandReplication,
-            *mut SBRData,
-            *const c_int,
-        ) -> (),
-    >,
-    pub(crate) sbr_x_gen: Option<
-        unsafe extern "C" fn(
-            *mut SpectralBandReplication,
-            *mut [[c_float; 64]; 38],
-            *const [[c_float; 2]; 64],
-            *const [[c_float; 2]; 64],
-            *const [[c_float; 2]; 40],
-            c_int,
-        ) -> c_int,
-    >,
-    pub(crate) sbr_hf_inverse_filter: Option<
-        unsafe extern "C" fn(
-            *mut SBRDSPContext,
-            *mut [c_float; 2],
-            *mut [c_float; 2],
-            *const [[c_float; 2]; 40],
-            c_int,
-        ) -> (),
-    >,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct SBRData {
-    pub(crate) bs_frame_class: c_uint,
-    pub(crate) bs_add_harmonic_flag: c_uint,
-    pub(crate) bs_num_env: AAC_SIGNE,
-    pub(crate) bs_freq_res: [c_uchar; 7],
-    pub(crate) bs_num_noise: AAC_SIGNE,
-    pub(crate) bs_df_env: [c_uchar; 5],
-    pub(crate) bs_df_noise: [c_uchar; 2],
-    pub(crate) bs_invf_mode: [[c_uchar; 5]; 2],
-    pub(crate) bs_add_harmonic: [c_uchar; 48],
-    pub(crate) bs_amp_res: c_uint,
-    pub(crate) synthesis_filterbank_samples: [c_float; 2304],
-    pub(crate) analysis_filterbank_samples: [c_float; 1312],
-    pub(crate) synthesis_filterbank_samples_offset: c_int,
-    pub(crate) e_a: [c_int; 2],
-    pub(crate) bw_array: [c_float; 5],
-    pub(crate) W: [[[[c_float; 2]; 32]; 32]; 2],
-    pub(crate) Ypos: c_int,
-    pub(crate) Y: [[[[c_float; 2]; 64]; 38]; 2],
-    pub(crate) g_temp: [[c_float; 48]; 42],
-    pub(crate) q_temp: [[c_float; 48]; 42],
-    pub(crate) s_indexmapped: [[c_uchar; 48]; 8],
-    pub(crate) env_facs_q: [[c_uchar; 48]; 6],
-    pub(crate) env_facs: [[c_float; 48]; 6],
-    pub(crate) noise_facs_q: [[c_uchar; 5]; 3],
-    pub(crate) noise_facs: [[c_float; 5]; 3],
-    pub(crate) t_env: [c_uchar; 8],
-    pub(crate) t_env_num_env_old: c_uchar,
-    pub(crate) t_q: [c_uchar; 3],
-    pub(crate) f_indexnoise: c_uint,
-    pub(crate) f_indexsine: c_uint,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -713,7 +583,6 @@ pub(crate) struct AACEncOptions {
 }
 
 #[derive(Copy, Clone, Default)]
-#[repr(C)]
 pub(crate) struct AACQuantizeBandCostCacheEntry {
     pub(crate) rd: c_float,
     pub(crate) energy: c_float,

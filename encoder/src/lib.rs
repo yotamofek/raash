@@ -74,7 +74,7 @@ unsafe extern "C" fn av_default_item_name(ptr: *mut c_void) -> *const c_char {
     (**(ptr as *mut *mut AVClass)).class_name
 }
 
-pub const fn class<Cls: Class>() -> AVClass {
+const fn class<Cls: Class>() -> AVClass {
     AVClass {
         class_name: Cls::NAME.as_ptr(),
         item_name: Some(av_default_item_name),
