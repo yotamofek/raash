@@ -1,12 +1,9 @@
 #![feature(const_option, const_ptr_is_null, inline_const)]
 
+mod callback;
 mod capabilities;
 
-use std::{
-    ffi::CStr,
-    mem::{self, size_of},
-    ptr::{null, null_mut},
-};
+use std::{ffi::CStr, mem::size_of, ptr::null};
 
 use ffi::{
     class::{option::AVOption, AVClass, AVClassCategory},
@@ -34,6 +31,7 @@ pub enum GotPacket {
     No,
 }
 
+/// Trait for creating audio encoders for FFI.
 pub trait Encoder: Class {
     const NAME: &'static CStr;
     const LONG_NAME: &'static CStr;
@@ -90,46 +88,6 @@ const fn class<Cls: Class>() -> AVClass {
     }
 }
 
-unsafe extern "C" fn init<Enc: Encoder>(avctx: *mut AVCodecContext) -> c_int {
-    let priv_data = (*avctx).priv_data as *mut PrivData<Enc>;
-    debug_assert!((*priv_data).ctx.is_null());
-
-    let ctx = Enc::init(&mut *avctx, &(*priv_data).options);
-    (*priv_data).ctx = Box::into_raw(ctx);
-
-    0
-}
-
-unsafe extern "C" fn encode_frame<Enc: Encoder>(
-    avctx: *mut AVCodecContext,
-    avpkt: *mut AVPacket,
-    frame: *const AVFrame,
-    got_packet_ptr: *mut c_int,
-) -> c_int {
-    let priv_data = (*avctx).priv_data as *mut PrivData<Enc>;
-    debug_assert!(!(*priv_data).ctx.is_null());
-
-    let ctx = &mut *(*priv_data).ctx;
-    let options = &(*priv_data).options;
-    let got_packet = Enc::encode_frame(&mut *avctx, ctx, options, avpkt, &*frame);
-
-    *got_packet_ptr = c_int::from(matches!(got_packet, GotPacket::Yes));
-
-    0
-}
-
-unsafe extern "C" fn close<Enc: Encoder>(avctx: *mut AVCodecContext) -> c_int {
-    let priv_data = (*avctx).priv_data as *mut PrivData<Enc>;
-    debug_assert!(!(*priv_data).ctx.is_null());
-
-    let ctx = mem::replace(&mut (*priv_data).ctx, null_mut());
-    let ctx = Box::from_raw(ctx);
-
-    Enc::close(&mut *avctx, ctx);
-
-    0
-}
-
 pub const fn encoder<Enc: Encoder>() -> FFCodec {
     assert!(*Enc::SUPPORTED_SAMPLERATES.last().unwrap() == 0);
     assert!(*Enc::SAMPLE_FMTS.last().unwrap() == -1);
@@ -169,11 +127,11 @@ pub const fn encoder<Enc: Encoder>() -> FFCodec {
         update_thread_context_for_user: None,
         defaults: Enc::DEFAULTS.as_ptr(),
         init_static_data: None,
-        init: Some(init::<Enc>),
+        init: Some(callback::init::<Enc>),
         cb: CodecCallback {
-            encode: Some(encode_frame::<Enc>),
+            encode: Some(callback::encode_frame::<Enc>),
         },
-        close: Some(close::<Enc>),
+        close: Some(callback::close::<Enc>),
         flush: None,
         bsfs: null(),
         hw_configs: null(),
