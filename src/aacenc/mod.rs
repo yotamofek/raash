@@ -25,7 +25,7 @@ use std::{
     slice,
 };
 
-use encoder::{encoder, Class, Encoder};
+use encoder::{encoder, Class, Encoder, PacketBuilder};
 use ffi::{
     class::option::AVOption,
     codec::{
@@ -749,12 +749,11 @@ unsafe extern "C" fn copy_input_samples(mut s: *mut AACEncContext, mut frame: *c
         ch;
     }
 }
-unsafe extern "C" fn aac_encode_frame(
+unsafe fn aac_encode_frame(
     mut avctx: *mut AVCodecContext,
     mut ctx: *mut AACEncContext,
-    mut avpkt: *mut AVPacket,
     mut frame: *const AVFrame,
-    mut got_packet_ptr: *mut c_int,
+    mut packet_builder: PacketBuilder,
 ) -> c_int {
     // let mut samples: *mut *mut c_float = ((*s).planar_samples).as_mut_ptr();
     let mut samples2: *mut c_float = ptr::null_mut::<c_float>();
@@ -770,7 +769,6 @@ unsafe extern "C" fn aac_encode_frame(
     let mut chans: c_int = 0;
     let mut tag: c_int = 0;
     let mut start_ch: c_int = 0;
-    let mut ret: c_int = 0;
     let mut frame_bits: c_int = 0;
     let mut target_bits: c_int = 0;
     let mut rate_bits: c_int = 0;
@@ -964,14 +962,16 @@ unsafe extern "C" fn aac_encode_frame(
         i += 1;
         i;
     }
-    ret = ff_alloc_packet(avctx, avpkt, (8192 as c_int * (*ctx).channels) as c_long);
-    if ret < 0 as c_int {
-        return ret;
-    }
+    let mut avpkt = packet_builder.allocate((8192 as c_int * (*ctx).channels) as c_long);
+
     its = 0 as c_int;
     frame_bits = its;
     loop {
-        init_put_bits(&mut (*ctx).pb, (*avpkt).data, (*avpkt).size);
+        init_put_bits(
+            &mut (*ctx).pb,
+            avpkt.data_mut().as_mut_ptr(),
+            avpkt.data().len() as c_int,
+        );
         if (*avctx).frame_num & 0xff as c_int as c_long == 1 as c_int as c_long
             && (*avctx).flags & (1 as c_int) << 23 as c_int == 0
         {
@@ -1300,19 +1300,16 @@ unsafe extern "C" fn aac_encode_frame(
     put_bits(&mut (*ctx).pb, 3 as c_int, TYPE_END as c_int as BitBuf);
     flush_put_bits(&mut (*ctx).pb);
     (*ctx).last_frame_pb_count = put_bits_count(&mut (*ctx).pb);
-    (*avpkt).size = put_bytes_output(&mut (*ctx).pb);
+    avpkt.truncate(put_bytes_output(&mut (*ctx).pb) as usize);
     (*ctx).lambda_sum += (*ctx).lambda;
     (*ctx).lambda_count += 1;
     (*ctx).lambda_count;
     {
         let AudioRemoved { pts, duration } = (*ctx).afq.remove((*avctx).frame_size);
-        (*avpkt) = AVPacket {
-            pts,
-            duration,
-            ..*avpkt
-        };
+        avpkt.set_pts(pts);
+        avpkt.set_duration(duration);
     }
-    *got_packet_ptr = 1 as c_int;
+
     0 as c_int
 }
 
@@ -1609,18 +1606,11 @@ impl Encoder for AACEncoder {
         avctx: &mut AVCodecContext,
         ctx: &mut Self::Ctx,
         options: &Self::Options,
-        avpkt: *mut AVPacket,
         frame: &AVFrame,
-    ) -> encoder::GotPacket {
-        let mut got_packet_ptr = 0;
-        let ret = unsafe { aac_encode_frame(avctx, ctx, avpkt, frame, &mut got_packet_ptr) };
+        packet_builder: PacketBuilder,
+    ) {
+        let ret = unsafe { aac_encode_frame(avctx, ctx, frame, packet_builder) };
         assert!(ret >= 0, "aac_encode_frame failed");
-
-        if got_packet_ptr == 0 {
-            encoder::GotPacket::No
-        } else {
-            encoder::GotPacket::Yes
-        }
     }
 
     fn close(avctx: &mut AVCodecContext, mut ctx: Box<Self::Ctx>) {

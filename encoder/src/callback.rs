@@ -1,12 +1,14 @@
 //! FFI-friendly wrappers for callbacks from ffmpeg to a Rust encoder.
 
+// TODO: catch panics, we can't unwind into C
+
 use std::{mem, ptr::null_mut};
 
 use ffi::codec::{frame::AVFrame, AVCodecContext, AVPacket};
 use libc::c_int;
 
 use super::{Encoder, PrivData};
-use crate::GotPacket;
+use crate::PacketBuilder;
 
 pub(super) unsafe extern "C" fn init<Enc: Encoder>(avctx: *mut AVCodecContext) -> c_int {
     let priv_data = (*avctx).priv_data as *mut PrivData<Enc>;
@@ -29,9 +31,16 @@ pub(super) unsafe extern "C" fn encode_frame<Enc: Encoder>(
 
     let ctx = &mut *(*priv_data).ctx;
     let options = &(*priv_data).options;
-    let got_packet = Enc::encode_frame(&mut *avctx, ctx, options, avpkt, &*frame);
+    let mut allocated = false;
+    Enc::encode_frame(
+        &mut *avctx,
+        ctx,
+        options,
+        &*frame,
+        PacketBuilder::new(avctx, avpkt, &mut allocated),
+    );
 
-    *got_packet_ptr = c_int::from(matches!(got_packet, GotPacket::Yes));
+    *got_packet_ptr = c_int::from(allocated);
 
     0
 }

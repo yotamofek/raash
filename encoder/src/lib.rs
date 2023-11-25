@@ -2,8 +2,14 @@
 
 mod callback;
 mod capabilities;
+mod packet;
 
-use std::{ffi::CStr, mem::size_of, ptr::null};
+use std::{
+    ffi::CStr,
+    mem::size_of,
+    ops::{Deref, DerefMut},
+    ptr::null,
+};
 
 use ffi::{
     class::{option::AVOption, AVClass, AVClassCategory},
@@ -12,9 +18,14 @@ use ffi::{
         CodecCallback, FFCodec, FFCodecDefault, FFCodecType,
     },
 };
-use libc::{c_char, c_int, c_uint, c_void};
+use libc::{c_char, c_int, c_long, c_uint, c_void};
 
 use self::capabilities::*;
+pub use self::packet::{Packet, PacketBuilder};
+
+extern "C" {
+    fn ff_alloc_packet(avctx: *mut AVCodecContext, avpkt: *mut AVPacket, size: c_long) -> c_int;
+}
 
 const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
 const AV_CLASS_CATEGORY_NA: AVClassCategory = 0;
@@ -24,11 +35,6 @@ const FF_CODEC_CB_TYPE_ENCODE: FFCodecType = 3;
 pub trait Class {
     const NAME: &'static CStr;
     const OPTIONS: &'static [AVOption];
-}
-
-pub enum GotPacket {
-    Yes,
-    No,
 }
 
 /// Trait for creating audio encoders for FFI.
@@ -51,9 +57,9 @@ pub trait Encoder: Class {
         avctx: &mut AVCodecContext,
         ctx: &mut Self::Ctx,
         options: &Self::Options,
-        avpkt: *mut AVPacket,
         frame: &AVFrame,
-    ) -> GotPacket;
+        packet_builder: PacketBuilder<'_>,
+    );
     fn close(avctx: &mut AVCodecContext, ctx: Box<Self::Ctx>);
 }
 
@@ -77,6 +83,7 @@ const fn class<Cls: Class>() -> AVClass {
         class_name: Cls::NAME.as_ptr(),
         item_name: Some(av_default_item_name),
         option: Cls::OPTIONS.as_ptr(),
+        // TODO
         version: (58 << 16) | (32 << 8) | 100,
         log_level_offset_offset: 0,
         parent_log_context_offset: 0,
