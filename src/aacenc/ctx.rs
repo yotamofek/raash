@@ -95,7 +95,7 @@ pub(crate) struct AACEncContext {
     pub channels: c_int,
     pub reorder_map: *const c_uchar,
     pub chan_map: *const c_uchar,
-    pub cpe: *mut ChannelElement,
+    pub cpe: Box<[ChannelElement]>,
     pub psy: FFPsyContext,
     pub psypp: *mut FFPsyPreprocessContext,
     pub coder: &'static dyn CoeffsEncoder,

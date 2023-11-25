@@ -1,6 +1,9 @@
 #![deny(dead_code)]
 
-use std::ptr::{null, null_mut};
+use std::{
+    mem::MaybeUninit,
+    ptr::{null, null_mut},
+};
 
 use ffi::{
     class::{option::AVOptionType, AVClassCategory},
@@ -411,6 +414,14 @@ pub(crate) struct ChannelElement {
     pub(crate) ch: [SingleChannelElement; 2],
     pub(crate) coup: ChannelCoupling,
     pub(crate) sbr: SpectralBandReplication,
+}
+
+impl ChannelElement {
+    pub fn zero() -> Self {
+        // all-zeroes is a valid repr for this struct
+        // TODO: use default
+        unsafe { MaybeUninit::zeroed().assume_init() }
+    }
 }
 #[derive(Copy, Clone)]
 #[repr(C)]

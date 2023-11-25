@@ -813,7 +813,7 @@ unsafe extern "C" fn aac_encode_frame(
         } else {
             1 as c_int
         };
-        cpe = &mut *((*s).cpe).offset(i as isize) as *mut ChannelElement;
+        cpe = &mut (*s).cpe[i as usize] as *mut ChannelElement;
         ch = 0 as c_int;
         while ch < chans {
             let mut k: c_int = 0;
@@ -992,7 +992,7 @@ unsafe extern "C" fn aac_encode_frame(
             } else {
                 1 as c_int
             };
-            cpe = &mut *((*s).cpe).offset(i as isize) as *mut ChannelElement;
+            cpe = &mut (*s).cpe[i as usize] as *mut ChannelElement;
             (*cpe).common_window = 0 as c_int;
             (*cpe).is_mask.fill(0);
             (*cpe).ms_mask.fill(0);
@@ -1277,7 +1277,7 @@ unsafe extern "C" fn aac_encode_frame(
                     } else {
                         1 as c_int
                     };
-                    cpe = &mut *((*s).cpe).offset(i as isize) as *mut ChannelElement;
+                    cpe = &mut (*s).cpe[i as usize] as *mut ChannelElement;
                     ch = 0 as c_int;
                     while ch < chans {
                         (*cpe).ch[ch as usize].coeffs = (*cpe).ch[ch as usize].pcoeffs;
@@ -1311,21 +1311,6 @@ unsafe extern "C" fn aac_encode_frame(
         };
     }
     *got_packet_ptr = 1 as c_int;
-    0 as c_int
-}
-
-#[cold]
-unsafe extern "C" fn alloc_buffers(
-    mut _avctx: *mut AVCodecContext,
-    mut s: *mut AACEncContext,
-) -> c_int {
-    (*s).cpe = av_calloc(
-        *((*s).chan_map).offset(0 as c_int as isize) as c_ulong,
-        size_of::<ChannelElement>() as c_ulong,
-    ) as *mut ChannelElement;
-    if ((*s).cpe).is_null() {
-        return -(12 as c_int);
-    }
     0 as c_int
 }
 
@@ -1367,6 +1352,8 @@ impl Encoder for AACEncoder {
                 1
             };
 
+            let channels = avctx.ch_layout.nb_channels;
+
             let samplerate_index = ff_mpeg4audio_sample_rates
                 .iter()
                 .find_position(|&&sample_rate| avctx.sample_rate == sample_rate)
@@ -1374,6 +1361,45 @@ impl Encoder for AACEncoder {
                 .filter(|&i| i < ff_aac_swb_size_1024.len() && i < ff_aac_swb_size_128.len())
                 .unwrap_or_else(|| panic!("Unsupported sample rate {}", avctx.sample_rate))
                 as c_int;
+
+            let (pce, reorder_map, chan_map) = if needs_pce != 0 {
+                let mut buf: [c_char; 64] = [0; 64];
+                av_channel_layout_describe(
+                    &mut avctx.ch_layout,
+                    buf.as_mut_ptr(),
+                    buf.len() as c_ulong,
+                );
+
+                let config = pce::CONFIGS
+                    .iter()
+                    .find(|config| av_channel_layout_compare(&avctx.ch_layout, &config.layout) == 0)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Unsupported channel layout {}",
+                            CStr::from_ptr(buf.as_ptr()).to_string_lossy()
+                        )
+                    });
+
+                av_log(
+                    ptr::from_mut(avctx).cast(),
+                    32 as c_int,
+                    b"Using a PCE to encode channel layout \"%s\"\n\0" as *const u8
+                        as *const c_char,
+                    buf.as_mut_ptr(),
+                );
+
+                (
+                    Some(*config),
+                    &config.reorder_map,
+                    config.config_map.as_slice(),
+                )
+            } else {
+                (
+                    None,
+                    &channel_layout::REORDER_MAPS[(channels - 1) as usize],
+                    channel_layout::CONFIGS[(channels - 1) as usize].as_slice(),
+                )
+            };
 
             let mut ctx = Box::new(AACEncContext {
                 av_class: avctx.av_class,
@@ -1384,7 +1410,7 @@ impl Encoder for AACEncoder {
                 mdct128: null_mut(),
                 mdct128_fn: None,
                 fdsp: null_mut(),
-                pce: None,
+                pce,
                 planar_samples: vec![[0.; _]; avctx.ch_layout.nb_channels as usize]
                     .into_boxed_slice(),
                 profile: 0,
@@ -1392,9 +1418,9 @@ impl Encoder for AACEncoder {
                 lpc: LPCContext::new(2 * avctx.frame_size, 20, lpc::Type::Levinson),
                 samplerate_index,
                 channels: avctx.ch_layout.nb_channels,
-                reorder_map: null(),
-                chan_map: null(),
-                cpe: null_mut(),
+                reorder_map: reorder_map.as_ptr(),
+                chan_map: chan_map.as_ptr(),
+                cpe: vec![ChannelElement::zero(); chan_map[0] as usize].into_boxed_slice(),
                 psy: FFPsyContext::zero(),
                 psypp: null_mut(),
                 coder: match options.coder as c_uint {
@@ -1426,42 +1452,6 @@ impl Encoder for AACEncoder {
             let mut sizes: [*const c_uchar; 2] = [ptr::null::<c_uchar>(); 2];
             let mut grouping: [c_uchar; 16] = [0; 16];
             let mut lengths: [c_int; 2] = [0; 2];
-
-            if ctx.needs_pce != 0 {
-                let mut buf: [c_char; 64] = [0; 64];
-                av_channel_layout_describe(
-                    &mut avctx.ch_layout,
-                    buf.as_mut_ptr(),
-                    buf.len() as c_ulong,
-                );
-
-                let config = pce::CONFIGS
-                    .iter()
-                    .find(|config| av_channel_layout_compare(&avctx.ch_layout, &config.layout) == 0)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Unsupported channel layout {}",
-                            CStr::from_ptr(buf.as_ptr()).to_string_lossy()
-                        )
-                    });
-
-                av_log(
-                    ptr::from_mut(avctx).cast(),
-                    32 as c_int,
-                    b"Using a PCE to encode channel layout \"%s\"\n\0" as *const u8
-                        as *const c_char,
-                    buf.as_mut_ptr(),
-                );
-
-                ctx.pce = Some(*config);
-                ctx.reorder_map = (config.reorder_map).as_ptr();
-                ctx.chan_map = (config.config_map).as_ptr();
-            } else {
-                ctx.reorder_map =
-                    (channel_layout::REORDER_MAPS[(ctx.channels - 1 as c_int) as usize]).as_ptr();
-                ctx.chan_map =
-                    (channel_layout::CONFIGS[(ctx.channels - 1 as c_int) as usize]).as_ptr();
-            }
 
             if avctx.bit_rate == 0 {
                 i = 1 as c_int;
@@ -1576,8 +1566,6 @@ impl Encoder for AACEncoder {
             ff_aac_float_common_init();
             ret = dsp::init(avctx, &mut *ctx);
             assert!(ret >= 0, "dsp::init failed");
-            ret = alloc_buffers(avctx, &mut *ctx);
-            assert!(ret >= 0, "alloc_buffers failed");
             ret = put_audio_specific_config(avctx, &mut ctx);
             assert!(ret >= 0, "put_audio_specific_config failed");
             sizes[0] = *ff_aac_swb_size_1024
@@ -1653,7 +1641,6 @@ impl Encoder for AACEncoder {
             if !(ctx.psypp).is_null() {
                 ff_psy_preprocess_end(ctx.psypp);
             }
-            av_freep(&mut ctx.cpe as *mut *mut ChannelElement as *mut c_void);
             av_freep(&mut ctx.fdsp as *mut *mut AVFloatDSPContext as *mut c_void);
         }
     }
