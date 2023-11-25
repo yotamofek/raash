@@ -109,6 +109,7 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "c2rust-bitfields",
+ "encoder",
  "ffi",
  "ilog",
  "itertools",

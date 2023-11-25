@@ -77,7 +77,7 @@ pub(crate) struct AACContext {
 #[repr(C)]
 pub(crate) struct AACEncContext {
     // TODO: `av_class` and `options` and duplicated (and copied from) `PrivData`.
-    pub av_class: *mut AVClass,
+    pub av_class: *const AVClass,
     pub options: AACEncOptions,
 
     pub pb: PutBitContext,

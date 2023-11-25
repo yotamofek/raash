@@ -1,5 +1,6 @@
 pub mod channel;
 pub mod frame;
+pub mod profile;
 pub mod subtitle;
 
 use std::{ffi::CStr, ptr};

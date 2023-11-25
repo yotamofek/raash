@@ -1,4 +1,4 @@
-#![feature(const_option, const_ptr_is_null)]
+#![feature(const_option, const_ptr_is_null, inline_const)]
 
 mod capabilities;
 
@@ -52,6 +52,7 @@ pub trait Encoder: Class {
     fn encode_frame(
         avctx: &mut AVCodecContext,
         ctx: &mut Self::Ctx,
+        options: &Self::Options,
         avpkt: *mut AVPacket,
         frame: &AVFrame,
     ) -> GotPacket;
@@ -73,7 +74,7 @@ unsafe extern "C" fn av_default_item_name(ptr: *mut c_void) -> *const c_char {
     (**(ptr as *mut *mut AVClass)).class_name
 }
 
-const fn class<Cls: Class>() -> AVClass {
+pub const fn class<Cls: Class>() -> AVClass {
     AVClass {
         class_name: Cls::NAME.as_ptr(),
         item_name: Some(av_default_item_name),
@@ -109,7 +110,8 @@ unsafe extern "C" fn encode_frame<Enc: Encoder>(
     debug_assert!(!(*priv_data).ctx.is_null());
 
     let ctx = &mut *(*priv_data).ctx;
-    let got_packet = Enc::encode_frame(&mut *avctx, ctx, avpkt, &*frame);
+    let options = &(*priv_data).options;
+    let got_packet = Enc::encode_frame(&mut *avctx, ctx, options, avpkt, &*frame);
 
     *got_packet_ptr = c_int::from(matches!(got_packet, GotPacket::Yes));
 
@@ -137,6 +139,10 @@ pub const fn encoder<Enc: Encoder>() -> FFCodec {
         assert!(last_default.key.is_null() && last_default.value.is_null());
     }
 
+    // we have to use a const inline block to ensure `class` is promoted to a static
+    // (otherwise this will create a dangling pointer)
+    let class = &const { class::<Enc>() };
+
     FFCodec {
         p: AVCodec {
             name: <Enc as Encoder>::NAME.as_ptr(),
@@ -150,7 +156,7 @@ pub const fn encoder<Enc: Encoder>() -> FFCodec {
             supported_samplerates: Enc::SUPPORTED_SAMPLERATES.as_ptr(),
             sample_fmts: Enc::SAMPLE_FMTS.as_ptr(),
             channel_layouts: null(),
-            priv_class: &class::<Enc>(),
+            priv_class: class,
             profiles: null(),
             wrapper_name: null(),
             ch_layouts: null(),

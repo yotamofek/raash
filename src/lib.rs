@@ -8,6 +8,7 @@
     array_chunks,
     inline_const,
     generic_const_exprs,
+    ptr_from_ref,
     generic_arg_infer,
     new_uninit,
     slice_take

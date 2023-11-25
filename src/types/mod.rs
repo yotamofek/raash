@@ -55,11 +55,11 @@ pub(crate) struct AVFloatDSPContext {
         Option<unsafe extern "C" fn(*mut c_double, *const c_double, *const c_double, c_int) -> ()>,
 }
 
-pub(crate) const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
+// pub(crate) const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
 
 pub(crate) type ptrdiff_t = c_long;
 
-pub(crate) const AV_CLASS_CATEGORY_NA: AVClassCategory = 0;
+// pub(crate) const AV_CLASS_CATEGORY_NA: AVClassCategory = 0;
 
 pub(crate) const AV_OPT_TYPE_BOOL: AVOptionType = 18;
 pub(crate) const AV_OPT_TYPE_CONST: AVOptionType = 10;
