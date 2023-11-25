@@ -385,6 +385,7 @@ unsafe fn ff_pns_bits(mut sce: *mut SingleChannelElement, mut w: c_int, mut g: c
     }
 }
 
+/// Source: [libavcodec/psymodel.h](https://github.com/FFmpeg/FFmpeg/blob/2d9ed64859c9887d0504cd71dbd5b2c15e14251a/libavcodec/psymodel.h#L35-L40)
 fn cutoff_from_bitrate(bit_rate: c_int, channels: c_int, sample_rate: c_int) -> c_int {
     if bit_rate == 0 {
         return sample_rate / 2;

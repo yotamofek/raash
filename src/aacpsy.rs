@@ -73,160 +73,46 @@ pub(crate) struct C2RustUnnamed_2 {
     pub(crate) previous: c_float,
     pub(crate) correction: c_float,
 }
+
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct PsyLamePreset {
     pub(crate) quality: c_int,
     pub(crate) st_lrm: c_float,
 }
 
+impl PsyLamePreset {
+    pub(crate) const fn new(quality: c_int, st_lrm: c_float) -> Self {
+        Self { quality, st_lrm }
+    }
+}
+
 static mut psy_abr_map: [PsyLamePreset; 13] = [
-    {
-        PsyLamePreset {
-            quality: 8 as c_int,
-            st_lrm: 6.60f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 16 as c_int,
-            st_lrm: 6.60f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 24 as c_int,
-            st_lrm: 6.60f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 32 as c_int,
-            st_lrm: 6.60f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 40 as c_int,
-            st_lrm: 6.60f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 48 as c_int,
-            st_lrm: 6.60f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 56 as c_int,
-            st_lrm: 6.60f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 64 as c_int,
-            st_lrm: 6.40f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 80 as c_int,
-            st_lrm: 6.00f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 96 as c_int,
-            st_lrm: 5.60f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 112 as c_int,
-            st_lrm: 5.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 128 as c_int,
-            st_lrm: 5.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 160 as c_int,
-            st_lrm: 5.20f64 as c_float,
-        }
-    },
+    PsyLamePreset::new(8, 6.60),
+    PsyLamePreset::new(16, 6.60),
+    PsyLamePreset::new(24, 6.60),
+    PsyLamePreset::new(32, 6.60),
+    PsyLamePreset::new(40, 6.60),
+    PsyLamePreset::new(48, 6.60),
+    PsyLamePreset::new(56, 6.60),
+    PsyLamePreset::new(64, 6.40),
+    PsyLamePreset::new(80, 6.00),
+    PsyLamePreset::new(96, 5.60),
+    PsyLamePreset::new(112, 5.20),
+    PsyLamePreset::new(128, 5.20),
+    PsyLamePreset::new(160, 5.20),
 ];
 static mut psy_vbr_map: [PsyLamePreset; 11] = [
-    {
-        PsyLamePreset {
-            quality: 0 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 1 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 2 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 3 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 4 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 5 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 6 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 7 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 8 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 9 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
-    {
-        PsyLamePreset {
-            quality: 10 as c_int,
-            st_lrm: 4.20f64 as c_float,
-        }
-    },
+    PsyLamePreset::new(0, 4.20),
+    PsyLamePreset::new(1, 4.20),
+    PsyLamePreset::new(2, 4.20),
+    PsyLamePreset::new(3, 4.20),
+    PsyLamePreset::new(4, 4.20),
+    PsyLamePreset::new(5, 4.20),
+    PsyLamePreset::new(6, 4.20),
+    PsyLamePreset::new(7, 4.20),
+    PsyLamePreset::new(8, 4.20),
+    PsyLamePreset::new(9, 4.20),
+    PsyLamePreset::new(10, 4.20),
 ];
 static mut psy_fir_coeffs: [c_float; 10] = [
     (-8.65163e-18f64 * 2.) as c_float,
@@ -846,17 +732,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     lame_window_init(pctx, (*ctx).avctx);
     0 as c_int
 }
-static mut window_grouping: [c_uchar; 9] = [
-    0xb6 as c_int as c_uchar,
-    0x6c as c_int as c_uchar,
-    0xd8 as c_int as c_uchar,
-    0xb2 as c_int as c_uchar,
-    0x66 as c_int as c_uchar,
-    0xc6 as c_int as c_uchar,
-    0x96 as c_int as c_uchar,
-    0x36 as c_int as c_uchar,
-    0x36 as c_int as c_uchar,
-];
+static mut window_grouping: [c_uchar; 9] = [0xb6, 0x6c, 0xd8, 0xb2, 0x66, 0xc6, 0x96, 0x36, 0x36];
 unsafe fn calc_bit_demand(
     mut ctx: *mut AacPsyContext,
     mut pe: c_float,
@@ -1091,136 +967,7 @@ unsafe fn psy_3gpp_analyze_channel(
     let mut desired_pe: c_float = 0.;
     let mut delta_pe: c_float = 0.;
     let mut reduction: c_float = ::core::f32::NAN;
-    let mut spread_en: [c_float; 128] = [
-        0 as c_int as c_float,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-        0.,
-    ];
+    let mut spread_en: [c_float; 128] = [0.; 128];
     let mut a: c_float = 0.0f32;
     let mut active_lines: c_float = 0.0f32;
     let mut norm_fac: c_float = 0.0f32;

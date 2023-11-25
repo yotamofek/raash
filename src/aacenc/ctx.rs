@@ -8,74 +8,7 @@ use lpc::LPCContext;
 use super::channel_layout::pce;
 use crate::{aaccoder::coder::CoeffsEncoder, audio_frame_queue::AudioFrameQueue, types::*};
 
-// TODO: I think this can be opaque?
-#[derive(Copy, Clone)]
-pub(crate) struct AACContext {
-    pub class: *mut AVClass,
-    pub avctx: *mut AVCodecContext,
-    pub frame: *mut AVFrame,
-    pub is_saved: c_int,
-    pub che_drc: DynamicRangeControl,
-    pub che: [[*mut ChannelElement; 16]; 4],
-    pub tag_che_map: [[*mut ChannelElement; 16]; 4],
-    pub tags_mapped: c_int,
-    pub warned_remapping_once: c_int,
-    pub buf_mdct: [c_float; 1024],
-    pub mdct120: *mut AVTXContext,
-    pub mdct128: *mut AVTXContext,
-    pub mdct480: *mut AVTXContext,
-    pub mdct512: *mut AVTXContext,
-    pub mdct960: *mut AVTXContext,
-    pub mdct1024: *mut AVTXContext,
-    pub mdct_ltp: *mut AVTXContext,
-    pub mdct120_fn: av_tx_fn,
-    pub mdct128_fn: av_tx_fn,
-    pub mdct480_fn: av_tx_fn,
-    pub mdct512_fn: av_tx_fn,
-    pub mdct960_fn: av_tx_fn,
-    pub mdct1024_fn: av_tx_fn,
-    pub mdct_ltp_fn: av_tx_fn,
-    pub fdsp: *mut AVFloatDSPContext,
-    pub random_state: c_int,
-    pub output_element: [*mut SingleChannelElement; 64],
-    pub force_dmono_mode: c_int,
-    pub dmono_mode: c_int,
-    pub output_channel_order: AACOutputChannelOrder,
-    pub temp: [c_float; 128],
-    pub oc: [OutputConfiguration; 2],
-    pub warned_num_aac_frames: c_int,
-    pub warned_960_sbr: c_int,
-    pub warned_71_wide: c_uint,
-    pub warned_gain_control: c_int,
-    pub warned_he_aac_mono: c_int,
-    pub imdct_and_windowing:
-        Option<unsafe extern "C" fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
-    pub apply_ltp: Option<unsafe extern "C" fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
-    pub apply_tns: Option<
-        unsafe extern "C" fn(
-            *mut c_float,
-            *mut TemporalNoiseShaping,
-            *mut IndividualChannelStream,
-            c_int,
-        ) -> (),
-    >,
-    pub windowing_and_mdct_ltp: Option<
-        unsafe extern "C" fn(
-            *mut AACContext,
-            *mut c_float,
-            *mut c_float,
-            *mut IndividualChannelStream,
-        ) -> (),
-    >,
-    pub update_ltp: Option<unsafe extern "C" fn(*mut AACContext, *mut SingleChannelElement) -> ()>,
-    pub vector_pow43: Option<unsafe extern "C" fn(*mut c_int, c_int) -> ()>,
-    pub subband_scale: Option<
-        unsafe extern "C" fn(*mut c_int, *mut c_int, c_int, c_int, c_int, *mut c_void) -> (),
-    >,
-}
-
 pub(crate) struct AACEncContext {
-    // TODO: `av_class` and `options` and duplicated (and copied from) `PrivData`.
     pub options: AACEncOptions,
 
     pub pb: PutBitContext,

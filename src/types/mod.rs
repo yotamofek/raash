@@ -15,8 +15,6 @@ use libc::{
     c_void,
 };
 
-use crate::aacenc::ctx::AACContext;
-
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct AVFloatDSPContext {
@@ -399,7 +397,6 @@ pub(crate) struct OutputConfiguration {
     pub(crate) status: OCStatus,
 }
 pub(crate) type OCStatus = c_uint;
-pub(crate) type AACOutputChannelOrder = c_uint;
 
 #[derive(Copy, Clone)]
 pub(crate) struct ChannelElement {
