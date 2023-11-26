@@ -5,7 +5,7 @@ use libc::{c_float, c_int, c_uint, c_ulong, c_void};
 use super::ctx::AACEncContext;
 use crate::{
     aactab::{KBD_LONG, KBD_SHORT},
-    sinewin::{ff_sine_1024, ff_sine_128},
+    sinewin::{SINE_WIN_1024, SINE_WIN_128},
     types::{ptrdiff_t, AVFloatDSPContext, SingleChannelElement, EIGHT_SHORT_SEQUENCE},
 };
 
@@ -17,12 +17,12 @@ unsafe fn apply_only_long_window(
     let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
         KBD_LONG.as_ptr()
     } else {
-        ff_sine_1024.as_ptr()
+        SINE_WIN_1024.as_ptr()
     };
     let mut pwindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
         KBD_LONG.as_ptr()
     } else {
-        ff_sine_1024.as_ptr()
+        SINE_WIN_1024.as_ptr()
     };
     let mut out: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
     ((*fdsp).vector_fmul).expect("non-null function pointer")(out, audio, lwindow, 1024 as c_int);
@@ -38,18 +38,23 @@ unsafe fn apply_long_start_window(
     mut sce: *mut SingleChannelElement,
     mut audio: *const c_float,
 ) {
-    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
-        KBD_LONG.as_ptr()
+    let mut lwindow = if (*sce).ics.use_kb_window[1] as c_int != 0 {
+        &*KBD_LONG
     } else {
-        ff_sine_1024.as_ptr()
+        &SINE_WIN_1024
     };
-    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
-        KBD_SHORT.as_ptr()
+    let mut swindow = if (*sce).ics.use_kb_window[0] as c_int != 0 {
+        &*KBD_SHORT
     } else {
-        ff_sine_128.as_ptr()
+        &SINE_WIN_128
     };
     let mut out: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
-    ((*fdsp).vector_fmul).expect("non-null function pointer")(out, audio, lwindow, 1024 as c_int);
+    ((*fdsp).vector_fmul).expect("non-null function pointer")(
+        out,
+        audio,
+        lwindow.as_ptr(),
+        1024 as c_int,
+    );
     ptr::copy_nonoverlapping(
         audio.offset(1024 as c_int as isize),
         out.offset(1024 as c_int as isize),
@@ -61,7 +66,7 @@ unsafe fn apply_long_start_window(
         audio
             .offset(1024 as c_int as isize)
             .offset(448 as c_int as isize),
-        swindow,
+        swindow.as_ptr(),
         128 as c_int,
     );
     ptr::write_bytes(
@@ -79,12 +84,12 @@ unsafe fn apply_long_stop_window(
     let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
         KBD_LONG.as_ptr()
     } else {
-        ff_sine_1024.as_ptr()
+        SINE_WIN_1024.as_ptr()
     };
     let mut swindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
         KBD_SHORT.as_ptr()
     } else {
-        ff_sine_128.as_ptr()
+        SINE_WIN_128.as_ptr()
     };
     let mut out: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
     ptr::write_bytes(out, 0, 448);
@@ -114,12 +119,12 @@ unsafe fn apply_eight_short_window(
     let mut swindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
         KBD_SHORT.as_ptr()
     } else {
-        ff_sine_128.as_ptr()
+        SINE_WIN_128.as_ptr()
     };
     let mut pwindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
         KBD_SHORT.as_ptr()
     } else {
-        ff_sine_128.as_ptr()
+        SINE_WIN_128.as_ptr()
     };
     let mut in_0: *const c_float = audio.offset(448 as c_int as isize);
     let mut out: *mut c_float = ((*sce).ret_buf).as_mut_ptr();

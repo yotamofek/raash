@@ -60,9 +60,8 @@ use crate::{
     aacenc_tns::{apply_tns, encode_tns_info, search_for_tns},
     aacenctab::{ff_aac_swb_size_1024, ff_aac_swb_size_128},
     aactab::{
-        ff_aac_float_common_init, ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits,
-        ff_aac_scalefactor_code, ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024,
-        ff_tns_max_bands_128,
+        ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits, ff_aac_scalefactor_code,
+        ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024, ff_tns_max_bands_128,
     },
     audio_frame_queue::{AudioFrameQueue, AudioRemoved},
     avutil::tx::av_tx_uninit,
@@ -1560,7 +1559,6 @@ impl Encoder for AACEncoder {
                 ctx.options.mid_side = 0 as c_int;
             }
 
-            ff_aac_float_common_init();
             ret = dsp::init(avctx, &mut *ctx);
             assert!(ret >= 0, "dsp::init failed");
             ret = put_audio_specific_config(avctx, &mut ctx);

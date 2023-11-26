@@ -10,13 +10,13 @@
 
 mod codes;
 
-use std::{f32::consts::SQRT_2, f64::consts::PI, iter::zip, sync::Once};
+use std::{f32::consts::SQRT_2, f64::consts::PI, iter::zip};
 
 use libc::{c_double, c_float, c_int};
 use once_cell::sync::Lazy;
 
 pub(crate) use self::codes::*;
-use crate::{bessel, sinewin::ff_init_ff_sine_windows};
+use crate::bessel;
 
 pub(crate) struct PowSfTables {
     pub pow2: [c_float; 428],
@@ -108,15 +108,3 @@ where
 
 pub(crate) static KBD_LONG: Lazy<[c_float; 1024]> = Lazy::new(|| kbd_window_init(4.));
 pub(crate) static KBD_SHORT: Lazy<[c_float; 128]> = Lazy::new(|| kbd_window_init(6.));
-
-#[cold]
-unsafe fn aac_float_common_init() {
-    ff_init_ff_sine_windows(10 as c_int);
-    ff_init_ff_sine_windows(7 as c_int);
-}
-
-#[cold]
-pub(crate) unsafe fn ff_aac_float_common_init() {
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| aac_float_common_init());
-}

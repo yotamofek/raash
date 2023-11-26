@@ -52,9 +52,6 @@ pub(crate) fn exp2(n: c_double) -> c_double {
 pub(crate) fn pow(n: c_double, i: c_double) -> c_double {
     n.powf(i)
 }
-pub(crate) fn sinf(n: c_float) -> c_float {
-    n.sin()
-}
 
 pub(crate) fn lrintf(n: c_float) -> c_long {
     // TODO: is this correct???
