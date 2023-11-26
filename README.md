@@ -16,7 +16,7 @@ In order to build `ffmpeg` with this library instead of the native one, after cl
 
 * Comment out building the C obj files for the native encoder in [`libavcodec/Makefile`](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/Makefile#L188-L195):
 
-  ```text
+  ```make
   # OBJS-$(CONFIG_AAC_ENCODER)             += aacenc.o aaccoder.o aacenctab.o    \
   #                                           aacpsy.o aactab.o      \
   #                                           aacenc_is.o \
