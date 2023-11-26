@@ -1,4 +1,4 @@
-# raash
+# raash 🪇
 
 An attempt at [RIIR](https://www.urbandictionary.com/define.php?term=riir)-ing the native AAC encoder from [`ffmpeg`](https://ffmpeg.org/).
 
@@ -8,9 +8,14 @@ First, I used [`c2rust`](https://github.com/immunant/c2rust) to translate all re
 
 The resultant library can be used in lieu of the native ffmpeg AAC encoder, and produces reasonable (to my ears) AAC-encoded audio.
 
-Most of the code is still the C code translated verbatim into Rust, and I'm pretty certain I introduced bugs and mistakes in the code I did translate.
+Most of the code is still the C code translated verbatim into Rust, and I'm pretty certain I introduced bugs and mistakes in the code I did translate (I don't really know anything about audio encoding 😳).
 
 ## Usage
+
+First:
+```sh
+cargo build
+```
 
 In order to build `ffmpeg` with this library instead of the native one, after cloning the `ffmpeg` repo the following changes must be changed to the configuration and build files:
 
@@ -38,6 +43,6 @@ In order to build `ffmpeg` with this library instead of the native one, after cl
   ```
 
 Now you can run `make` and then try to encode a file to AAC using your newly built `ffmpeg`:
-```bash
+```sh
 ./ffmpeg -i my_audio_file.wav -f adts my_audio_file.aac
 ```
