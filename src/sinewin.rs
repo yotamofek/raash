@@ -26,5 +26,5 @@ const fn lazy_sine_window<const N: usize>() -> Lazy<SineWindow<N>> {
     Lazy::new(SineWindow::init)
 }
 
-pub(crate) static mut SINE_WIN_128: Lazy<SineWindow<128>> = lazy_sine_window();
-pub(crate) static mut SINE_WIN_1024: Lazy<SineWindow<1024>> = lazy_sine_window();
+pub(crate) static SINE_WIN_128: Lazy<SineWindow<128>> = lazy_sine_window();
+pub(crate) static SINE_WIN_1024: Lazy<SineWindow<1024>> = lazy_sine_window();

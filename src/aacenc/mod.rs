@@ -67,9 +67,7 @@ use crate::{
     avutil::tx::av_tx_uninit,
     common::*,
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
-    psymodel::{
-        ff_psy_end, ff_psy_init, ff_psy_preprocess, ff_psy_preprocess_end, ff_psy_preprocess_init,
-    },
+    psymodel::{ff_psy_end, ff_psy_init},
     types::*,
 };
 
@@ -792,9 +790,6 @@ unsafe fn aac_encode_frame(
         return 0 as c_int;
     }
     copy_input_samples(ctx, frame);
-    if !((*ctx).psypp).is_null() {
-        ff_psy_preprocess((*ctx).psypp, &mut (*ctx).planar_samples);
-    }
     if (*avctx).frame_num == 0 {
         return 0 as c_int;
     }
@@ -1419,7 +1414,6 @@ impl Encoder for AACEncoder {
                 chan_map,
                 cpe: vec![ChannelElement::zero(); chan_map[0] as usize].into_boxed_slice(),
                 psy: FFPsyContext::zero(),
-                psypp: null_mut(),
                 coder: match options.coder as c_uint {
                     AAC_CODER_ANMR => &coder::Anmr,
                     AAC_CODER_TWOLOOP => &coder::TwoLoop,
@@ -1594,7 +1588,6 @@ impl Encoder for AACEncoder {
                 grouping.as_mut_ptr(),
             );
             assert!(ret >= 0, "ff_psy_init failed");
-            ctx.psypp = ff_psy_preprocess_init(avctx);
 
             ctx
         }
@@ -1626,9 +1619,6 @@ impl Encoder for AACEncoder {
             av_tx_uninit(&mut ctx.mdct1024);
             av_tx_uninit(&mut ctx.mdct128);
             ff_psy_end(&mut ctx.psy);
-            if !(ctx.psypp).is_null() {
-                ff_psy_preprocess_end(ctx.psypp);
-            }
             av_freep(&mut ctx.fdsp as *mut *mut AVFloatDSPContext as *mut c_void);
         }
     }

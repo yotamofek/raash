@@ -34,15 +34,7 @@ pub(crate) fn atanf(n: c_float) -> c_float {
 pub(crate) fn exp(n: c_double) -> c_double {
     n.exp()
 }
-pub(crate) fn tan(n: c_double) -> c_double {
-    n.tan()
-}
-pub(crate) fn cos(n: c_double) -> c_double {
-    n.cos()
-}
-pub(crate) fn sin(n: c_double) -> c_double {
-    n.sin()
-}
+
 pub(crate) fn exp2f(n: c_float) -> c_float {
     n.exp2()
 }
@@ -53,10 +45,6 @@ pub(crate) fn pow(n: c_double, i: c_double) -> c_double {
     n.powf(i)
 }
 
-pub(crate) fn lrintf(n: c_float) -> c_long {
-    // TODO: is this correct???
-    n as c_long
-}
 pub(crate) fn lrint(n: c_double) -> c_long {
     // TODO: is this correct???
     n as c_long

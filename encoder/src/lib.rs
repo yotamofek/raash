@@ -4,12 +4,7 @@ mod callback;
 mod capabilities;
 mod packet;
 
-use std::{
-    ffi::CStr,
-    mem::size_of,
-    ops::{Deref, DerefMut},
-    ptr::null,
-};
+use std::{ffi::CStr, mem::size_of, ptr::null};
 
 use ffi::{
     class::{option::AVOption, AVClass, AVClassCategory},

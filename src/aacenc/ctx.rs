@@ -1,8 +1,5 @@
-use ffi::{
-    class::AVClass,
-    codec::{frame::AVFrame, AVCodecContext},
-};
-use libc::{c_float, c_int, c_uchar, c_uint, c_ushort, c_void};
+use ffi::class::AVClass;
+use libc::{c_float, c_int, c_uchar, c_ushort};
 use lpc::LPCContext;
 
 use super::channel_layout::pce;
@@ -28,7 +25,6 @@ pub(crate) struct AACEncContext {
     pub chan_map: &'static [c_uchar],
     pub cpe: Box<[ChannelElement]>,
     pub psy: FFPsyContext,
-    pub psypp: *mut FFPsyPreprocessContext,
     pub coder: &'static dyn CoeffsEncoder,
     pub cur_channel: c_int,
     pub random_state: c_int,

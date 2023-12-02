@@ -6,8 +6,8 @@ use std::{
 };
 
 use ffi::{
-    class::{option::AVOptionType, AVClassCategory},
-    codec::{channel::AVChannelLayout, AVCodecContext, AVCodecID, AVMediaType, AVSampleFormat},
+    class::option::AVOptionType,
+    codec::{channel::AVChannelLayout, AVCodecContext, AVCodecID, AVSampleFormat},
     num::{AVComplexDouble, AVComplexFloat, AVComplexInt32},
 };
 use libc::{
@@ -611,28 +611,7 @@ pub(crate) struct FFPsyPreprocessContext {
     pub(crate) stereo_att: c_float,
     pub(crate) fcoeffs: *mut FFIIRFilterCoeffs,
     pub(crate) fstate: *mut *mut FFIIRFilterState,
-    pub(crate) fiir: FFIIRFilterContext,
 }
-#[derive(Copy, Clone, Default)]
-#[repr(C)]
-pub(crate) struct FFIIRFilterContext {
-    pub(crate) filter_flt: Option<
-        unsafe extern "C" fn(
-            *const FFIIRFilterCoeffs,
-            *mut FFIIRFilterState,
-            c_int,
-            *const c_float,
-            ptrdiff_t,
-            *mut c_float,
-            ptrdiff_t,
-        ) -> (),
-    >,
-}
-pub(crate) type IIRFilterMode = c_uint;
-pub(crate) const FF_FILTER_MODE_HIGHPASS: IIRFilterMode = 1;
-pub(crate) const FF_FILTER_MODE_LOWPASS: IIRFilterMode = 0;
-pub(crate) type IIRFilterType = c_uint;
-pub(crate) const FF_FILTER_TYPE_BUTTERWORTH: IIRFilterType = 2;
 
 #[derive(Copy, Clone)]
 #[repr(C)]
