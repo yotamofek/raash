@@ -1415,7 +1415,7 @@ impl Encoder for AACEncoder {
                 cpe: vec![ChannelElement::zero(); chan_map[0] as usize].into_boxed_slice(),
                 psy: FFPsyContext::zero(),
                 coder: match options.coder as c_uint {
-                    AAC_CODER_ANMR => &coder::Anmr,
+                    AAC_CODER_ANMR => unimplemented!(),
                     AAC_CODER_TWOLOOP => &coder::TwoLoop,
                     AAC_CODER_FAST => &coder::Fast,
                     _ => panic!("Unknown coder"),

@@ -8,7 +8,6 @@
     unused_mut
 )]
 
-mod anmr;
 pub(crate) mod coder;
 mod math;
 pub(crate) mod ms;

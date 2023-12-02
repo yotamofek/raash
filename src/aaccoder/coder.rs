@@ -1,7 +1,7 @@
 use ffi::codec::AVCodecContext;
 use libc::{c_float, c_int};
 
-use super::{anmr, encode_window_bands_info, quantizers, search_for_quantizers_fast, trellis};
+use super::{encode_window_bands_info, quantizers, search_for_quantizers_fast, trellis};
 use crate::{aacenc::ctx::AACEncContext, types::SingleChannelElement};
 
 pub(crate) trait CoeffsEncoder {
@@ -23,32 +23,8 @@ pub(crate) trait CoeffsEncoder {
     );
 }
 
-pub(crate) struct Anmr;
 pub(crate) struct TwoLoop;
 pub(crate) struct Fast;
-
-impl CoeffsEncoder for Anmr {
-    unsafe fn search_for_quantizers(
-        &self,
-        avctx: *mut AVCodecContext,
-        s: *mut AACEncContext,
-        sce: *mut SingleChannelElement,
-        lambda: c_float,
-    ) {
-        anmr::search_for_quantizers(avctx, s, sce, lambda)
-    }
-
-    unsafe fn encode_window_bands_info(
-        &self,
-        s: *mut AACEncContext,
-        sce: *mut SingleChannelElement,
-        win: c_int,
-        group_len: c_int,
-        lambda: c_float,
-    ) {
-        encode_window_bands_info(s, sce, win, group_len, lambda)
-    }
-}
 
 impl CoeffsEncoder for TwoLoop {
     unsafe fn search_for_quantizers(
