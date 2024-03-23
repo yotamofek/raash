@@ -40,10 +40,10 @@ fn ff_samples_to_time_base(avctx: &AVCodecContext, samples: c_long) -> c_long {
         {
             AVRational {
                 num: 1,
-                den: (*avctx).sample_rate,
+                den: avctx.sample_rate,
             }
         },
-        (*avctx).time_base,
+        avctx.time_base,
     )
 }
 

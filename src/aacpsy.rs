@@ -15,69 +15,79 @@ use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
 use crate::{common::*, psymodel::ff_psy_find_group, types::*};
 
-type C2RustUnnamed_1 = c_uint;
-pub(crate) const PSY_3GPP_AH_ACTIVE: C2RustUnnamed_1 = 2;
-pub(crate) const PSY_3GPP_AH_INACTIVE: C2RustUnnamed_1 = 1;
-pub(crate) const PSY_3GPP_AH_NONE: C2RustUnnamed_1 = 0;
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+// TODO: remove explicit repr and discriminants when `AacPsyBand` has a default impl
+#[repr(u32)]
+enum AvoidHoles {
+    Active = 2,
+    Inactive = 1,
+    #[default]
+    None = 0,
+}
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct AacPsyBand {
-    pub(crate) energy: c_float,
-    pub(crate) thr: c_float,
-    pub(crate) thr_quiet: c_float,
-    pub(crate) nz_lines: c_float,
-    pub(crate) active_lines: c_float,
-    pub(crate) pe: c_float,
-    pub(crate) pe_const: c_float,
-    pub(crate) norm_fac: c_float,
-    pub(crate) avoid_holes: c_int,
+    energy: c_float,
+    thr: c_float,
+    thr_quiet: c_float,
+    nz_lines: c_float,
+    active_lines: c_float,
+    pe: c_float,
+    pe_const: c_float,
+    norm_fac: c_float,
+    avoid_holes: AvoidHoles,
 }
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct AacPsyChannel {
-    pub(crate) band: [AacPsyBand; 128],
-    pub(crate) prev_band: [AacPsyBand; 128],
-    pub(crate) win_energy: c_float,
-    pub(crate) iir_state: [c_float; 2],
-    pub(crate) next_grouping: c_uchar,
-    pub(crate) next_window_seq: WindowSequence,
-    pub(crate) attack_threshold: c_float,
-    pub(crate) prev_energy_subshort: [c_float; 24],
-    pub(crate) prev_attack: c_int,
+    band: [AacPsyBand; 128],
+    prev_band: [AacPsyBand; 128],
+    win_energy: c_float,
+    iir_state: [c_float; 2],
+    next_grouping: c_uchar,
+    next_window_seq: WindowSequence,
+    attack_threshold: c_float,
+    prev_energy_subshort: [c_float; 24],
+    prev_attack: c_int,
 }
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct AacPsyCoeffs {
-    pub(crate) ath: c_float,
-    pub(crate) barks: c_float,
-    pub(crate) spread_low: [c_float; 2],
-    pub(crate) spread_hi: [c_float; 2],
-    pub(crate) min_snr: c_float,
+    ath: c_float,
+    barks: c_float,
+    spread_low: [c_float; 2],
+    spread_hi: [c_float; 2],
+    min_snr: c_float,
 }
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct AacPsyContext {
-    pub(crate) chan_bitrate: c_int,
-    pub(crate) frame_bits: c_int,
-    pub(crate) fill_level: c_int,
-    pub(crate) pe: C2RustUnnamed_2,
-    pub(crate) psy_coef: [[AacPsyCoeffs; 64]; 2],
-    pub(crate) ch: *mut AacPsyChannel,
-    pub(crate) global_quality: c_float,
+    chan_bitrate: c_int,
+    frame_bits: c_int,
+    fill_level: c_int,
+    pe: C2RustUnnamed_2,
+    psy_coef: [[AacPsyCoeffs; 64]; 2],
+    ch: *mut AacPsyChannel,
+    global_quality: c_float,
 }
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct C2RustUnnamed_2 {
-    pub(crate) min: c_float,
-    pub(crate) max: c_float,
-    pub(crate) previous: c_float,
-    pub(crate) correction: c_float,
+    min: c_float,
+    max: c_float,
+    previous: c_float,
+    correction: c_float,
 }
 
 #[derive(Copy, Clone)]
 pub(crate) struct PsyLamePreset {
-    pub(crate) quality: c_int,
-    pub(crate) st_lrm: c_float,
+    quality: c_int,
+    st_lrm: c_float,
 }
 
 impl PsyLamePreset {
@@ -86,7 +96,7 @@ impl PsyLamePreset {
     }
 }
 
-static mut psy_abr_map: [PsyLamePreset; 13] = [
+static ABR_MAP: [PsyLamePreset; 13] = [
     PsyLamePreset::new(8, 6.60),
     PsyLamePreset::new(16, 6.60),
     PsyLamePreset::new(24, 6.60),
@@ -101,7 +111,8 @@ static mut psy_abr_map: [PsyLamePreset; 13] = [
     PsyLamePreset::new(128, 5.20),
     PsyLamePreset::new(160, 5.20),
 ];
-static mut psy_vbr_map: [PsyLamePreset; 11] = [
+
+static VBR_MAP: [PsyLamePreset; 11] = [
     PsyLamePreset::new(0, 4.20),
     PsyLamePreset::new(1, 4.20),
     PsyLamePreset::new(2, 4.20),
@@ -114,36 +125,38 @@ static mut psy_vbr_map: [PsyLamePreset; 11] = [
     PsyLamePreset::new(9, 4.20),
     PsyLamePreset::new(10, 4.20),
 ];
-static mut psy_fir_coeffs: [c_float; 10] = [
-    (-8.65163e-18f64 * 2.) as c_float,
-    (-0.00851586f64 * 2.) as c_float,
-    (-6.74764e-18f64 * 2.) as c_float,
-    (0.0209036f64 * 2.) as c_float,
-    (-3.36639e-17f64 * 2.) as c_float,
-    (-0.0438162f64 * 2.) as c_float,
-    (-1.54175e-17f64 * 2.) as c_float,
-    (0.0931738f64 * 2.) as c_float,
-    (-5.52212e-17f64 * 2.) as c_float,
-    (-0.313819f64 * 2.) as c_float,
+
+static FIR_COEFFS: [c_float; 10] = [
+    -8.65163e-18 * 2.,
+    -0.00851586 * 2.,
+    -6.74764e-18 * 2.,
+    0.0209036 * 2.,
+    -3.36639e-17 * 2.,
+    -0.0438162 * 2.,
+    -1.54175e-17 * 2.,
+    0.0931738 * 2.,
+    -5.52212e-17 * 2.,
+    -0.313819 * 2.,
 ];
-unsafe fn lame_calc_attack_threshold(mut bitrate: c_int) -> c_float {
+
+fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
     let mut lower_range: c_int = 12;
     let mut upper_range: c_int = 12;
-    let mut lower_range_kbps: c_int = psy_abr_map[12].quality;
-    let mut upper_range_kbps: c_int = psy_abr_map[12].quality;
+    let mut lower_range_kbps: c_int = ABR_MAP[12].quality;
+    let mut upper_range_kbps: c_int = ABR_MAP[12].quality;
     let mut i: c_int = 0;
     i = 1;
     while i < 13 {
-        if (if bitrate > psy_abr_map[i as usize].quality {
+        if (if bitrate > ABR_MAP[i as usize].quality {
             bitrate
         } else {
-            psy_abr_map[i as usize].quality
+            ABR_MAP[i as usize].quality
         }) != bitrate
         {
             upper_range = i;
-            upper_range_kbps = psy_abr_map[i as usize].quality;
+            upper_range_kbps = ABR_MAP[i as usize].quality;
             lower_range = i - 1;
-            lower_range_kbps = psy_abr_map[(i - 1) as usize].quality;
+            lower_range_kbps = ABR_MAP[(i - 1) as usize].quality;
             break;
         } else {
             i += 1;
@@ -151,10 +164,11 @@ unsafe fn lame_calc_attack_threshold(mut bitrate: c_int) -> c_float {
         }
     }
     if upper_range_kbps - bitrate > bitrate - lower_range_kbps {
-        return psy_abr_map[lower_range as usize].st_lrm;
+        return ABR_MAP[lower_range as usize].st_lrm;
     }
-    psy_abr_map[upper_range as usize].st_lrm
+    ABR_MAP[upper_range as usize].st_lrm
 }
+
 #[cold]
 unsafe fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecContext) {
     let mut i: c_int = 0;
@@ -165,7 +179,7 @@ unsafe fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecC
             &mut *((*ctx).ch).offset(i as isize) as *mut AacPsyChannel;
         if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
             (*pch).attack_threshold =
-                psy_vbr_map[av_clip_c((*avctx).global_quality / 118, 0, 10) as usize].st_lrm;
+                VBR_MAP[av_clip_c((*avctx).global_quality / 118, 0, 10) as usize].st_lrm;
         } else {
             (*pch).attack_threshold = lame_calc_attack_threshold(
                 ((*avctx).bit_rate / (*avctx).ch_layout.nb_channels as c_long / 1000 as c_long)
@@ -201,6 +215,7 @@ fn ath(mut f: c_float, mut add: c_float) -> c_float {
             * f as c_double
             * f as c_double) as c_float
 }
+
 #[cold]
 unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     let mut pctx: *mut AacPsyContext = std::ptr::null_mut::<AacPsyContext>();
@@ -686,7 +701,9 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     lame_window_init(pctx, (*ctx).avctx);
     0
 }
+
 const WINDOW_GROUPING: [c_uchar; 9] = [0xb6, 0x6c, 0xd8, 0xb2, 0x66, 0xc6, 0x96, 0x36, 0x36];
+
 unsafe fn calc_bit_demand(
     mut ctx: *mut AacPsyContext,
     mut pe: c_float,
@@ -767,6 +784,7 @@ unsafe fn calc_bit_demand(
         (*ctx).frame_bits as c_float * bit_factor
     }) as c_int
 }
+
 unsafe fn calc_pe_3gpp(mut band: *mut AacPsyBand) -> c_float {
     let mut pe: c_float = 0.;
     let mut a: c_float = 0.;
@@ -806,6 +824,7 @@ unsafe fn calc_reduction_3gpp(
         0.0f32
     }
 }
+
 unsafe fn calc_reduced_thr_3gpp(
     mut band: *mut AacPsyBand,
     mut min_snr: c_float,
@@ -817,17 +836,18 @@ unsafe fn calc_reduced_thr_3gpp(
         thr = sqrtf(thr) + reduction;
         thr *= thr;
         thr *= thr;
-        if thr > (*band).energy * min_snr && (*band).avoid_holes != PSY_3GPP_AH_NONE as c_int {
+        if thr > (*band).energy * min_snr && (*band).avoid_holes != AvoidHoles::None {
             thr = if (*band).thr > (*band).energy * min_snr {
                 (*band).thr
             } else {
                 (*band).energy * min_snr
             };
-            (*band).avoid_holes = PSY_3GPP_AH_ACTIVE as c_int;
+            (*band).avoid_holes = AvoidHoles::Active;
         }
     }
     thr
 }
+
 unsafe fn calc_thr_3gpp(
     mut wi: *const FFPsyWindowInfo,
     num_bands: c_int,
@@ -877,6 +897,7 @@ unsafe fn calc_thr_3gpp(
         w += 16;
     }
 }
+
 unsafe fn psy_hp_filter(
     mut firbuf: *const c_float,
     mut hpfsmpl: *mut c_float,
@@ -1366,9 +1387,9 @@ unsafe fn psy_3gpp_analyze_channel(
             if spread_en[(w + g) as usize] * avoid_hole_thr > (*band).energy
                 || (*coeffs.offset(g as isize)).min_snr > 1.0f32
             {
-                (*band).avoid_holes = PSY_3GPP_AH_NONE as c_int;
+                (*band).avoid_holes = AvoidHoles::None;
             } else {
-                (*band).avoid_holes = PSY_3GPP_AH_INACTIVE as c_int;
+                (*band).avoid_holes = AvoidHoles::Inactive;
             }
             g += 1;
             g;
@@ -1461,7 +1482,7 @@ unsafe fn psy_3gpp_analyze_channel(
                     let mut band_1: *mut AacPsyBand =
                         &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize)
                             as *mut AacPsyBand;
-                    if (*band_1).avoid_holes != PSY_3GPP_AH_ACTIVE as c_int {
+                    if (*band_1).avoid_holes != AvoidHoles::Active {
                         pe_no_ah += (*band_1).pe;
                         a += (*band_1).pe_const;
                         active_lines += (*band_1).active_lines;
@@ -1531,7 +1552,7 @@ unsafe fn psy_3gpp_analyze_channel(
                         let mut thr: c_float = (*band_3).thr;
                         thr *= exp2f(delta_sfb_pe / (*band_3).active_lines);
                         if thr > (*coeffs.offset(g as isize)).min_snr * (*band_3).energy
-                            && (*band_3).avoid_holes == PSY_3GPP_AH_INACTIVE as c_int
+                            && (*band_3).avoid_holes == AvoidHoles::Inactive
                         {
                             thr = if (*band_3).thr
                                 > (*coeffs.offset(g as isize)).min_snr * (*band_3).energy
@@ -1560,7 +1581,7 @@ unsafe fn psy_3gpp_analyze_channel(
                     let mut band_4: *mut AacPsyBand =
                         &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize)
                             as *mut AacPsyBand;
-                    if (*band_4).avoid_holes != PSY_3GPP_AH_NONE as c_int
+                    if (*band_4).avoid_holes != AvoidHoles::None
                         && (*coeffs.offset(g as isize)).min_snr < 7.943_282e-1_f32
                     {
                         (*coeffs.offset(g as isize)).min_snr = 7.943_282e-1_f32;
@@ -1675,7 +1696,7 @@ unsafe extern "C" fn psy_lame_window(
         let mut energy_short: [c_float; 9] = [0 as c_float, 0., 0., 0., 0., 0., 0., 0., 0.];
         let mut firbuf: *const c_float = la.offset((128 / 4 - 21) as isize);
         let mut att_sum: c_int = 0;
-        psy_hp_filter(firbuf, hpfsmpl.as_mut_ptr(), psy_fir_coeffs.as_ptr());
+        psy_hp_filter(firbuf, hpfsmpl.as_mut_ptr(), FIR_COEFFS.as_ptr());
         i = 0;
         while i < 3 {
             energy_subshort[i as usize] = (*pch).prev_energy_subshort[(i + (8 - 1) * 3) as usize];
