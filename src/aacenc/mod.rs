@@ -1,5 +1,4 @@
 #![allow(
-    dead_code,
     mutable_transmutes,
     non_camel_case_types,
     non_snake_case,
@@ -81,13 +80,9 @@ extern "C" {
     ) -> c_int;
     fn avpriv_float_dsp_alloc(strict: c_int) -> *mut AVFloatDSPContext;
     fn av_mallocz(size: c_ulong) -> *mut c_void;
-    fn av_calloc(nmemb: c_ulong, size: c_ulong) -> *mut c_void;
     fn av_freep(ptr: *mut c_void);
     fn av_log(avcl: *mut c_void, level: c_int, fmt: *const c_char, _: ...);
-    fn ff_alloc_packet(avctx: *mut AVCodecContext, avpkt: *mut AVPacket, size: c_long) -> c_int;
 }
-
-static mut aacenc_profiles: [c_int; 4] = [0, 1, 3, 128];
 
 #[inline]
 pub(crate) unsafe fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float, size: c_int) {

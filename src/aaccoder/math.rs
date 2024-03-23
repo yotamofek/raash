@@ -50,11 +50,6 @@ pub(super) fn mod_uintp2_c(mut a: c_uint, mut p: c_uint) -> c_uint {
     a & ((1 as c_uint) << p).wrapping_sub(1 as c_uint)
 }
 
-#[inline]
-pub(super) unsafe fn coef2maxsf(mut coef: c_float) -> c_uchar {
-    clip_uint8_c((coef.log2() * 4. + 6. + 140. - 36.) as c_int)
-}
-
 #[inline(always)]
 pub(super) unsafe fn lcg_random(mut previous_val: c_uint) -> c_int {
     #[repr(C)]

@@ -1,5 +1,4 @@
 #![allow(
-    dead_code,
     mutable_transmutes,
     non_camel_case_types,
     non_snake_case,
@@ -332,39 +331,6 @@ unsafe fn quantize_band_cost(
         bits,
         energy,
     )
-}
-#[inline]
-unsafe fn quantize_band_cost_bits(
-    mut s: *mut AACEncContext,
-    mut in_0: *const c_float,
-    mut scaled: *const c_float,
-    mut size: c_int,
-    mut scale_idx: c_int,
-    mut cb: c_int,
-    _lambda: c_float,
-    uplim: c_float,
-    mut bits: *mut c_int,
-    mut energy: *mut c_float,
-) -> c_int {
-    let mut auxbits: c_int = 0;
-    quantize_and_encode_band_cost(
-        s,
-        ptr::null_mut(),
-        in_0,
-        ptr::null_mut(),
-        scaled,
-        size,
-        scale_idx,
-        cb,
-        0.0f32,
-        uplim,
-        &mut auxbits,
-        energy,
-    );
-    if !bits.is_null() {
-        *bits = auxbits;
-    }
-    auxbits
 }
 
 #[inline]

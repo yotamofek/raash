@@ -42,11 +42,6 @@ pub(crate) fn pow(n: c_double, i: c_double) -> c_double {
     n.powf(i)
 }
 
-pub(crate) fn lrint(n: c_double) -> c_long {
-    // TODO: is this correct???
-    n as c_long
-}
-
 pub(crate) fn av_clip_c(a: c_int, amin: c_int, amax: c_int) -> c_int {
     a.clamp(amin, amax)
 }

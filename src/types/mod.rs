@@ -67,9 +67,6 @@ pub(crate) const AV_OPT_TYPE_CONST: AVOptionType = 10;
 pub(crate) const AV_OPT_TYPE_INT: AVOptionType = 1;
 pub(crate) const AV_OPT_TYPE_FLAGS: AVOptionType = 0;
 
-#[allow(dead_code)]
-pub(crate) const AV_SAMPLE_FMT_FLTP: AVSampleFormat = 8;
-
 pub(crate) const AV_CODEC_ID_AAC: AVCodecID = 86018;
 
 #[derive(Copy, Clone)]

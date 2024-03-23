@@ -85,11 +85,6 @@ pub(crate) fn av_rescale_rnd(a: c_long, b: c_long, c: c_long, mut rnd: AVRoundin
     }
 }
 
-#[allow(dead_code)]
-pub(crate) fn av_rescale(a: c_long, b: c_long, c: c_long) -> c_long {
-    av_rescale_rnd(a, b, c, AV_ROUND_NEAR_INF)
-}
-
 pub(crate) fn av_rescale_q_rnd(
     a: c_long,
     bq: AVRational,
