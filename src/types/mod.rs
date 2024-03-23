@@ -7,7 +7,7 @@ use std::{
 
 use ffi::{
     class::option::AVOptionType,
-    codec::{channel::AVChannelLayout, AVCodecContext, AVCodecID, AVSampleFormat},
+    codec::{AVCodecContext, AVCodecID, AVSampleFormat},
     num::{AVComplexDouble, AVComplexFloat, AVComplexInt32},
 };
 use libc::{
@@ -148,20 +148,7 @@ pub(crate) struct SingleChannelElement {
     pub(crate) ret_buf: [c_float; 2048],
     pub(crate) ltp_state: [c_float; 3072],
     pub(crate) lcoeffs: [c_float; 1024],
-    pub(crate) prcoeffs: [c_float; 1024],
-    pub(crate) predictor_state: [PredictorState; 672],
     // pub(crate) ret: *mut c_float,
-}
-#[derive(Copy, Clone)]
-pub(crate) struct PredictorState {
-    pub(crate) cor0: c_float,
-    pub(crate) cor1: c_float,
-    pub(crate) var0: c_float,
-    pub(crate) var1: c_float,
-    pub(crate) r0: c_float,
-    pub(crate) r1: c_float,
-    pub(crate) k1: c_float,
-    pub(crate) x_est: c_float,
 }
 
 pub(crate) type BandType = c_uint;
@@ -204,9 +191,6 @@ pub(crate) struct IndividualChannelStream {
     pub(crate) num_windows: c_int,
     pub(crate) tns_max_bands: c_int,
     pub(crate) predictor_present: c_int,
-    pub(crate) predictor_initialized: c_int,
-    pub(crate) predictor_reset_group: c_int,
-    pub(crate) predictor_reset_count: [c_int; 31],
     pub(crate) prediction_used: [c_uchar; 41],
     pub(crate) window_clipping: [c_uchar; 8],
     pub(crate) clip_avoidance_factor: c_float,

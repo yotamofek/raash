@@ -56,7 +56,6 @@ use crate::{
     aacenc_ltp::{
         adjust_common_ltp, encode_ltp_info, ltp_insert_new_frame, search_for_ltp, update_ltp,
     },
-    aacenc_pred::{adjust_common_pred, apply_main_pred, encode_main_pred, search_for_pred},
     aacenc_tns::{apply_tns, encode_tns_info, search_for_tns},
     aacenctab::{SWB_SIZE_1024, SWB_SIZE_128},
     aactab::{
@@ -669,7 +668,6 @@ unsafe extern "C" fn encode_individual_channel(
     put_bits(&mut (*s).pb, 8 as c_int, (*sce).sf_idx[0] as BitBuf);
     if common_window == 0 {
         put_ics_info(s, &mut (*sce).ics);
-        encode_main_pred(s, sce);
         encode_ltp_info(s, sce, 0 as c_int);
     }
     encode_band_info(s, sce);
@@ -1107,7 +1105,7 @@ unsafe fn aac_encode_frame(
                         as *mut SingleChannelElement;
                     (*ctx).cur_channel = start_ch + ch;
                     if (*ctx).options.pred != 0 {
-                        search_for_pred(ctx, sce);
+                        unimplemented!("main pred is unimplemented");
                     }
                     if (*cpe).ch[ch as usize].ics.predictor_present != 0 {
                         pred_mode = 1 as c_int;
@@ -1116,15 +1114,13 @@ unsafe fn aac_encode_frame(
                     ch;
                 }
 
-                adjust_common_pred(ctx, cpe);
-
                 ch = 0 as c_int;
                 while ch < chans {
                     sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize)
                         as *mut SingleChannelElement;
                     (*ctx).cur_channel = start_ch + ch;
                     if (*ctx).options.pred != 0 {
-                        apply_main_pred(ctx, sce);
+                        unimplemented!("main pred is unimplemented");
                     }
                     ch += 1;
                     ch;
@@ -1165,11 +1161,6 @@ unsafe fn aac_encode_frame(
                     put_ics_info(
                         ctx,
                         &mut (*((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize)).ics,
-                    );
-
-                    encode_main_pred(
-                        ctx,
-                        &mut *((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize),
                     );
 
                     encode_ltp_info(

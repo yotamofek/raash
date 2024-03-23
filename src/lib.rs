@@ -4,11 +4,9 @@
     const_trait_impl,
     const_mut_refs,
     let_chains,
-    c_str_literals,
     array_chunks,
     inline_const,
     generic_const_exprs,
-    ptr_from_ref,
     generic_arg_infer,
     new_uninit,
     slice_take
@@ -32,7 +30,6 @@ mod aaccoder;
 mod aacenc;
 mod aacenc_is;
 mod aacenc_ltp;
-mod aacenc_pred;
 mod aacenc_tns;
 mod aacenctab;
 mod aacpsy;
