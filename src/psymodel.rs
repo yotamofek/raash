@@ -22,56 +22,31 @@ use crate::{aacpsy::ff_aac_psy_model, types::*};
 pub(crate) unsafe fn ff_psy_init(
     mut ctx: *mut FFPsyContext,
     mut avctx: *mut AVCodecContext,
-    mut num_lens: c_int,
-    mut bands: *mut *const c_uchar,
-    mut num_bands: *const c_int,
+    mut bands: &[&'static [c_uchar]],
+    mut num_bands: &[c_int],
     mut num_groups: c_int,
     mut group_map: *const c_uchar,
 ) -> c_int {
+    assert_eq!(bands.len(), num_bands.len());
     let mut i: c_int = 0;
     let mut j: c_int = 0;
     let mut k: c_int = 0 as c_int;
     (*ctx).avctx = avctx;
-    (*ctx).ch = alloc_zeroed(
-        Layout::array::<[FFPsyChannel; 2]>((*avctx).ch_layout.nb_channels as usize).unwrap(),
-    )
-    .cast();
-    (*ctx).group =
-        alloc_zeroed(Layout::array::<FFPsyChannelGroup>(num_groups as usize).unwrap()).cast();
-    (*ctx).bands = alloc(Layout::array::<*mut c_uchar>(num_lens as usize).unwrap()).cast();
-    (*ctx).num_bands = alloc(Layout::array::<c_int>(num_lens as usize).unwrap()).cast();
+    (*ctx).ch = vec![FFPsyChannel::default(); (*avctx).ch_layout.nb_channels as usize * 2]
+        .into_boxed_slice();
+    (*ctx).group = vec![FFPsyChannelGroup::default(); num_groups as usize].into_boxed_slice();
+    (*ctx).bands = bands.to_vec().into_boxed_slice();
+    (*ctx).num_bands = num_bands.to_vec().into_boxed_slice();
     (*ctx).cutoff = (*avctx).cutoff;
-    if ((*ctx).ch).is_null()
-        || ((*ctx).group).is_null()
-        || ((*ctx).bands).is_null()
-        || ((*ctx).num_bands).is_null()
-    {
-        ff_psy_end(ctx);
-        return -(12 as c_int);
-    }
-    ptr::copy_nonoverlapping(bands, (*ctx).bands as *mut _, num_lens as usize);
-    ptr::copy_nonoverlapping(num_bands, (*ctx).num_bands as *mut _, num_lens as usize);
     i = 0 as c_int;
     while i < num_groups {
-        (*((*ctx).group).offset(i as isize)).num_ch =
+        (*ctx).group[i as usize].num_ch =
             (*group_map.offset(i as isize) as c_int + 1 as c_int) as c_uchar;
-        j = 0 as c_int;
-        while j < (*((*ctx).group).offset(i as isize)).num_ch as c_int * 2 as c_int {
-            let fresh0 = k;
-            k += 1;
-            let fresh1 = &mut (*((*ctx).group).offset(i as isize)).ch[j as usize];
-            *fresh1 = &mut *((*ctx).ch).offset(fresh0 as isize) as *mut FFPsyChannel;
-            j += 1;
-            j;
-        }
         i += 1;
         i;
     }
-    match (*(*ctx).avctx).codec_id as c_uint {
-        86018 => {
-            (*ctx).model = &ff_aac_psy_model;
-        }
-        _ => {}
+    if (*(*ctx).avctx).codec_id == AV_CODEC_ID_AAC {
+        (*ctx).model = &ff_aac_psy_model;
     }
     if ((*(*ctx).model).init).is_some() {
         return ((*(*ctx).model).init).expect("non-null function pointer")(ctx);
@@ -88,9 +63,9 @@ pub(crate) unsafe fn ff_psy_find_group(
     while ch <= channel {
         let fresh2 = i;
         i += 1;
-        ch += (*((*ctx).group).offset(fresh2 as isize)).num_ch as c_int;
+        ch += (*ctx).group[fresh2 as usize].num_ch as c_int;
     }
-    &mut *((*ctx).group).offset((i - 1 as c_int) as isize) as *mut FFPsyChannelGroup
+    &mut (*ctx).group[(i - 1 as c_int) as usize] as *mut FFPsyChannelGroup
 }
 
 #[cold]

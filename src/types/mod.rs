@@ -1,4 +1,4 @@
-#![deny(dead_code)]
+// #![deny(dead_code)]
 
 use std::{
     mem::MaybeUninit,
@@ -458,27 +458,36 @@ pub(crate) struct DynamicRangeControl {
     pub(crate) prog_ref_level: c_int,
 }
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Copy, Clone, Default)]
 pub(crate) struct FFPsyBand {
     pub(crate) bits: c_int,
     pub(crate) energy: c_float,
     pub(crate) threshold: c_float,
     pub(crate) spread: c_float,
 }
+
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct FFPsyChannel {
     pub(crate) psy_bands: [FFPsyBand; 128],
     pub(crate) entropy: c_float,
 }
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct FFPsyChannelGroup {
-    pub(crate) ch: [*mut FFPsyChannel; 20],
-    pub(crate) num_ch: c_uchar,
-    pub(crate) coupling: [c_uchar; 128],
+
+impl Default for FFPsyChannel {
+    fn default() -> Self {
+        Self {
+            psy_bands: [FFPsyBand::default(); 128],
+            entropy: Default::default(),
+        }
+    }
 }
+
+#[derive(Copy, Clone, Default)]
+pub(crate) struct FFPsyChannelGroup {
+    // pub(crate) ch: [*mut FFPsyChannel; 20],
+    pub(crate) num_ch: c_uchar,
+    // pub(crate) coupling: [c_uchar; 128],
+}
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct FFPsyWindowInfo {
@@ -490,34 +499,30 @@ pub(crate) struct FFPsyWindowInfo {
     pub(crate) window_sizes: *mut c_int,
 }
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Clone)]
 pub(crate) struct FFPsyContext {
     pub(crate) avctx: *mut AVCodecContext,
     pub(crate) model: *const FFPsyModel,
-    pub(crate) ch: *mut FFPsyChannel,
-    pub(crate) group: *mut FFPsyChannelGroup,
-    pub(crate) num_groups: c_int,
+    pub(crate) ch: Box<[FFPsyChannel]>,
+    pub(crate) group: Box<[FFPsyChannelGroup]>,
+    // pub(crate) num_groups: c_int,
     pub(crate) cutoff: c_int,
-    pub(crate) bands: *mut *mut c_uchar,
-    pub(crate) num_bands: *mut c_int,
-    pub(crate) num_lens: c_int,
+    pub(crate) bands: Box<[&'static [c_uchar]]>,
+    pub(crate) num_bands: Box<[c_int]>,
     pub(crate) bitres: C2RustUnnamed_2,
     pub(crate) model_priv_data: *mut c_void,
 }
 
 impl FFPsyContext {
-    pub(crate) const fn zero() -> Self {
+    pub(crate) fn zero() -> Self {
         Self {
             avctx: null_mut(),
             model: null(),
-            ch: null_mut(),
-            group: null_mut(),
-            num_groups: 0,
+            ch: Default::default(),
+            group: Default::default(),
             cutoff: 0,
-            bands: null_mut(),
-            num_bands: null_mut(),
-            num_lens: 0,
+            bands: Default::default(),
+            num_bands: Default::default(),
             bitres: C2RustUnnamed_2 {
                 size: 0,
                 bits: 0,

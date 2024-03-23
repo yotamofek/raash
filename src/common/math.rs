@@ -28,9 +28,6 @@ pub(crate) fn roundf(n: c_float) -> c_float {
     n.round()
 }
 
-pub(crate) fn atanf(n: c_float) -> c_float {
-    n.atan()
-}
 pub(crate) fn exp(n: c_double) -> c_double {
     n.exp()
 }

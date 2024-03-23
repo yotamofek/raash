@@ -165,17 +165,13 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                         };
                         w2 = 0 as c_int;
                         while w2 < (*sce0).ics.group_len[w as usize] as c_int {
-                            let mut band0: *mut FFPsyBand = &mut *((*((*s).psy.ch)
-                                .offset(((*s).cur_channel + 0 as c_int) as isize))
-                            .psy_bands)
-                                .as_mut_ptr()
-                                .offset(((w + w2) * 16 as c_int + g) as isize)
+                            let mut band0: *mut FFPsyBand = &mut (*s).psy.ch
+                                [((*s).cur_channel + 0 as c_int) as usize]
+                                .psy_bands[((w + w2) * 16 as c_int + g) as usize]
                                 as *mut FFPsyBand;
-                            let mut band1: *mut FFPsyBand = &mut *((*((*s).psy.ch)
-                                .offset(((*s).cur_channel + 1 as c_int) as isize))
-                            .psy_bands)
-                                .as_mut_ptr()
-                                .offset(((w + w2) * 16 as c_int + g) as isize)
+                            let mut band1: *mut FFPsyBand = &mut (*s).psy.ch
+                                [((*s).cur_channel + 1 as c_int) as usize]
+                                .psy_bands[((w + w2) * 16 as c_int + g) as usize]
                                 as *mut FFPsyBand;
                             let mut minthr: c_float = if (*band0).threshold > (*band1).threshold {
                                 (*band1).threshold

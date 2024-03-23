@@ -58,7 +58,7 @@ use crate::{
     },
     aacenc_pred::{adjust_common_pred, apply_main_pred, encode_main_pred, search_for_pred},
     aacenc_tns::{apply_tns, encode_tns_info, search_for_tns},
-    aacenctab::{ff_aac_swb_size_1024, ff_aac_swb_size_128},
+    aacenctab::{SWB_SIZE_1024, SWB_SIZE_128},
     aactab::{
         ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits, ff_aac_scalefactor_code,
         ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024, ff_tns_max_bands_128,
@@ -848,11 +848,11 @@ unsafe fn aac_encode_frame(
             (*ics).use_kb_window[0] = (*wi.offset(ch as isize)).window_shape as c_uchar;
             (*ics).num_windows = (*wi.offset(ch as isize)).num_windows;
             (*ics).swb_sizes =
-                *((*ctx).psy.bands).offset(((*ics).num_windows == 8 as c_int) as c_int as isize);
+                ((*ctx).psy.bands)[((*ics).num_windows == 8 as c_int) as usize].as_ptr();
             (*ics).num_swb = if tag == TYPE_LFE as c_int {
                 (*ics).num_swb
             } else {
-                *((*ctx).psy.num_bands).offset(((*ics).num_windows == 8 as c_int) as c_int as isize)
+                ((*ctx).psy.num_bands)[((*ics).num_windows == 8 as c_int) as usize]
             };
             (*ics).max_sfb = (if (*ics).max_sfb as c_int > (*ics).num_swb {
                 (*ics).num_swb
@@ -1351,7 +1351,7 @@ impl Encoder for AACEncoder {
                 .iter()
                 .find_position(|&&sample_rate| avctx.sample_rate == sample_rate)
                 .map(|(i, _)| i)
-                .filter(|&i| i < ff_aac_swb_size_1024.len() && i < ff_aac_swb_size_128.len())
+                .filter(|&i| i < SWB_SIZE_1024.len() && i < SWB_SIZE_128.len())
                 .unwrap_or_else(|| panic!("Unsupported sample rate {}", avctx.sample_rate))
                 as c_int;
 
@@ -1557,18 +1557,14 @@ impl Encoder for AACEncoder {
             assert!(ret >= 0, "dsp::init failed");
             ret = put_audio_specific_config(avctx, &mut ctx);
             assert!(ret >= 0, "put_audio_specific_config failed");
-            sizes[0] = *ff_aac_swb_size_1024
-                .as_ptr()
-                .offset(ctx.samplerate_index as isize);
-            sizes[1] = *ff_aac_swb_size_128
-                .as_ptr()
-                .offset(ctx.samplerate_index as isize);
-            lengths[0] = *ff_aac_num_swb_1024
-                .as_ptr()
-                .offset(ctx.samplerate_index as isize) as c_int;
-            lengths[1] = *ff_aac_num_swb_128
-                .as_ptr()
-                .offset(ctx.samplerate_index as isize) as c_int;
+            let mut sizes = [
+                SWB_SIZE_1024[ctx.samplerate_index as usize],
+                SWB_SIZE_128[ctx.samplerate_index as usize],
+            ];
+            let mut lengths = [
+                ff_aac_num_swb_1024[ctx.samplerate_index as usize] as c_int,
+                ff_aac_num_swb_128[ctx.samplerate_index as usize] as c_int,
+            ];
             i = 0 as c_int;
             while i < ctx.chan_map[0] as c_int {
                 grouping[i as usize] = (ctx.chan_map[(i + 1) as usize] as c_int
@@ -1581,9 +1577,8 @@ impl Encoder for AACEncoder {
             ret = ff_psy_init(
                 &mut ctx.psy,
                 avctx,
-                2 as c_int,
-                sizes.as_mut_ptr(),
-                lengths.as_mut_ptr(),
+                &sizes,
+                &lengths,
                 ctx.chan_map[0] as c_int,
                 grouping.as_mut_ptr(),
             );

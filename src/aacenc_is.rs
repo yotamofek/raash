@@ -182,14 +182,12 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
     }
     w2 = 0 as c_int;
     while w2 < (*sce0).ics.group_len[w as usize] as c_int {
-        let mut band0: *mut FFPsyBand =
-            &mut *((*((*s).psy.ch).offset(((*s).cur_channel + 0 as c_int) as isize)).psy_bands)
-                .as_mut_ptr()
-                .offset(((w + w2) * 16 as c_int + g) as isize) as *mut FFPsyBand;
-        let mut band1: *mut FFPsyBand =
-            &mut *((*((*s).psy.ch).offset(((*s).cur_channel + 1 as c_int) as isize)).psy_bands)
-                .as_mut_ptr()
-                .offset(((w + w2) * 16 as c_int + g) as isize) as *mut FFPsyBand;
+        let mut band0: *mut FFPsyBand = &mut (*s).psy.ch[((*s).cur_channel + 0 as c_int) as usize]
+            .psy_bands[((w + w2) * 16 as c_int + g) as usize]
+            as *mut FFPsyBand;
+        let mut band1: *mut FFPsyBand = &mut (*s).psy.ch[((*s).cur_channel + 1 as c_int) as usize]
+            .psy_bands[((w + w2) * 16 as c_int + g) as usize]
+            as *mut FFPsyBand;
         let mut is_band_type: c_int = 0;
         let mut is_sf_idx: c_int =
             if 1 as c_int > (*sce0).sf_idx[(w * 16 as c_int + g) as usize] - 4 as c_int {

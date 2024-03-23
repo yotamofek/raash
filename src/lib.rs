@@ -20,10 +20,13 @@
     clippy::no_effect,
     path_statements,
     clippy::unnecessary_mut_passed,
-    clippy::too_many_arguments
+    clippy::too_many_arguments,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals
 )]
 #![warn(clippy::approx_constant)]
-#![deny(dead_code)]
+// #![deny(dead_code)]
 
 mod aaccoder;
 mod aacenc;

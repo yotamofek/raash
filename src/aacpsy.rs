@@ -187,12 +187,14 @@ unsafe fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecC
         i;
     }
 }
+
 #[cold]
-unsafe fn calc_bark(mut f: c_float) -> c_float {
-    13.3f32 * atanf(0.00076f32 * f) + 3.5f32 * atanf(f / 7500.0f32 * (f / 7500.0f32))
+fn calc_bark(mut f: c_float) -> c_float {
+    13.3f32 * (0.00076f32 * f).atan() + 3.5f32 * (f / 7500.0f32 * (f / 7500.0f32)).atan()
 }
+
 #[cold]
-unsafe fn ath(mut f: c_float, mut add: c_float) -> c_float {
+fn ath(mut f: c_float, mut add: c_float) -> c_float {
     f /= 1000.0f32;
     (3.64f64 * pow(f as c_double, -0.8f64)
         - 6.8f64 * exp(-0.6f64 * (f as c_double - 3.4f64) * (f as c_double - 3.4f64))
@@ -646,7 +648,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     j = 0 as c_int;
     while j < 2 as c_int {
         let mut coeffs: *mut AacPsyCoeffs = ((*pctx).psy_coef[j as usize]).as_mut_ptr();
-        let mut band_sizes: *const c_uchar = *((*ctx).bands).offset(j as isize);
+        let mut band_sizes: *const c_uchar = ((*ctx).bands)[j as usize].as_ptr();
         let mut line_to_frequency: c_float =
             (*(*ctx).avctx).sample_rate as c_float / (if j != 0 { 256.0f32 } else { 2048.0f32 });
         let mut avg_chan_bits: c_float = chan_bitrate as c_float
@@ -662,7 +664,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
         i = 0 as c_int;
         prev = 0.0f64 as c_float;
         g = 0 as c_int;
-        while g < *((*ctx).num_bands).offset(j as isize) {
+        while g < ((*ctx).num_bands)[j as usize] {
             i += *band_sizes.offset(g as isize) as c_int;
             bark = calc_bark((i - 1 as c_int) as c_float * line_to_frequency);
             (*coeffs.offset(g as isize)).barks = ((bark + prev) as c_double / 2.0f64) as c_float;
@@ -671,7 +673,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
             g;
         }
         g = 0 as c_int;
-        while g < *((*ctx).num_bands).offset(j as isize) - 1 as c_int {
+        while g < ((*ctx).num_bands)[j as usize] - 1 as c_int {
             let mut coeff: *mut AacPsyCoeffs = &mut *coeffs.offset(g as isize) as *mut AacPsyCoeffs;
             let mut bark_width: c_float =
                 (*coeffs.offset((g + 1 as c_int) as isize)).barks - (*coeffs).barks;
@@ -693,7 +695,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
         }
         start = 0 as c_int;
         g = 0 as c_int;
-        while g < *((*ctx).num_bands).offset(j as isize) {
+        while g < ((*ctx).num_bands)[j as usize] {
             minscale = ath(start as c_float * line_to_frequency, 4 as c_int as c_float);
             i = 1 as c_int;
             while i < *band_sizes.offset(g as isize) as c_int {
@@ -978,10 +980,8 @@ unsafe fn psy_3gpp_analyze_channel(
     } else {
         100.0f32 - (*pctx).chan_bitrate as c_float * 100.0f32 / 32000.0f32
     };
-    let num_bands: c_int =
-        *((*ctx).num_bands).offset(((*wi).num_windows == 8 as c_int) as c_int as isize);
-    let mut band_sizes: *const c_uchar =
-        *((*ctx).bands).offset(((*wi).num_windows == 8 as c_int) as c_int as isize);
+    let num_bands = ((*ctx).num_bands)[((*wi).num_windows == 8 as c_int) as usize];
+    let mut band_sizes = ((*ctx).bands)[(((*wi).num_windows == 8 as c_int) as usize)];
     let mut coeffs: *mut AacPsyCoeffs =
         ((*pctx).psy_coef[((*wi).num_windows == 8 as c_int) as c_int as usize]).as_mut_ptr();
     let avoid_hole_thr: c_float = if (*wi).num_windows == 8 as c_int {
@@ -1372,7 +1372,7 @@ unsafe fn psy_3gpp_analyze_channel(
         ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
     }) as c_int;
     let cutoff: c_int = bandwidth * 2048 as c_int / (*wi).num_windows / (*(*ctx).avctx).sample_rate;
-    calc_thr_3gpp(wi, num_bands, pch, band_sizes, coefs, cutoff);
+    calc_thr_3gpp(wi, num_bands, pch, band_sizes.as_ptr(), coefs, cutoff);
     w = 0 as c_int;
     while w < (*wi).num_windows * 16 as c_int {
         let mut bands: *mut AacPsyBand =
@@ -1464,7 +1464,7 @@ unsafe fn psy_3gpp_analyze_channel(
         }
         w += 16 as c_int;
     }
-    (*((*ctx).ch).offset(channel as isize)).entropy = pe;
+    (*ctx).ch[channel as usize].entropy = pe;
     if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
         desired_pe = pe
             * (if (*(*ctx).avctx).global_quality != 0 {
@@ -1668,13 +1668,11 @@ unsafe fn psy_3gpp_analyze_channel(
             let mut band_5: *mut AacPsyBand =
                 &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize) as *mut AacPsyBand;
             let mut psy_band: *mut FFPsyBand =
-                &mut *((*((*ctx).ch).offset(channel as isize)).psy_bands)
-                    .as_mut_ptr()
-                    .offset((w + g) as isize) as *mut FFPsyBand;
+                &mut (*ctx).ch[channel as usize].psy_bands[(w + g) as usize] as *mut FFPsyBand;
             (*psy_band).threshold = (*band_5).thr;
             (*psy_band).energy = (*band_5).energy;
-            (*psy_band).spread = (*band_5).active_lines * 2.0f32
-                / *band_sizes.offset(g as isize) as c_int as c_float;
+            (*psy_band).spread =
+                (*band_5).active_lines * 2.0f32 / band_sizes[g as usize] as c_int as c_float;
             (*psy_band).bits = ((*band_5).pe / 1.18f32) as c_int;
             g += 1;
             g;

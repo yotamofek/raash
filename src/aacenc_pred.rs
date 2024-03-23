@@ -528,10 +528,8 @@ pub(crate) unsafe fn search_for_pred(
         let start_coef: c_int = *((*sce).ics.swb_offset).offset(sfb as isize) as c_int;
         let num_coeffs: c_int =
             *((*sce).ics.swb_offset).offset((sfb + 1 as c_int) as isize) as c_int - start_coef;
-        let mut band: *const FFPsyBand = &mut *((*((*s).psy.ch).offset((*s).cur_channel as isize))
-            .psy_bands)
-            .as_mut_ptr()
-            .offset(sfb as isize) as *mut FFPsyBand;
+        let mut band: *const FFPsyBand =
+            &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands[sfb as usize] as *mut FFPsyBand;
         if !(start_coef + num_coeffs > 672 as c_int
             || (*s).cur_channel != 0
                 && (*sce).band_type[sfb as usize] as c_uint >= INTENSITY_BT2 as c_int as c_uint

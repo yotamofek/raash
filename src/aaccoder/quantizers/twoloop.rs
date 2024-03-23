@@ -1062,7 +1062,7 @@ fn loop1(
 
     // TODO: is this safe?
     let swb_sizes = unsafe { slice::from_raw_parts(sce.ics.swb_sizes, sce.ics.num_swb as usize) };
-    let ch = unsafe { &*s.psy.ch.offset(s.cur_channel as isize) };
+    let ch = &s.psy.ch[s.cur_channel as usize];
 
     let mut w = 0 as c_int;
     let mut start;

@@ -470,10 +470,9 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
         let mut coef_start: c_int = *((*sce).ics.swb_offset).offset(sfb_start as isize) as c_int;
         g = sfb_start;
         while g < (*sce).ics.num_swb && g <= sfb_end {
-            let mut band: *mut FFPsyBand =
-                &mut *((*((*s).psy.ch).offset((*s).cur_channel as isize)).psy_bands)
-                    .as_mut_ptr()
-                    .offset((w * 16 as c_int + g) as isize) as *mut FFPsyBand;
+            let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
+                [(w * 16 as c_int + g) as usize]
+                as *mut FFPsyBand;
             if g > sfb_start + sfb_len / 2 as c_int {
                 en[1 as c_int as usize] += (*band).energy;
             } else {

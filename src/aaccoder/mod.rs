@@ -483,11 +483,9 @@ pub(crate) unsafe fn encode_window_bands_info(
                 } else {
                     w = 0 as c_int;
                     while w < group_len {
-                        let mut band: *mut FFPsyBand =
-                            &mut *((*((*s).psy.ch).offset((*s).cur_channel as isize)).psy_bands)
-                                .as_mut_ptr()
-                                .offset(((win + w) * 16 as c_int + swb) as isize)
-                                as *mut FFPsyBand;
+                        let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize]
+                            .psy_bands[((win + w) * 16 as c_int + swb) as usize]
+                            as *mut FFPsyBand;
                         rd += quantize_band_cost(
                             s,
                             &mut *((*sce).coeffs)
@@ -723,11 +721,9 @@ unsafe fn search_for_quantizers_fast(
             let mut uplim: c_float = 0.0f32;
             w2 = 0 as c_int;
             while w2 < (*sce).ics.group_len[w as usize] as c_int {
-                let mut band: *mut FFPsyBand =
-                    &mut *((*((*s).psy.ch).offset((*s).cur_channel as isize)).psy_bands)
-                        .as_mut_ptr()
-                        .offset(((w + w2) * 16 as c_int + g) as isize)
-                        as *mut FFPsyBand;
+                let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
+                    [((w + w2) * 16 as c_int + g) as usize]
+                    as *mut FFPsyBand;
                 uplim += (*band).threshold;
                 if (*band).energy <= (*band).threshold || (*band).threshold == 0.0f32 {
                     (*sce).zeroes[((w + w2) * 16 as c_int + g) as usize] = 1 as c_int as c_uchar;

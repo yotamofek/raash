@@ -372,11 +372,9 @@ pub(crate) unsafe fn search_for_ltp(
                 while w2 < (*sce).ics.group_len[w as usize] as c_int {
                     let mut bits_tmp1: c_int = 0;
                     let mut bits_tmp2: c_int = 0;
-                    let mut band: *mut FFPsyBand =
-                        &mut *((*((*s).psy.ch).offset((*s).cur_channel as isize)).psy_bands)
-                            .as_mut_ptr()
-                            .offset(((w + w2) * 16 as c_int + g) as isize)
-                            as *mut FFPsyBand;
+                    let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize]
+                        .psy_bands[((w + w2) * 16 as c_int + g) as usize]
+                        as *mut FFPsyBand;
                     i = 0 as c_int;
                     while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
                         *PCD.offset(i as isize) = (*sce).coeffs

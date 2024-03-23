@@ -416,9 +416,8 @@ pub(crate) unsafe fn search(
             } else {
                 w2 = 0 as c_int;
                 while w2 < (*sce).ics.group_len[w as usize] as c_int {
-                    band = &mut *((*((*s).psy.ch).offset((*s).cur_channel as isize)).psy_bands)
-                        .as_mut_ptr()
-                        .offset(((w + w2) * 16 as c_int + g) as isize)
+                    band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
+                        [((w + w2) * 16 as c_int + g) as usize]
                         as *mut FFPsyBand;
                     sfb_energy += (*band).energy;
                     spread = if spread > (*band).spread {
@@ -503,10 +502,8 @@ pub(crate) unsafe fn search(
                                 let mut pns_senergy: c_float = 0.;
                                 let start_c: c_int = (w + w2) * 128 as c_int
                                     + *((*sce).ics.swb_offset).offset(g as isize) as c_int;
-                                band = &mut *((*((*s).psy.ch).offset((*s).cur_channel as isize))
-                                    .psy_bands)
-                                    .as_mut_ptr()
-                                    .offset(((w + w2) * 16 as c_int + g) as isize)
+                                band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
+                                    [((w + w2) * 16 as c_int + g) as usize]
                                     as *mut FFPsyBand;
                                 i = 0 as c_int;
                                 while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
@@ -971,9 +968,8 @@ pub(crate) unsafe fn mark(
             } else {
                 w2 = 0 as c_int;
                 while w2 < (*sce).ics.group_len[w as usize] as c_int {
-                    band = &mut *((*((*s).psy.ch).offset((*s).cur_channel as isize)).psy_bands)
-                        .as_mut_ptr()
-                        .offset(((w + w2) * 16 as c_int + g) as isize)
+                    band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
+                        [((w + w2) * 16 as c_int + g) as usize]
                         as *mut FFPsyBand;
                     sfb_energy += (*band).energy;
                     spread = if spread > (*band).spread {
