@@ -1,3 +1,5 @@
+//! Program configuration element.
+
 use ffi::codec::channel::{self as ch, AVChannelLayout};
 use libc::{c_int, c_uchar};
 
@@ -5,7 +7,6 @@ use super::{channel_layout, config_map};
 use crate::types::*;
 
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct Info {
     pub(crate) layout: AVChannelLayout,
     pub(crate) num_ele: [c_int; 4],

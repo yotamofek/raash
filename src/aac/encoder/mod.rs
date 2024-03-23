@@ -8,11 +8,11 @@
 )]
 
 mod channel_layout;
-pub(crate) mod ctx;
+pub(super) mod ctx;
 mod dsp;
-pub mod options;
+mod options;
 mod pb;
-pub(crate) mod pow;
+pub(super) mod pow;
 mod tables;
 mod window;
 
@@ -58,7 +58,7 @@ use self::{
 use crate::{
     aac::{
         coder::{
-            encode_window_bands_info, ms::search_for_ms, pns,
+            encode_window_bands_info, mid_stereo::search_for_ms, perceptual_noise_substitution,
             quantize_and_encode_band::quantize_and_encode_band, quantizers,
             set_special_band_scalefactors,
         },
@@ -983,7 +983,7 @@ unsafe fn aac_encode_frame(
             while ch < chans {
                 (*ctx).cur_channel = start_ch + ch;
                 if (*ctx).options.pns != 0 {
-                    pns::mark(
+                    perceptual_noise_substitution::mark(
                         ctx,
                         avctx,
                         &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
@@ -1031,7 +1031,7 @@ unsafe fn aac_encode_frame(
                     tns_mode = 1;
                 }
                 if (*ctx).options.pns != 0 {
-                    pns::search(ctx, avctx, sce);
+                    perceptual_noise_substitution::search(ctx, avctx, sce);
                 }
                 ch += 1;
                 ch;

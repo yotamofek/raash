@@ -8,10 +8,10 @@
 )]
 
 mod math;
-pub(crate) mod ms;
-pub(crate) mod pns;
-pub(crate) mod quantize_and_encode_band;
-pub(crate) mod quantizers;
+pub(super) mod mid_stereo;
+pub(super) mod perceptual_noise_substitution;
+pub(super) mod quantize_and_encode_band;
+pub(super) mod quantizers;
 
 use std::{mem::size_of, ptr};
 
@@ -21,14 +21,11 @@ use self::{
     math::{ff_fast_powf, mod_uintp2_c},
     quantize_and_encode_band::quantize_and_encode_band_cost,
 };
-use crate::{
-    aac::{
-        encoder::{abs_pow34_v, ctx::AACEncContext},
-        tables::*,
-    },
-    common::*,
-    types::*,
+use super::{
+    encoder::{abs_pow34_v, ctx::AACEncContext},
+    tables::*,
 };
+use crate::{common::*, types::*};
 
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)]
