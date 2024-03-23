@@ -8,6 +8,8 @@
     unused_mut
 )]
 
+use std::ptr::addr_of;
+
 use ffi::codec::AVCodecContext;
 use libc::{c_int, c_uchar};
 
@@ -39,7 +41,7 @@ pub(crate) unsafe fn ff_psy_init(
         i;
     }
     if (*(*ctx).avctx).codec_id == AV_CODEC_ID_AAC {
-        (*ctx).model = &ff_aac_psy_model;
+        (*ctx).model = addr_of!(ff_aac_psy_model);
     }
     if ((*(*ctx).model).init).is_some() {
         return ((*(*ctx).model).init).expect("non-null function pointer")(ctx);

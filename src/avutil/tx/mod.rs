@@ -7,7 +7,7 @@ mod tx_int32;
 use std::{
     alloc::{alloc, alloc_zeroed, Layout},
     mem::size_of,
-    ptr,
+    ptr::{self, addr_of},
 };
 
 use libc::{
@@ -107,33 +107,27 @@ unsafe extern "C" fn ff_tx_null(
 ) {
     ptr::copy_nonoverlapping(_in, _out, stride as usize);
 }
-static mut ff_tx_null_def: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"null".as_ptr(),
-            function: Some(ff_tx_null),
-            type_0: 2147483647 as AVTXType,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 62 as c_int
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong) as c_ulong,
-            factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 0,
-            min_len: 1 as c_int,
-            max_len: 1 as c_int,
-            init: Some(ff_tx_null_init),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_MAX as c_int,
-        }
-    }
+static mut ff_tx_null_def: FFTXCodelet = FFTXCodelet {
+    name: c"null".as_ptr(),
+    function: Some(ff_tx_null),
+    type_0: 2147483647 as AVTXType,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 62 as c_int
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong) as c_ulong,
+    factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 0,
+    min_len: 1 as c_int,
+    max_len: 1 as c_int,
+    init: Some(ff_tx_null_init),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_MAX as c_int,
 };
-static mut ff_tx_null_list: [*const FFTXCodelet; 2] = unsafe {
-    [
-        &ff_tx_null_def as *const FFTXCodelet,
-        0 as *const FFTXCodelet,
-    ]
-};
+
+static mut ff_tx_null_list: [*const FFTXCodelet; 2] =
+    unsafe { [addr_of!(ff_tx_null_def), ptr::null()] };
+
 static mut codelet_list: [*const *const FFTXCodelet; 4] = unsafe {
     [
         ff_tx_codelet_list_float_c.as_ptr(),
@@ -968,169 +962,6 @@ pub unsafe extern "C" fn ff_tx_gen_inplace_map(s: *mut AVTXContext, len: c_int) 
     let fresh1 = out_map_idx;
     out_map_idx += 1;
     *((*s).map).offset(fresh1 as isize) = 0 as c_int;
-    0 as c_int
-}
-unsafe extern "C" fn parity_revtab_generator(
-    revtab: *mut c_int,
-    n: c_int,
-    inv: c_int,
-    offset: c_int,
-    mut is_dual: c_int,
-    mut dual_high: c_int,
-    mut len: c_int,
-    basis: c_int,
-    dual_stride: c_int,
-    inv_lookup: c_int,
-) {
-    len >>= 1 as c_int;
-    if len <= basis {
-        let mut k1: c_int = 0;
-        let mut k2: c_int = 0;
-        let mut stride: c_int = 0;
-        let mut even_idx: c_int = 0;
-        let mut odd_idx: c_int = 0;
-        is_dual = (is_dual != 0 && dual_stride != 0) as c_int;
-        dual_high &= is_dual;
-        stride = if is_dual != 0 {
-            if dual_stride > len {
-                len
-            } else {
-                dual_stride
-            }
-        } else {
-            0 as c_int
-        };
-        even_idx = offset + dual_high * (stride - 2 as c_int * len);
-        odd_idx =
-            even_idx + len + (is_dual != 0 && dual_high == 0) as c_int * len + dual_high * len;
-        let mut i: c_int = 0 as c_int;
-        while i < len {
-            k1 = -split_radix_permutation(offset + i * 2 as c_int + 0 as c_int, n, inv)
-                & n - 1 as c_int;
-            k2 = -split_radix_permutation(offset + i * 2 as c_int + 1 as c_int, n, inv)
-                & n - 1 as c_int;
-            if inv_lookup != 0 {
-                let fresh2 = even_idx;
-                even_idx += 1;
-                *revtab.offset(fresh2 as isize) = k1;
-                let fresh3 = odd_idx;
-                odd_idx += 1;
-                *revtab.offset(fresh3 as isize) = k2;
-            } else {
-                let fresh4 = even_idx;
-                even_idx += 1;
-                *revtab.offset(k1 as isize) = fresh4;
-                let fresh5 = odd_idx;
-                odd_idx += 1;
-                *revtab.offset(k2 as isize) = fresh5;
-            }
-            if stride != 0 && (i + 1 as c_int) % stride == 0 {
-                even_idx += stride;
-                odd_idx += stride;
-            }
-            i += 1;
-            i;
-        }
-        return;
-    }
-    parity_revtab_generator(
-        revtab,
-        n,
-        inv,
-        offset,
-        0 as c_int,
-        0 as c_int,
-        len >> 0 as c_int,
-        basis,
-        dual_stride,
-        inv_lookup,
-    );
-    parity_revtab_generator(
-        revtab,
-        n,
-        inv,
-        offset + (len >> 0 as c_int),
-        1 as c_int,
-        0 as c_int,
-        len >> 1 as c_int,
-        basis,
-        dual_stride,
-        inv_lookup,
-    );
-    parity_revtab_generator(
-        revtab,
-        n,
-        inv,
-        offset + (len >> 0 as c_int) + (len >> 1 as c_int),
-        1 as c_int,
-        1 as c_int,
-        len >> 1 as c_int,
-        basis,
-        dual_stride,
-        inv_lookup,
-    );
-}
-
-pub unsafe extern "C" fn ff_tx_gen_split_radix_parity_revtab(
-    s: *mut AVTXContext,
-    len: c_int,
-    inv: c_int,
-    opts: *mut FFTXCodeletOptions,
-    mut basis: c_int,
-    dual_stride: c_int,
-) -> c_int {
-    basis >>= 1 as c_int;
-    if len < basis {
-        return -(22 as c_int);
-    }
-    (*s).map =
-        av_mallocz((len as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong)) as *mut c_int;
-    if ((*s).map).is_null() {
-        return -(12 as c_int);
-    }
-    if !(dual_stride == 0 || dual_stride & dual_stride - 1 as c_int == 0) {
-        av_log(
-            std::ptr::null_mut::<c_void>(),
-            0 as c_int,
-            b"Assertion %s failed at %s:%d\n\0" as *const u8 as *const c_char,
-            b"!dual_stride || !(dual_stride & (dual_stride - 1))\0" as *const u8 as *const c_char,
-            b"libavutil/tx.c\0" as *const u8 as *const c_char,
-            251 as c_int,
-        );
-        abort();
-    }
-    if !(dual_stride <= basis) {
-        av_log(
-            std::ptr::null_mut::<c_void>(),
-            0 as c_int,
-            b"Assertion %s failed at %s:%d\n\0" as *const u8 as *const c_char,
-            b"dual_stride <= basis\0" as *const u8 as *const c_char,
-            b"libavutil/tx.c\0" as *const u8 as *const c_char,
-            252 as c_int,
-        );
-        abort();
-    }
-    parity_revtab_generator(
-        (*s).map,
-        len,
-        inv,
-        0 as c_int,
-        0 as c_int,
-        0 as c_int,
-        len,
-        basis,
-        dual_stride,
-        if !opts.is_null() {
-            ((*opts).map_dir as c_uint == FF_TX_MAP_GATHER as c_int as c_uint) as c_int
-        } else {
-            FF_TX_MAP_GATHER as c_int
-        },
-    );
-    (*s).map_dir = (if !opts.is_null() {
-        (*opts).map_dir as c_uint
-    } else {
-        FF_TX_MAP_GATHER as c_int as c_uint
-    }) as FFTXMapDirection;
     0 as c_int
 }
 
