@@ -107,14 +107,14 @@ unsafe fn find_max_val(
     let mut maxval: c_float = 0.0f32;
     let mut w2: c_int = 0;
     let mut i: c_int = 0;
-    w2 = 0 as c_int;
+    w2 = 0;
     while w2 < group_len {
-        i = 0 as c_int;
+        i = 0;
         while i < swb_size {
-            maxval = if maxval > *scaled.offset((w2 * 128 as c_int + i) as isize) {
+            maxval = if maxval > *scaled.offset((w2 * 128 + i) as isize) {
                 maxval
             } else {
-                *scaled.offset((w2 * 128 as c_int + i) as isize)
+                *scaled.offset((w2 * 128 + i) as isize)
             };
             i += 1;
             i;
@@ -141,22 +141,22 @@ unsafe fn find_form_factor(
     mut nzslope: c_float,
 ) -> c_float {
     let iswb_size: c_float = 1.0f32 / swb_size as c_float;
-    let iswb_sizem1: c_float = 1.0f32 / (swb_size - 1 as c_int) as c_float;
+    let iswb_sizem1: c_float = 1.0f32 / (swb_size - 1) as c_float;
     let ethresh: c_float = thresh;
     let mut form: c_float = 0.0f32;
     let mut weight: c_float = 0.0f32;
     let mut w2: c_int = 0;
     let mut i: c_int = 0;
-    w2 = 0 as c_int;
+    w2 = 0;
     while w2 < group_len {
         let mut e: c_float = 0.0f32;
         let mut e2: c_float = 0.0f32;
         let mut var: c_float = 0.0f32;
         let mut maxval: c_float = 0.0f32;
-        let mut nzl: c_float = 0 as c_int as c_float;
-        i = 0 as c_int;
+        let mut nzl: c_float = 0 as c_float;
+        i = 0;
         while i < swb_size {
-            let mut s: c_float = fabsf(*scaled.offset((w2 * 128 as c_int + i) as isize));
+            let mut s: c_float = fabsf(*scaled.offset((w2 * 128 + i) as isize));
             maxval = if maxval > s { maxval } else { s };
             e += s;
             s *= s;
@@ -174,9 +174,9 @@ unsafe fn find_form_factor(
         if e2 > thresh {
             let mut frm: c_float = 0.;
             e *= iswb_size;
-            i = 0 as c_int;
+            i = 0;
             while i < swb_size {
-                let mut d: c_float = fabsf(*scaled.offset((w2 * 128 as c_int + i) as isize)) - e;
+                let mut d: c_float = fabsf(*scaled.offset((w2 * 128 + i) as isize)) - e;
                 var += d * d;
                 i += 1;
                 i;
@@ -184,10 +184,10 @@ unsafe fn find_form_factor(
             var = sqrtf(var * iswb_sizem1);
             e2 *= iswb_size;
             frm = e
-                / (if e + 4 as c_int as c_float * var > maxval {
+                / (if e + 4 as c_float * var > maxval {
                     maxval
                 } else {
-                    e + 4 as c_int as c_float * var
+                    e + 4 as c_float * var
                 });
             form += e2 * sqrtf(frm) / (if 0.5f32 > nzl { 0.5f32 } else { nzl });
             weight += e2;
@@ -195,7 +195,7 @@ unsafe fn find_form_factor(
         w2 += 1;
         w2;
     }
-    if weight > 0 as c_int as c_float {
+    if weight > 0 as c_float {
         form / weight
     } else {
         1.0f32
@@ -209,33 +209,32 @@ unsafe fn ff_sfdelta_can_remove_band(
     mut prev_sf: c_int,
     mut band: c_int,
 ) -> c_int {
-    (prev_sf >= 0 as c_int
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= prev_sf - 60 as c_int
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= prev_sf + 60 as c_int)
-        as c_int
+    (prev_sf >= 0
+        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= prev_sf - 60
+        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= prev_sf + 60) as c_int
 }
 
 #[inline]
 unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut c_uchar) {
-    let mut prevband: c_uchar = 0 as c_int as c_uchar;
+    let mut prevband: c_uchar = 0;
     let mut w: c_int = 0;
     let mut g: c_int = 0;
-    g = 0 as c_int;
-    while g < 128 as c_int {
+    g = 0;
+    while g < 128 {
         *nextband.offset(g as isize) = g as c_uchar;
         g += 1;
         g;
     }
-    w = 0 as c_int;
+    w = 0;
     while w < (*sce).ics.num_windows {
-        g = 0 as c_int;
+        g = 0;
         while g < (*sce).ics.num_swb {
-            if (*sce).zeroes[(w * 16 as c_int + g) as usize] == 0
-                && ((*sce).band_type[(w * 16 as c_int + g) as usize] as c_uint)
+            if (*sce).zeroes[(w * 16 + g) as usize] == 0
+                && ((*sce).band_type[(w * 16 + g) as usize] as c_uint)
                     < RESERVED_BT as c_int as c_uint
             {
                 let fresh0 = &mut (*nextband.offset(prevband as isize));
-                *fresh0 = (w * 16 as c_int + g) as c_uchar;
+                *fresh0 = (w * 16 + g) as c_uchar;
                 prevband = *fresh0;
             }
             g += 1;
@@ -253,11 +252,10 @@ unsafe fn ff_sfdelta_can_replace(
     mut new_sf: c_int,
     mut band: c_int,
 ) -> c_int {
-    (new_sf >= prev_sf - 60 as c_int
-        && new_sf <= prev_sf + 60 as c_int
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= new_sf - 60 as c_int
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= new_sf + 60 as c_int)
-        as c_int
+    (new_sf >= prev_sf - 60
+        && new_sf <= prev_sf + 60
+        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= new_sf - 60
+        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= new_sf + 60) as c_int
 }
 #[inline]
 unsafe fn quantize_band_cost_cached(
@@ -281,7 +279,7 @@ unsafe fn quantize_band_cost_cached(
         .as_mut_ptr()
         .offset(scale_idx as isize))
     .as_mut_ptr()
-    .offset((w * 16 as c_int + g) as isize) as *mut AACQuantizeBandCostCacheEntry;
+    .offset((w * 16 + g) as isize) as *mut AACQuantizeBandCostCacheEntry;
     if (*entry).generation as c_int != (*s).quantize_band_cost_cache_generation as c_int
         || (*entry).cb as c_int != cb
         || (*entry).rtz as c_int != rtz
@@ -375,12 +373,12 @@ unsafe fn quantize_band_cost_bits(
 #[inline]
 unsafe fn ff_pns_bits(mut sce: *mut SingleChannelElement, mut w: c_int, mut g: c_int) -> c_int {
     if g == 0
-        || (*sce).zeroes[(w * 16 as c_int + g - 1 as c_int) as usize] == 0
-        || (*sce).can_pns[(w * 16 as c_int + g - 1 as c_int) as usize] == 0
+        || (*sce).zeroes[(w * 16 + g - 1) as usize] == 0
+        || (*sce).can_pns[(w * 16 + g - 1) as usize] == 0
     {
-        9 as c_int
+        9
     } else {
-        5 as c_int
+        5
     }
 }
 
@@ -414,12 +412,8 @@ pub(crate) unsafe fn encode_window_bands_info(
     let mut i: c_int = 0;
     let mut j: c_int = 0;
     let max_sfb: c_int = (*sce).ics.max_sfb as c_int;
-    let run_bits: c_int = if (*sce).ics.num_windows == 1 as c_int {
-        5 as c_int
-    } else {
-        3 as c_int
-    };
-    let run_esc: c_int = ((1 as c_int) << run_bits) - 1 as c_int;
+    let run_bits: c_int = if (*sce).ics.num_windows == 1 { 5 } else { 3 };
+    let run_esc: c_int = ((1) << run_bits) - 1;
     let mut idx: c_int = 0;
     let mut ppos: c_int = 0;
     let mut count: c_int = 0;
@@ -427,32 +421,30 @@ pub(crate) unsafe fn encode_window_bands_info(
     let mut stackcb: [c_int; 120] = [0; 120];
     let mut stack_len: c_int = 0;
     let mut next_minrd: c_float = ::core::f32::INFINITY;
-    let mut next_mincb: c_int = 0 as c_int;
+    let mut next_mincb: c_int = 0;
     abs_pow34_v(
         ((*s).scoefs).as_mut_ptr(),
         ((*sce).coeffs).as_mut_ptr(),
-        1024 as c_int,
+        1024,
     );
-    start = win * 128 as c_int;
-    cb = 0 as c_int;
-    while cb < 15 as c_int {
-        path[0 as c_int as usize][cb as usize].cost = 0.0f32;
-        path[0 as c_int as usize][cb as usize].prev_idx = -(1 as c_int);
-        path[0 as c_int as usize][cb as usize].run = 0 as c_int;
+    start = win * 128;
+    cb = 0;
+    while cb < 15 {
+        path[0][cb as usize].cost = 0.0f32;
+        path[0][cb as usize].prev_idx = -1;
+        path[0][cb as usize].run = 0;
         cb += 1;
         cb;
     }
-    swb = 0 as c_int;
+    swb = 0;
     while swb < max_sfb {
         size = *((*sce).ics.swb_sizes).offset(swb as isize) as c_int;
-        if (*sce).zeroes[(win * 16 as c_int + swb) as usize] != 0 {
-            cb = 0 as c_int;
-            while cb < 15 as c_int {
-                path[(swb + 1 as c_int) as usize][cb as usize].prev_idx = cb;
-                path[(swb + 1 as c_int) as usize][cb as usize].cost =
-                    path[swb as usize][cb as usize].cost;
-                path[(swb + 1 as c_int) as usize][cb as usize].run =
-                    path[swb as usize][cb as usize].run + 1 as c_int;
+        if (*sce).zeroes[(win * 16 + swb) as usize] != 0 {
+            cb = 0;
+            while cb < 15 {
+                path[(swb + 1) as usize][cb as usize].prev_idx = cb;
+                path[(swb + 1) as usize][cb as usize].cost = path[swb as usize][cb as usize].cost;
+                path[(swb + 1) as usize][cb as usize].run = path[swb as usize][cb as usize].run + 1;
                 cb += 1;
                 cb;
             }
@@ -460,42 +452,41 @@ pub(crate) unsafe fn encode_window_bands_info(
             let mut minrd: c_float = next_minrd;
             let mut mincb: c_int = next_mincb;
             next_minrd = ::core::f32::INFINITY;
-            next_mincb = 0 as c_int;
-            cb = 0 as c_int;
-            while cb < 15 as c_int {
+            next_mincb = 0;
+            cb = 0;
+            while cb < 15 {
                 let mut cost_stay_here: c_float = 0.;
                 let mut cost_get_here: c_float = 0.;
                 let mut rd: c_float = 0.0f32;
-                if cb >= 12 as c_int
-                    && ((*sce).band_type[(win * 16 as c_int + swb) as usize] as c_uint)
+                if cb >= 12
+                    && ((*sce).band_type[(win * 16 + swb) as usize] as c_uint)
                         < aac_cb_out_map[cb as usize] as c_uint
                     || cb
-                        < aac_cb_in_map
-                            [(*sce).band_type[(win * 16 as c_int + swb) as usize] as usize]
+                        < aac_cb_in_map[(*sce).band_type[(win * 16 + swb) as usize] as usize]
                             as c_int
-                        && (*sce).band_type[(win * 16 as c_int + swb) as usize] as c_uint
+                        && (*sce).band_type[(win * 16 + swb) as usize] as c_uint
                             > aac_cb_out_map[cb as usize] as c_uint
                 {
-                    path[(swb + 1 as c_int) as usize][cb as usize].prev_idx = -(1 as c_int);
-                    path[(swb + 1 as c_int) as usize][cb as usize].cost = ::core::f32::INFINITY;
-                    path[(swb + 1 as c_int) as usize][cb as usize].run =
-                        path[swb as usize][cb as usize].run + 1 as c_int;
+                    path[(swb + 1) as usize][cb as usize].prev_idx = -1;
+                    path[(swb + 1) as usize][cb as usize].cost = ::core::f32::INFINITY;
+                    path[(swb + 1) as usize][cb as usize].run =
+                        path[swb as usize][cb as usize].run + 1;
                 } else {
-                    w = 0 as c_int;
+                    w = 0;
                     while w < group_len {
                         let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize]
-                            .psy_bands[((win + w) * 16 as c_int + swb) as usize]
+                            .psy_bands[((win + w) * 16 + swb) as usize]
                             as *mut FFPsyBand;
                         rd += quantize_band_cost(
                             s,
                             &mut *((*sce).coeffs)
                                 .as_mut_ptr()
-                                .offset((start + w * 128 as c_int) as isize),
+                                .offset((start + w * 128) as isize),
                             &mut *((*s).scoefs)
                                 .as_mut_ptr()
-                                .offset((start + w * 128 as c_int) as isize),
+                                .offset((start + w * 128) as isize),
                             size,
-                            (*sce).sf_idx[((win + w) * 16 as c_int + swb) as usize],
+                            (*sce).sf_idx[((win + w) * 16 + swb) as usize],
                             aac_cb_out_map[cb as usize] as c_int,
                             lambda / (*band).threshold,
                             ::core::f32::INFINITY,
@@ -506,29 +497,28 @@ pub(crate) unsafe fn encode_window_bands_info(
                         w;
                     }
                     cost_stay_here = path[swb as usize][cb as usize].cost + rd;
-                    cost_get_here = minrd + rd + run_bits as c_float + 4 as c_int as c_float;
-                    if *(run_value_bits[((*sce).ics.num_windows == 8 as c_int) as c_int as usize])
+                    cost_get_here = minrd + rd + run_bits as c_float + 4 as c_float;
+                    if *(run_value_bits[((*sce).ics.num_windows == 8) as c_int as usize])
                         .offset(path[swb as usize][cb as usize].run as isize)
                         as c_int
-                        != *(run_value_bits
-                            [((*sce).ics.num_windows == 8 as c_int) as c_int as usize])
-                            .offset((path[swb as usize][cb as usize].run + 1 as c_int) as isize)
+                        != *(run_value_bits[((*sce).ics.num_windows == 8) as c_int as usize])
+                            .offset((path[swb as usize][cb as usize].run + 1) as isize)
                             as c_int
                     {
                         cost_stay_here += run_bits as c_float;
                     }
                     if cost_get_here < cost_stay_here {
-                        path[(swb + 1 as c_int) as usize][cb as usize].prev_idx = mincb;
-                        path[(swb + 1 as c_int) as usize][cb as usize].cost = cost_get_here;
-                        path[(swb + 1 as c_int) as usize][cb as usize].run = 1 as c_int;
+                        path[(swb + 1) as usize][cb as usize].prev_idx = mincb;
+                        path[(swb + 1) as usize][cb as usize].cost = cost_get_here;
+                        path[(swb + 1) as usize][cb as usize].run = 1;
                     } else {
-                        path[(swb + 1 as c_int) as usize][cb as usize].prev_idx = cb;
-                        path[(swb + 1 as c_int) as usize][cb as usize].cost = cost_stay_here;
-                        path[(swb + 1 as c_int) as usize][cb as usize].run =
-                            path[swb as usize][cb as usize].run + 1 as c_int;
+                        path[(swb + 1) as usize][cb as usize].prev_idx = cb;
+                        path[(swb + 1) as usize][cb as usize].cost = cost_stay_here;
+                        path[(swb + 1) as usize][cb as usize].run =
+                            path[swb as usize][cb as usize].run + 1;
                     }
-                    if path[(swb + 1 as c_int) as usize][cb as usize].cost < next_minrd {
-                        next_minrd = path[(swb + 1 as c_int) as usize][cb as usize].cost;
+                    if path[(swb + 1) as usize][cb as usize].cost < next_minrd {
+                        next_minrd = path[(swb + 1) as usize][cb as usize].cost;
                         next_mincb = cb;
                     }
                 }
@@ -540,10 +530,10 @@ pub(crate) unsafe fn encode_window_bands_info(
         swb += 1;
         swb;
     }
-    stack_len = 0 as c_int;
-    idx = 0 as c_int;
-    cb = 1 as c_int;
-    while cb < 15 as c_int {
+    stack_len = 0;
+    idx = 0;
+    cb = 1;
+    while cb < 15 {
         if path[max_sfb as usize][cb as usize].cost < path[max_sfb as usize][idx as usize].cost {
             idx = cb;
         }
@@ -551,34 +541,33 @@ pub(crate) unsafe fn encode_window_bands_info(
         cb;
     }
     ppos = max_sfb;
-    while ppos > 0 as c_int {
+    while ppos > 0 {
         cb = idx;
         stackrun[stack_len as usize] = path[ppos as usize][cb as usize].run;
         stackcb[stack_len as usize] = cb;
-        idx = path[(ppos - path[ppos as usize][cb as usize].run + 1 as c_int) as usize]
-            [cb as usize]
-            .prev_idx;
+        idx =
+            path[(ppos - path[ppos as usize][cb as usize].run + 1) as usize][cb as usize].prev_idx;
         ppos -= path[ppos as usize][cb as usize].run;
         stack_len += 1;
         stack_len;
     }
-    start = 0 as c_int;
-    i = stack_len - 1 as c_int;
-    while i >= 0 as c_int {
+    start = 0;
+    i = stack_len - 1;
+    while i >= 0 {
         cb = aac_cb_out_map[stackcb[i as usize] as usize] as c_int;
-        put_bits(&mut (*s).pb, 4 as c_int, cb as BitBuf);
+        put_bits(&mut (*s).pb, 4, cb as BitBuf);
         count = stackrun[i as usize];
         ptr::write_bytes(
             ((*sce).zeroes)
                 .as_mut_ptr()
-                .offset((win * 16 as c_int) as isize)
+                .offset((win * 16) as isize)
                 .offset(start as isize),
             u8::from(cb == 0),
             count as usize,
         );
-        j = 0 as c_int;
+        j = 0;
         while j < count {
-            (*sce).band_type[(win * 16 as c_int + start) as usize] = cb as BandType;
+            (*sce).band_type[(win * 16 + start) as usize] = cb as BandType;
             start += 1;
             start;
             j += 1;
@@ -600,43 +589,39 @@ pub(crate) unsafe fn set_special_band_scalefactors(
 ) {
     let mut w: c_int = 0;
     let mut g: c_int = 0;
-    let mut prevscaler_n: c_int = -(255 as c_int);
-    let mut prevscaler_i: c_int = 0 as c_int;
-    let mut bands: c_int = 0 as c_int;
-    w = 0 as c_int;
+    let mut prevscaler_n: c_int = -255;
+    let mut prevscaler_i: c_int = 0;
+    let mut bands: c_int = 0;
+    w = 0;
     while w < (*sce).ics.num_windows {
-        g = 0 as c_int;
+        g = 0;
         while g < (*sce).ics.num_swb {
-            if (*sce).zeroes[(w * 16 as c_int + g) as usize] == 0 {
-                if (*sce).band_type[(w * 16 as c_int + g) as usize] as c_uint
+            if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
+                if (*sce).band_type[(w * 16 + g) as usize] as c_uint
                     == INTENSITY_BT as c_int as c_uint
-                    || (*sce).band_type[(w * 16 as c_int + g) as usize] as c_uint
+                    || (*sce).band_type[(w * 16 + g) as usize] as c_uint
                         == INTENSITY_BT2 as c_int as c_uint
                 {
-                    (*sce).sf_idx[(w * 16 as c_int + g) as usize] = av_clip_c(
-                        roundf(
-                            log2f((*sce).is_ener[(w * 16 as c_int + g) as usize])
-                                * 2 as c_int as c_float,
-                        ) as c_int,
-                        -(155 as c_int),
-                        100 as c_int,
+                    (*sce).sf_idx[(w * 16 + g) as usize] = av_clip_c(
+                        roundf(log2f((*sce).is_ener[(w * 16 + g) as usize]) * 2 as c_float)
+                            as c_int,
+                        -155,
+                        100,
                     );
                     bands += 1;
                     bands;
-                } else if (*sce).band_type[(w * 16 as c_int + g) as usize] as c_uint
+                } else if (*sce).band_type[(w * 16 + g) as usize] as c_uint
                     == NOISE_BT as c_int as c_uint
                 {
-                    (*sce).sf_idx[(w * 16 as c_int + g) as usize] = av_clip_c(
-                        (3 as c_int as c_float
-                            + ceilf(
-                                log2f((*sce).pns_ener[(w * 16 as c_int + g) as usize])
-                                    * 2 as c_int as c_float,
-                            )) as c_int,
-                        -(100 as c_int),
-                        155 as c_int,
+                    (*sce).sf_idx[(w * 16 + g) as usize] = av_clip_c(
+                        (3 as c_float
+                            + ceilf(log2f((*sce).pns_ener[(w * 16 + g) as usize]) * 2 as c_float))
+                            as c_int,
+                        -100,
+                        155,
                     );
-                    if prevscaler_n == -(255 as c_int) {
-                        prevscaler_n = (*sce).sf_idx[(w * 16 as c_int + g) as usize];
+                    if prevscaler_n == -255 {
+                        prevscaler_n = (*sce).sf_idx[(w * 16 + g) as usize];
                     }
                     bands += 1;
                     bands;
@@ -650,31 +635,31 @@ pub(crate) unsafe fn set_special_band_scalefactors(
     if bands == 0 {
         return;
     }
-    w = 0 as c_int;
+    w = 0;
     while w < (*sce).ics.num_windows {
-        g = 0 as c_int;
+        g = 0;
         while g < (*sce).ics.num_swb {
-            if (*sce).zeroes[(w * 16 as c_int + g) as usize] == 0 {
-                if (*sce).band_type[(w * 16 as c_int + g) as usize] as c_uint
+            if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
+                if (*sce).band_type[(w * 16 + g) as usize] as c_uint
                     == INTENSITY_BT as c_int as c_uint
-                    || (*sce).band_type[(w * 16 as c_int + g) as usize] as c_uint
+                    || (*sce).band_type[(w * 16 + g) as usize] as c_uint
                         == INTENSITY_BT2 as c_int as c_uint
                 {
                     prevscaler_i = av_clip_c(
-                        (*sce).sf_idx[(w * 16 as c_int + g) as usize],
-                        prevscaler_i - 60 as c_int,
-                        prevscaler_i + 60 as c_int,
+                        (*sce).sf_idx[(w * 16 + g) as usize],
+                        prevscaler_i - 60,
+                        prevscaler_i + 60,
                     );
-                    (*sce).sf_idx[(w * 16 as c_int + g) as usize] = prevscaler_i;
-                } else if (*sce).band_type[(w * 16 as c_int + g) as usize] as c_uint
+                    (*sce).sf_idx[(w * 16 + g) as usize] = prevscaler_i;
+                } else if (*sce).band_type[(w * 16 + g) as usize] as c_uint
                     == NOISE_BT as c_int as c_uint
                 {
                     prevscaler_n = av_clip_c(
-                        (*sce).sf_idx[(w * 16 as c_int + g) as usize],
-                        prevscaler_n - 60 as c_int,
-                        prevscaler_n + 60 as c_int,
+                        (*sce).sf_idx[(w * 16 + g) as usize],
+                        prevscaler_n - 60,
+                        prevscaler_n + 60,
                     );
-                    (*sce).sf_idx[(w * 16 as c_int + g) as usize] = prevscaler_n;
+                    (*sce).sf_idx[(w * 16 + g) as usize] = prevscaler_n;
                 }
             }
             g += 1;
@@ -690,7 +675,7 @@ unsafe fn search_for_quantizers_fast(
     mut sce: *mut SingleChannelElement,
     lambda: c_float,
 ) {
-    let mut start: c_int = 0 as c_int;
+    let mut start: c_int = 0;
     let mut i: c_int = 0;
     let mut w: c_int = 0;
     let mut w2: c_int = 0;
@@ -704,38 +689,34 @@ unsafe fn search_for_quantizers_fast(
     let mut maxvals: [c_float; 128] = [0.; 128];
     let mut fflag: c_int = 0;
     let mut minscaler: c_int = 0;
-    let mut its: c_int = 0 as c_int;
-    let mut allz: c_int = 0 as c_int;
+    let mut its: c_int = 0;
+    let mut allz: c_int = 0;
     let mut minthr: c_float = ::core::f32::INFINITY;
-    destbits = if destbits > 5800 as c_int {
-        5800 as c_int
-    } else {
-        destbits
-    };
-    w = 0 as c_int;
+    destbits = if destbits > 5800 { 5800 } else { destbits };
+    w = 0;
     while w < (*sce).ics.num_windows {
-        start = 0 as c_int;
-        g = 0 as c_int;
+        start = 0;
+        g = 0;
         while g < (*sce).ics.num_swb {
-            let mut nz: c_int = 0 as c_int;
+            let mut nz: c_int = 0;
             let mut uplim: c_float = 0.0f32;
-            w2 = 0 as c_int;
+            w2 = 0;
             while w2 < (*sce).ics.group_len[w as usize] as c_int {
                 let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
-                    [((w + w2) * 16 as c_int + g) as usize]
+                    [((w + w2) * 16 + g) as usize]
                     as *mut FFPsyBand;
                 uplim += (*band).threshold;
                 if (*band).energy <= (*band).threshold || (*band).threshold == 0.0f32 {
-                    (*sce).zeroes[((w + w2) * 16 as c_int + g) as usize] = 1 as c_int as c_uchar;
+                    (*sce).zeroes[((w + w2) * 16 + g) as usize] = 1;
                 } else {
-                    nz = 1 as c_int;
+                    nz = 1;
                 }
                 w2 += 1;
                 w2;
             }
-            uplims[(w * 16 as c_int + g) as usize] = uplim * 512 as c_int as c_float;
-            (*sce).band_type[(w * 16 as c_int + g) as usize] = ZERO_BT;
-            (*sce).zeroes[(w * 16 as c_int + g) as usize] = (nz == 0) as c_int as c_uchar;
+            uplims[(w * 16 + g) as usize] = uplim * 512 as c_float;
+            (*sce).band_type[(w * 16 + g) as usize] = ZERO_BT;
+            (*sce).zeroes[(w * 16 + g) as usize] = (nz == 0) as c_int as c_uchar;
             if nz != 0 {
                 minthr = if minthr > uplim { uplim } else { minthr };
             }
@@ -746,22 +727,20 @@ unsafe fn search_for_quantizers_fast(
         }
         w += (*sce).ics.group_len[w as usize] as c_int;
     }
-    w = 0 as c_int;
+    w = 0;
     while w < (*sce).ics.num_windows {
-        g = 0 as c_int;
+        g = 0;
         while g < (*sce).ics.num_swb {
-            if (*sce).zeroes[(w * 16 as c_int + g) as usize] != 0 {
-                (*sce).sf_idx[(w * 16 as c_int + g) as usize] = 140 as c_int;
+            if (*sce).zeroes[(w * 16 + g) as usize] != 0 {
+                (*sce).sf_idx[(w * 16 + g) as usize] = 140;
             } else {
-                (*sce).sf_idx[(w * 16 as c_int + g) as usize] = (140 as c_int as c_float
-                    + (if log2f(uplims[(w * 16 as c_int + g) as usize] / minthr)
-                        * 4 as c_int as c_float
-                        > 59 as c_int as c_float
+                (*sce).sf_idx[(w * 16 + g) as usize] = (140 as c_float
+                    + (if log2f(uplims[(w * 16 + g) as usize] / minthr) * 4 as c_float
+                        > 59 as c_float
                     {
-                        59 as c_int as c_float
+                        59 as c_float
                     } else {
-                        log2f(uplims[(w * 16 as c_int + g) as usize] / minthr)
-                            * 4 as c_int as c_float
+                        log2f(uplims[(w * 16 + g) as usize] / minthr) * 4 as c_float
                     })) as c_int;
             }
             g += 1;
@@ -775,16 +754,16 @@ unsafe fn search_for_quantizers_fast(
     abs_pow34_v(
         ((*s).scoefs).as_mut_ptr(),
         ((*sce).coeffs).as_mut_ptr(),
-        1024 as c_int,
+        1024,
     );
     ff_quantize_band_cost_cache_init(s);
-    w = 0 as c_int;
+    w = 0;
     while w < (*sce).ics.num_windows {
-        start = w * 128 as c_int;
-        g = 0 as c_int;
+        start = w * 128;
+        g = 0;
         while g < (*sce).ics.num_swb {
             let mut scaled: *const c_float = ((*s).scoefs).as_mut_ptr().offset(start as isize);
-            maxvals[(w * 16 as c_int + g) as usize] = find_max_val(
+            maxvals[(w * 16 + g) as usize] = find_max_val(
                 (*sce).ics.group_len[w as usize] as c_int,
                 *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
                 scaled,
@@ -798,70 +777,68 @@ unsafe fn search_for_quantizers_fast(
     loop {
         let mut tbits: c_int = 0;
         let mut qstep: c_int = 0;
-        minscaler = (*sce).sf_idx[0 as c_int as usize];
-        qstep = if its != 0 { 1 as c_int } else { 32 as c_int };
+        minscaler = (*sce).sf_idx[0];
+        qstep = if its != 0 { 1 } else { 32 };
         loop {
-            let mut prev: c_int = -(1 as c_int);
-            tbits = 0 as c_int;
-            w = 0 as c_int;
+            let mut prev: c_int = -1;
+            tbits = 0;
+            w = 0;
             while w < (*sce).ics.num_windows {
-                start = w * 128 as c_int;
-                g = 0 as c_int;
+                start = w * 128;
+                g = 0;
                 while g < (*sce).ics.num_swb {
                     let mut coefs: *const c_float =
                         ((*sce).coeffs).as_mut_ptr().offset(start as isize);
                     let mut scaled_0: *const c_float =
                         ((*s).scoefs).as_mut_ptr().offset(start as isize);
-                    let mut bits: c_int = 0 as c_int;
+                    let mut bits: c_int = 0;
                     let mut cb: c_int = 0;
                     let mut dist: c_float = 0.0f32;
-                    if (*sce).zeroes[(w * 16 as c_int + g) as usize] as c_int != 0
-                        || (*sce).sf_idx[(w * 16 as c_int + g) as usize] >= 218 as c_int
+                    if (*sce).zeroes[(w * 16 + g) as usize] as c_int != 0
+                        || (*sce).sf_idx[(w * 16 + g) as usize] >= 218
                     {
                         start += *((*sce).ics.swb_sizes).offset(g as isize) as c_int;
                     } else {
-                        minscaler = if minscaler > (*sce).sf_idx[(w * 16 as c_int + g) as usize] {
-                            (*sce).sf_idx[(w * 16 as c_int + g) as usize]
+                        minscaler = if minscaler > (*sce).sf_idx[(w * 16 + g) as usize] {
+                            (*sce).sf_idx[(w * 16 + g) as usize]
                         } else {
                             minscaler
                         };
                         cb = find_min_book(
-                            maxvals[(w * 16 as c_int + g) as usize],
-                            (*sce).sf_idx[(w * 16 as c_int + g) as usize],
+                            maxvals[(w * 16 + g) as usize],
+                            (*sce).sf_idx[(w * 16 + g) as usize],
                         );
-                        w2 = 0 as c_int;
+                        w2 = 0;
                         while w2 < (*sce).ics.group_len[w as usize] as c_int {
                             let mut b: c_int = 0;
                             dist += quantize_band_cost_cached(
                                 s,
                                 w + w2,
                                 g,
-                                coefs.offset((w2 * 128 as c_int) as isize),
-                                scaled_0.offset((w2 * 128 as c_int) as isize),
+                                coefs.offset((w2 * 128) as isize),
+                                scaled_0.offset((w2 * 128) as isize),
                                 *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
-                                (*sce).sf_idx[(w * 16 as c_int + g) as usize],
+                                (*sce).sf_idx[(w * 16 + g) as usize],
                                 cb,
                                 1.0f32,
                                 ::core::f32::INFINITY,
                                 &mut b,
                                 ptr::null_mut(),
-                                0 as c_int,
+                                0,
                             );
                             bits += b;
                             w2 += 1;
                             w2;
                         }
-                        dists[(w * 16 as c_int + g) as usize] = dist - bits as c_float;
-                        if prev != -(1 as c_int) {
-                            bits += ff_aac_scalefactor_bits[((*sce).sf_idx
-                                [(w * 16 as c_int + g) as usize]
-                                - prev
-                                + 60 as c_int)
-                                as usize] as c_int;
+                        dists[(w * 16 + g) as usize] = dist - bits as c_float;
+                        if prev != -1 {
+                            bits += ff_aac_scalefactor_bits
+                                [((*sce).sf_idx[(w * 16 + g) as usize] - prev + 60) as usize]
+                                as c_int;
                         }
                         tbits += bits;
                         start += *((*sce).ics.swb_sizes).offset(g as isize) as c_int;
-                        prev = (*sce).sf_idx[(w * 16 as c_int + g) as usize];
+                        prev = (*sce).sf_idx[(w * 16 + g) as usize];
                     }
                     g += 1;
                     g;
@@ -869,73 +846,73 @@ unsafe fn search_for_quantizers_fast(
                 w += (*sce).ics.group_len[w as usize] as c_int;
             }
             if tbits > destbits {
-                i = 0 as c_int;
-                while i < 128 as c_int {
-                    if (*sce).sf_idx[i as usize] < 218 as c_int - qstep {
+                i = 0;
+                while i < 128 {
+                    if (*sce).sf_idx[i as usize] < 218 - qstep {
                         (*sce).sf_idx[i as usize] += qstep;
                     }
                     i += 1;
                     i;
                 }
             } else {
-                i = 0 as c_int;
-                while i < 128 as c_int {
-                    if (*sce).sf_idx[i as usize] > 60 as c_int - qstep {
+                i = 0;
+                while i < 128 {
+                    if (*sce).sf_idx[i as usize] > 60 - qstep {
                         (*sce).sf_idx[i as usize] -= qstep;
                     }
                     i += 1;
                     i;
                 }
             }
-            qstep >>= 1 as c_int;
+            qstep >>= 1;
             if qstep == 0
                 && tbits as c_double > destbits as c_double * 1.02f64
-                && (*sce).sf_idx[0 as c_int as usize] < 217 as c_int
+                && (*sce).sf_idx[0] < 217
             {
-                qstep = 1 as c_int;
+                qstep = 1;
             }
             if qstep == 0 {
                 break;
             }
         }
-        fflag = 0 as c_int;
-        minscaler = av_clip_c(minscaler, 60 as c_int, 255 as c_int - 60 as c_int);
-        w = 0 as c_int;
+        fflag = 0;
+        minscaler = av_clip_c(minscaler, 60, 255 - 60);
+        w = 0;
         while w < (*sce).ics.num_windows {
-            g = 0 as c_int;
+            g = 0;
             while g < (*sce).ics.num_swb {
-                let mut prevsc: c_int = (*sce).sf_idx[(w * 16 as c_int + g) as usize];
-                if dists[(w * 16 as c_int + g) as usize] > uplims[(w * 16 as c_int + g) as usize]
-                    && (*sce).sf_idx[(w * 16 as c_int + g) as usize] > 60 as c_int
+                let mut prevsc: c_int = (*sce).sf_idx[(w * 16 + g) as usize];
+                if dists[(w * 16 + g) as usize] > uplims[(w * 16 + g) as usize]
+                    && (*sce).sf_idx[(w * 16 + g) as usize] > 60
                 {
                     if find_min_book(
-                        maxvals[(w * 16 as c_int + g) as usize],
-                        (*sce).sf_idx[(w * 16 as c_int + g) as usize] - 1 as c_int,
+                        maxvals[(w * 16 + g) as usize],
+                        (*sce).sf_idx[(w * 16 + g) as usize] - 1,
                     ) != 0
                     {
-                        (*sce).sf_idx[(w * 16 as c_int + g) as usize] -= 1;
-                        (*sce).sf_idx[(w * 16 as c_int + g) as usize];
+                        (*sce).sf_idx[(w * 16 + g) as usize] -= 1;
+                        (*sce).sf_idx[(w * 16 + g) as usize];
                     } else {
-                        (*sce).sf_idx[(w * 16 as c_int + g) as usize] -= 2 as c_int;
+                        (*sce).sf_idx[(w * 16 + g) as usize] -= 2;
                     }
                 }
-                (*sce).sf_idx[(w * 16 as c_int + g) as usize] = av_clip_c(
-                    (*sce).sf_idx[(w * 16 as c_int + g) as usize],
+                (*sce).sf_idx[(w * 16 + g) as usize] = av_clip_c(
+                    (*sce).sf_idx[(w * 16 + g) as usize],
                     minscaler,
-                    minscaler + 60 as c_int,
+                    minscaler + 60,
                 );
-                (*sce).sf_idx[(w * 16 as c_int + g) as usize] =
-                    if (*sce).sf_idx[(w * 16 as c_int + g) as usize] > 219 as c_int {
-                        219 as c_int
-                    } else {
-                        (*sce).sf_idx[(w * 16 as c_int + g) as usize]
-                    };
-                if (*sce).sf_idx[(w * 16 as c_int + g) as usize] != prevsc {
-                    fflag = 1 as c_int;
+                (*sce).sf_idx[(w * 16 + g) as usize] = if (*sce).sf_idx[(w * 16 + g) as usize] > 219
+                {
+                    219
+                } else {
+                    (*sce).sf_idx[(w * 16 + g) as usize]
+                };
+                if (*sce).sf_idx[(w * 16 + g) as usize] != prevsc {
+                    fflag = 1;
                 }
-                (*sce).band_type[(w * 16 as c_int + g) as usize] = find_min_book(
-                    maxvals[(w * 16 as c_int + g) as usize],
-                    (*sce).sf_idx[(w * 16 as c_int + g) as usize],
+                (*sce).band_type[(w * 16 + g) as usize] = find_min_book(
+                    maxvals[(w * 16 + g) as usize],
+                    (*sce).sf_idx[(w * 16 + g) as usize],
                 ) as BandType;
                 g += 1;
                 g;
@@ -944,7 +921,7 @@ unsafe fn search_for_quantizers_fast(
         }
         its += 1;
         its;
-        if !(fflag != 0 && its < 10 as c_int) {
+        if !(fflag != 0 && its < 10) {
             break;
         }
     }

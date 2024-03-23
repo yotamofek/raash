@@ -29,28 +29,27 @@ pub(crate) unsafe fn kbd_window_init(
     let mut tmp: c_double = 0.;
     let mut scale: c_double = 0.0f64;
     let mut temp_small: [c_double; 513] = [0.; 513];
-    let mut temp: *mut c_double = (if n <= 1024 as c_int {
+    let mut temp: *mut c_double = (if n <= 1024 {
         temp_small.as_mut_ptr() as *mut c_void
     } else {
-        alloc(Layout::array::<c_double>((n / 2 as c_int + 1 as c_int) as usize).unwrap()).cast()
+        alloc(Layout::array::<c_double>((n / 2 + 1) as usize).unwrap()).cast()
     }) as *mut c_double;
     let mut alpha2: c_double =
         4. * (alpha as c_double * PI / n as c_double) * (alpha as c_double * PI / n as c_double);
     if temp.is_null() {
-        return -(12 as c_int);
+        return -12;
     }
-    i = 0 as c_int;
-    while i <= n / 2 as c_int {
+    i = 0;
+    while i <= n / 2 {
         tmp = alpha2 * i as c_double * (n - i) as c_double;
         *temp.offset(i as isize) = bessel::i0(sqrt(tmp));
-        scale += *temp.offset(i as isize)
-            * (1 as c_int + (i != 0 && i < n / 2 as c_int) as c_int) as c_double;
+        scale += *temp.offset(i as isize) * (1 + (i != 0 && i < n / 2) as c_int) as c_double;
         i += 1;
         i;
     }
     scale = 1.0f64 / (scale + 1.);
-    i = 0 as c_int;
-    while i <= n / 2 as c_int {
+    i = 0;
+    while i <= n / 2 {
         sum += *temp.offset(i as isize);
         if !float_window.is_null() {
             *float_window.offset(i as isize) = sqrt(sum * scale) as c_float;
@@ -74,7 +73,7 @@ pub(crate) unsafe fn kbd_window_init(
         // TODO: this leaks 🚿
         // av_free(temp as *mut c_void);
     }
-    0 as c_int
+    0
 }
 
 #[cold]

@@ -51,34 +51,33 @@ unsafe fn cost_template(
     mut BT_STEREO: c_int,
     ROUNDING: c_float,
 ) -> c_float {
-    let q_idx: c_int = 200 as c_int - scale_idx + 140 as c_int - 36 as c_int;
+    let q_idx: c_int = 200 - scale_idx + 140 - 36;
     let Q: c_float = POW_SF_TABLES.pow2[q_idx as usize];
     let Q34: c_float = POW_SF_TABLES.pow34[q_idx as usize];
-    let IQ: c_float =
-        POW_SF_TABLES.pow2[(200 as c_int + scale_idx - 140 as c_int + 36 as c_int) as usize];
+    let IQ: c_float = POW_SF_TABLES.pow2[(200 + scale_idx - 140 + 36) as usize];
     let CLIPPED_ESCAPE: c_float = 165140.0f32 * IQ;
-    let mut cost: c_float = 0 as c_int as c_float;
-    let mut qenergy: c_float = 0 as c_int as c_float;
-    let dim: c_int = if BT_PAIR != 0 { 2 as c_int } else { 4 as c_int };
-    let mut resbits: c_int = 0 as c_int;
+    let mut cost: c_float = 0 as c_float;
+    let mut qenergy: c_float = 0 as c_float;
+    let dim: c_int = if BT_PAIR != 0 { 2 } else { 4 };
+    let mut resbits: c_int = 0;
     let mut off: c_int = 0;
     if BT_ZERO != 0 || BT_NOISE != 0 || BT_STEREO != 0 {
-        let mut i: c_int = 0 as c_int;
+        let mut i: c_int = 0;
         while i < size {
             cost += *in_0.offset(i as isize) * *in_0.offset(i as isize);
             i += 1;
             i;
         }
         if !bits.is_null() {
-            *bits = 0 as c_int;
+            *bits = 0;
         }
         if !energy.is_null() {
             *energy = qenergy;
         }
         if !out.is_null() {
-            let mut i_0: c_int = 0 as c_int;
+            let mut i_0: c_int = 0;
             while i_0 < size {
-                let mut j: c_int = 0 as c_int;
+                let mut j: c_int = 0;
                 while j < dim {
                     *out.offset((i_0 + j) as isize) = 0.0f32;
                     j += 1;
@@ -104,42 +103,41 @@ unsafe fn cost_template(
         ROUNDING,
     );
     if BT_UNSIGNED != 0 {
-        off = 0 as c_int;
+        off = 0;
     } else {
         off = aac_cb_maxval[cb as usize] as c_int;
     }
-    let mut i_1: c_int = 0 as c_int;
+    let mut i_1: c_int = 0;
     while i_1 < size {
         let mut vec: *const c_float = ptr::null::<c_float>();
         let mut quants: *mut c_int = ((*s).qcoefs).as_mut_ptr().offset(i_1 as isize);
-        let mut curidx: c_int = 0 as c_int;
+        let mut curidx: c_int = 0;
         let mut curbits: c_int = 0;
         let mut quantized: c_float = 0.;
         let mut rd: c_float = 0.0f32;
-        let mut j_0: c_int = 0 as c_int;
+        let mut j_0: c_int = 0;
         while j_0 < dim {
             curidx *= aac_cb_range[cb as usize] as c_int;
             curidx += *quants.offset(j_0 as isize) + off;
             j_0 += 1;
             j_0;
         }
-        curbits = ff_aac_spectral_bits[(cb - 1 as c_int) as usize][curidx as usize] as c_int;
-        vec = &(*ff_aac_codebook_vectors[(cb - 1 as c_int) as usize])[(curidx * dim) as usize]
+        curbits = ff_aac_spectral_bits[(cb - 1) as usize][curidx as usize] as c_int;
+        vec = &(*ff_aac_codebook_vectors[(cb - 1) as usize])[(curidx * dim) as usize]
             as *const c_float;
         if BT_UNSIGNED != 0 {
-            let mut j_1: c_int = 0 as c_int;
+            let mut j_1: c_int = 0;
             while j_1 < dim {
                 let mut t: c_float = fabsf(*in_0.offset((i_1 + j_1) as isize));
                 let mut di: c_float = 0.;
                 if BT_ESC != 0 && *vec.offset(j_1 as isize) == 64.0f32 {
                     if t >= CLIPPED_ESCAPE {
                         quantized = CLIPPED_ESCAPE;
-                        curbits += 21 as c_int;
+                        curbits += 21;
                     } else {
-                        let mut c: c_int =
-                            clip_uintp2_c(quant(t, Q, ROUNDING), 13 as c_int) as c_int;
+                        let mut c: c_int = clip_uintp2_c(quant(t, Q, ROUNDING), 13) as c_int;
                         quantized = c as c_float * cbrtf(c as c_float) * IQ;
-                        curbits += ff_log2_c(c as c_uint) * 2 as c_int - 4 as c_int + 1 as c_int;
+                        curbits += ff_log2_c(c as c_uint) * 2 - 4 + 1;
                     }
                 } else {
                     quantized = *vec.offset(j_1 as isize) * IQ;
@@ -147,7 +145,7 @@ unsafe fn cost_template(
                 di = t - quantized;
                 if !out.is_null() {
                     *out.offset((i_1 + j_1) as isize) =
-                        if *in_0.offset((i_1 + j_1) as isize) >= 0 as c_int as c_float {
+                        if *in_0.offset((i_1 + j_1) as isize) >= 0 as c_float {
                             quantized
                         } else {
                             -quantized
@@ -163,7 +161,7 @@ unsafe fn cost_template(
                 j_1;
             }
         } else {
-            let mut j_2: c_int = 0 as c_int;
+            let mut j_2: c_int = 0;
             while j_2 < dim {
                 quantized = *vec.offset(j_2 as isize) * IQ;
                 qenergy += quantized * quantized;
@@ -184,14 +182,13 @@ unsafe fn cost_template(
         if !pb.is_null() {
             put_bits(
                 pb,
-                ff_aac_spectral_bits[(cb - 1 as c_int) as usize][curidx as usize] as c_int,
-                ff_aac_spectral_codes[(cb - 1 as c_int) as usize][curidx as usize] as BitBuf,
+                ff_aac_spectral_bits[(cb - 1) as usize][curidx as usize] as c_int,
+                ff_aac_spectral_codes[(cb - 1) as usize][curidx as usize] as BitBuf,
             );
             if BT_UNSIGNED != 0 {
-                let mut j_3: c_int = 0 as c_int;
+                let mut j_3: c_int = 0;
                 while j_3 < dim {
-                    if ff_aac_codebook_vectors[(cb - 1 as c_int) as usize]
-                        [(curidx * dim + j_3) as usize]
+                    if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * dim + j_3) as usize]
                         != 0.0f32
                     {
                         put_bits(
@@ -205,8 +202,8 @@ unsafe fn cost_template(
                 }
             }
             if BT_ESC != 0 {
-                let mut j_4: c_int = 0 as c_int;
-                while j_4 < 2 as c_int {
+                let mut j_4: c_int = 0;
+                while j_4 < 2 {
                     if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * 2 + j_4) as usize]
                         == 64.0f32
                     {
@@ -215,12 +212,7 @@ unsafe fn cost_template(
                             13,
                         ) as c_int;
                         let mut len: c_int = ff_log2_c(coef as c_uint);
-                        put_bits(
-                            pb,
-                            len - 4 as c_int + 1,
-                            (((1 as c_int) << len - 4 as c_int + 1 as c_int) - 2 as c_int)
-                                as BitBuf,
-                        );
+                        put_bits(pb, len - 4 + 1, (((1) << len - 4 + 1) - 2) as BitBuf);
                         put_sbits(pb, len, coef);
                     }
                     j_4 += 1;

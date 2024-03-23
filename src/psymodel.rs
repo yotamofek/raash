@@ -33,10 +33,9 @@ pub(crate) unsafe fn ff_psy_init(
     (*ctx).bands = bands.to_vec().into_boxed_slice();
     (*ctx).num_bands = num_bands.to_vec().into_boxed_slice();
     (*ctx).cutoff = (*avctx).cutoff;
-    i = 0 as c_int;
+    i = 0;
     while i < num_groups {
-        (*ctx).group[i as usize].num_ch =
-            (*group_map.offset(i as isize) as c_int + 1 as c_int) as c_uchar;
+        (*ctx).group[i as usize].num_ch = (*group_map.offset(i as isize) as c_int + 1) as c_uchar;
         i += 1;
         i;
     }
@@ -46,21 +45,21 @@ pub(crate) unsafe fn ff_psy_init(
     if ((*(*ctx).model).init).is_some() {
         return ((*(*ctx).model).init).expect("non-null function pointer")(ctx);
     }
-    0 as c_int
+    0
 }
 
 pub(crate) unsafe fn ff_psy_find_group(
     mut ctx: *mut FFPsyContext,
     mut channel: c_int,
 ) -> *mut FFPsyChannelGroup {
-    let mut i: c_int = 0 as c_int;
-    let mut ch: c_int = 0 as c_int;
+    let mut i: c_int = 0;
+    let mut ch: c_int = 0;
     while ch <= channel {
         let fresh2 = i;
         i += 1;
         ch += (*ctx).group[fresh2 as usize].num_ch as c_int;
     }
-    &mut (*ctx).group[(i - 1 as c_int) as usize] as *mut FFPsyChannelGroup
+    &mut (*ctx).group[(i - 1) as usize] as *mut FFPsyChannelGroup
 }
 
 #[cold]

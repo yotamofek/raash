@@ -49,16 +49,16 @@ pub(crate) static POW_SF_TABLES: Lazy<PowSfTables> = Lazy::new(|| {
     let mut t2: c_float = 3.637_979e-12;
     let mut t1_inc_cur: c_int = 0;
     let mut t2_inc_cur: c_int = 0;
-    let mut t1_inc_prev: c_int = 0 as c_int;
-    let mut t2_inc_prev: c_int = 8 as c_int;
+    let mut t1_inc_prev: c_int = 0;
+    let mut t2_inc_prev: c_int = 8;
     for (i, (pow2, pow34)) in zip(&mut pow2, &mut pow34).enumerate() {
-        t1_inc_cur = 4 as c_int * (i as c_int % 4);
-        t2_inc_cur = (8 as c_int + 3 as c_int * i as c_int) % 16 as c_int;
+        t1_inc_cur = 4 * (i as c_int % 4);
+        t2_inc_cur = (8 + 3 * i as c_int) % 16;
         if t1_inc_cur < t1_inc_prev {
-            t1 *= 2 as c_int as c_float;
+            t1 *= 2 as c_float;
         }
         if t2_inc_cur < t2_inc_prev {
-            t2 *= 2 as c_int as c_float;
+            t2 *= 2 as c_float;
         }
         *pow2 = t1 * EXP2_LUT[t1_inc_cur as usize];
         *pow34 = t2 * EXP2_LUT[t2_inc_cur as usize];
@@ -84,7 +84,7 @@ where
     for (i, temp) in temp.iter_mut().enumerate() {
         let tmp = alpha2 * i as c_double * (N - i) as c_double;
         *temp = bessel::i0(tmp.sqrt());
-        scale += *temp * (1 as c_int + (i != 0 && i < (N / 2)) as c_int) as c_double;
+        scale += *temp * (1 + (i != 0 && i < (N / 2)) as c_int) as c_double;
     }
 
     scale = 1.0f64 / (scale + 1.);

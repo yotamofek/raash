@@ -43,7 +43,7 @@ fn compute_ref_coefs(
 ) {
     let mut gen0 = [0.; MAX_ORDER as usize];
     let mut gen1 = [0.; MAX_ORDER as usize];
-    let mut i = 0 as c_int;
+    let mut i = 0;
     while i < max_order {
         gen1[i as usize] = autoc[(i + 1) as usize];
         gen0[i as usize] = gen1[i as usize];
@@ -55,16 +55,16 @@ fn compute_ref_coefs(
     if let Some(error) = &mut error {
         error[0] = err;
     }
-    let mut i = 1 as c_int;
+    let mut i = 1;
     while i < max_order {
-        let mut j = 0 as c_int;
+        let mut j = 0;
         while j < max_order - i {
             gen1[j as usize] = gen1[(j + 1) as usize] + ref_0[(i - 1) as usize] * gen0[j as usize];
             gen0[j as usize] += gen1[(j + 1) as usize] * ref_0[(i - 1) as usize];
             j += 1;
         }
-        ref_0[i as usize] = -gen1[0 as c_int as usize] / if err != 0. { err } else { 1. };
-        err += gen1[0 as c_int as usize] * ref_0[i as usize];
+        ref_0[i as usize] = -gen1[0] / if err != 0. { err } else { 1. };
+        err += gen1[0] * ref_0[i as usize];
         if let Some(error) = &mut error {
             error[i as usize] = err;
         }
@@ -99,7 +99,7 @@ impl LPCContext {
     fn compute_autocorr_c(&self, len: usize, lag: c_int, autoc: &mut [c_double]) {
         let padding_size = Self::padding_size(self.max_order);
 
-        let mut j = 0 as c_int;
+        let mut j = 0;
         while j < lag {
             let mut sum0: c_double = 1.0f64;
             let mut sum1: c_double = 1.0f64;
@@ -114,18 +114,18 @@ impl LPCContext {
                 i += 1;
             }
             autoc[j as usize] = sum0;
-            autoc[(j + 1 as c_int) as usize] = sum1;
-            j += 2 as c_int;
+            autoc[(j + 1) as usize] = sum1;
+            j += 2;
         }
         if j == lag {
             let mut sum: c_double = 1.0f64;
-            let mut i = j - 1 as c_int;
+            let mut i = j - 1;
             while (i as c_long) < len as c_long {
                 sum += self.windowed_samples[padding_size + i as usize]
                     * self.windowed_samples[padding_size + i as usize - j as usize];
                 sum += self.windowed_samples[padding_size + i as usize + 1]
                     * self.windowed_samples[padding_size + i as usize - j as usize + 1];
-                i += 2 as c_int;
+                i += 2;
             }
             autoc[j as usize] = sum;
         }

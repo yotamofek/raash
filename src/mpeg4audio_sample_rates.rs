@@ -11,20 +11,6 @@
 use libc::c_int;
 
 pub(crate) const ff_mpeg4audio_sample_rates: [c_int; 16] = [
-    96000 as c_int,
-    88200 as c_int,
-    64000 as c_int,
-    48000 as c_int,
-    44100 as c_int,
-    32000 as c_int,
-    24000 as c_int,
-    22050 as c_int,
-    16000 as c_int,
-    12000 as c_int,
-    11025 as c_int,
-    8000 as c_int,
-    7350 as c_int,
-    0,
-    0,
+    96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350, 0, 0,
     0,
 ];

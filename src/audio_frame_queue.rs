@@ -39,7 +39,7 @@ fn ff_samples_to_time_base(avctx: &AVCodecContext, samples: c_long) -> c_long {
         samples,
         {
             AVRational {
-                num: 1 as c_int,
+                num: 1,
                 den: (*avctx).sample_rate,
             }
         },
@@ -65,7 +65,7 @@ impl AudioFrameQueue {
             pts: if f.pts != c_long::MIN {
                 let pts = av_rescale_q(f.pts, (*self.avctx).time_base, {
                     AVRational {
-                        num: 1 as c_int,
+                        num: 1,
                         den: (*self.avctx).sample_rate,
                     }
                 }) - self.remaining_delay as c_long;
@@ -75,7 +75,7 @@ impl AudioFrameQueue {
                 {
                     av_log(
                         self.avctx as *mut c_void,
-                        24 as c_int,
+                        24,
                         c"Queue input is backward in time\n".as_ptr(),
                     );
                 }
@@ -89,7 +89,7 @@ impl AudioFrameQueue {
 
         self.frames.push(new);
 
-        self.remaining_delay = 0 as c_int;
+        self.remaining_delay = 0;
         self.remaining_samples += f.nb_samples;
     }
 
@@ -98,14 +98,14 @@ impl AudioFrameQueue {
         if self.frames.is_empty() {
             av_log(
                 self.avctx as *mut c_void,
-                24 as c_int,
+                24,
                 b"Trying to remove %d samples, but the queue is empty\n\0" as *const u8
                     as *const c_char,
                 nb_samples,
             );
         }
 
-        let mut removed_samples: c_int = 0 as c_int;
+        let mut removed_samples: c_int = 0;
 
         let pts = ff_samples_to_time_base(
             &*self.avctx,
@@ -115,7 +115,7 @@ impl AudioFrameQueue {
                 .unwrap_or(self.last_pts),
         );
 
-        let mut i = 0 as c_int;
+        let mut i = 0;
         while nb_samples != 0 && (i as c_uint) < self.frames.len() as c_uint {
             let n: c_int = self.frames[i as usize].duration.min(nb_samples);
             self.frames[i as usize].duration -= n;
@@ -129,7 +129,7 @@ impl AudioFrameQueue {
             i;
         }
         self.remaining_samples -= removed_samples;
-        i -= (i != 0 && self.frames[(i - 1 as c_int) as usize].duration != 0) as c_int;
+        i -= (i != 0 && self.frames[(i - 1) as usize].duration != 0) as c_int;
 
         if let Some(AudioFrame { pts, .. }) = self.frames.drain(..i as usize).next() {
             self.last_pts = pts;
@@ -150,7 +150,7 @@ impl AudioFrameQueue {
 
             av_log(
                 self.avctx as *mut c_void,
-                48 as c_int,
+                48,
                 c"Trying to remove %d more samples than there are in the queue\n".as_ptr(),
                 nb_samples,
             );
@@ -174,7 +174,7 @@ impl Drop for AudioFrameQueue {
             unsafe {
                 av_log(
                     self.avctx as *mut c_void,
-                    24 as c_int,
+                    24,
                     b"%d frames left in the queue on closing\n\0" as *const u8 as *const c_char,
                     self.frames.len() as c_uint,
                 )

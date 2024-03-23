@@ -7,12 +7,12 @@ use crate::{avutil::tx::av_tx_init, types::AV_TX_FLOAT_MDCT};
 #[cold]
 /// Source: [libavcodec/aacenc.c](https://github.com/FFmpeg/FFmpeg/blob/2d9ed64859c9887d0504cd71dbd5b2c15e14251a/libavcodec/aacenc.c#L1204C4-L1221)
 pub(super) unsafe fn init(mut avctx: *mut AVCodecContext, mut s: *mut AACEncContext) -> c_int {
-    let mut ret: c_int = 0 as c_int;
+    let mut ret: c_int = 0;
     let mut scale: c_float = 32768.0f32;
 
-    (*s).fdsp = avpriv_float_dsp_alloc((*avctx).flags & (1 as c_int) << 23 as c_int);
+    (*s).fdsp = avpriv_float_dsp_alloc((*avctx).flags & (1) << 23);
     if ((*s).fdsp).is_null() {
-        return -(12 as c_int);
+        return -12;
     }
     ret = av_tx_init(
         &mut (*s).mdct1024,
@@ -23,7 +23,7 @@ pub(super) unsafe fn init(mut avctx: *mut AVCodecContext, mut s: *mut AACEncCont
         &mut scale as *mut c_float as *const c_void,
         0,
     );
-    if ret < 0 as c_int {
+    if ret < 0 {
         return ret;
     }
     ret = av_tx_init(
@@ -35,8 +35,8 @@ pub(super) unsafe fn init(mut avctx: *mut AVCodecContext, mut s: *mut AACEncCont
         &mut scale as *mut c_float as *const c_void,
         0,
     );
-    if ret < 0 as c_int {
+    if ret < 0 {
         return ret;
     }
-    0 as c_int
+    0
 }

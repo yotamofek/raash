@@ -12,20 +12,20 @@ pub(super) unsafe extern "C" fn init_put_bits(
     mut buffer: *mut c_uchar,
     mut buffer_size: c_int,
 ) {
-    if buffer_size < 0 as c_int {
-        buffer_size = 0 as c_int;
+    if buffer_size < 0 {
+        buffer_size = 0;
         buffer = ptr::null_mut::<c_uchar>();
     }
     (*s).buf = buffer;
     (*s).buf_end = ((*s).buf).offset(buffer_size as isize);
     (*s).buf_ptr = (*s).buf;
     (*s).bit_left = BUF_BITS;
-    (*s).bit_buf = 0 as c_int as BitBuf;
+    (*s).bit_buf = 0 as BitBuf;
 }
 
 #[inline]
 pub(super) unsafe extern "C" fn put_bits_count(mut s: *mut PutBitContext) -> c_int {
-    (((*s).buf_ptr).offset_from((*s).buf) as c_long * 8 as c_int as c_long + BUF_BITS as c_long
+    (((*s).buf_ptr).offset_from((*s).buf) as c_long * 8 as c_long + BUF_BITS as c_long
         - (*s).bit_left as c_long) as c_int
 }
 
@@ -43,12 +43,12 @@ pub(super) unsafe extern "C" fn flush_put_bits(mut s: *mut PutBitContext) {
         assert!((*s).buf_ptr < (*s).buf_end);
         let fresh0 = (*s).buf_ptr;
         (*s).buf_ptr = ((*s).buf_ptr).offset(1);
-        *fresh0 = ((*s).bit_buf >> BUF_BITS - 8 as c_int) as c_uchar;
-        (*s).bit_buf <<= 8 as c_int;
-        (*s).bit_left += 8 as c_int;
+        *fresh0 = ((*s).bit_buf >> BUF_BITS - 8) as c_uchar;
+        (*s).bit_buf <<= 8;
+        (*s).bit_left += 8;
     }
     (*s).bit_left = BUF_BITS;
-    (*s).bit_buf = 0 as c_int as BitBuf;
+    (*s).bit_buf = 0 as BitBuf;
 }
 
 #[inline]
@@ -93,5 +93,5 @@ pub(super) unsafe extern "C" fn put_bits(
 
 #[inline]
 pub(super) unsafe extern "C" fn align_put_bits(mut s: *mut PutBitContext) {
-    put_bits(s, (*s).bit_left & 7 as c_int, 0 as c_int as BitBuf);
+    put_bits(s, (*s).bit_left & 7, 0 as BitBuf);
 }

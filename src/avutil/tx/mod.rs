@@ -39,8 +39,7 @@ unsafe fn ff_ctz_c(v: c_int) -> c_int {
         0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7,
         26, 12, 18, 6, 11, 5, 10, 9,
     ];
-    DEBRUIJN_CTZ32[(((v & -v) as c_uint).wrapping_mul(0x77cb531 as c_uint) >> 27 as c_int) as usize]
-        as c_int
+    DEBRUIJN_CTZ32[(((v & -v) as c_uint).wrapping_mul(0x77cb531 as c_uint) >> 27) as usize] as c_int
 }
 
 unsafe fn reset_ctx(s: *mut AVTXContext, free_sub: c_int) {
@@ -48,9 +47,9 @@ unsafe fn reset_ctx(s: *mut AVTXContext, free_sub: c_int) {
         return;
     }
     if !((*s).sub).is_null() {
-        let mut i: c_int = 0 as c_int;
-        while i < 4 as c_int {
-            reset_ctx(&mut *((*s).sub).offset(i as isize), free_sub + 1 as c_int);
+        let mut i: c_int = 0;
+        while i < 4 {
+            reset_ctx(&mut *((*s).sub).offset(i as isize), free_sub + 1);
             i += 1;
             i;
         }
@@ -65,7 +64,7 @@ unsafe fn reset_ctx(s: *mut AVTXContext, free_sub: c_int) {
     // av_freep(&mut (*s).map as *mut *mut c_int as *mut c_void);
     // av_freep(&mut (*s).exp as *mut *mut c_void as *mut c_void);
     // av_freep(&mut (*s).tmp as *mut *mut c_void as *mut c_void);
-    (*s).nb_sub = 0 as c_int;
+    (*s).nb_sub = 0;
     (*s).opaque = std::ptr::null_mut::<c_void>();
     (*s).fn_0[0] = None;
 }
@@ -75,7 +74,7 @@ pub(crate) unsafe fn av_tx_uninit(ctx: *mut *mut AVTXContext) {
     if (*ctx).is_null() {
         return;
     }
-    reset_ctx(*ctx, 1 as c_int);
+    reset_ctx(*ctx, 1);
     av_freep(ctx as *mut c_void);
 }
 #[cold]
@@ -95,9 +94,9 @@ unsafe extern "C" fn ff_tx_null_init(
             || (*s).type_0 as c_uint == AV_TX_DOUBLE_RDFT as c_int as c_uint
             || (*s).type_0 as c_uint == AV_TX_INT32_RDFT as c_int as c_uint)
     {
-        return -(22 as c_int);
+        return -22;
     }
-    0 as c_int
+    0
 }
 unsafe extern "C" fn ff_tx_null(
     _s: *mut AVTXContext,
@@ -112,16 +111,16 @@ static mut ff_tx_null_def: FFTXCodelet = FFTXCodelet {
     function: Some(ff_tx_null),
     type_0: 2147483647 as AVTXType,
     flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-        | (1 as c_ulonglong) << 62 as c_int
-        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 62
+        | (1 as c_ulonglong) << 63
         | AV_TX_INPLACE as c_int as c_ulonglong) as c_ulong,
-    factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    factors: [-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     nb_factors: 0,
-    min_len: 1 as c_int,
-    max_len: 1 as c_int,
+    min_len: 1,
+    max_len: 1,
     init: Some(ff_tx_null_init),
     uninit: None,
-    cpu_flags: 0 as c_int,
+    cpu_flags: 0,
     prio: FF_TX_PRIO_MAX as c_int,
 };
 
@@ -144,42 +143,39 @@ static mut cpu_slow_mask: c_int = 0x40000000 as c_int
     | 0x8000000 as c_int
     | 0x2000000 as c_int;
 static mut cpu_slow_penalties: [[c_int; 2]; 6] = [
-    [0x40000000 as c_int, 1 as c_int + 64 as c_int],
-    [0x20000000 as c_int, 1 as c_int + 64 as c_int],
-    [0x4000000 as c_int, 1 as c_int + 64 as c_int],
-    [0x10000000 as c_int, 1 as c_int + 128 as c_int],
-    [0x8000000 as c_int, 1 as c_int + 128 as c_int],
-    [0x2000000 as c_int, 1 as c_int + 32 as c_int],
+    [0x40000000 as c_int, 1 + 64],
+    [0x20000000 as c_int, 1 + 64],
+    [0x4000000 as c_int, 1 + 64],
+    [0x10000000 as c_int, 1 + 128],
+    [0x8000000 as c_int, 1 + 128],
+    [0x2000000 as c_int, 1 + 32],
 ];
 unsafe fn get_codelet_prio(cd: *const FFTXCodelet, cpu_flags: c_int, len: c_int) -> c_int {
     let mut prio: c_int = (*cd).prio;
-    let mut max_factor: c_int = 0 as c_int;
-    let mut i: c_int = 0 as c_int;
+    let mut max_factor: c_int = 0;
+    let mut i: c_int = 0;
     while (i as c_ulong)
         < (size_of::<[[c_int; 2]; 6]>() as c_ulong).wrapping_div(size_of::<[c_int; 2]>() as c_ulong)
     {
-        if cpu_flags & (*cd).cpu_flags & cpu_slow_penalties[i as usize][0 as c_int as usize] != 0 {
-            prio -= cpu_slow_penalties[i as usize][1 as c_int as usize];
+        if cpu_flags & (*cd).cpu_flags & cpu_slow_penalties[i as usize][0] != 0 {
+            prio -= cpu_slow_penalties[i as usize][1];
         }
         i += 1;
         i;
     }
-    if (*cd).flags as c_ulonglong & (1 as c_ulonglong) << 62 as c_int != 0
+    if (*cd).flags as c_ulonglong & (1 as c_ulonglong) << 62 != 0
         && (*cd).flags & AV_TX_UNALIGNED as c_int as c_ulong == 0
     {
-        prio += 64 as c_int;
+        prio += 64;
     }
     if len == (*cd).min_len && len == (*cd).max_len {
-        prio += 64 as c_int;
+        prio += 64;
     }
-    if (*cd).flags as c_ulonglong
-        & ((1 as c_ulonglong) << 59 as c_int | (1 as c_ulonglong) << 60 as c_int)
-        != 0
-    {
-        prio += 64 as c_int;
+    if (*cd).flags as c_ulonglong & ((1 as c_ulonglong) << 59 | (1 as c_ulonglong) << 60) != 0 {
+        prio += 64;
     }
-    let mut i_0: c_int = 0 as c_int;
-    while i_0 < 4 as c_int {
+    let mut i_0: c_int = 0;
+    while i_0 < 4 {
         max_factor = if (*cd).factors[i_0 as usize] > max_factor {
             (*cd).factors[i_0 as usize]
         } else {
@@ -189,7 +185,7 @@ unsafe fn get_codelet_prio(cd: *const FFTXCodelet, cpu_flags: c_int, len: c_int)
         i_0;
     }
     if max_factor != 0 {
-        prio += 16 as c_int * max_factor;
+        prio += 16 * max_factor;
     }
     prio
 }
@@ -199,20 +195,20 @@ unsafe fn cmp_matches(a: *mut TXCodeletMatch, b: *mut TXCodeletMatch) -> c_int {
 }
 #[inline]
 unsafe fn check_cd_factors(cd: *const FFTXCodelet, mut len: c_int) -> c_int {
-    let mut matches: c_int = 0 as c_int;
-    let mut any_flag: c_int = 0 as c_int;
-    let mut i: c_int = 0 as c_int;
-    while i < 16 as c_int {
+    let mut matches: c_int = 0;
+    let mut any_flag: c_int = 0;
+    let mut i: c_int = 0;
+    while i < 16 {
         let factor: c_int = (*cd).factors[i as usize];
-        if factor == -(1 as c_int) {
-            any_flag = 1 as c_int;
+        if factor == -1 {
+            any_flag = 1;
             matches += 1;
             matches;
         } else {
-            if len <= 1 as c_int || factor == 0 {
+            if len <= 1 || factor == 0 {
                 break;
             }
-            if factor == 2 as c_int {
+            if factor == 2 {
                 let bits_2: c_int = ff_ctz_c(len);
                 if bits_2 != 0 {
                     len >>= bits_2;
@@ -234,7 +230,7 @@ unsafe fn check_cd_factors(cd: *const FFTXCodelet, mut len: c_int) -> c_int {
         i += 1;
         i;
     }
-    ((*cd).nb_factors <= matches && (any_flag != 0 || len == 1 as c_int)) as c_int
+    ((*cd).nb_factors <= matches && (any_flag != 0 || len == 1)) as c_int
 }
 
 #[cold]
@@ -248,13 +244,13 @@ unsafe fn ff_tx_init_subtx(
     scale: *const c_void,
 ) -> c_int {
     let mut current_block: u64;
-    let mut ret: c_int = 0 as c_int;
+    let mut ret: c_int = 0;
     let mut sub: *mut AVTXContext = std::ptr::null_mut::<AVTXContext>();
     let mut cd_tmp: *mut TXCodeletMatch = std::ptr::null_mut::<TXCodeletMatch>();
     let mut cd_matches: *mut TXCodeletMatch = std::ptr::null_mut::<TXCodeletMatch>();
-    let mut cd_matches_size: c_uint = 0 as c_int as c_uint;
+    let mut cd_matches_size: c_uint = 0 as c_uint;
     let mut codelet_list_idx: c_int = codelet_list_num;
-    let mut nb_cd_matches: c_int = 0 as c_int;
+    let mut nb_cd_matches: c_int = 0;
     // let mut bp: AVBPrint = AVBPrint {
     //     str_0: 0 as *mut c_char,
     //     len: 0,
@@ -268,23 +264,23 @@ unsafe fn ff_tx_init_subtx(
     let inv_req_mask: c_ulong = ((AV_TX_FULL_IMDCT as c_int
         | AV_TX_REAL_TO_REAL as c_int
         | AV_TX_REAL_TO_IMAGINARY as c_int) as c_ulonglong
-        | (1 as c_ulonglong) << 61 as c_int
-        | (1 as c_ulonglong) << 58 as c_int) as c_ulong;
-    if req_flags as c_ulonglong & (1 as c_ulonglong) << 62 as c_int != 0 {
+        | (1 as c_ulonglong) << 61
+        | (1 as c_ulonglong) << 58) as c_ulong;
+    if req_flags as c_ulonglong & (1 as c_ulonglong) << 62 != 0 {
         req_flags |= AV_TX_UNALIGNED as c_int as c_ulong;
     }
     if req_flags & AV_TX_INPLACE as c_int as c_ulong != 0
-        && req_flags as c_ulonglong & (1 as c_ulonglong) << 63 as c_int != 0
+        && req_flags as c_ulonglong & (1 as c_ulonglong) << 63 != 0
     {
         req_flags = (req_flags as c_ulonglong
-            & !(AV_TX_INPLACE as c_int as c_ulonglong | (1 as c_ulonglong) << 63 as c_int))
+            & !(AV_TX_INPLACE as c_int as c_ulonglong | (1 as c_ulonglong) << 63))
             as c_ulong;
     }
-    if req_flags as c_ulonglong & (1 as c_ulonglong) << 62 as c_int != 0
+    if req_flags as c_ulonglong & (1 as c_ulonglong) << 62 != 0
         && req_flags & AV_TX_UNALIGNED as c_int as c_ulong != 0
     {
         req_flags = (req_flags as c_ulonglong
-            & !((1 as c_ulonglong) << 62 as c_int | AV_TX_UNALIGNED as c_int as c_ulonglong))
+            & !((1 as c_ulonglong) << 62 | AV_TX_UNALIGNED as c_int as c_ulonglong))
             as c_ulong;
     }
     loop {
@@ -302,24 +298,22 @@ unsafe fn ff_tx_init_subtx(
             if cd.is_null() {
                 break;
             }
-            if (*cd).type_0 as c_uint != 2147483647 as c_int as c_uint
+            if (*cd).type_0 as c_uint != 2147483647 as c_uint
                 && type_0 as c_uint != (*cd).type_0 as c_uint
             {
                 continue;
             }
-            if (*cd).flags as c_ulonglong & (1 as c_ulonglong) << 59 as c_int != 0 && inv != 0
+            if (*cd).flags as c_ulonglong & (1 as c_ulonglong) << 59 != 0 && inv != 0
                 || (*cd).flags as c_ulonglong
-                    & ((1 as c_ulonglong) << 60 as c_int | AV_TX_FULL_IMDCT as c_int as c_ulonglong)
+                    & ((1 as c_ulonglong) << 60 | AV_TX_FULL_IMDCT as c_int as c_ulonglong)
                     != 0
                     && inv == 0
                 || (*cd).flags as c_ulonglong
-                    & ((1 as c_ulonglong) << 59 as c_int
-                        | AV_TX_REAL_TO_REAL as c_int as c_ulonglong)
+                    & ((1 as c_ulonglong) << 59 | AV_TX_REAL_TO_REAL as c_int as c_ulonglong)
                     != 0
                     && inv != 0
                 || (*cd).flags as c_ulonglong
-                    & ((1 as c_ulonglong) << 59 as c_int
-                        | AV_TX_REAL_TO_IMAGINARY as c_int as c_ulonglong)
+                    & ((1 as c_ulonglong) << 59 | AV_TX_REAL_TO_IMAGINARY as c_int as c_ulonglong)
                     != 0
                     && inv != 0
             {
@@ -330,11 +324,10 @@ unsafe fn ff_tx_init_subtx(
             {
                 continue;
             }
-            if len < (*cd).min_len || (*cd).max_len != -(1 as c_int) && len > (*cd).max_len {
+            if len < (*cd).min_len || (*cd).max_len != -1 && len > (*cd).max_len {
                 continue;
             }
-            if (*cd).cpu_flags != 0 as c_int && cpu_flags & ((*cd).cpu_flags & !cpu_slow_mask) == 0
-            {
+            if (*cd).cpu_flags != 0 && cpu_flags & ((*cd).cpu_flags & !cpu_slow_mask) == 0 {
                 continue;
             }
             if check_cd_factors(cd, len) == 0 {
@@ -344,11 +337,11 @@ unsafe fn ff_tx_init_subtx(
                 cd_matches as *mut c_void,
                 &mut cd_matches_size,
                 (size_of::<TXCodeletMatch>() as c_ulong)
-                    .wrapping_mul((nb_cd_matches + 1 as c_int) as c_ulong),
+                    .wrapping_mul((nb_cd_matches + 1) as c_ulong),
             ) as *mut TXCodeletMatch;
             if cd_tmp.is_null() {
                 av_free(cd_matches as *mut c_void);
-                return -(12 as c_int);
+                return -12;
             }
             cd_matches = cd_tmp;
             let fresh12 = &mut (*cd_matches.offset(nb_cd_matches as isize)).cd;
@@ -361,8 +354,8 @@ unsafe fn ff_tx_init_subtx(
     }
     // av_bprint_init(
     //     &mut bp,
-    //     0 as c_int as c_uint,
-    //     1 as c_int as c_uint,
+    //     0 as c_uint,
+    //     1 as c_uint,
     // );
     // av_bprintf(
     //     &mut bp as *mut AVBPrint,
@@ -391,59 +384,50 @@ unsafe fn ff_tx_init_subtx(
     //     },
     // );
     if nb_cd_matches == 0 {
-        return -(38 as c_int);
+        return -38;
     }
     let mut stack: [[*mut c_void; 2]; 64] = [[std::ptr::null_mut::<c_void>(); 2]; 64];
-    let mut sp: c_int = 1 as c_int;
-    stack[0 as c_int as usize][0 as c_int as usize] = cd_matches as *mut c_void;
-    stack[0 as c_int as usize][1 as c_int as usize] = cd_matches
-        .offset(nb_cd_matches as isize)
-        .offset(-(1 as c_int as isize))
-        as *mut c_void;
+    let mut sp: c_int = 1;
+    stack[0][0] = cd_matches as *mut c_void;
+    stack[0][1] = cd_matches.offset(nb_cd_matches as isize).offset(-1) as *mut c_void;
     while sp != 0 {
         sp -= 1;
-        let mut start: *mut TXCodeletMatch =
-            stack[sp as usize][0 as c_int as usize] as *mut TXCodeletMatch;
-        let mut end: *mut TXCodeletMatch =
-            stack[sp as usize][1 as c_int as usize] as *mut TXCodeletMatch;
+        let mut start: *mut TXCodeletMatch = stack[sp as usize][0] as *mut TXCodeletMatch;
+        let mut end: *mut TXCodeletMatch = stack[sp as usize][1] as *mut TXCodeletMatch;
         while start < end {
-            if start < end.offset(-(1 as c_int as isize)) {
-                let mut checksort: c_int = 0 as c_int;
-                let mut right: *mut TXCodeletMatch = end.offset(-(2 as c_int as isize));
-                let mut left: *mut TXCodeletMatch = start.offset(1 as c_int as isize);
+            if start < end.offset(-1) {
+                let mut checksort: c_int = 0;
+                let mut right: *mut TXCodeletMatch = end.offset(-2);
+                let mut left: *mut TXCodeletMatch = start.offset(1);
                 let mut mid: *mut TXCodeletMatch =
-                    start.offset((end.offset_from(start) as c_long >> 1 as c_int) as isize);
-                if cmp_matches(start, end) > 0 as c_int {
-                    if cmp_matches(end, mid) > 0 as c_int {
+                    start.offset((end.offset_from(start) as c_long >> 1) as isize);
+                if cmp_matches(start, end) > 0 {
+                    if cmp_matches(end, mid) > 0 {
                         core::ptr::swap(mid, start);
                     } else {
                         core::ptr::swap(end, start);
                     }
-                } else if cmp_matches(start, mid) > 0 as c_int {
+                } else if cmp_matches(start, mid) > 0 {
                     core::ptr::swap(mid, start);
                 } else {
-                    checksort = 1 as c_int;
+                    checksort = 1;
                 }
-                if cmp_matches(mid, end) > 0 as c_int {
+                if cmp_matches(mid, end) > 0 {
                     core::ptr::swap(end, mid);
-                    checksort = 0 as c_int;
+                    checksort = 0;
                 }
-                if start == end.offset(-(2 as c_int as isize)) {
+                if start == end.offset(-2) {
                     break;
                 }
                 let SWAP_tmp_3: TXCodeletMatch = *mid;
-                *mid = *end.offset(-(1 as c_int) as isize);
-                *end.offset(-(1 as c_int) as isize) = SWAP_tmp_3;
+                *mid = *end.offset(-1);
+                *end.offset(-1) = SWAP_tmp_3;
                 while left <= right {
-                    while left <= right
-                        && cmp_matches(left, end.offset(-(1 as c_int as isize))) < 0 as c_int
-                    {
+                    while left <= right && cmp_matches(left, end.offset(-1)) < 0 {
                         left = left.offset(1);
                         left;
                     }
-                    while left <= right
-                        && cmp_matches(right, end.offset(-(1 as c_int as isize))) > 0 as c_int
-                    {
+                    while left <= right && cmp_matches(right, end.offset(-1)) > 0 {
                         right = right.offset(-1);
                         right;
                     }
@@ -456,13 +440,11 @@ unsafe fn ff_tx_init_subtx(
                     }
                 }
                 let SWAP_tmp_5: TXCodeletMatch = *left;
-                *left = *end.offset(-(1 as c_int) as isize);
-                *end.offset(-(1 as c_int) as isize) = SWAP_tmp_5;
-                if checksort != 0 && (mid == left.offset(-(1 as c_int as isize)) || mid == left) {
+                *left = *end.offset(-1);
+                *end.offset(-1) = SWAP_tmp_5;
+                if checksort != 0 && (mid == left.offset(-1) || mid == left) {
                     mid = start;
-                    while mid < end
-                        && cmp_matches(mid, mid.offset(1 as c_int as isize)) <= 0 as c_int
-                    {
+                    while mid < end && cmp_matches(mid, mid.offset(1)) <= 0 {
                         mid = mid.offset(1);
                         mid;
                     }
@@ -471,21 +453,20 @@ unsafe fn ff_tx_init_subtx(
                     }
                 }
                 if (end.offset_from(left) as c_long) < left.offset_from(start) as c_long {
-                    stack[sp as usize][0 as c_int as usize] = start as *mut c_void;
+                    stack[sp as usize][0] = start as *mut c_void;
                     let fresh13 = sp;
                     sp += 1;
-                    stack[fresh13 as usize][1 as c_int as usize] = right as *mut c_void;
-                    start = left.offset(1 as c_int as isize);
+                    stack[fresh13 as usize][1] = right as *mut c_void;
+                    start = left.offset(1);
                 } else {
-                    stack[sp as usize][0 as c_int as usize] =
-                        left.offset(1 as c_int as isize) as *mut c_void;
+                    stack[sp as usize][0] = left.offset(1) as *mut c_void;
                     let fresh14 = sp;
                     sp += 1;
-                    stack[fresh14 as usize][1 as c_int as usize] = end as *mut c_void;
+                    stack[fresh14 as usize][1] = end as *mut c_void;
                     end = right;
                 }
             } else {
-                if cmp_matches(start, end) > 0 as c_int {
+                if cmp_matches(start, end) > 0 {
                     core::ptr::swap(end, start);
                 }
                 break;
@@ -494,23 +475,23 @@ unsafe fn ff_tx_init_subtx(
     }
     // av_log(
     //     0 as *mut c_void,
-    //     48 as c_int,
+    //     48,
     //     b"%s\n\0" as *const u8 as *const c_char,
     //     bp.str_0,
     // );
-    let _i: c_int = 0 as c_int;
+    let _i: c_int = 0;
     // while i < nb_cd_matches {
     //     av_log(
     //         0 as *mut c_void,
-    //         48 as c_int,
+    //         48,
     //         b"    %i: \0" as *const u8 as *const c_char,
-    //         i + 1 as c_int,
+    //         i + 1,
     //     );
     //     print_cd_info(
     //         (*cd_matches.offset(i as isize)).cd,
     //         (*cd_matches.offset(i as isize)).prio,
-    //         0 as c_int,
-    //         1 as c_int,
+    //         0,
+    //         1,
     //     );
     //     i += 1;
     //     i;
@@ -519,7 +500,7 @@ unsafe fn ff_tx_init_subtx(
         sub = alloc_zeroed(Layout::array::<AVTXContext>(4).unwrap()).cast();
         (*s).sub = sub;
         if sub.is_null() {
-            ret = -(12 as c_int);
+            ret = -12;
             current_block = 7391434065428304855;
         } else {
             current_block = 5706227035632243100;
@@ -528,7 +509,7 @@ unsafe fn ff_tx_init_subtx(
         current_block = 5706227035632243100;
     }
     if let 5706227035632243100 = current_block {
-        let mut i_0: c_int = 0 as c_int;
+        let mut i_0: c_int = 0;
         loop {
             if i_0 >= nb_cd_matches {
                 current_block = 16937825661756021828;
@@ -544,24 +525,24 @@ unsafe fn ff_tx_init_subtx(
             (*sctx).cd_self = cd_0;
             (*s).fn_0[(*s).nb_sub as usize] = (*cd_0).function;
             (*s).cd[(*s).nb_sub as usize] = cd_0;
-            ret = 0 as c_int;
+            ret = 0;
             if ((*cd_0).init).is_some() {
                 ret = ((*cd_0).init).expect("non-null function pointer")(
                     sctx, cd_0, flags, opts, len, inv, scale,
                 );
             }
-            if ret >= 0 as c_int {
+            if ret >= 0 {
                 if !opts.is_null()
                     && (*opts).map_dir as c_uint != FF_TX_MAP_NONE as c_int as c_uint
                     && (*sctx).map_dir as c_uint == FF_TX_MAP_NONE as c_int as c_uint
                 {
                     (*sctx).map = alloc(Layout::array::<c_int>(len as usize).unwrap()).cast();
                     if ((*sctx).map).is_null() {
-                        ret = -(12 as c_int);
+                        ret = -12;
                         current_block = 7391434065428304855;
                         break;
                     } else {
-                        let mut i_1: c_int = 0 as c_int;
+                        let mut i_1: c_int = 0;
                         while i_1 < len {
                             *((*sctx).map).offset(i_1 as isize) = i_1;
                             i_1 += 1;
@@ -573,12 +554,12 @@ unsafe fn ff_tx_init_subtx(
                     let tmp: *mut c_int =
                         alloc(Layout::array::<c_int>(len as usize).unwrap()).cast();
                     if tmp.is_null() {
-                        ret = -(12 as c_int);
+                        ret = -12;
                         current_block = 7391434065428304855;
                         break;
                     } else {
                         ptr::copy_nonoverlapping((*sctx).map, tmp, len as usize);
-                        let mut i_2: c_int = 0 as c_int;
+                        let mut i_2: c_int = 0;
                         while i_2 < len {
                             *((*sctx).map).offset(*tmp.offset(i_2 as isize) as isize) = i_2;
                             i_2 += 1;
@@ -594,8 +575,8 @@ unsafe fn ff_tx_init_subtx(
             } else {
                 (*s).fn_0[(*s).nb_sub as usize] = None;
                 (*s).cd[(*s).nb_sub as usize] = std::ptr::null::<FFTXCodelet>();
-                reset_ctx(sctx, 0 as c_int);
-                if ret == -(12 as c_int) {
+                reset_ctx(sctx, 0);
+                if ret == -12 {
                     current_block = 16937825661756021828;
                     break;
                 }
@@ -629,7 +610,7 @@ pub(crate) unsafe fn av_tx_init(
     let mut ret: c_int = 0;
     let mut tmp: AVTXContext = {
         AVTXContext {
-            len: 0 as c_int,
+            len: 0,
             inv: 0,
             map: std::ptr::null_mut::<c_int>(),
             exp: AVTXNum {
@@ -655,13 +636,13 @@ pub(crate) unsafe fn av_tx_init(
     let default_scale_f: c_float = 1.0f32;
     if len == 0 || type_0 as c_uint >= AV_TX_NB as c_int as c_uint || ctx.is_null() || tx.is_null()
     {
-        return -(22 as c_int);
+        return -22;
     }
     if flags & AV_TX_UNALIGNED as c_int as c_ulong == 0 {
-        flags = (flags as c_ulonglong | (1 as c_ulonglong) << 62 as c_int) as c_ulong;
+        flags = (flags as c_ulonglong | (1 as c_ulonglong) << 62) as c_ulong;
     }
     if flags & AV_TX_INPLACE as c_int as c_ulong == 0 {
-        flags = (flags as c_ulonglong | (1 as c_ulonglong) << 63 as c_int) as c_ulong;
+        flags = (flags as c_ulonglong | (1 as c_ulonglong) << 63) as c_ulong;
     }
     if scale.is_null()
         && (type_0 as c_uint == AV_TX_FLOAT_MDCT as c_int as c_uint
@@ -680,17 +661,17 @@ pub(crate) unsafe fn av_tx_init(
         inv,
         scale,
     );
-    if ret < 0 as c_int {
+    if ret < 0 {
         return ret;
     }
-    *ctx = &mut *(tmp.sub).offset(0 as c_int as isize) as *mut AVTXContext;
-    *tx = tmp.fn_0[0 as c_int as usize];
+    *ctx = &mut *(tmp.sub).offset(0) as *mut AVTXContext;
+    *tx = tmp.fn_0[0];
     // av_log(
     //     0 as *mut c_void,
-    //     48 as c_int,
+    //     48,
     //     b"Transform tree:\n\0" as *const u8 as *const c_char,
     // );
-    // print_tx_structure(*ctx, 0 as c_int);
+    // print_tx_structure(*ctx, 0);
     ret
 }
 unsafe fn run_static_initializers() {
@@ -707,26 +688,26 @@ static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];
 #[inline(always)]
 unsafe extern "C" fn mulinv(mut n: c_int, m: c_int) -> c_int {
     n %= m;
-    let mut x: c_int = 1 as c_int;
+    let mut x: c_int = 1;
     while x < m {
-        if n * x % m == 1 as c_int {
+        if n * x % m == 1 {
             return x;
         }
         x += 1;
         x;
     }
-    if 0 as c_int == 0 {
+    if 0 == 0 {
         av_log(
             std::ptr::null_mut::<c_void>(),
-            0 as c_int,
+            0,
             b"Assertion %s failed at %s:%d\n\0" as *const u8 as *const c_char,
             b"0\0" as *const u8 as *const c_char,
             b"libavutil/tx.c\0" as *const u8 as *const c_char,
-            39 as c_int,
+            39,
         );
         abort();
     }
-    0 as c_int
+    0
 }
 
 pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
@@ -739,16 +720,16 @@ pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
     (*s).map =
         av_malloc(((*s).len as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong)) as *mut c_int;
     if ((*s).map).is_null() {
-        return -(12 as c_int);
+        return -12;
     }
-    let mut k: c_int = 0 as c_int;
+    let mut k: c_int = 0;
     while k < (*s).len {
         if (*s).inv != 0
             || !opts.is_null() && (*opts).map_dir as c_uint == FF_TX_MAP_SCATTER as c_int as c_uint
         {
-            let mut m: c_int = 0 as c_int;
+            let mut m: c_int = 0;
             while m < d2 {
-                let mut n: c_int = 0 as c_int;
+                let mut n: c_int = 0;
                 while n < d1 {
                     *((*s).map).offset((k + (m * d1 + n * d2) % sl) as isize) = m * d1 + n;
                     n += 1;
@@ -758,9 +739,9 @@ pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
                 m;
             }
         } else {
-            let mut m_0: c_int = 0 as c_int;
+            let mut m_0: c_int = 0;
             while m_0 < d2 {
-                let mut n_0: c_int = 0 as c_int;
+                let mut n_0: c_int = 0;
                 while n_0 < d1 {
                     *((*s).map).offset((k + m_0 * d1 + n_0) as isize) = (m_0 * d1 + n_0 * d2) % sl;
                     n_0 += 1;
@@ -771,8 +752,8 @@ pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
             }
         }
         if (*s).inv != 0 {
-            let mut w: c_int = 1 as c_int;
-            while w <= sl >> 1 as c_int {
+            let mut w: c_int = 1;
+            while w <= sl >> 1 {
                 let SWAP_tmp: c_int = *((*s).map).offset((k + sl - w) as isize);
                 *((*s).map).offset((k + sl - w) as isize) = *((*s).map).offset((k + w) as isize);
                 *((*s).map).offset((k + w) as isize) = SWAP_tmp;
@@ -787,7 +768,7 @@ pub unsafe extern "C" fn ff_tx_gen_pfa_input_map(
     } else {
         FF_TX_MAP_GATHER as c_int as c_uint
     }) as FFTXMapDirection;
-    0 as c_int
+    0
 }
 
 pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
@@ -802,23 +783,22 @@ pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
     let len: c_int = n * m;
     let mut m_inv: c_int = 0;
     let mut n_inv: c_int = 0;
-    if av_gcd(n as c_long, m as c_long) != 1 as c_int as c_long {
-        return -(22 as c_int);
+    if av_gcd(n as c_long, m as c_long) != 1 as c_long {
+        return -22;
     }
     m_inv = mulinv(m, n);
     n_inv = mulinv(n, m);
     (*s).map =
-        av_malloc(((2 as c_int * len) as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong))
-            as *mut c_int;
+        av_malloc(((2 * len) as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong)) as *mut c_int;
     if ((*s).map).is_null() {
-        return -(12 as c_int);
+        return -12;
     }
     in_map = (*s).map;
     out_map = ((*s).map).offset(len as isize);
     if !opts.is_null() && (*opts).map_dir as c_uint == FF_TX_MAP_SCATTER as c_int as c_uint {
-        let mut j: c_int = 0 as c_int;
+        let mut j: c_int = 0;
         while j < m {
-            let mut i: c_int = 0 as c_int;
+            let mut i: c_int = 0;
             while i < n {
                 *in_map.offset(((i * m + j * n) % len) as isize) = j * n + i;
                 *out_map.offset(((i * m * m_inv + j * n * n_inv) % len) as isize) = i * m + j;
@@ -829,9 +809,9 @@ pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
             j;
         }
     } else {
-        let mut j_0: c_int = 0 as c_int;
+        let mut j_0: c_int = 0;
         while j_0 < m {
-            let mut i_0: c_int = 0 as c_int;
+            let mut i_0: c_int = 0;
             while i_0 < n {
                 *in_map.offset((j_0 * n + i_0) as isize) = (i_0 * m + j_0 * n) % len;
                 *out_map.offset(((i_0 * m * m_inv + j_0 * n * n_inv) % len) as isize) =
@@ -844,14 +824,13 @@ pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
         }
     }
     if inv != 0 {
-        let mut i_1: c_int = 0 as c_int;
+        let mut i_1: c_int = 0;
         while i_1 < m {
-            let in_0: *mut c_int =
-                &mut *in_map.offset((i_1 * n + 1 as c_int) as isize) as *mut c_int;
-            let mut j_1: c_int = 0 as c_int;
-            while j_1 < n - 1 as c_int >> 1 as c_int {
-                let SWAP_tmp: c_int = *in_0.offset((n - j_1 - 2 as c_int) as isize);
-                *in_0.offset((n - j_1 - 2 as c_int) as isize) = *in_0.offset(j_1 as isize);
+            let in_0: *mut c_int = &mut *in_map.offset((i_1 * n + 1) as isize) as *mut c_int;
+            let mut j_1: c_int = 0;
+            while j_1 < n - 1 >> 1 {
+                let SWAP_tmp: c_int = *in_0.offset((n - j_1 - 2) as isize);
+                *in_0.offset((n - j_1 - 2) as isize) = *in_0.offset(j_1 as isize);
                 *in_0.offset(j_1 as isize) = SWAP_tmp;
                 j_1 += 1;
                 j_1;
@@ -865,20 +844,19 @@ pub unsafe extern "C" fn ff_tx_gen_compound_mapping(
     } else {
         FF_TX_MAP_GATHER as c_int as c_uint
     }) as FFTXMapDirection;
-    0 as c_int
+    0
 }
 #[inline]
 unsafe extern "C" fn split_radix_permutation(i: c_int, mut len: c_int, inv: c_int) -> c_int {
-    len >>= 1 as c_int;
-    if len <= 1 as c_int {
-        return i & 1 as c_int;
+    len >>= 1;
+    if len <= 1 {
+        return i & 1;
     }
     if i & len == 0 {
-        return split_radix_permutation(i, len, inv) * 2 as c_int;
+        return split_radix_permutation(i, len, inv) * 2;
     }
-    len >>= 1 as c_int;
-    split_radix_permutation(i, len, inv) * 4 as c_int + 1 as c_int
-        - 2 as c_int * ((i & len == 0) as c_int ^ inv)
+    len >>= 1;
+    split_radix_permutation(i, len, inv) * 4 + 1 - 2 * ((i & len == 0) as c_int ^ inv)
 }
 
 pub unsafe extern "C" fn ff_tx_gen_ptwo_revtab(
@@ -889,22 +867,20 @@ pub unsafe extern "C" fn ff_tx_gen_ptwo_revtab(
     (*s).map =
         av_malloc((len as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong)) as *mut c_int;
     if ((*s).map).is_null() {
-        return -(12 as c_int);
+        return -12;
     }
     if !opts.is_null() && (*opts).map_dir as c_uint == FF_TX_MAP_SCATTER as c_int as c_uint {
-        let mut i: c_int = 0 as c_int;
+        let mut i: c_int = 0;
         while i < (*s).len {
-            *((*s).map)
-                .offset((-split_radix_permutation(i, len, (*s).inv) & len - 1 as c_int) as isize) =
-                i;
+            *((*s).map).offset((-split_radix_permutation(i, len, (*s).inv) & len - 1) as isize) = i;
             i += 1;
             i;
         }
     } else {
-        let mut i_0: c_int = 0 as c_int;
+        let mut i_0: c_int = 0;
         while i_0 < (*s).len {
             *((*s).map).offset(i_0 as isize) =
-                -split_radix_permutation(i_0, len, (*s).inv) & len - 1 as c_int;
+                -split_radix_permutation(i_0, len, (*s).inv) & len - 1;
             i_0 += 1;
             i_0;
         }
@@ -914,31 +890,31 @@ pub unsafe extern "C" fn ff_tx_gen_ptwo_revtab(
     } else {
         FF_TX_MAP_GATHER as c_int as c_uint
     }) as FFTXMapDirection;
-    0 as c_int
+    0
 }
 
 pub unsafe extern "C" fn ff_tx_gen_inplace_map(s: *mut AVTXContext, len: c_int) -> c_int {
     let mut src_map: *mut c_int = std::ptr::null_mut::<c_int>();
-    let mut out_map_idx: c_int = 0 as c_int;
+    let mut out_map_idx: c_int = 0;
     if ((*s).sub).is_null() || ((*(*s).sub).map).is_null() {
-        return -(22 as c_int);
+        return -22;
     }
     (*s).map =
         av_mallocz((len as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong)) as *mut c_int;
     if ((*s).map).is_null() {
-        return -(12 as c_int);
+        return -12;
     }
     src_map = (*(*s).sub).map;
-    let mut src: c_int = 1 as c_int;
+    let mut src: c_int = 1;
     while src < (*s).len {
         let mut dst: c_int = *src_map.offset(src as isize);
-        let mut found: c_int = 0 as c_int;
+        let mut found: c_int = 0;
         if !(dst <= src) {
             loop {
-                let mut j: c_int = 0 as c_int;
+                let mut j: c_int = 0;
                 while j < out_map_idx {
                     if dst == *((*s).map).offset(j as isize) {
-                        found = 1 as c_int;
+                        found = 1;
                         break;
                     } else {
                         j += 1;
@@ -961,8 +937,8 @@ pub unsafe extern "C" fn ff_tx_gen_inplace_map(s: *mut AVTXContext, len: c_int) 
     }
     let fresh1 = out_map_idx;
     out_map_idx += 1;
-    *((*s).map).offset(fresh1 as isize) = 0 as c_int;
-    0 as c_int
+    *((*s).map).offset(fresh1 as isize) = 0;
+    0
 }
 
 pub unsafe extern "C" fn ff_tx_gen_default_map(
@@ -972,18 +948,18 @@ pub unsafe extern "C" fn ff_tx_gen_default_map(
     (*s).map =
         av_malloc(((*s).len as c_ulong).wrapping_mul(size_of::<c_int>() as c_ulong)) as *mut c_int;
     if ((*s).map).is_null() {
-        return -(12 as c_int);
+        return -12;
     }
-    *((*s).map).offset(0 as c_int as isize) = 0 as c_int;
+    *((*s).map).offset(0) = 0;
     if (*s).inv != 0 {
-        let mut i: c_int = 1 as c_int;
+        let mut i: c_int = 1;
         while i < (*s).len {
             *((*s).map).offset(i as isize) = (*s).len - i;
             i += 1;
             i;
         }
     } else {
-        let mut i_0: c_int = 1 as c_int;
+        let mut i_0: c_int = 1;
         while i_0 < (*s).len {
             *((*s).map).offset(i_0 as isize) = i_0;
             i_0 += 1;
@@ -991,7 +967,7 @@ pub unsafe extern "C" fn ff_tx_gen_default_map(
         }
     }
     (*s).map_dir = FF_TX_MAP_GATHER;
-    0 as c_int
+    0
 }
 
 pub unsafe extern "C" fn ff_tx_decompose_length(
@@ -1001,7 +977,7 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
     inv: c_int,
 ) -> c_int {
     let current_block: u64;
-    let mut nb_decomp: c_int = 0 as c_int;
+    let mut nb_decomp: c_int = 0;
     let mut ld: [FFTXLenDecomp; 512] = [FFTXLenDecomp {
         len: 0,
         len2: 0,
@@ -1027,54 +1003,51 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
                 break;
             }
             let mut fl: c_int = len;
-            let mut skip: c_int = 0 as c_int;
+            let mut skip: c_int = 0;
             let mut prio: c_int = 0;
-            let mut factors_product: c_int = 1 as c_int;
-            let mut factors_mod: c_int = 0 as c_int;
-            if nb_decomp >= 512 as c_int {
+            let mut factors_product: c_int = 1;
+            let mut factors_mod: c_int = 0;
+            if nb_decomp >= 512 {
                 current_block = 12954599432099290578;
                 break 's_9;
             }
-            if (*cd).type_0 as c_uint != 2147483647 as c_int as c_uint
+            if (*cd).type_0 as c_uint != 2147483647 as c_uint
                 && type_0 as c_uint != (*cd).type_0 as c_uint
             {
                 continue;
             }
-            if (*cd).flags as c_ulonglong & (1 as c_ulonglong) << 59 as c_int != 0 && inv != 0
+            if (*cd).flags as c_ulonglong & (1 as c_ulonglong) << 59 != 0 && inv != 0
                 || (*cd).flags as c_ulonglong
-                    & ((1 as c_ulonglong) << 60 as c_int | AV_TX_FULL_IMDCT as c_int as c_ulonglong)
+                    & ((1 as c_ulonglong) << 60 | AV_TX_FULL_IMDCT as c_int as c_ulonglong)
                     != 0
                     && inv == 0
                 || (*cd).flags as c_ulonglong
-                    & ((1 as c_ulonglong) << 59 as c_int
-                        | AV_TX_REAL_TO_REAL as c_int as c_ulonglong)
+                    & ((1 as c_ulonglong) << 59 | AV_TX_REAL_TO_REAL as c_int as c_ulonglong)
                     != 0
                     && inv != 0
                 || (*cd).flags as c_ulonglong
-                    & ((1 as c_ulonglong) << 59 as c_int
-                        | AV_TX_REAL_TO_IMAGINARY as c_int as c_ulonglong)
+                    & ((1 as c_ulonglong) << 59 | AV_TX_REAL_TO_IMAGINARY as c_int as c_ulonglong)
                     != 0
                     && inv != 0
             {
                 continue;
             }
-            if (*cd).cpu_flags != 0 as c_int && cpu_flags & ((*cd).cpu_flags & !cpu_slow_mask) == 0
-            {
+            if (*cd).cpu_flags != 0 && cpu_flags & ((*cd).cpu_flags & !cpu_slow_mask) == 0 {
                 continue;
             }
-            let mut i: c_int = 0 as c_int;
-            while i < 16 as c_int {
-                if (*cd).factors[i as usize] == 0 || fl == 1 as c_int {
+            let mut i: c_int = 0;
+            while i < 16 {
+                if (*cd).factors[i as usize] == 0 || fl == 1 {
                     break;
                 }
-                if (*cd).factors[i as usize] == -(1 as c_int) {
+                if (*cd).factors[i as usize] == -1 {
                     factors_mod += 1;
                     factors_mod;
                     factors_product *= fl;
                 } else if fl % (*cd).factors[i as usize] == 0 {
                     factors_mod += 1;
                     factors_mod;
-                    if (*cd).factors[i as usize] == 2 as c_int {
+                    if (*cd).factors[i as usize] == 2 {
                         let b: c_int = ff_ctz_c(fl);
                         fl >>= b;
                         factors_product <<= b;
@@ -1094,22 +1067,22 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
             if factors_mod < (*cd).nb_factors || len == factors_product {
                 continue;
             }
-            if av_gcd(factors_product as c_long, fl as c_long) != 1 as c_int as c_long {
+            if av_gcd(factors_product as c_long, fl as c_long) != 1 as c_long {
                 continue;
             }
             if factors_product < (*cd).min_len
-                || (*cd).max_len != -(1 as c_int) && factors_product > (*cd).max_len
+                || (*cd).max_len != -1 && factors_product > (*cd).max_len
             {
                 continue;
             }
             prio = get_codelet_prio(cd, cpu_flags, factors_product) * factors_product;
-            let mut i_0: c_int = 0 as c_int;
+            let mut i_0: c_int = 0;
             while i_0 < nb_decomp {
                 if factors_product == ld[i_0 as usize].len {
                     if prio > ld[i_0 as usize].prio {
                         ld[i_0 as usize].prio = prio;
                     }
-                    skip = 1 as c_int;
+                    skip = 1;
                     break;
                 } else {
                     i_0 += 1;
@@ -1129,62 +1102,53 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
     match current_block {
         4567019141635105728 => {
             if nb_decomp == 0 {
-                return -(22 as c_int);
+                return -22;
             }
         }
         _ => {}
     }
     let mut stack: [[*mut c_void; 2]; 64] = [[std::ptr::null_mut::<c_void>(); 2]; 64];
-    let mut sp: c_int = 1 as c_int;
-    stack[0 as c_int as usize][0 as c_int as usize] = ld.as_mut_ptr() as *mut c_void;
-    stack[0 as c_int as usize][1 as c_int as usize] =
-        ld.as_mut_ptr()
-            .offset(nb_decomp as isize)
-            .offset(-(1 as c_int as isize)) as *mut c_void;
+    let mut sp: c_int = 1;
+    stack[0][0] = ld.as_mut_ptr() as *mut c_void;
+    stack[0][1] = ld.as_mut_ptr().offset(nb_decomp as isize).offset(-1) as *mut c_void;
     while sp != 0 {
         sp -= 1;
-        let mut start: *mut FFTXLenDecomp =
-            stack[sp as usize][0 as c_int as usize] as *mut FFTXLenDecomp;
-        let mut end: *mut FFTXLenDecomp =
-            stack[sp as usize][1 as c_int as usize] as *mut FFTXLenDecomp;
+        let mut start: *mut FFTXLenDecomp = stack[sp as usize][0] as *mut FFTXLenDecomp;
+        let mut end: *mut FFTXLenDecomp = stack[sp as usize][1] as *mut FFTXLenDecomp;
         while start < end {
-            if start < end.offset(-(1 as c_int as isize)) {
-                let mut checksort: c_int = 0 as c_int;
-                let mut right: *mut FFTXLenDecomp = end.offset(-(2 as c_int as isize));
-                let mut left: *mut FFTXLenDecomp = start.offset(1 as c_int as isize);
+            if start < end.offset(-1) {
+                let mut checksort: c_int = 0;
+                let mut right: *mut FFTXLenDecomp = end.offset(-2);
+                let mut left: *mut FFTXLenDecomp = start.offset(1);
                 let mut mid: *mut FFTXLenDecomp =
-                    start.offset((end.offset_from(start) as c_long >> 1 as c_int) as isize);
-                if cmp_decomp(start, end) > 0 as c_int {
-                    if cmp_decomp(end, mid) > 0 as c_int {
+                    start.offset((end.offset_from(start) as c_long >> 1) as isize);
+                if cmp_decomp(start, end) > 0 {
+                    if cmp_decomp(end, mid) > 0 {
                         core::ptr::swap(mid, start);
                     } else {
                         core::ptr::swap(end, start);
                     }
-                } else if cmp_decomp(start, mid) > 0 as c_int {
+                } else if cmp_decomp(start, mid) > 0 {
                     core::ptr::swap(mid, start);
                 } else {
-                    checksort = 1 as c_int;
+                    checksort = 1;
                 }
-                if cmp_decomp(mid, end) > 0 as c_int {
+                if cmp_decomp(mid, end) > 0 {
                     core::ptr::swap(end, mid);
-                    checksort = 0 as c_int;
+                    checksort = 0;
                 }
-                if start == end.offset(-(2 as c_int as isize)) {
+                if start == end.offset(-2) {
                     break;
                 }
                 let SWAP_tmp_3: FFTXLenDecomp = *mid;
-                *mid = *end.offset(-(1 as c_int) as isize);
-                *end.offset(-(1 as c_int) as isize) = SWAP_tmp_3;
+                *mid = *end.offset(-1);
+                *end.offset(-1) = SWAP_tmp_3;
                 while left <= right {
-                    while left <= right
-                        && cmp_decomp(left, end.offset(-(1 as c_int as isize))) < 0 as c_int
-                    {
+                    while left <= right && cmp_decomp(left, end.offset(-1)) < 0 {
                         left = left.offset(1);
                         left;
                     }
-                    while left <= right
-                        && cmp_decomp(right, end.offset(-(1 as c_int as isize))) > 0 as c_int
-                    {
+                    while left <= right && cmp_decomp(right, end.offset(-1)) > 0 {
                         right = right.offset(-1);
                         right;
                     }
@@ -1197,13 +1161,11 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
                     }
                 }
                 let SWAP_tmp_5: FFTXLenDecomp = *left;
-                *left = *end.offset(-(1 as c_int) as isize);
-                *end.offset(-(1 as c_int) as isize) = SWAP_tmp_5;
-                if checksort != 0 && (mid == left.offset(-(1 as c_int as isize)) || mid == left) {
+                *left = *end.offset(-1);
+                *end.offset(-1) = SWAP_tmp_5;
+                if checksort != 0 && (mid == left.offset(-1) || mid == left) {
                     mid = start;
-                    while mid < end
-                        && cmp_decomp(mid, mid.offset(1 as c_int as isize)) <= 0 as c_int
-                    {
+                    while mid < end && cmp_decomp(mid, mid.offset(1)) <= 0 {
                         mid = mid.offset(1);
                         mid;
                     }
@@ -1212,30 +1174,29 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
                     }
                 }
                 if (end.offset_from(left) as c_long) < left.offset_from(start) as c_long {
-                    stack[sp as usize][0 as c_int as usize] = start as *mut c_void;
+                    stack[sp as usize][0] = start as *mut c_void;
                     let fresh8 = sp;
                     sp += 1;
-                    stack[fresh8 as usize][1 as c_int as usize] = right as *mut c_void;
-                    start = left.offset(1 as c_int as isize);
+                    stack[fresh8 as usize][1] = right as *mut c_void;
+                    start = left.offset(1);
                 } else {
-                    stack[sp as usize][0 as c_int as usize] =
-                        left.offset(1 as c_int as isize) as *mut c_void;
+                    stack[sp as usize][0] = left.offset(1) as *mut c_void;
                     let fresh9 = sp;
                     sp += 1;
-                    stack[fresh9 as usize][1 as c_int as usize] = end as *mut c_void;
+                    stack[fresh9 as usize][1] = end as *mut c_void;
                     end = right;
                 }
             } else {
-                if cmp_decomp(start, end) > 0 as c_int {
+                if cmp_decomp(start, end) > 0 {
                     core::ptr::swap(end, start);
                 }
                 break;
             }
         }
     }
-    let mut i_1: c_int = 0 as c_int;
+    let mut i_1: c_int = 0;
     while i_1 < nb_decomp {
-        if (*ld[i_1 as usize].cd).nb_factors > 1 as c_int {
+        if (*ld[i_1 as usize].cd).nb_factors > 1 {
             *dst.offset(i_1 as isize) = ld[i_1 as usize].len2;
         } else {
             *dst.offset(i_1 as isize) = ld[i_1 as usize].len;
@@ -1247,7 +1208,7 @@ pub unsafe extern "C" fn ff_tx_decompose_length(
 }
 
 pub unsafe extern "C" fn ff_tx_clear_ctx(s: *mut AVTXContext) {
-    reset_ctx(s, 0 as c_int);
+    reset_ctx(s, 0);
 }
 
 unsafe extern "C" fn cmp_decomp(a: *mut FFTXLenDecomp, b: *mut FFTXLenDecomp) -> c_int {

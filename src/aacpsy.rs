@@ -127,13 +127,13 @@ static mut psy_fir_coeffs: [c_float; 10] = [
     (-0.313819f64 * 2.) as c_float,
 ];
 unsafe fn lame_calc_attack_threshold(mut bitrate: c_int) -> c_float {
-    let mut lower_range: c_int = 12 as c_int;
-    let mut upper_range: c_int = 12 as c_int;
-    let mut lower_range_kbps: c_int = psy_abr_map[12 as c_int as usize].quality;
-    let mut upper_range_kbps: c_int = psy_abr_map[12 as c_int as usize].quality;
+    let mut lower_range: c_int = 12;
+    let mut upper_range: c_int = 12;
+    let mut lower_range_kbps: c_int = psy_abr_map[12].quality;
+    let mut upper_range_kbps: c_int = psy_abr_map[12].quality;
     let mut i: c_int = 0;
-    i = 1 as c_int;
-    while i < 13 as c_int {
+    i = 1;
+    while i < 13 {
         if (if bitrate > psy_abr_map[i as usize].quality {
             bitrate
         } else {
@@ -142,8 +142,8 @@ unsafe fn lame_calc_attack_threshold(mut bitrate: c_int) -> c_float {
         {
             upper_range = i;
             upper_range_kbps = psy_abr_map[i as usize].quality;
-            lower_range = i - 1 as c_int;
-            lower_range_kbps = psy_abr_map[(i - 1 as c_int) as usize].quality;
+            lower_range = i - 1;
+            lower_range_kbps = psy_abr_map[(i - 1) as usize].quality;
             break;
         } else {
             i += 1;
@@ -159,26 +159,21 @@ unsafe fn lame_calc_attack_threshold(mut bitrate: c_int) -> c_float {
 unsafe fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecContext) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
-    i = 0 as c_int;
+    i = 0;
     while i < (*avctx).ch_layout.nb_channels {
         let mut pch: *mut AacPsyChannel =
             &mut *((*ctx).ch).offset(i as isize) as *mut AacPsyChannel;
         if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
-            (*pch).attack_threshold = psy_vbr_map[av_clip_c(
-                (*avctx).global_quality / 118 as c_int,
-                0 as c_int,
-                10 as c_int,
-            ) as usize]
-                .st_lrm;
+            (*pch).attack_threshold =
+                psy_vbr_map[av_clip_c((*avctx).global_quality / 118, 0, 10) as usize].st_lrm;
         } else {
             (*pch).attack_threshold = lame_calc_attack_threshold(
-                ((*avctx).bit_rate
-                    / (*avctx).ch_layout.nb_channels as c_long
-                    / 1000 as c_int as c_long) as c_int,
+                ((*avctx).bit_rate / (*avctx).ch_layout.nb_channels as c_long / 1000 as c_long)
+                    as c_int,
             );
         }
-        j = 0 as c_int;
-        while j < 8 as c_int * 3 as c_int {
+        j = 0;
+        while j < 8 * 3 {
             (*pch).prev_energy_subshort[j as usize] = 10.0f32;
             j += 1;
             j;
@@ -228,398 +223,366 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     let bandwidth: c_int = (if (*ctx).cutoff != 0 {
         (*ctx).cutoff as c_long
     } else if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
-        ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
+        ((*(*ctx).avctx).sample_rate / 2) as c_long
     } else if (*(*ctx).avctx).bit_rate != 0 {
         if (if (if (if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 12000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 12000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 16 as c_int as c_long
+                / 16 as c_long
         {
-            12000 as c_int as c_long
+            12000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 16 as c_int as c_long
+                    / 16 as c_long
         } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 22000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 22000 as c_long
         {
-            22000 as c_int as c_long
+            22000 as c_long
         } else if (if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 12000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 12000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 16 as c_int as c_long
+                / 16 as c_long
         {
-            12000 as c_int as c_long
+            12000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 16 as c_int as c_long
+                    / 16 as c_long
         } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > ((*(*ctx).avctx).sample_rate / 2) as c_long
         {
-            ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
+            ((*(*ctx).avctx).sample_rate / 2) as c_long
         } else if (if (if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 12000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 12000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 16 as c_int as c_long
+                / 16 as c_long
         {
-            12000 as c_int as c_long
+            12000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 16 as c_int as c_long
+                    / 16 as c_long
         } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 22000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 22000 as c_long
         {
-            22000 as c_int as c_long
+            22000 as c_long
         } else if (if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 12000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 12000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 16 as c_int as c_long
+                / 16 as c_long
         {
-            12000 as c_int as c_long
+            12000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 16 as c_int as c_long
+                    / 16 as c_long
         } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         }
     } else {
-        ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
+        ((*(*ctx).avctx).sample_rate / 2) as c_long
     }) as c_int;
     let num_bark: c_float = calc_bark(bandwidth as c_float);
-    if bandwidth <= 0 as c_int {
-        return -(22 as c_int);
+    if bandwidth <= 0 {
+        return -22;
     }
     (*ctx).model_priv_data = alloc_zeroed(Layout::new::<AacPsyContext>()).cast();
     if ((*ctx).model_priv_data).is_null() {
-        return -(12 as c_int);
+        return -12;
     }
     pctx = (*ctx).model_priv_data as *mut AacPsyContext;
     (*pctx).global_quality = (if (*(*ctx).avctx).global_quality != 0 {
         (*(*ctx).avctx).global_quality
     } else {
-        120 as c_int
+        120
     }) as c_float
         * 0.01f32;
     if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
@@ -627,26 +590,25 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
             * (if (*(*ctx).avctx).global_quality != 0 {
                 (*(*ctx).avctx).global_quality
             } else {
-                120 as c_int
+                120
             }) as c_double) as c_int;
     }
     (*pctx).chan_bitrate = chan_bitrate;
-    (*pctx).frame_bits =
-        if 2560 as c_int > chan_bitrate * 1024 as c_int / (*(*ctx).avctx).sample_rate {
-            chan_bitrate * 1024 as c_int / (*(*ctx).avctx).sample_rate
-        } else {
-            2560 as c_int
-        };
-    (*pctx).pe.min = 8.0f32 * 1024 as c_int as c_float * bandwidth as c_float
+    (*pctx).frame_bits = if 2560 > chan_bitrate * 1024 / (*(*ctx).avctx).sample_rate {
+        chan_bitrate * 1024 / (*(*ctx).avctx).sample_rate
+    } else {
+        2560
+    };
+    (*pctx).pe.min = 8.0f32 * 1024 as c_float * bandwidth as c_float
         / ((*(*ctx).avctx).sample_rate as c_float * 2.0f32);
-    (*pctx).pe.max = 12.0f32 * 1024 as c_int as c_float * bandwidth as c_float
+    (*pctx).pe.max = 12.0f32 * 1024 as c_float * bandwidth as c_float
         / ((*(*ctx).avctx).sample_rate as c_float * 2.0f32);
-    (*ctx).bitres.size = 6144 as c_int - (*pctx).frame_bits;
-    (*ctx).bitres.size -= (*ctx).bitres.size % 8 as c_int;
+    (*ctx).bitres.size = 6144 - (*pctx).frame_bits;
+    (*ctx).bitres.size -= (*ctx).bitres.size % 8;
     (*pctx).fill_level = (*ctx).bitres.size;
-    minath = ath((3410. - 0.733f64 * 4.) as c_float, 4 as c_int as c_float);
-    j = 0 as c_int;
-    while j < 2 as c_int {
+    minath = ath((3410. - 0.733f64 * 4.) as c_float, 4 as c_float);
+    j = 0;
+    while j < 2 {
         let mut coeffs: *mut AacPsyCoeffs = ((*pctx).psy_coef[j as usize]).as_mut_ptr();
         let mut band_sizes: *const c_uchar = ((*ctx).bands)[j as usize].as_ptr();
         let mut line_to_frequency: c_float =
@@ -661,30 +623,26 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
         } else {
             2.0f32
         };
-        i = 0 as c_int;
+        i = 0;
         prev = 0.0f64 as c_float;
-        g = 0 as c_int;
+        g = 0;
         while g < ((*ctx).num_bands)[j as usize] {
             i += *band_sizes.offset(g as isize) as c_int;
-            bark = calc_bark((i - 1 as c_int) as c_float * line_to_frequency);
+            bark = calc_bark((i - 1) as c_float * line_to_frequency);
             (*coeffs.offset(g as isize)).barks = ((bark + prev) as c_double / 2.0f64) as c_float;
             prev = bark;
             g += 1;
             g;
         }
-        g = 0 as c_int;
-        while g < ((*ctx).num_bands)[j as usize] - 1 as c_int {
+        g = 0;
+        while g < ((*ctx).num_bands)[j as usize] - 1 {
             let mut coeff: *mut AacPsyCoeffs = &mut *coeffs.offset(g as isize) as *mut AacPsyCoeffs;
             let mut bark_width: c_float =
-                (*coeffs.offset((g + 1 as c_int) as isize)).barks - (*coeffs).barks;
-            (*coeff).spread_low[0 as c_int as usize] =
-                ff_exp10((-bark_width * 3.0f32) as c_double) as c_float;
-            (*coeff).spread_hi[0 as c_int as usize] =
-                ff_exp10((-bark_width * 1.5f32) as c_double) as c_float;
-            (*coeff).spread_low[1 as c_int as usize] =
-                ff_exp10((-bark_width * en_spread_low) as c_double) as c_float;
-            (*coeff).spread_hi[1 as c_int as usize] =
-                ff_exp10((-bark_width * en_spread_hi) as c_double) as c_float;
+                (*coeffs.offset((g + 1) as isize)).barks - (*coeffs).barks;
+            (*coeff).spread_low[0] = ff_exp10((-bark_width * 3.0f32) as c_double) as c_float;
+            (*coeff).spread_hi[0] = ff_exp10((-bark_width * 1.5f32) as c_double) as c_float;
+            (*coeff).spread_low[1] = ff_exp10((-bark_width * en_spread_low) as c_double) as c_float;
+            (*coeff).spread_hi[1] = ff_exp10((-bark_width * en_spread_hi) as c_double) as c_float;
             pe_min = bark_pe * bark_width;
             minsnr =
                 (exp2((pe_min / *band_sizes.offset(g as isize) as c_int as c_float) as c_double)
@@ -693,24 +651,18 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
             g += 1;
             g;
         }
-        start = 0 as c_int;
-        g = 0 as c_int;
+        start = 0;
+        g = 0;
         while g < ((*ctx).num_bands)[j as usize] {
-            minscale = ath(start as c_float * line_to_frequency, 4 as c_int as c_float);
-            i = 1 as c_int;
+            minscale = ath(start as c_float * line_to_frequency, 4 as c_float);
+            i = 1;
             while i < *band_sizes.offset(g as isize) as c_int {
-                minscale = if minscale
-                    > ath(
-                        (start + i) as c_float * line_to_frequency,
-                        4 as c_int as c_float,
-                    ) {
-                    ath(
-                        (start + i) as c_float * line_to_frequency,
-                        4 as c_int as c_float,
-                    )
-                } else {
-                    minscale
-                };
+                minscale =
+                    if minscale > ath((start + i) as c_float * line_to_frequency, 4 as c_float) {
+                        ath((start + i) as c_float * line_to_frequency, 4 as c_float)
+                    } else {
+                        minscale
+                    };
                 i += 1;
                 i;
             }
@@ -729,10 +681,10 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     if ((*pctx).ch).is_null() {
         // TODO: leaks 🚿
         // av_freep(&mut (*ctx).model_priv_data as *mut *mut c_void as *mut c_void);
-        return -(12 as c_int);
+        return -12;
     }
     lame_window_init(pctx, (*ctx).avctx);
-    0 as c_int
+    0
 }
 const WINDOW_GROUPING: [c_uchar; 9] = [0xb6, 0x6c, 0xd8, 0xb2, 0x66, 0xc6, 0x96, 0x36, 0x36];
 unsafe fn calc_bit_demand(
@@ -771,7 +723,7 @@ unsafe fn calc_bit_demand(
     let mut fill_level: c_float = 0.;
     let mut forgetful_min_pe: c_float = 0.;
     (*ctx).fill_level += (*ctx).frame_bits - bits;
-    (*ctx).fill_level = av_clip_c((*ctx).fill_level, 0 as c_int, size);
+    (*ctx).fill_level = av_clip_c((*ctx).fill_level, 0, size);
     fill_level = av_clipf_c(
         (*ctx).fill_level as c_float / size as c_float,
         clip_low,
@@ -787,29 +739,29 @@ unsafe fn calc_bit_demand(
     } else {
         (*ctx).pe.max
     };
-    forgetful_min_pe = ((*ctx).pe.min * 511 as c_int as c_float
+    forgetful_min_pe = ((*ctx).pe.min * 511 as c_float
         + (if (*ctx).pe.min > pe * (pe / (*ctx).pe.max) {
             (*ctx).pe.min
         } else {
             pe * (pe / (*ctx).pe.max)
         }))
-        / (511 as c_int + 1 as c_int) as c_float;
+        / (511 + 1) as c_float;
     (*ctx).pe.min = if pe > forgetful_min_pe {
         forgetful_min_pe
     } else {
         pe
     };
     (if (*ctx).frame_bits as c_float * bit_factor
-        > (if (*ctx).frame_bits + size - bits > (*ctx).frame_bits / 8 as c_int {
+        > (if (*ctx).frame_bits + size - bits > (*ctx).frame_bits / 8 {
             (*ctx).frame_bits + size - bits
         } else {
-            (*ctx).frame_bits / 8 as c_int
+            (*ctx).frame_bits / 8
         }) as c_float
     {
-        (if (*ctx).frame_bits + size - bits > (*ctx).frame_bits / 8 as c_int {
+        (if (*ctx).frame_bits + size - bits > (*ctx).frame_bits / 8 {
             (*ctx).frame_bits + size - bits
         } else {
-            (*ctx).frame_bits / 8 as c_int
+            (*ctx).frame_bits / 8
         }) as c_float
     } else {
         (*ctx).frame_bits as c_float * bit_factor
@@ -844,7 +796,7 @@ unsafe fn calc_reduction_3gpp(
     let mut thr_avg: c_float = 0.;
     let mut reduction: c_float = 0.;
     if active_lines as c_double == 0.0f64 {
-        return 0 as c_int as c_float;
+        return 0 as c_float;
     }
     thr_avg = exp2f((a - pe) / (4.0f32 * active_lines));
     reduction = exp2f((a - desired_pe) / (4.0f32 * active_lines)) - thr_avg;
@@ -887,12 +839,12 @@ unsafe fn calc_thr_3gpp(
     let mut i: c_int = 0;
     let mut w: c_int = 0;
     let mut g: c_int = 0;
-    let mut start: c_int = 0 as c_int;
-    let mut wstart: c_int = 0 as c_int;
-    w = 0 as c_int;
-    while w < (*wi).num_windows * 16 as c_int {
-        wstart = 0 as c_int;
-        g = 0 as c_int;
+    let mut start: c_int = 0;
+    let mut wstart: c_int = 0;
+    w = 0;
+    while w < (*wi).num_windows * 16 {
+        wstart = 0;
+        g = 0;
         while g < num_bands {
             let mut band: *mut AacPsyBand =
                 &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize) as *mut AacPsyBand;
@@ -900,7 +852,7 @@ unsafe fn calc_thr_3gpp(
             let mut Temp: c_float = 0.;
             (*band).energy = 0.0f32;
             if wstart < cutoff {
-                i = 0 as c_int;
+                i = 0;
                 while i < *band_sizes.offset(g as isize) as c_int {
                     (*band).energy +=
                         *coefs.offset((start + i) as isize) * *coefs.offset((start + i) as isize);
@@ -910,10 +862,10 @@ unsafe fn calc_thr_3gpp(
                     i;
                 }
             }
-            Temp = if (*band).energy > 0 as c_int as c_float {
+            Temp = if (*band).energy > 0 as c_float {
                 sqrtf(*band_sizes.offset(g as isize) as c_float / (*band).energy)
             } else {
-                0 as c_int as c_float
+                0 as c_float
             };
             (*band).thr = (*band).energy * 0.001258925f32;
             (*band).nz_lines = form_factor * sqrtf(Temp);
@@ -922,7 +874,7 @@ unsafe fn calc_thr_3gpp(
             g += 1;
             g;
         }
-        w += 16 as c_int;
+        w += 16;
     }
 }
 unsafe fn psy_hp_filter(
@@ -932,21 +884,20 @@ unsafe fn psy_hp_filter(
 ) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
-    i = 0 as c_int;
-    while i < 1024 as c_int {
+    i = 0;
+    while i < 1024 {
         let mut sum1: c_float = 0.;
         let mut sum2: c_float = 0.;
-        sum1 = *firbuf.offset((i + (21 as c_int - 1 as c_int) / 2 as c_int) as isize);
+        sum1 = *firbuf.offset((i + (21 - 1) / 2) as isize);
         sum2 = 0.0f64 as c_float;
-        j = 0 as c_int;
-        while j < (21 as c_int - 1 as c_int) / 2 as c_int - 1 as c_int {
+        j = 0;
+        while j < (21 - 1) / 2 - 1 {
             sum1 += *psy_fir_coeffs_0.offset(j as isize)
-                * (*firbuf.offset((i + j) as isize)
-                    + *firbuf.offset((i + 21 as c_int - j) as isize));
-            sum2 += *psy_fir_coeffs_0.offset((j + 1 as c_int) as isize)
-                * (*firbuf.offset((i + j + 1 as c_int) as isize)
-                    + *firbuf.offset((i + 21 as c_int - j - 1 as c_int) as isize));
-            j += 2 as c_int;
+                * (*firbuf.offset((i + j) as isize) + *firbuf.offset((i + 21 - j) as isize));
+            sum2 += *psy_fir_coeffs_0.offset((j + 1) as isize)
+                * (*firbuf.offset((i + j + 1) as isize)
+                    + *firbuf.offset((i + 21 - j - 1) as isize));
+            j += 2;
         }
         *hpfsmpl.offset(i as isize) = (sum1 + sum2) * 32768.0f32;
         i += 1;
@@ -973,18 +924,18 @@ unsafe fn psy_3gpp_analyze_channel(
     let mut a: c_float = 0.0f32;
     let mut active_lines: c_float = 0.0f32;
     let mut norm_fac: c_float = 0.0f32;
-    let mut pe: c_float = if (*pctx).chan_bitrate > 32000 as c_int {
+    let mut pe: c_float = if (*pctx).chan_bitrate > 32000 {
         0.0f32
     } else if 50.0f32 > 100.0f32 - (*pctx).chan_bitrate as c_float * 100.0f32 / 32000.0f32 {
         50.0f32
     } else {
         100.0f32 - (*pctx).chan_bitrate as c_float * 100.0f32 / 32000.0f32
     };
-    let num_bands = ((*ctx).num_bands)[((*wi).num_windows == 8 as c_int) as usize];
-    let mut band_sizes = ((*ctx).bands)[((*wi).num_windows == 8 as c_int) as usize];
+    let num_bands = ((*ctx).num_bands)[((*wi).num_windows == 8) as usize];
+    let mut band_sizes = ((*ctx).bands)[((*wi).num_windows == 8) as usize];
     let mut coeffs: *mut AacPsyCoeffs =
-        ((*pctx).psy_coef[((*wi).num_windows == 8 as c_int) as c_int as usize]).as_mut_ptr();
-    let avoid_hole_thr: c_float = if (*wi).num_windows == 8 as c_int {
+        ((*pctx).psy_coef[((*wi).num_windows == 8) as c_int as usize]).as_mut_ptr();
+    let avoid_hole_thr: c_float = if (*wi).num_windows == 8 {
         0.63f32
     } else {
         0.5f32
@@ -992,439 +943,399 @@ unsafe fn psy_3gpp_analyze_channel(
     let bandwidth: c_int = (if (*ctx).cutoff != 0 {
         (*ctx).cutoff as c_long
     } else if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
-        ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
+        ((*(*ctx).avctx).sample_rate / 2) as c_long
     } else if (*(*ctx).avctx).bit_rate != 0 {
         if (if (if (if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 12000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 12000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 16 as c_int as c_long
+                / 16 as c_long
         {
-            12000 as c_int as c_long
+            12000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 16 as c_int as c_long
+                    / 16 as c_long
         } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 22000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 22000 as c_long
         {
-            22000 as c_int as c_long
+            22000 as c_long
         } else if (if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 12000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 12000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 16 as c_int as c_long
+                / 16 as c_long
         {
-            12000 as c_int as c_long
+            12000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 16 as c_int as c_long
+                    / 16 as c_long
         } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > ((*(*ctx).avctx).sample_rate / 2) as c_long
         {
-            ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
+            ((*(*ctx).avctx).sample_rate / 2) as c_long
         } else if (if (if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 12000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 12000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 16 as c_int as c_long
+                / 16 as c_long
         {
-            12000 as c_int as c_long
+            12000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 16 as c_int as c_long
+                    / 16 as c_long
         } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 22000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 22000 as c_long
         {
-            22000 as c_int as c_long
+            22000 as c_long
         } else if (if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 12000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 12000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 16 as c_int as c_long
+                / 16 as c_long
         {
-            12000 as c_int as c_long
+            12000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 16 as c_int as c_long
+                    / 16 as c_long
         } else if (if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
-        }) > 3000 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
+        }) > 3000 as c_long
             + (*(*ctx).avctx).bit_rate
                 / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 4 as c_int as c_long
+                / 4 as c_long
         {
-            3000 as c_int as c_long
+            3000 as c_long
                 + (*(*ctx).avctx).bit_rate
                     / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                    / 4 as c_int as c_long
+                    / 4 as c_long
         } else if (*(*ctx).avctx).bit_rate
             / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-            / 5 as c_int as c_long
+            / 5 as c_long
             > (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         {
-            (*(*ctx).avctx).bit_rate
-                / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                / 5 as c_int as c_long
+            (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long / 5 as c_long
         } else {
             (*(*ctx).avctx).bit_rate / (*(*ctx).avctx).ch_layout.nb_channels as c_long
-                * 15 as c_int as c_long
-                / 32 as c_int as c_long
-                - 5500 as c_int as c_long
+                * 15 as c_long
+                / 32 as c_long
+                - 5500 as c_long
         }
     } else {
-        ((*(*ctx).avctx).sample_rate / 2 as c_int) as c_long
+        ((*(*ctx).avctx).sample_rate / 2) as c_long
     }) as c_int;
-    let cutoff: c_int = bandwidth * 2048 as c_int / (*wi).num_windows / (*(*ctx).avctx).sample_rate;
+    let cutoff: c_int = bandwidth * 2048 / (*wi).num_windows / (*(*ctx).avctx).sample_rate;
     calc_thr_3gpp(wi, num_bands, pch, band_sizes.as_ptr(), coefs, cutoff);
-    w = 0 as c_int;
-    while w < (*wi).num_windows * 16 as c_int {
+    w = 0;
+    while w < (*wi).num_windows * 16 {
         let mut bands: *mut AacPsyBand =
             &mut *((*pch).band).as_mut_ptr().offset(w as isize) as *mut AacPsyBand;
-        spread_en[0 as c_int as usize] = (*bands.offset(0 as c_int as isize)).energy;
-        g = 1 as c_int;
+        spread_en[0] = (*bands.offset(0)).energy;
+        g = 1;
         while g < num_bands {
             (*bands.offset(g as isize)).thr = if (*bands.offset(g as isize)).thr
-                > (*bands.offset((g - 1 as c_int) as isize)).thr
-                    * (*coeffs.offset(g as isize)).spread_hi[0 as c_int as usize]
+                > (*bands.offset((g - 1) as isize)).thr * (*coeffs.offset(g as isize)).spread_hi[0]
             {
                 (*bands.offset(g as isize)).thr
             } else {
-                (*bands.offset((g - 1 as c_int) as isize)).thr
-                    * (*coeffs.offset(g as isize)).spread_hi[0 as c_int as usize]
+                (*bands.offset((g - 1) as isize)).thr * (*coeffs.offset(g as isize)).spread_hi[0]
             };
             spread_en[(w + g) as usize] = if (*bands.offset(g as isize)).energy
-                > spread_en[(w + g - 1 as c_int) as usize]
-                    * (*coeffs.offset(g as isize)).spread_hi[1 as c_int as usize]
+                > spread_en[(w + g - 1) as usize] * (*coeffs.offset(g as isize)).spread_hi[1]
             {
                 (*bands.offset(g as isize)).energy
             } else {
-                spread_en[(w + g - 1 as c_int) as usize]
-                    * (*coeffs.offset(g as isize)).spread_hi[1 as c_int as usize]
+                spread_en[(w + g - 1) as usize] * (*coeffs.offset(g as isize)).spread_hi[1]
             };
             g += 1;
             g;
         }
-        g = num_bands - 2 as c_int;
-        while g >= 0 as c_int {
+        g = num_bands - 2;
+        while g >= 0 {
             (*bands.offset(g as isize)).thr = if (*bands.offset(g as isize)).thr
-                > (*bands.offset((g + 1 as c_int) as isize)).thr
-                    * (*coeffs.offset(g as isize)).spread_low[0 as c_int as usize]
+                > (*bands.offset((g + 1) as isize)).thr * (*coeffs.offset(g as isize)).spread_low[0]
             {
                 (*bands.offset(g as isize)).thr
             } else {
-                (*bands.offset((g + 1 as c_int) as isize)).thr
-                    * (*coeffs.offset(g as isize)).spread_low[0 as c_int as usize]
+                (*bands.offset((g + 1) as isize)).thr * (*coeffs.offset(g as isize)).spread_low[0]
             };
             spread_en[(w + g) as usize] = if spread_en[(w + g) as usize]
-                > spread_en[(w + g + 1 as c_int) as usize]
-                    * (*coeffs.offset(g as isize)).spread_low[1 as c_int as usize]
+                > spread_en[(w + g + 1) as usize] * (*coeffs.offset(g as isize)).spread_low[1]
             {
                 spread_en[(w + g) as usize]
             } else {
-                spread_en[(w + g + 1 as c_int) as usize]
-                    * (*coeffs.offset(g as isize)).spread_low[1 as c_int as usize]
+                spread_en[(w + g + 1) as usize] * (*coeffs.offset(g as isize)).spread_low[1]
             };
             g -= 1;
             g;
         }
-        g = 0 as c_int;
+        g = 0;
         while g < num_bands {
             let mut band: *mut AacPsyBand = &mut *bands.offset(g as isize) as *mut AacPsyBand;
             (*band).thr = if (*band).thr > (*coeffs.offset(g as isize)).ath {
@@ -1433,8 +1344,8 @@ unsafe fn psy_3gpp_analyze_channel(
                 (*coeffs.offset(g as isize)).ath
             };
             (*band).thr_quiet = (*band).thr;
-            if !((*wi).window_type[0 as c_int as usize] == LONG_STOP_SEQUENCE as c_int
-                || w == 0 && (*wi).window_type[1 as c_int as usize] == LONG_START_SEQUENCE as c_int)
+            if !((*wi).window_type[0] == LONG_STOP_SEQUENCE as c_int
+                || w == 0 && (*wi).window_type[1] == LONG_START_SEQUENCE as c_int)
             {
                 (*band).thr = if 0.01f32 * (*band).thr
                     > (if (*band).thr > 2.0f32 * (*pch).prev_band[(w + g) as usize].thr_quiet {
@@ -1462,7 +1373,7 @@ unsafe fn psy_3gpp_analyze_channel(
             g += 1;
             g;
         }
-        w += 16 as c_int;
+        w += 16;
     }
     (*ctx).ch[channel as usize].entropy = pe;
     if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
@@ -1470,20 +1381,20 @@ unsafe fn psy_3gpp_analyze_channel(
             * (if (*(*ctx).avctx).global_quality != 0 {
                 (*(*ctx).avctx).global_quality
             } else {
-                120 as c_int
+                120
             }) as c_float
-            / (2 as c_int as c_float * 2.5f32 * 120.0f32);
-        desired_bits = if 2560 as c_int as c_float > desired_pe / 1.18f32 {
+            / (2 as c_float * 2.5f32 * 120.0f32);
+        desired_bits = if 2560 as c_float > desired_pe / 1.18f32 {
             desired_pe / 1.18f32
         } else {
-            2560 as c_int as c_float
+            2560 as c_float
         };
         desired_pe = desired_bits * 1.18f32;
-        if (*ctx).bitres.bits > 0 as c_int {
-            desired_bits = if 2560 as c_int as c_float > desired_pe / 1.18f32 {
+        if (*ctx).bitres.bits > 0 {
+            desired_bits = if 2560 as c_float > desired_pe / 1.18f32 {
                 desired_pe / 1.18f32
             } else {
-                2560 as c_int as c_float
+                2560 as c_float
             };
             desired_pe = desired_bits * 1.18f32;
         }
@@ -1503,10 +1414,10 @@ unsafe fn psy_3gpp_analyze_channel(
             pe,
             (*ctx).bitres.bits,
             (*ctx).bitres.size,
-            ((*wi).num_windows == 8 as c_int) as c_int,
+            ((*wi).num_windows == 8) as c_int,
         ) as c_float;
         desired_pe = desired_bits * 1.18f32;
-        if (*ctx).bitres.bits > 0 as c_int {
+        if (*ctx).bitres.bits > 0 {
             desired_pe *= av_clipf_c(
                 (*pctx).pe.previous / ((*ctx).bitres.bits as c_float * 1.18f32),
                 0.85f32,
@@ -1517,13 +1428,13 @@ unsafe fn psy_3gpp_analyze_channel(
     (*pctx).pe.previous = desired_bits * 1.18f32;
     (*ctx).bitres.alloc = desired_bits as c_int;
     if desired_pe < pe {
-        w = 0 as c_int;
-        while w < (*wi).num_windows * 16 as c_int {
+        w = 0;
+        while w < (*wi).num_windows * 16 {
             reduction = calc_reduction_3gpp(a, desired_pe, pe, active_lines);
             pe = 0.0f32;
             a = 0.0f32;
             active_lines = 0.0f32;
-            g = 0 as c_int;
+            g = 0;
             while g < num_bands {
                 let mut band_0: *mut AacPsyBand =
                     &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize) as *mut AacPsyBand;
@@ -1535,17 +1446,17 @@ unsafe fn psy_3gpp_analyze_channel(
                 g += 1;
                 g;
             }
-            w += 16 as c_int;
+            w += 16;
         }
-        i = 0 as c_int;
-        while i < 2 as c_int {
+        i = 0;
+        while i < 2 {
             let mut pe_no_ah: c_float = 0.0f32;
             let mut desired_pe_no_ah: c_float = 0.;
             a = 0.0f32;
             active_lines = a;
-            w = 0 as c_int;
-            while w < (*wi).num_windows * 16 as c_int {
-                g = 0 as c_int;
+            w = 0;
+            while w < (*wi).num_windows * 16 {
+                g = 0;
                 while g < num_bands {
                     let mut band_1: *mut AacPsyBand =
                         &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize)
@@ -1558,7 +1469,7 @@ unsafe fn psy_3gpp_analyze_channel(
                     g += 1;
                     g;
                 }
-                w += 16 as c_int;
+                w += 16;
             }
             desired_pe_no_ah = if desired_pe - (pe - pe_no_ah) > 0.0f32 {
                 desired_pe - (pe - pe_no_ah)
@@ -1569,9 +1480,9 @@ unsafe fn psy_3gpp_analyze_channel(
                 reduction = calc_reduction_3gpp(a, desired_pe_no_ah, pe_no_ah, active_lines);
             }
             pe = 0.0f32;
-            w = 0 as c_int;
-            while w < (*wi).num_windows * 16 as c_int {
-                g = 0 as c_int;
+            w = 0;
+            while w < (*wi).num_windows * 16 {
+                g = 0;
                 while g < num_bands {
                     let mut band_2: *mut AacPsyBand =
                         &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize)
@@ -1593,7 +1504,7 @@ unsafe fn psy_3gpp_analyze_channel(
                     g += 1;
                     g;
                 }
-                w += 16 as c_int;
+                w += 16;
             }
             delta_pe = desired_pe - pe;
             if fabs(delta_pe as c_double) > (0.05f32 * desired_pe) as c_double {
@@ -1606,11 +1517,11 @@ unsafe fn psy_3gpp_analyze_channel(
             norm_fac = if norm_fac != 0. {
                 1.0f32 / norm_fac
             } else {
-                0 as c_int as c_float
+                0 as c_float
             };
-            w = 0 as c_int;
-            while w < (*wi).num_windows * 16 as c_int {
-                g = 0 as c_int;
+            w = 0;
+            while w < (*wi).num_windows * 16 {
+                g = 0;
                 while g < num_bands {
                     let mut band_3: *mut AacPsyBand =
                         &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize)
@@ -1635,7 +1546,7 @@ unsafe fn psy_3gpp_analyze_channel(
                     g += 1;
                     g;
                 }
-                w += 16 as c_int;
+                w += 16;
             }
         } else {
             g = num_bands;
@@ -1644,8 +1555,8 @@ unsafe fn psy_3gpp_analyze_channel(
                 g -= 1;
                 fresh0 != 0
             } {
-                w = 0 as c_int;
-                while w < (*wi).num_windows * 16 as c_int {
+                w = 0;
+                while w < (*wi).num_windows * 16 {
                     let mut band_4: *mut AacPsyBand =
                         &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize)
                             as *mut AacPsyBand;
@@ -1656,14 +1567,14 @@ unsafe fn psy_3gpp_analyze_channel(
                         (*band_4).thr = (*band_4).energy * 7.943_282e-1_f32;
                         pe += (*band_4).active_lines * 1.5f32 - (*band_4).pe;
                     }
-                    w += 16 as c_int;
+                    w += 16;
                 }
             }
         }
     }
-    w = 0 as c_int;
-    while w < (*wi).num_windows * 16 as c_int {
-        g = 0 as c_int;
+    w = 0;
+    while w < (*wi).num_windows * 16 {
+        g = 0;
         while g < num_bands {
             let mut band_5: *mut AacPsyBand =
                 &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize) as *mut AacPsyBand;
@@ -1677,7 +1588,7 @@ unsafe fn psy_3gpp_analyze_channel(
             g += 1;
             g;
         }
-        w += 16 as c_int;
+        w += 16;
     }
     (*pch).prev_band = (*pch).band;
 }
@@ -1689,7 +1600,7 @@ unsafe extern "C" fn psy_3gpp_analyze(
 ) {
     let mut ch: c_int = 0;
     let mut group: *mut FFPsyChannelGroup = ff_psy_find_group(ctx, channel);
-    ch = 0 as c_int;
+    ch = 0;
     while ch < (*group).num_ch as c_int {
         psy_3gpp_analyze_channel(
             ctx,
@@ -1729,7 +1640,7 @@ unsafe fn lame_apply_block_type(
             (*ctx).next_window_seq = EIGHT_SHORT_SEQUENCE;
         }
     }
-    (*wi).window_type[0 as c_int as usize] = (*ctx).next_window_seq as c_int;
+    (*wi).window_type[0] = (*ctx).next_window_seq as c_int;
     (*ctx).next_window_seq = blocktype as WindowSequence;
 }
 unsafe extern "C" fn psy_lame_window(
@@ -1742,13 +1653,13 @@ unsafe extern "C" fn psy_lame_window(
     let mut pctx: *mut AacPsyContext = (*ctx).model_priv_data as *mut AacPsyContext;
     let mut pch: *mut AacPsyChannel =
         &mut *((*pctx).ch).offset(channel as isize) as *mut AacPsyChannel;
-    let mut grouping: c_int = 0 as c_int;
-    let mut uselongblock: c_int = 1 as c_int;
-    let mut attacks: [c_int; 9] = [0 as c_int, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mut grouping: c_int = 0;
+    let mut uselongblock: c_int = 1;
+    let mut attacks: [c_int; 9] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     let mut i: c_int = 0;
     let mut wi: FFPsyWindowInfo = {
         FFPsyWindowInfo {
-            window_type: [0 as c_int, 0, 0],
+            window_type: [0, 0, 0],
             window_shape: 0,
             num_windows: 0,
             grouping: [0; 8],
@@ -1761,82 +1672,77 @@ unsafe extern "C" fn psy_lame_window(
         let mut pf: *const c_float = hpfsmpl.as_mut_ptr();
         let mut attack_intensity: [c_float; 27] = [0.; 27];
         let mut energy_subshort: [c_float; 27] = [0.; 27];
-        let mut energy_short: [c_float; 9] =
-            [0 as c_int as c_float, 0., 0., 0., 0., 0., 0., 0., 0.];
-        let mut firbuf: *const c_float =
-            la.offset((128 as c_int / 4 as c_int - 21 as c_int) as isize);
-        let mut att_sum: c_int = 0 as c_int;
+        let mut energy_short: [c_float; 9] = [0 as c_float, 0., 0., 0., 0., 0., 0., 0., 0.];
+        let mut firbuf: *const c_float = la.offset((128 / 4 - 21) as isize);
+        let mut att_sum: c_int = 0;
         psy_hp_filter(firbuf, hpfsmpl.as_mut_ptr(), psy_fir_coeffs.as_ptr());
-        i = 0 as c_int;
-        while i < 3 as c_int {
-            energy_subshort[i as usize] =
-                (*pch).prev_energy_subshort[(i + (8 as c_int - 1 as c_int) * 3 as c_int) as usize];
+        i = 0;
+        while i < 3 {
+            energy_subshort[i as usize] = (*pch).prev_energy_subshort[(i + (8 - 1) * 3) as usize];
             attack_intensity[i as usize] = energy_subshort[i as usize]
-                / (*pch).prev_energy_subshort
-                    [(i + ((8 as c_int - 2 as c_int) * 3 as c_int + 1 as c_int)) as usize];
-            energy_short[0 as c_int as usize] += energy_subshort[i as usize];
+                / (*pch).prev_energy_subshort[(i + ((8 - 2) * 3 + 1)) as usize];
+            energy_short[0] += energy_subshort[i as usize];
             i += 1;
             i;
         }
-        i = 0 as c_int;
-        while i < 8 as c_int * 3 as c_int {
-            let pfe: *const c_float =
-                pf.offset((1024 as c_int / (8 as c_int * 3 as c_int)) as isize);
+        i = 0;
+        while i < 8 * 3 {
+            let pfe: *const c_float = pf.offset((1024 / (8 * 3)) as isize);
             let mut p: c_float = 1.0f32;
             while pf < pfe {
                 p = if p > fabsf(*pf) { p } else { fabsf(*pf) };
                 pf = pf.offset(1);
                 pf;
             }
-            energy_subshort[(i + 3 as c_int) as usize] = p;
-            (*pch).prev_energy_subshort[i as usize] = energy_subshort[(i + 3 as c_int) as usize];
-            energy_short[(1 as c_int + i / 3 as c_int) as usize] += p;
-            if p > energy_subshort[(i + 1 as c_int) as usize] {
-                p /= energy_subshort[(i + 1 as c_int) as usize];
-            } else if energy_subshort[(i + 1 as c_int) as usize] > p * 10.0f32 {
-                p = energy_subshort[(i + 1 as c_int) as usize] / (p * 10.0f32);
+            energy_subshort[(i + 3) as usize] = p;
+            (*pch).prev_energy_subshort[i as usize] = energy_subshort[(i + 3) as usize];
+            energy_short[(1 + i / 3) as usize] += p;
+            if p > energy_subshort[(i + 1) as usize] {
+                p /= energy_subshort[(i + 1) as usize];
+            } else if energy_subshort[(i + 1) as usize] > p * 10.0f32 {
+                p = energy_subshort[(i + 1) as usize] / (p * 10.0f32);
             } else {
                 p = 0.0f64 as c_float;
             }
-            attack_intensity[(i + 3 as c_int) as usize] = p;
+            attack_intensity[(i + 3) as usize] = p;
             i += 1;
             i;
         }
-        i = 0 as c_int;
-        while i < (8 as c_int + 1 as c_int) * 3 as c_int {
-            if attacks[(i / 3 as c_int) as usize] == 0
+        i = 0;
+        while i < (8 + 1) * 3 {
+            if attacks[(i / 3) as usize] == 0
                 && attack_intensity[i as usize] > (*pch).attack_threshold
             {
-                attacks[(i / 3 as c_int) as usize] = i % 3 as c_int + 1 as c_int;
+                attacks[(i / 3) as usize] = i % 3 + 1;
             }
             i += 1;
             i;
         }
-        i = 1 as c_int;
-        while i < 8 as c_int + 1 as c_int {
-            let u: c_float = energy_short[(i - 1 as c_int) as usize];
+        i = 1;
+        while i < 8 + 1 {
+            let u: c_float = energy_short[(i - 1) as usize];
             let v: c_float = energy_short[i as usize];
             let m: c_float = if u > v { u } else { v };
-            if m < 40000 as c_int as c_float && u < 1.7f32 * v && v < 1.7f32 * u {
-                if i == 1 as c_int && attacks[0 as c_int as usize] < attacks[i as usize] {
-                    attacks[0 as c_int as usize] = 0 as c_int;
+            if m < 40000 as c_float && u < 1.7f32 * v && v < 1.7f32 * u {
+                if i == 1 && attacks[0] < attacks[i as usize] {
+                    attacks[0] = 0;
                 }
-                attacks[i as usize] = 0 as c_int;
+                attacks[i as usize] = 0;
             }
             att_sum += attacks[i as usize];
             i += 1;
             i;
         }
-        if attacks[0 as c_int as usize] <= (*pch).prev_attack {
-            attacks[0 as c_int as usize] = 0 as c_int;
+        if attacks[0] <= (*pch).prev_attack {
+            attacks[0] = 0;
         }
-        att_sum += attacks[0 as c_int as usize];
-        if (*pch).prev_attack == 3 as c_int || att_sum != 0 {
-            uselongblock = 0 as c_int;
-            i = 1 as c_int;
-            while i < 8 as c_int + 1 as c_int {
-                if attacks[i as usize] != 0 && attacks[(i - 1 as c_int) as usize] != 0 {
-                    attacks[i as usize] = 0 as c_int;
+        att_sum += attacks[0];
+        if (*pch).prev_attack == 3 || att_sum != 0 {
+            uselongblock = 0;
+            i = 1;
+            while i < 8 + 1 {
+                if attacks[i as usize] != 0 && attacks[(i - 1) as usize] != 0 {
+                    attacks[i as usize] = 0;
                 }
                 i += 1;
                 i;
@@ -1846,22 +1752,22 @@ unsafe extern "C" fn psy_lame_window(
         uselongblock = !(prev_type == EIGHT_SHORT_SEQUENCE as c_int) as c_int;
     }
     lame_apply_block_type(pch, &mut wi, uselongblock);
-    wi.window_type[1 as c_int as usize] = prev_type;
-    if wi.window_type[0 as c_int as usize] != EIGHT_SHORT_SEQUENCE as c_int {
-        wi.num_windows = 1 as c_int;
-        wi.grouping[0 as c_int as usize] = 1 as c_int;
-        if wi.window_type[0 as c_int as usize] == LONG_START_SEQUENCE as c_int {
-            wi.window_shape = 0 as c_int;
+    wi.window_type[1] = prev_type;
+    if wi.window_type[0] != EIGHT_SHORT_SEQUENCE as c_int {
+        wi.num_windows = 1;
+        wi.grouping[0] = 1;
+        if wi.window_type[0] == LONG_START_SEQUENCE as c_int {
+            wi.window_shape = 0;
         } else {
-            wi.window_shape = 1 as c_int;
+            wi.window_shape = 1;
         }
     } else {
-        let mut lastgrp: c_int = 0 as c_int;
-        wi.num_windows = 8 as c_int;
-        wi.window_shape = 0 as c_int;
-        i = 0 as c_int;
-        while i < 8 as c_int {
-            if (*pch).next_grouping as c_int >> i & 1 as c_int == 0 {
+        let mut lastgrp: c_int = 0;
+        wi.num_windows = 8;
+        wi.window_shape = 0;
+        i = 0;
+        while i < 8 {
+            if (*pch).next_grouping as c_int >> i & 1 == 0 {
                 lastgrp = i;
             }
             wi.grouping[lastgrp as usize] += 1;
@@ -1870,8 +1776,8 @@ unsafe extern "C" fn psy_lame_window(
             i;
         }
     }
-    i = 0 as c_int;
-    while i < 9 as c_int {
+    i = 0;
+    while i < 9 {
         if attacks[i as usize] != 0 {
             grouping = i;
             break;
@@ -1881,7 +1787,7 @@ unsafe extern "C" fn psy_lame_window(
         }
     }
     (*pch).next_grouping = WINDOW_GROUPING[grouping as usize];
-    (*pch).prev_attack = attacks[8 as c_int as usize];
+    (*pch).prev_attack = attacks[8];
     wi
 }
 

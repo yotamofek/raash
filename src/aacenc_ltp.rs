@@ -21,8 +21,8 @@ use crate::{
 
 #[inline(always)]
 unsafe fn av_clip_uintp2_c(mut a: c_int, mut p: c_int) -> c_uint {
-    if a & !(((1 as c_int) << p) - 1 as c_int) != 0 {
-        (!a >> 31 as c_int & ((1 as c_int) << p) - 1 as c_int) as c_uint
+    if a & !(((1) << p) - 1) != 0 {
+        (!a >> 31 & ((1) << p) - 1) as c_uint
     } else {
         a as c_uint
     }
@@ -90,9 +90,9 @@ unsafe fn quantize_band_cost(
 #[inline]
 unsafe fn quant_array_idx(val: c_float, mut arr: *const c_float, num: c_int) -> c_int {
     let mut i: c_int = 0;
-    let mut index: c_int = 0 as c_int;
+    let mut index: c_int = 0;
     let mut quant_min_err: c_float = ::core::f32::INFINITY;
-    i = 0 as c_int;
+    i = 0;
     while i < num {
         let mut error: c_float = (val - *arr.offset(i as isize)) * (val - *arr.offset(i as isize));
         if error < quant_min_err {
@@ -122,31 +122,27 @@ pub(crate) unsafe fn encode_ltp_info(
 ) {
     let mut i: c_int = 0;
     let mut ics: *mut IndividualChannelStream = &mut (*sce).ics;
-    if (*s).profile != 3 as c_int || (*ics).predictor_present == 0 {
+    if (*s).profile != 3 || (*ics).predictor_present == 0 {
         return;
     }
     if common_window != 0 {
-        put_bits(&mut (*s).pb, 1 as c_int, 0 as c_int as BitBuf);
+        put_bits(&mut (*s).pb, 1, 0 as BitBuf);
     }
-    put_bits(&mut (*s).pb, 1 as c_int, (*ics).ltp.present as BitBuf);
+    put_bits(&mut (*s).pb, 1, (*ics).ltp.present as BitBuf);
     if (*ics).ltp.present == 0 {
         return;
     }
-    put_bits(&mut (*s).pb, 11 as c_int, (*ics).ltp.lag as BitBuf);
-    put_bits(&mut (*s).pb, 3 as c_int, (*ics).ltp.coef_idx as BitBuf);
-    i = 0 as c_int;
+    put_bits(&mut (*s).pb, 11, (*ics).ltp.lag as BitBuf);
+    put_bits(&mut (*s).pb, 3, (*ics).ltp.coef_idx as BitBuf);
+    i = 0;
     while i
-        < (if (*ics).max_sfb as c_int > 40 as c_int {
-            40 as c_int
+        < (if (*ics).max_sfb as c_int > 40 {
+            40
         } else {
             (*ics).max_sfb as c_int
         })
     {
-        put_bits(
-            &mut (*s).pb,
-            1 as c_int,
-            (*ics).ltp.used[i as usize] as BitBuf,
-        );
+        put_bits(&mut (*s).pb, 1, (*ics).ltp.used[i as usize] as BitBuf);
         i += 1;
         i;
     }
@@ -158,19 +154,15 @@ pub(crate) unsafe fn ltp_insert_new_frame(mut s: *mut AACEncContext) {
     let mut tag: c_int = 0;
     let mut chans: c_int = 0;
     let mut cur_channel: c_int = 0;
-    let mut start_ch: c_int = 0 as c_int;
+    let mut start_ch: c_int = 0;
     let mut cpe: *mut ChannelElement = std::ptr::null_mut::<ChannelElement>();
     let mut sce: *mut SingleChannelElement = std::ptr::null_mut::<SingleChannelElement>();
-    i = 0 as c_int;
+    i = 0;
     while i < (*s).chan_map[0] as c_int {
         cpe = &mut *((*s).cpe.as_mut_ptr()).offset(i as isize) as *mut ChannelElement;
         tag = (*s).chan_map[(i + 1) as usize] as c_int;
-        chans = if tag == TYPE_CPE as c_int {
-            2 as c_int
-        } else {
-            1 as c_int
-        };
-        ch = 0 as c_int;
+        chans = if tag == TYPE_CPE as c_int { 2 } else { 1 };
+        ch = 0;
         while ch < chans {
             sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
             cur_channel = start_ch + ch;
@@ -178,7 +170,7 @@ pub(crate) unsafe fn ltp_insert_new_frame(mut s: *mut AACEncContext) {
             (*s).planar_samples[cur_channel as usize][2048..][..1024]
                 .copy_from_slice(&(*sce).ltp_state[1024..][..1024]);
             (*sce).ltp_state[2048..][..1024].copy_from_slice(&(*sce).ret_buf[..1024]);
-            (*sce).ics.ltp.lag = 0 as c_int as c_short;
+            (*sce).ics.ltp.lag = 0 as c_short;
             ch += 1;
             ch;
         }
@@ -194,22 +186,18 @@ unsafe fn get_lag(
 ) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
-    let mut lag: c_int = 0 as c_int;
-    let mut max_corr: c_int = 0 as c_int;
+    let mut lag: c_int = 0;
+    let mut max_corr: c_int = 0;
     let mut max_ratio: c_float = 0.0f32;
-    i = 0 as c_int;
-    while i < 2048 as c_int {
+    i = 0;
+    while i < 2048 {
         let mut corr: c_float = 0.;
         let mut s0: c_float = 0.0f32;
         let mut s1: c_float = 0.0f32;
-        let start: c_int = if 0 as c_int > i - 1024 as c_int {
-            0 as c_int
-        } else {
-            i - 1024 as c_int
-        };
+        let start: c_int = if 0 > i - 1024 { 0 } else { i - 1024 };
         j = start;
-        while j < 2048 as c_int {
-            let idx: c_int = j - i + 1024 as c_int;
+        while j < 2048 {
+            let idx: c_int = j - i + 1024;
             s0 += *new.offset(j as isize) * *buf.offset(idx as isize);
             s1 += *buf.offset(idx as isize) * *buf.offset(idx as isize);
             j += 1;
@@ -223,48 +211,48 @@ unsafe fn get_lag(
         if corr > max_corr as c_float {
             max_corr = corr as c_int;
             lag = i;
-            max_ratio = corr / (2048 as c_int - start) as c_float;
+            max_ratio = corr / (2048 - start) as c_float;
         }
         i += 1;
         i;
     }
-    (*ltp).lag = (if av_clip_uintp2_c(lag, 11 as c_int) > 0 as c_int as c_uint {
-        av_clip_uintp2_c(lag, 11 as c_int)
+    (*ltp).lag = (if av_clip_uintp2_c(lag, 11) > 0 as c_uint {
+        av_clip_uintp2_c(lag, 11)
     } else {
-        0 as c_int as c_uint
+        0 as c_uint
     }) as c_short;
-    (*ltp).coef_idx = quant_array_idx(max_ratio, ltp_coef.as_ptr(), 8 as c_int);
+    (*ltp).coef_idx = quant_array_idx(max_ratio, ltp_coef.as_ptr(), 8);
     (*ltp).coef = ltp_coef[(*ltp).coef_idx as usize];
 }
 unsafe fn generate_samples(mut buf: *mut c_float, mut ltp: *mut LongTermPrediction) {
     let mut i: c_int = 0;
-    let mut samples_num: c_int = 2048 as c_int;
+    let mut samples_num: c_int = 2048;
     if (*ltp).lag == 0 {
-        (*ltp).present = 0 as c_int as c_schar;
+        (*ltp).present = 0;
         return;
-    } else if ((*ltp).lag as c_int) < 1024 as c_int {
-        samples_num = (*ltp).lag as c_int + 1024 as c_int;
+    } else if ((*ltp).lag as c_int) < 1024 {
+        samples_num = (*ltp).lag as c_int + 1024;
     }
-    i = 0 as c_int;
+    i = 0;
     while i < samples_num {
         *buf.offset(i as isize) =
-            (*ltp).coef * *buf.offset((i + 2048 as c_int - (*ltp).lag as c_int) as isize);
+            (*ltp).coef * *buf.offset((i + 2048 - (*ltp).lag as c_int) as isize);
         i += 1;
         i;
     }
     ptr::write_bytes(
         &mut *buf.offset(i as isize) as *mut c_float,
         0,
-        (2048 as c_int - i) as usize,
+        (2048 - i) as usize,
     );
 }
 
 pub(crate) unsafe fn update_ltp(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     let mut pred_signal: *mut c_float =
-        &mut *((*sce).ltp_state).as_mut_ptr().offset(0 as c_int as isize) as *mut c_float;
+        &mut *((*sce).ltp_state).as_mut_ptr().offset(0) as *mut c_float;
     let mut samples: *const c_float =
         ((*s).planar_samples)[(*s).cur_channel as usize][1024..].as_mut_ptr();
-    if (*s).profile != 3 as c_int {
+    if (*s).profile != 3 {
         return;
     }
     get_lag(pred_signal, samples, &mut (*sce).ics.ltp);
@@ -273,32 +261,30 @@ pub(crate) unsafe fn update_ltp(mut s: *mut AACEncContext, mut sce: *mut SingleC
 
 pub(crate) unsafe fn adjust_common_ltp(mut _s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut sfb: c_int = 0;
-    let mut count: c_int = 0 as c_int;
+    let mut count: c_int = 0;
     let mut sce0: *mut SingleChannelElement =
-        &mut *((*cpe).ch).as_mut_ptr().offset(0 as c_int as isize) as *mut SingleChannelElement;
+        &mut *((*cpe).ch).as_mut_ptr().offset(0) as *mut SingleChannelElement;
     let mut sce1: *mut SingleChannelElement =
-        &mut *((*cpe).ch).as_mut_ptr().offset(1 as c_int as isize) as *mut SingleChannelElement;
+        &mut *((*cpe).ch).as_mut_ptr().offset(1) as *mut SingleChannelElement;
     if (*cpe).common_window == 0
-        || (*sce0).ics.window_sequence[0 as c_int as usize] as c_uint
-            == EIGHT_SHORT_SEQUENCE as c_int as c_uint
-        || (*sce1).ics.window_sequence[0 as c_int as usize] as c_uint
-            == EIGHT_SHORT_SEQUENCE as c_int as c_uint
+        || (*sce0).ics.window_sequence[0] as c_uint == EIGHT_SHORT_SEQUENCE as c_int as c_uint
+        || (*sce1).ics.window_sequence[0] as c_uint == EIGHT_SHORT_SEQUENCE as c_int as c_uint
     {
-        (*sce0).ics.ltp.present = 0 as c_int as c_schar;
+        (*sce0).ics.ltp.present = 0;
         return;
     }
-    sfb = 0 as c_int;
+    sfb = 0;
     while sfb
-        < (if (*sce0).ics.max_sfb as c_int > 40 as c_int {
-            40 as c_int
+        < (if (*sce0).ics.max_sfb as c_int > 40 {
+            40
         } else {
             (*sce0).ics.max_sfb as c_int
         })
     {
         let mut sum: c_int = (*sce0).ics.ltp.used[sfb as usize] as c_int
             + (*sce1).ics.ltp.used[sfb as usize] as c_int;
-        if sum != 2 as c_int {
-            (*sce0).ics.ltp.used[sfb as usize] = 0 as c_int as c_schar;
+        if sum != 2 {
+            (*sce0).ics.ltp.used[sfb as usize] = 0;
         } else {
             count += 1;
             count;
@@ -319,34 +305,23 @@ pub(crate) unsafe fn search_for_ltp(
     let mut g: c_int = 0;
     let mut w2: c_int = 0;
     let mut i: c_int = 0;
-    let mut start: c_int = 0 as c_int;
-    let mut count: c_int = 0 as c_int;
-    let mut saved_bits: c_int = -(15 as c_int
-        + (if (*sce).ics.max_sfb as c_int > 40 as c_int {
-            40 as c_int
+    let mut start: c_int = 0;
+    let mut count: c_int = 0;
+    let mut saved_bits: c_int = -(15
+        + (if (*sce).ics.max_sfb as c_int > 40 {
+            40
         } else {
             (*sce).ics.max_sfb as c_int
         }));
-    let mut C34: *mut c_float = &mut *((*s).scoefs)
-        .as_mut_ptr()
-        .offset((128 as c_int * 0 as c_int) as isize)
-        as *mut c_float;
-    let mut PCD: *mut c_float = &mut *((*s).scoefs)
-        .as_mut_ptr()
-        .offset((128 as c_int * 1 as c_int) as isize)
-        as *mut c_float;
-    let mut PCD34: *mut c_float = &mut *((*s).scoefs)
-        .as_mut_ptr()
-        .offset((128 as c_int * 2 as c_int) as isize)
-        as *mut c_float;
-    let max_ltp: c_int = if (*sce).ics.max_sfb as c_int > 40 as c_int {
-        40 as c_int
+
+    let [C34, PCD, PCD34] = [0, 1, 2].map(|i| (*s).scoefs[128 * i..].as_mut_ptr());
+
+    let max_ltp: c_int = if (*sce).ics.max_sfb as c_int > 40 {
+        40
     } else {
         (*sce).ics.max_sfb as c_int
     };
-    if (*sce).ics.window_sequence[0 as c_int as usize] as c_uint
-        == EIGHT_SHORT_SEQUENCE as c_int as c_uint
-    {
+    if (*sce).ics.window_sequence[0] as c_uint == EIGHT_SHORT_SEQUENCE as c_int as c_uint {
         if (*sce).ics.ltp.lag != 0 {
             (*sce).ltp_state.fill(0.);
             (*sce).ics.ltp = LongTermPrediction::default();
@@ -356,30 +331,30 @@ pub(crate) unsafe fn search_for_ltp(
     if (*sce).ics.ltp.lag == 0 || (*s).lambda > 120.0f32 {
         return;
     }
-    w = 0 as c_int;
+    w = 0;
     while w < (*sce).ics.num_windows {
-        start = 0 as c_int;
-        g = 0 as c_int;
+        start = 0;
+        g = 0;
         while g < (*sce).ics.num_swb {
-            let mut bits1: c_int = 0 as c_int;
-            let mut bits2: c_int = 0 as c_int;
+            let mut bits1: c_int = 0;
+            let mut bits2: c_int = 0;
             let mut dist1: c_float = 0.0f32;
             let mut dist2: c_float = 0.0f32;
-            if w * 16 as c_int + g > max_ltp {
+            if w * 16 + g > max_ltp {
                 start += *((*sce).ics.swb_sizes).offset(g as isize) as c_int;
             } else {
-                w2 = 0 as c_int;
+                w2 = 0;
                 while w2 < (*sce).ics.group_len[w as usize] as c_int {
                     let mut bits_tmp1: c_int = 0;
                     let mut bits_tmp2: c_int = 0;
                     let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize]
-                        .psy_bands[((w + w2) * 16 as c_int + g) as usize]
+                        .psy_bands[((w + w2) * 16 + g) as usize]
                         as *mut FFPsyBand;
-                    i = 0 as c_int;
+                    i = 0;
                     while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
                         *PCD.offset(i as isize) = (*sce).coeffs
-                            [(start + (w + w2) * 128 as c_int + i) as usize]
-                            - (*sce).lcoeffs[(start + (w + w2) * 128 as c_int + i) as usize];
+                            [(start + (w + w2) * 128 + i) as usize]
+                            - (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                         i += 1;
                         i;
                     }
@@ -387,7 +362,7 @@ pub(crate) unsafe fn search_for_ltp(
                         C34,
                         &mut *((*sce).coeffs)
                             .as_mut_ptr()
-                            .offset((start + (w + w2) * 128 as c_int) as isize),
+                            .offset((start + (w + w2) * 128) as isize),
                         *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
                     );
                     abs_pow34_v(
@@ -399,11 +374,11 @@ pub(crate) unsafe fn search_for_ltp(
                         s,
                         &mut *((*sce).coeffs)
                             .as_mut_ptr()
-                            .offset((start + (w + w2) * 128 as c_int) as isize),
+                            .offset((start + (w + w2) * 128) as isize),
                         C34,
                         *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
-                        (*sce).sf_idx[((w + w2) * 16 as c_int + g) as usize],
-                        (*sce).band_type[((w + w2) * 16 as c_int + g) as usize] as c_int,
+                        (*sce).sf_idx[((w + w2) * 16 + g) as usize],
+                        (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
                         ::core::f32::INFINITY,
                         &mut bits_tmp1,
@@ -414,8 +389,8 @@ pub(crate) unsafe fn search_for_ltp(
                         PCD,
                         PCD34,
                         *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
-                        (*sce).sf_idx[((w + w2) * 16 as c_int + g) as usize],
-                        (*sce).band_type[((w + w2) * 16 as c_int + g) as usize] as c_int,
+                        (*sce).sf_idx[((w + w2) * 16 + g) as usize],
+                        (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
                         ::core::f32::INFINITY,
                         &mut bits_tmp2,
@@ -427,19 +402,19 @@ pub(crate) unsafe fn search_for_ltp(
                     w2;
                 }
                 if dist2 < dist1 && bits2 < bits1 {
-                    w2 = 0 as c_int;
+                    w2 = 0;
                     while w2 < (*sce).ics.group_len[w as usize] as c_int {
-                        i = 0 as c_int;
+                        i = 0;
                         while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
-                            (*sce).coeffs[(start + (w + w2) * 128 as c_int + i) as usize] -=
-                                (*sce).lcoeffs[(start + (w + w2) * 128 as c_int + i) as usize];
+                            (*sce).coeffs[(start + (w + w2) * 128 + i) as usize] -=
+                                (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                             i += 1;
                             i;
                         }
                         w2 += 1;
                         w2;
                     }
-                    (*sce).ics.ltp.used[(w * 16 as c_int + g) as usize] = 1 as c_int as c_schar;
+                    (*sce).ics.ltp.used[(w * 16 + g) as usize] = 1;
                     saved_bits += bits1 - bits2;
                     count += 1;
                     count;
@@ -451,21 +426,21 @@ pub(crate) unsafe fn search_for_ltp(
         }
         w += (*sce).ics.group_len[w as usize] as c_int;
     }
-    (*sce).ics.ltp.present = (count != 0 && saved_bits >= 0 as c_int) as c_int as c_schar;
+    (*sce).ics.ltp.present = (count != 0 && saved_bits >= 0) as c_int as c_schar;
     (*sce).ics.predictor_present = ((*sce).ics.ltp.present != 0) as c_int;
     if (*sce).ics.ltp.present == 0 && count != 0 {
-        w = 0 as c_int;
+        w = 0;
         while w < (*sce).ics.num_windows {
-            start = 0 as c_int;
-            g = 0 as c_int;
+            start = 0;
+            g = 0;
             while g < (*sce).ics.num_swb {
-                if (*sce).ics.ltp.used[(w * 16 as c_int + g) as usize] != 0 {
-                    w2 = 0 as c_int;
+                if (*sce).ics.ltp.used[(w * 16 + g) as usize] != 0 {
+                    w2 = 0;
                     while w2 < (*sce).ics.group_len[w as usize] as c_int {
-                        i = 0 as c_int;
+                        i = 0;
                         while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
-                            (*sce).coeffs[(start + (w + w2) * 128 as c_int + i) as usize] +=
-                                (*sce).lcoeffs[(start + (w + w2) * 128 as c_int + i) as usize];
+                            (*sce).coeffs[(start + (w + w2) * 128 + i) as usize] +=
+                                (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                             i += 1;
                             i;
                         }
@@ -482,7 +457,7 @@ pub(crate) unsafe fn search_for_ltp(
     }
 }
 unsafe fn run_static_initializers() {
-    BUF_BITS = (8 as c_int as c_ulong).wrapping_mul(size_of::<BitBuf>() as c_ulong) as c_int;
+    BUF_BITS = (8 as c_ulong).wrapping_mul(size_of::<BitBuf>() as c_ulong) as c_int;
 }
 #[used]
 #[cfg_attr(target_os = "linux", link_section = ".init_array")]

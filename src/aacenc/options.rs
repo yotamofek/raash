@@ -64,7 +64,7 @@ pub(super) const OPTIONS: [AVOption; 22] = [
         offset: 32,
         type_0: AV_OPT_TYPE_BOOL,
         default_val: DefaultValue {
-            i64_0: -(1) as c_long,
+            i64_0: -1 as c_long,
         },
         min: -1.,
         max: 1.,

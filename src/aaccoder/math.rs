@@ -19,14 +19,14 @@ pub(super) fn bval2bmax(mut b: c_float) -> c_float {
 pub(super) fn ff_log2_c(mut v: c_uint) -> c_int {
     // TODO: is this (the cast) correct??
     v.log2() as c_int
-    // let mut n: c_int = 0 as c_int;
+    // let mut n: c_int = 0;
     // if v & 0xffff0000 as c_uint != 0 {
-    //     v >>= 16 as c_int;
-    //     n += 16 as c_int;
+    //     v >>= 16;
+    //     n += 16;
     // }
     // if v & 0xff00 as c_int as c_uint != 0 {
-    //     v >>= 8 as c_int;
-    //     n += 8 as c_int;
+    //     v >>= 8;
+    //     n += 8;
     // }
     // n += ff_log2_tab[v as usize] as c_int;
     // return n;
@@ -37,16 +37,17 @@ pub(super) fn clip_uint8_c(mut a: c_int) -> c_uchar {
 }
 
 pub(super) fn clip_uintp2_c(mut a: c_int, mut p: c_int) -> c_uint {
-    if a & !(((1 as c_int) << p) - 1 as c_int) != 0 {
-        (!a >> 31 as c_int & ((1 as c_int) << p) - 1 as c_int) as c_uint
+    if a & !(((1) << p) - 1) != 0 {
+        (!a >> 31 & ((1) << p) - 1) as c_uint
     } else {
         a as c_uint
     }
 }
 
-/// Clear high bits from an unsigned integer starting with specific bit position.
+/// Clear high bits from an unsigned integer starting with specific bit
+/// position.
 pub(super) fn mod_uintp2_c(mut a: c_uint, mut p: c_uint) -> c_uint {
-    a & ((1 as c_uint) << p).wrapping_sub(1 as c_int as c_uint)
+    a & ((1 as c_uint) << p).wrapping_sub(1 as c_uint)
 }
 
 #[inline]
@@ -65,7 +66,7 @@ pub(super) unsafe fn lcg_random(mut previous_val: c_uint) -> c_int {
     let mut v: C2RustUnnamed_2 = C2RustUnnamed_2 {
         u: previous_val
             .wrapping_mul(1664525 as c_uint)
-            .wrapping_add(1013904223 as c_int as c_uint),
+            .wrapping_add(1013904223 as c_uint),
     };
     v.s
 }
