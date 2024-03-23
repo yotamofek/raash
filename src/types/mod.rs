@@ -1,4 +1,4 @@
-// #![deny(dead_code)]
+#![deny(dead_code)]
 
 use std::{
     mem::MaybeUninit,
@@ -101,22 +101,6 @@ impl PutBitContext {
     }
 }
 
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct MPEG4AudioConfig {
-    pub(crate) object_type: c_int,
-    pub(crate) sampling_index: c_int,
-    pub(crate) sample_rate: c_int,
-    pub(crate) chan_config: c_int,
-    pub(crate) sbr: c_int,
-    pub(crate) ext_object_type: c_int,
-    pub(crate) ext_sampling_index: c_int,
-    pub(crate) ext_sample_rate: c_int,
-    pub(crate) ext_chan_config: c_int,
-    pub(crate) channels: c_int,
-    pub(crate) ps: c_int,
-    pub(crate) frame_length_short: c_int,
-}
 pub(crate) type AudioObjectType = c_uint;
 pub(crate) const AOT_SBR: AudioObjectType = 5;
 
@@ -143,140 +127,6 @@ pub(crate) const AV_TX_DOUBLE_FFT: AVTXType = 2;
 pub(crate) const AV_TX_FLOAT_FFT: AVTXType = 0;
 pub(crate) type av_tx_fn =
     Option<unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> ()>;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct PSDSPContext {
-    pub(crate) add_squares:
-        Option<unsafe extern "C" fn(*mut c_float, *const [c_float; 2], c_int) -> ()>,
-    pub(crate) mul_pair_single: Option<
-        unsafe extern "C" fn(*mut [c_float; 2], *mut [c_float; 2], *mut c_float, c_int) -> (),
-    >,
-    pub(crate) hybrid_analysis: Option<
-        unsafe extern "C" fn(
-            *mut [c_float; 2],
-            *mut [c_float; 2],
-            *const [[c_float; 2]; 8],
-            ptrdiff_t,
-            c_int,
-        ) -> (),
-    >,
-    pub(crate) hybrid_analysis_ileave: Option<
-        unsafe extern "C" fn(*mut [[c_float; 2]; 32], *mut [[c_float; 64]; 38], c_int, c_int) -> (),
-    >,
-    pub(crate) hybrid_synthesis_deint: Option<
-        unsafe extern "C" fn(*mut [[c_float; 64]; 38], *mut [[c_float; 2]; 32], c_int, c_int) -> (),
-    >,
-    pub(crate) decorrelate: Option<
-        unsafe extern "C" fn(
-            *mut [c_float; 2],
-            *mut [c_float; 2],
-            *mut [[c_float; 2]; 37],
-            *const c_float,
-            *const [c_float; 2],
-            *const c_float,
-            c_float,
-            c_int,
-        ) -> (),
-    >,
-    pub(crate) stereo_interpolate: [Option<
-        unsafe extern "C" fn(
-            *mut [c_float; 2],
-            *mut [c_float; 2],
-            *mut [c_float; 4],
-            *mut [c_float; 4],
-            c_int,
-        ) -> (),
-    >; 2],
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct PSCommonContext {
-    pub(crate) start: c_int,
-    pub(crate) enable_iid: c_int,
-    pub(crate) iid_quant: c_int,
-    pub(crate) nr_iid_par: c_int,
-    pub(crate) nr_ipdopd_par: c_int,
-    pub(crate) enable_icc: c_int,
-    pub(crate) icc_mode: c_int,
-    pub(crate) nr_icc_par: c_int,
-    pub(crate) enable_ext: c_int,
-    pub(crate) frame_class: c_int,
-    pub(crate) num_env_old: c_int,
-    pub(crate) num_env: c_int,
-    pub(crate) enable_ipdopd: c_int,
-    pub(crate) border_position: [c_int; 6],
-    pub(crate) iid_par: [[c_schar; 34]; 5],
-    pub(crate) icc_par: [[c_schar; 34]; 5],
-    pub(crate) ipd_par: [[c_schar; 34]; 5],
-    pub(crate) opd_par: [[c_schar; 34]; 5],
-    pub(crate) is34bands: c_int,
-    pub(crate) is34bands_old: c_int,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct PSContext {
-    pub(crate) common: PSCommonContext,
-    pub(crate) in_buf: [[[c_float; 2]; 44]; 5],
-    pub(crate) delay: [[[c_float; 2]; 46]; 91],
-    pub(crate) ap_delay: [[[[c_float; 2]; 37]; 3]; 50],
-    pub(crate) peak_decay_nrg: [c_float; 34],
-    pub(crate) power_smooth: [c_float; 34],
-    pub(crate) peak_decay_diff_smooth: [c_float; 34],
-    pub(crate) H11: [[[c_float; 34]; 6]; 2],
-    pub(crate) H12: [[[c_float; 34]; 6]; 2],
-    pub(crate) H21: [[[c_float; 34]; 6]; 2],
-    pub(crate) H22: [[[c_float; 34]; 6]; 2],
-    pub(crate) Lbuf: [[[c_float; 2]; 32]; 91],
-    pub(crate) Rbuf: [[[c_float; 2]; 32]; 91],
-    pub(crate) opd_hist: [c_schar; 34],
-    pub(crate) ipd_hist: [c_schar; 34],
-    pub(crate) dsp: PSDSPContext,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct SBRDSPContext {
-    pub(crate) sum64x5: Option<unsafe extern "C" fn(*mut c_float) -> ()>,
-    pub(crate) sum_square: Option<unsafe extern "C" fn(*mut [c_float; 2], c_int) -> c_float>,
-    pub(crate) neg_odd_64: Option<unsafe extern "C" fn(*mut c_float) -> ()>,
-    pub(crate) qmf_pre_shuffle: Option<unsafe extern "C" fn(*mut c_float) -> ()>,
-    pub(crate) qmf_post_shuffle:
-        Option<unsafe extern "C" fn(*mut [c_float; 2], *const c_float) -> ()>,
-    pub(crate) qmf_deint_neg: Option<unsafe extern "C" fn(*mut c_float, *const c_float) -> ()>,
-    pub(crate) qmf_deint_bfly:
-        Option<unsafe extern "C" fn(*mut c_float, *const c_float, *const c_float) -> ()>,
-    pub(crate) autocorrelate:
-        Option<unsafe extern "C" fn(*const [c_float; 2], *mut [[c_float; 2]; 2]) -> ()>,
-    pub(crate) hf_gen: Option<
-        unsafe extern "C" fn(
-            *mut [c_float; 2],
-            *const [c_float; 2],
-            *const c_float,
-            *const c_float,
-            c_float,
-            c_int,
-            c_int,
-        ) -> (),
-    >,
-    pub(crate) hf_g_filt: Option<
-        unsafe extern "C" fn(
-            *mut [c_float; 2],
-            *const [[c_float; 2]; 40],
-            *const c_float,
-            c_int,
-            c_long,
-        ) -> (),
-    >,
-    pub(crate) hf_apply_noise: [Option<
-        unsafe extern "C" fn(
-            *mut [c_float; 2],
-            *const c_float,
-            *const c_float,
-            c_int,
-            c_int,
-            c_int,
-        ) -> (),
-    >; 4],
-}
 
 #[derive(Copy, Clone)]
 pub(crate) struct SingleChannelElement {
@@ -387,16 +237,6 @@ pub(crate) const LONG_STOP_SEQUENCE: WindowSequence = 3;
 pub(crate) const EIGHT_SHORT_SEQUENCE: WindowSequence = 2;
 pub(crate) const LONG_START_SEQUENCE: WindowSequence = 1;
 pub(crate) const ONLY_LONG_SEQUENCE: WindowSequence = 0;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct OutputConfiguration {
-    pub(crate) m4ac: MPEG4AudioConfig,
-    pub(crate) layout_map: [[c_uchar; 3]; 64],
-    pub(crate) layout_map_tags: c_int,
-    pub(crate) ch_layout: AVChannelLayout,
-    pub(crate) status: OCStatus,
-}
-pub(crate) type OCStatus = c_uint;
 
 #[derive(Copy, Clone)]
 pub(crate) struct ChannelElement {
@@ -418,45 +258,13 @@ impl ChannelElement {
         unsafe { MaybeUninit::zeroed().assume_init() }
     }
 }
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct SpectrumParameters {
-    pub(crate) bs_start_freq: c_uchar,
-    pub(crate) bs_stop_freq: c_uchar,
-    pub(crate) bs_xover_band: c_uchar,
-    pub(crate) bs_freq_scale: c_uchar,
-    pub(crate) bs_alter_scale: c_uchar,
-    pub(crate) bs_noise_bands: c_uchar,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct ChannelCoupling {
-    pub(crate) coupling_point: CouplingPoint,
-    pub(crate) num_coupled: c_int,
-    pub(crate) type_0: [RawDataBlockType; 8],
-    pub(crate) id_select: [c_int; 8],
-    pub(crate) ch_select: [c_int; 8],
-    pub(crate) gain: [[c_float; 120]; 16],
-}
+
 pub(crate) type RawDataBlockType = c_uint;
 pub(crate) const TYPE_END: RawDataBlockType = 7;
 pub(crate) const TYPE_FIL: RawDataBlockType = 6;
 pub(crate) const TYPE_LFE: RawDataBlockType = 3;
 pub(crate) const TYPE_CPE: RawDataBlockType = 1;
 pub(crate) const TYPE_SCE: RawDataBlockType = 0;
-pub(crate) type CouplingPoint = c_uint;
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct DynamicRangeControl {
-    pub(crate) pce_instance_tag: c_int,
-    pub(crate) dyn_rng_sgn: [c_int; 17],
-    pub(crate) dyn_rng_ctl: [c_int; 17],
-    pub(crate) exclude_mask: [c_int; 64],
-    pub(crate) band_incr: c_int,
-    pub(crate) interpolation_scheme: c_int,
-    pub(crate) band_top: [c_int; 17],
-    pub(crate) prog_ref_level: c_int,
-}
 
 #[derive(Copy, Clone, Default)]
 pub(crate) struct FFPsyBand {
@@ -609,38 +417,6 @@ pub(crate) struct AACISError {
     pub(crate) ener01: c_float,
 }
 
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct FFPsyPreprocessContext {
-    pub(crate) avctx: *mut AVCodecContext,
-    pub(crate) stereo_att: c_float,
-    pub(crate) fcoeffs: *mut FFIIRFilterCoeffs,
-    pub(crate) fstate: *mut *mut FFIIRFilterState,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct FFIIRFilterCoeffs {
-    pub(crate) order: c_int,
-    pub(crate) gain: c_float,
-    pub(crate) cx: *mut c_int,
-    pub(crate) cy: *mut c_float,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct FFIIRFilterState {
-    pub(crate) x: [c_float; 1],
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct AVBPrint {
-    pub(crate) str_0: *mut c_char,
-    pub(crate) len: c_uint,
-    pub(crate) size: c_uint,
-    pub(crate) size_max: c_uint,
-    pub(crate) reserved_internal_buffer: [c_char; 1],
-    pub(crate) reserved_padding: [c_char; 1000],
-}
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct AVTXContext {

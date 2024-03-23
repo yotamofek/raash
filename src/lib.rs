@@ -26,7 +26,7 @@
     non_upper_case_globals
 )]
 #![warn(clippy::approx_constant)]
-// #![deny(dead_code)]
+#![deny(dead_code)]
 
 mod aaccoder;
 mod aacenc;
