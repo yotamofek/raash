@@ -3,7 +3,7 @@ use libc::{c_float, c_int, c_uchar, c_ushort};
 use lpc::LPCContext;
 
 use super::channel_layout::pce;
-use crate::{aaccoder::coder::CoeffsEncoder, audio_frame_queue::AudioFrameQueue, types::*};
+use crate::{audio_frame_queue::AudioFrameQueue, types::*};
 
 pub(crate) struct AACEncContext {
     pub options: AACEncOptions,
@@ -25,7 +25,6 @@ pub(crate) struct AACEncContext {
     pub chan_map: &'static [c_uchar],
     pub cpe: Box<[ChannelElement]>,
     pub psy: FFPsyContext,
-    pub coder: &'static dyn CoeffsEncoder,
     pub cur_channel: c_int,
     pub random_state: c_int,
     pub lambda: c_float,

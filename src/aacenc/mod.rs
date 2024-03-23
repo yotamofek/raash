@@ -47,8 +47,9 @@ use self::{
 };
 use crate::{
     aaccoder::{
-        coder, encode_window_bands_info, ms::search_for_ms, pns,
-        quantize_and_encode_band::quantize_and_encode_band, set_special_band_scalefactors,
+        encode_window_bands_info, ms::search_for_ms, pns,
+        quantize_and_encode_band::quantize_and_encode_band, quantizers,
+        set_special_band_scalefactors,
     },
     aacenc_is::search_for_is,
     aacenc_ltp::{
@@ -985,7 +986,7 @@ unsafe fn aac_encode_frame(
                         &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
                     );
                 }
-                (*(*ctx).coder).search_for_quantizers(
+                quantizers::twoloop::search(
                     avctx,
                     ctx,
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
@@ -1315,6 +1316,11 @@ impl Encoder for AACEncoder {
                 )
             };
 
+            assert_eq!(
+                options.coder as c_uint, AAC_CODER_TWOLOOP,
+                "only twoloop coder is supported"
+            );
+
             let mut ctx = Box::new(AACEncContext {
                 options: *options,
                 pb: PutBitContext::zero(),
@@ -1335,12 +1341,6 @@ impl Encoder for AACEncoder {
                 chan_map,
                 cpe: vec![ChannelElement::zero(); chan_map[0] as usize].into_boxed_slice(),
                 psy: FFPsyContext::zero(),
-                coder: match options.coder as c_uint {
-                    AAC_CODER_ANMR => unimplemented!(),
-                    AAC_CODER_TWOLOOP => &coder::TwoLoop,
-                    AAC_CODER_FAST => &coder::Fast,
-                    _ => panic!("Unknown coder"),
-                },
                 cur_channel: 0,
                 random_state: 0x1f2e3d4c,
                 lambda: if avctx.global_quality > 0 {
