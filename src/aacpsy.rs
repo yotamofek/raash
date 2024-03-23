@@ -708,30 +708,70 @@ unsafe fn calc_bit_demand(
     mut pe: c_float,
     mut bits: c_int,
     mut size: c_int,
-    mut short_window: c_int,
+    mut short_window: bool,
 ) -> c_int {
-    let bitsave_slope: c_float = if short_window != 0 {
-        -0.36363637f32
-    } else {
-        -0.46666667f32
-    };
-    let bitsave_add: c_float = if short_window != 0 {
-        -0.75f32
-    } else {
-        -0.842_857_1_f32
-    };
-    let bitspend_slope: c_float = if short_window != 0 {
-        0.818_181_8_f32
-    } else {
-        0.666_666_7_f32
-    };
-    let bitspend_add: c_float = if short_window != 0 {
-        -0.261_111_1_f32
-    } else {
-        -0.35f32
-    };
-    let clip_low: c_float = if short_window != 0 { 0.2f32 } else { 0.2f32 };
-    let clip_high: c_float = if short_window != 0 { 0.75f32 } else { 0.95f32 };
+    #[derive(Default)]
+    struct SlopeAdd {
+        slope: c_float,
+        add: c_float,
+    }
+
+    #[derive(Default)]
+    struct Info {
+        bit_save: SlopeAdd,
+        bit_spend: SlopeAdd,
+        clip_low: c_float,
+        clip_high: c_float,
+    }
+
+    fn get_info(short_window: bool) -> Info {
+        Info {
+            clip_low: 0.2,
+            ..if short_window {
+                Info {
+                    bit_save: SlopeAdd {
+                        slope: -0.36363637,
+                        add: -0.75,
+                    },
+                    bit_spend: SlopeAdd {
+                        slope: 0.818_181_8,
+                        add: -0.261_111_1,
+                    },
+                    clip_high: 0.75,
+                    ..Default::default()
+                }
+            } else {
+                Info {
+                    bit_save: SlopeAdd {
+                        slope: -0.46666667,
+                        add: -0.842_857_1,
+                    },
+                    bit_spend: SlopeAdd {
+                        slope: 0.666_666_7,
+                        add: -0.35,
+                    },
+                    clip_high: 0.95,
+                    ..Default::default()
+                }
+            }
+        }
+    }
+
+    let Info {
+        bit_save:
+            SlopeAdd {
+                slope: bitsave_slope,
+                add: bitsave_add,
+            },
+        bit_spend:
+            SlopeAdd {
+                slope: bitspend_slope,
+                add: bitspend_add,
+            },
+        clip_low,
+        clip_high,
+    } = get_info(short_window);
+
     let mut clipped_pe: c_float = 0.;
     let mut bit_save: c_float = 0.;
     let mut bit_spend: c_float = 0.;
@@ -1434,7 +1474,7 @@ unsafe fn psy_3gpp_analyze_channel(
             pe,
             (*ctx).bitres.bits,
             (*ctx).bitres.size,
-            ((*wi).num_windows == 8) as c_int,
+            (*wi).num_windows == 8,
         ) as c_float;
         desired_pe = desired_bits * 1.18f32;
         if (*ctx).bitres.bits > 0 {

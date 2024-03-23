@@ -1,4 +1,5 @@
 #![warn(dead_code)]
+#![allow(unused_assignments, unused_unsafe, clippy::identity_op)]
 
 mod tx_double;
 mod tx_float;

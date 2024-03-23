@@ -1,13 +1,13 @@
 #![feature(
-    extern_types,
-    const_for,
-    const_trait_impl,
-    const_mut_refs,
-    let_chains,
     array_chunks,
-    inline_const,
-    generic_const_exprs,
+    const_for,
+    const_mut_refs,
+    const_trait_impl,
+    extern_types,
     generic_arg_infer,
+    generic_const_exprs,
+    inline_const,
+    let_chains,
     new_uninit,
     slice_take
 )]

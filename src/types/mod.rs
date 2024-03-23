@@ -7,7 +7,7 @@ use std::{
 
 use ffi::{
     class::option::AVOptionType,
-    codec::{AVCodecContext, AVCodecID, AVSampleFormat},
+    codec::{AVCodecContext, AVCodecID},
     num::{AVComplexDouble, AVComplexFloat, AVComplexInt32},
 };
 use libc::{

@@ -1,6 +1,6 @@
 use std::f64;
 
-use libc::{c_double, c_float, c_int, c_long};
+use libc::{c_double, c_float, c_int};
 
 pub(crate) fn sqrtf(n: c_float) -> c_float {
     n.sqrt()

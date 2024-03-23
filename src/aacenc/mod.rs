@@ -1505,7 +1505,7 @@ impl Encoder for AACEncoder {
     fn encode_frame(
         avctx: &mut AVCodecContext,
         ctx: &mut Self::Ctx,
-        options: &Self::Options,
+        _: &Self::Options,
         frame: &AVFrame,
         packet_builder: PacketBuilder,
     ) {
