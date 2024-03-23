@@ -8,13 +8,8 @@
     unused_mut
 )]
 
-use std::{
-    alloc::{alloc, alloc_zeroed, Layout},
-    ptr,
-};
-
 use ffi::codec::AVCodecContext;
-use libc::{c_double, c_float, c_int, c_uchar, c_uint, c_void};
+use libc::{c_int, c_uchar};
 
 use crate::{aacpsy::ff_aac_psy_model, types::*};
 
@@ -29,8 +24,6 @@ pub(crate) unsafe fn ff_psy_init(
 ) -> c_int {
     assert_eq!(bands.len(), num_bands.len());
     let mut i: c_int = 0;
-    let mut j: c_int = 0;
-    let mut k: c_int = 0 as c_int;
     (*ctx).avctx = avctx;
     (*ctx).ch = vec![FFPsyChannel::default(); (*avctx).ch_layout.nb_channels as usize * 2]
         .into_boxed_slice();

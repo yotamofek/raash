@@ -1431,9 +1431,7 @@ impl Encoder for AACEncoder {
 
             let mut i: c_int = 0;
             let mut ret: c_int = 0 as c_int;
-            let mut sizes: [*const c_uchar; 2] = [ptr::null::<c_uchar>(); 2];
             let mut grouping: [c_uchar; 16] = [0; 16];
-            let mut lengths: [c_int; 2] = [0; 2];
 
             if avctx.bit_rate == 0 {
                 i = 1 as c_int;

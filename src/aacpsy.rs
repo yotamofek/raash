@@ -734,7 +734,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     lame_window_init(pctx, (*ctx).avctx);
     0 as c_int
 }
-static mut window_grouping: [c_uchar; 9] = [0xb6, 0x6c, 0xd8, 0xb2, 0x66, 0xc6, 0x96, 0x36, 0x36];
+const WINDOW_GROUPING: [c_uchar; 9] = [0xb6, 0x6c, 0xd8, 0xb2, 0x66, 0xc6, 0x96, 0x36, 0x36];
 unsafe fn calc_bit_demand(
     mut ctx: *mut AacPsyContext,
     mut pe: c_float,
@@ -981,7 +981,7 @@ unsafe fn psy_3gpp_analyze_channel(
         100.0f32 - (*pctx).chan_bitrate as c_float * 100.0f32 / 32000.0f32
     };
     let num_bands = ((*ctx).num_bands)[((*wi).num_windows == 8 as c_int) as usize];
-    let mut band_sizes = ((*ctx).bands)[(((*wi).num_windows == 8 as c_int) as usize)];
+    let mut band_sizes = ((*ctx).bands)[((*wi).num_windows == 8 as c_int) as usize];
     let mut coeffs: *mut AacPsyCoeffs =
         ((*pctx).psy_coef[((*wi).num_windows == 8 as c_int) as c_int as usize]).as_mut_ptr();
     let avoid_hole_thr: c_float = if (*wi).num_windows == 8 as c_int {
@@ -1880,7 +1880,7 @@ unsafe extern "C" fn psy_lame_window(
             i;
         }
     }
-    (*pch).next_grouping = window_grouping[grouping as usize];
+    (*pch).next_grouping = WINDOW_GROUPING[grouping as usize];
     (*pch).prev_attack = attacks[8 as c_int as usize];
     wi
 }

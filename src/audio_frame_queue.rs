@@ -1,4 +1,3 @@
-use ::libc;
 use ffi::{
     codec::{frame::AVFrame, AVCodecContext},
     num::AVRational,

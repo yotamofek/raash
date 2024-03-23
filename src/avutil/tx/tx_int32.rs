@@ -1,11 +1,10 @@
 use std::{
     f64::consts::{FRAC_PI_2, PI},
     mem::size_of,
-    ptr,
+    ptr::{self, addr_of},
     sync::Once,
 };
 
-use ::libc;
 use ffi::num::AVComplexInt32;
 use libc::{
     c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong, c_ulonglong,
@@ -1630,45 +1629,36 @@ unsafe extern "C" fn ff_tx_fft_factor_init_int32_c(
     }
     ret
 }
-static mut ff_tx_fft3_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft3_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft3_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [3 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 3 as c_int,
-            max_len: 3 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft3_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft3_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft3_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [3 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 3 as c_int,
+    max_len: 3 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft3_int32_c(
     _s: *mut AVTXContext,
@@ -1682,125 +1672,98 @@ unsafe extern "C" fn ff_tx_fft3_int32_c(
         (stride as c_ulong).wrapping_div(size_of::<TXComplex>() as c_ulong) as ptrdiff_t,
     );
 }
-static mut ff_tx_fft3_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft3_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft3_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [3 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 3 as c_int,
-            max_len: 3 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft3_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft3_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft3_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [3 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 3 as c_int,
+    max_len: 3 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft5_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft5_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft5_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [5 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 5 as c_int,
-            max_len: 5 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft5_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft5_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft5_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [5 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 5 as c_int,
+    max_len: 5 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft5_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft5_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft5_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [5 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 5 as c_int,
-            max_len: 5 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft5_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft5_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft5_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [5 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 5 as c_int,
+    max_len: 5 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft5_int32_c(
     _s: *mut AVTXContext,
@@ -1826,165 +1789,129 @@ unsafe extern "C" fn ff_tx_fft7_int32_c(
         (stride as c_ulong).wrapping_div(size_of::<TXComplex>() as c_ulong) as ptrdiff_t,
     );
 }
-static mut ff_tx_fft7_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft7_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft7_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [7 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 7 as c_int,
-            max_len: 7 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft7_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft7_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft7_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [7 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 7 as c_int,
+    max_len: 7 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft7_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft7_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft7_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [7 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 7 as c_int,
-            max_len: 7 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft7_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft7_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft7_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [7 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 7 as c_int,
+    max_len: 7 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft9_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft9_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft9_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [9 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 9 as c_int,
-            max_len: 9 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft9_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft9_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft9_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [9 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 9 as c_int,
+    max_len: 9 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft9_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft9_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft9_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [9 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 9 as c_int,
-            max_len: 9 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft9_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft9_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft9_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [9 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 9 as c_int,
+    max_len: 9 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft9_int32_c(
     _s: *mut AVTXContext,
@@ -1998,45 +1925,36 @@ unsafe extern "C" fn ff_tx_fft9_int32_c(
         (stride as c_ulong).wrapping_div(size_of::<TXComplex>() as c_ulong) as ptrdiff_t,
     );
 }
-static mut ff_tx_fft15_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft15_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft15_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_INPLACE as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [15 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 15 as c_int,
-            max_len: 15 as c_int,
-            init: Some(
-                ff_tx_fft_factor_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft15_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft15_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft15_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_INPLACE as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [15 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 15 as c_int,
+    max_len: 15 as c_int,
+    init: Some(
+        ff_tx_fft_factor_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft15_int32_c(
     _s: *mut AVTXContext,
@@ -2695,205 +2613,160 @@ unsafe extern "C" fn ff_tx_fft16_ns_int32_c(
     (*dst.offset(11 as c_int as isize)).im = i0.wrapping_sub(t6) as c_int;
     (*dst.offset(3 as c_int as isize)).im = i0.wrapping_add(t6) as c_int;
 }
-static mut ff_tx_fft2_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft2_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft2_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 2 as c_int,
-            max_len: 2 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft2_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft2_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft2_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 2 as c_int,
+    max_len: 2 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft4_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft4_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft4_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 4 as c_int,
-            max_len: 4 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft4_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft4_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft4_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 4 as c_int,
+    max_len: 4 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft8_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft8_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft8_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 8 as c_int,
-            max_len: 8 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft8_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft8_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft8_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 8 as c_int,
+    max_len: 8 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft16_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft16_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft16_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 16 as c_int,
-            max_len: 16 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft16_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft16_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft16_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 16 as c_int,
+    max_len: 16 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft32_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft32_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft32_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 32 as c_int,
-            max_len: 32 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft32_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft32_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft32_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 32 as c_int,
+    max_len: 32 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft32_ns_int32_c(
     s: *mut AVTXContext,
@@ -2919,45 +2792,36 @@ unsafe extern "C" fn ff_tx_fft32_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 8 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft64_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft64_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft64_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 64 as c_int,
-            max_len: 64 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft64_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft64_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft64_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 64 as c_int,
+    max_len: 64 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft64_ns_int32_c(
     s: *mut AVTXContext,
@@ -3007,45 +2871,36 @@ unsafe extern "C" fn ff_tx_fft128_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 32 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft128_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft128_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft128_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 128 as c_int,
-            max_len: 128 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft128_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft128_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft128_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 128 as c_int,
+    max_len: 128 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft256_ns_int32_c(
     s: *mut AVTXContext,
@@ -3071,45 +2926,36 @@ unsafe extern "C" fn ff_tx_fft256_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 64 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft256_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft256_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft256_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 256 as c_int,
-            max_len: 256 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft256_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft256_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft256_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 256 as c_int,
+    max_len: 256 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft512_ns_int32_c(
     s: *mut AVTXContext,
@@ -3135,85 +2981,67 @@ unsafe extern "C" fn ff_tx_fft512_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 128 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft512_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft512_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft512_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 512 as c_int,
-            max_len: 512 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft512_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft512_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft512_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 512 as c_int,
+    max_len: 512 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft1024_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft1024_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft1024_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 1024 as c_int,
-            max_len: 1024 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft1024_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft1024_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft1024_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 1024 as c_int,
+    max_len: 1024 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft1024_ns_int32_c(
     s: *mut AVTXContext,
@@ -3239,45 +3067,36 @@ unsafe extern "C" fn ff_tx_fft1024_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 256 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft2048_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft2048_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft2048_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 2048 as c_int,
-            max_len: 2048 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft2048_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft2048_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft2048_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 2048 as c_int,
+    max_len: 2048 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft2048_ns_int32_c(
     s: *mut AVTXContext,
@@ -3327,85 +3146,67 @@ unsafe extern "C" fn ff_tx_fft4096_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 1024 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft4096_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft4096_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft4096_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 4096 as c_int,
-            max_len: 4096 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft4096_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft4096_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft4096_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 4096 as c_int,
+    max_len: 4096 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft8192_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft8192_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft8192_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 8192 as c_int,
-            max_len: 8192 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft8192_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft8192_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft8192_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 8192 as c_int,
+    max_len: 8192 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft8192_ns_int32_c(
     s: *mut AVTXContext,
@@ -3455,85 +3256,67 @@ unsafe extern "C" fn ff_tx_fft16384_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 4096 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft16384_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft16384_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft16384_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 16384 as c_int,
-            max_len: 16384 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft16384_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft16384_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft16384_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 16384 as c_int,
+    max_len: 16384 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft32768_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft32768_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft32768_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 32768 as c_int,
-            max_len: 32768 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft32768_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft32768_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft32768_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 32768 as c_int,
+    max_len: 32768 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft32768_ns_int32_c(
     s: *mut AVTXContext,
@@ -3583,45 +3366,36 @@ unsafe extern "C" fn ff_tx_fft65536_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 16384 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft65536_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft65536_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft65536_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 65536 as c_int,
-            max_len: 65536 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft65536_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft65536_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft65536_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 65536 as c_int,
+    max_len: 65536 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft131072_ns_int32_c(
     s: *mut AVTXContext,
@@ -3647,45 +3421,36 @@ unsafe extern "C" fn ff_tx_fft131072_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 32768 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft131072_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft131072_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft131072_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 131072 as c_int,
-            max_len: 131072 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft131072_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft131072_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft131072_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 131072 as c_int,
+    max_len: 131072 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft262144_ns_int32_c(
     s: *mut AVTXContext,
@@ -3711,85 +3476,67 @@ unsafe extern "C" fn ff_tx_fft262144_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 65536 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft262144_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft262144_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft262144_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 262144 as c_int,
-            max_len: 262144 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft262144_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft262144_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft262144_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 262144 as c_int,
+    max_len: 262144 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft524288_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft524288_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft524288_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 524288 as c_int,
-            max_len: 524288 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft524288_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft524288_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft524288_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 524288 as c_int,
+    max_len: 524288 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft524288_ns_int32_c(
     s: *mut AVTXContext,
@@ -3839,45 +3586,36 @@ unsafe extern "C" fn ff_tx_fft1048576_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 262144 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft1048576_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft1048576_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft1048576_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 1048576 as c_int,
-            max_len: 1048576 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft1048576_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft1048576_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft1048576_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 1048576 as c_int,
+    max_len: 1048576 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_fft2097152_ns_int32_c(
     s: *mut AVTXContext,
@@ -3903,45 +3641,36 @@ unsafe extern "C" fn ff_tx_fft2097152_ns_int32_c(
     );
     ff_tx_fft_sr_combine_int32_c(dst, cos_0, 524288 as c_int >> 1 as c_int);
 }
-static mut ff_tx_fft2097152_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft2097152_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft2097152_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong
-                | AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 2097152 as c_int,
-            max_len: 2097152 as c_int,
-            init: Some(
-                ff_tx_fft_sr_codelet_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft2097152_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft2097152_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft2097152_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong
+        | AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [2 as c_int, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 2097152 as c_int,
+    max_len: 2097152 as c_int,
+    init: Some(
+        ff_tx_fft_sr_codelet_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_fft_init_int32_c(
@@ -4070,121 +3799,93 @@ unsafe extern "C" fn ff_tx_fft_inplace_int32_c(
         stride,
     );
 }
-static mut ff_tx_fft_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong | (1 as c_ulonglong) << 63 as c_int)
-                as c_ulong,
-            factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_fft_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
+    factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_fft_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft_inplace_small_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft_inplace_small_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong) as c_ulong,
-            factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 2 as c_int,
-            max_len: 65536 as c_int,
-            init: Some(
-                ff_tx_fft_inplace_small_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int - 256 as c_int,
-        }
-    }
+static mut ff_tx_fft_inplace_small_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft_inplace_small_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong) as c_ulong,
+    factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 2 as c_int,
+    max_len: 65536 as c_int,
+    init: Some(
+        ff_tx_fft_inplace_small_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int - 256 as c_int,
 };
-static mut ff_tx_fft_inplace_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft_inplace_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft_inplace_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_INPLACE as c_int as c_ulonglong) as c_ulong,
-            factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_fft_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int - 512 as c_int,
-        }
-    }
+static mut ff_tx_fft_inplace_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft_inplace_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft_inplace_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_INPLACE as c_int as c_ulonglong) as c_ulong,
+    factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_fft_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int - 512 as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_fft_init_naive_small_int32_c(
@@ -4334,70 +4035,50 @@ unsafe extern "C" fn ff_tx_fft_naive_small_int32_c(
         i;
     }
 }
-static mut ff_tx_fft_naive_small_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft_naive_small_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft_naive_small_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong | (1 as c_ulonglong) << 63 as c_int)
-                as c_ulong,
-            factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 2 as c_int,
-            max_len: 1024 as c_int,
-            init: Some(
-                ff_tx_fft_init_naive_small_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_MIN as c_int / 2 as c_int,
-        }
-    }
+static mut ff_tx_fft_naive_small_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft_naive_small_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft_naive_small_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
+    factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 2 as c_int,
+    max_len: 1024 as c_int,
+    init: Some(
+        ff_tx_fft_init_naive_small_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_MIN as c_int / 2 as c_int,
 };
-static mut ff_tx_fft_naive_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft_naive_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft_naive_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong | (1 as c_ulonglong) << 63 as c_int)
-                as c_ulong,
-            factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            nb_factors: 1 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: None,
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_MIN as c_int,
-        }
-    }
+static mut ff_tx_fft_naive_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft_naive_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft_naive_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
+    factors: [-(1 as c_int), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    nb_factors: 1 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: None,
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_MIN as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_fft_pfa_init_int32_c(
@@ -4685,116 +4366,98 @@ unsafe extern "C" fn ff_tx_fft_pfa_ns_int32_c(
         i_1;
     }
 }
-static mut ff_tx_fft_pfa_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft_pfa_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft_pfa_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
-            factors: [
-                7 as c_int,
-                5 as c_int,
-                3 as c_int,
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int * 3 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_fft_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft_pfa_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft_pfa_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft_pfa_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
+    factors: [
+        7 as c_int,
+        5 as c_int,
+        3 as c_int,
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int * 3 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_fft_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_fft_pfa_ns_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"fft_pfa_ns_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_fft_pfa_ns_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_FFT,
-            flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
-            factors: [
-                7 as c_int,
-                5 as c_int,
-                3 as c_int,
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int * 3 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_fft_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_fft_pfa_ns_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"fft_pfa_ns_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_fft_pfa_ns_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_FFT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 61 as c_int) as c_ulong,
+    factors: [
+        7 as c_int,
+        5 as c_int,
+        3 as c_int,
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int * 3 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_fft_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_mdct_naive_init_int32_c(
@@ -4889,117 +4552,99 @@ unsafe extern "C" fn ff_tx_mdct_naive_inv_int32_c(
         i;
     }
 }
-static mut ff_tx_mdct_naive_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_naive_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_naive_fwd_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_naive_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_MIN as c_int,
-        }
-    }
+static mut ff_tx_mdct_naive_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_naive_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_naive_fwd_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_naive_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_MIN as c_int,
 };
-static mut ff_tx_mdct_naive_inv_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_naive_inv_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_naive_inv_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_naive_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_MIN as c_int,
-        }
-    }
+static mut ff_tx_mdct_naive_inv_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_naive_inv_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_naive_inv_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_naive_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_MIN as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_mdct_init_int32_c(
@@ -5272,117 +4917,99 @@ unsafe extern "C" fn ff_tx_mdct_inv_int32_c(
         i_0;
     }
 }
-static mut ff_tx_mdct_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_fwd_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_fwd_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_mdct_inv_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_inv_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_inv_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_inv_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_inv_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_inv_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_mdct_inv_full_init_int32_c(
@@ -5440,61 +5067,52 @@ unsafe extern "C" fn ff_tx_mdct_inv_full_int32_c(
         i;
     }
 }
-static mut ff_tx_mdct_inv_full_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_inv_full_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_inv_full_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | AV_TX_FULL_IMDCT as c_int as c_ulonglong) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_inv_full_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_inv_full_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_inv_full_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_inv_full_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | AV_TX_FULL_IMDCT as c_int as c_ulonglong) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_inv_full_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_mdct_pfa_init_int32_c(
@@ -5698,61 +5316,52 @@ unsafe extern "C" fn ff_tx_mdct_pfa_3xM_inv_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_3xM_inv_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_3xM_inv_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_3xM_inv_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
-            factors: [
-                3 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 3 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_3xM_inv_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_3xM_inv_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_3xM_inv_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
+    factors: [
+        3 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 3 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_mdct_pfa_5xM_inv_int32_c(
     s: *mut AVTXContext,
@@ -5859,117 +5468,99 @@ unsafe extern "C" fn ff_tx_mdct_pfa_5xM_inv_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_5xM_inv_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_5xM_inv_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_5xM_inv_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
-            factors: [
-                5 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 5 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_5xM_inv_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_5xM_inv_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_5xM_inv_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
+    factors: [
+        5 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 5 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_mdct_pfa_7xM_inv_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_7xM_inv_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_7xM_inv_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
-            factors: [
-                7 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 7 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_7xM_inv_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_7xM_inv_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_7xM_inv_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
+    factors: [
+        7 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 7 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_mdct_pfa_7xM_inv_int32_c(
     s: *mut AVTXContext,
@@ -6076,61 +5667,52 @@ unsafe extern "C" fn ff_tx_mdct_pfa_7xM_inv_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_9xM_inv_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_9xM_inv_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_9xM_inv_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
-            factors: [
-                9 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 9 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_9xM_inv_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_9xM_inv_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_9xM_inv_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
+    factors: [
+        9 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 9 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_mdct_pfa_9xM_inv_int32_c(
     s: *mut AVTXContext,
@@ -6342,61 +5924,52 @@ unsafe extern "C" fn ff_tx_mdct_pfa_15xM_inv_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_15xM_inv_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_15xM_inv_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_15xM_inv_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
-            factors: [
-                15 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 15 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_15xM_inv_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_15xM_inv_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_15xM_inv_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
+    factors: [
+        15 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 15 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_mdct_pfa_3xM_fwd_int32_c(
     s: *mut AVTXContext,
@@ -6521,61 +6094,52 @@ unsafe extern "C" fn ff_tx_mdct_pfa_3xM_fwd_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_3xM_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_3xM_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_3xM_fwd_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                3 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 3 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_3xM_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_3xM_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_3xM_fwd_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        3 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 3 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_mdct_pfa_5xM_fwd_int32_c(
     s: *mut AVTXContext,
@@ -6700,61 +6264,52 @@ unsafe extern "C" fn ff_tx_mdct_pfa_5xM_fwd_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_5xM_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_5xM_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_5xM_fwd_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                5 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 5 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_5xM_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_5xM_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_5xM_fwd_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        5 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 5 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_mdct_pfa_7xM_fwd_int32_c(
     s: *mut AVTXContext,
@@ -6879,61 +6434,52 @@ unsafe extern "C" fn ff_tx_mdct_pfa_7xM_fwd_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_7xM_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_7xM_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_7xM_fwd_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                7 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 7 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_7xM_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_7xM_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_7xM_fwd_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        7 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 7 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_mdct_pfa_9xM_fwd_int32_c(
     s: *mut AVTXContext,
@@ -7058,61 +6604,52 @@ unsafe extern "C" fn ff_tx_mdct_pfa_9xM_fwd_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_9xM_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_9xM_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_9xM_fwd_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                9 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 9 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_9xM_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_9xM_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_9xM_fwd_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        9 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 9 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_mdct_pfa_15xM_fwd_int32_c(
     s: *mut AVTXContext,
@@ -7237,61 +6774,52 @@ unsafe extern "C" fn ff_tx_mdct_pfa_15xM_fwd_int32_c(
         i_1;
     }
 }
-static mut ff_tx_mdct_pfa_15xM_fwd_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"mdct_pfa_15xM_fwd_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_mdct_pfa_15xM_fwd_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_MDCT,
-            flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                15 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 15 as c_int * 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_mdct_pfa_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_mdct_pfa_15xM_fwd_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"mdct_pfa_15xM_fwd_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_mdct_pfa_15xM_fwd_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_MDCT,
+    flags: (AV_TX_UNALIGNED as c_int as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        15 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 15 as c_int * 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_mdct_pfa_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_rdft_init_int32_c(
@@ -7762,63 +7290,53 @@ unsafe extern "C" fn ff_tx_rdft_r2r_int32_c(
         *out.offset(len2 as isize) = tmp_dc;
     }
 }
-static mut ff_tx_rdft_r2r_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"rdft_r2r_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_rdft_r2r_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_RDFT,
-            flags: ((AV_TX_UNALIGNED as c_int
-                | AV_TX_INPLACE as c_int
-                | AV_TX_REAL_TO_REAL as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                2 as c_int + 2 as c_int * (0 as c_int == 0) as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int + 2 as c_int * (0 as c_int == 0) as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_rdft_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_rdft_r2r_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"rdft_r2r_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_rdft_r2r_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_RDFT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int | AV_TX_REAL_TO_REAL as c_int)
+        as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        2 as c_int + 2 as c_int * (0 as c_int == 0) as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int + 2 as c_int * (0 as c_int == 0) as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_rdft_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_rdft_r2r_mod2_int32_c(
     s: *mut AVTXContext,
@@ -7952,121 +7470,101 @@ unsafe extern "C" fn ff_tx_rdft_r2r_mod2_int32_c(
         *out.offset(len4 as isize) = tmp_mid;
     };
 }
-static mut ff_tx_rdft_r2r_mod2_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"rdft_r2r_mod2_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_rdft_r2r_mod2_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_RDFT,
-            flags: ((AV_TX_UNALIGNED as c_int
-                | AV_TX_INPLACE as c_int
-                | AV_TX_REAL_TO_REAL as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                2 as c_int + 2 as c_int * (1 as c_int == 0) as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int + 2 as c_int * (1 as c_int == 0) as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_rdft_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_rdft_r2r_mod2_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"rdft_r2r_mod2_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_rdft_r2r_mod2_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_RDFT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int | AV_TX_REAL_TO_REAL as c_int)
+        as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        2 as c_int + 2 as c_int * (1 as c_int == 0) as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int + 2 as c_int * (1 as c_int == 0) as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_rdft_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_rdft_r2i_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"rdft_r2i_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_rdft_r2i_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_RDFT,
-            flags: ((AV_TX_UNALIGNED as c_int
-                | AV_TX_INPLACE as c_int
-                | AV_TX_REAL_TO_IMAGINARY as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                2 as c_int + 2 as c_int * (0 as c_int == 0) as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int + 2 as c_int * (0 as c_int == 0) as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_rdft_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_rdft_r2i_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"rdft_r2i_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_rdft_r2i_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_RDFT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int | AV_TX_REAL_TO_IMAGINARY as c_int)
+        as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        2 as c_int + 2 as c_int * (0 as c_int == 0) as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int + 2 as c_int * (0 as c_int == 0) as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_rdft_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_rdft_r2i_int32_c(
     s: *mut AVTXContext,
@@ -8199,63 +7697,53 @@ unsafe extern "C" fn ff_tx_rdft_r2i_int32_c(
         *out.offset(len2 as isize) = tmp_dc;
     }
 }
-static mut ff_tx_rdft_r2i_mod2_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"rdft_r2i_mod2_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_rdft_r2i_mod2_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_RDFT,
-            flags: ((AV_TX_UNALIGNED as c_int
-                | AV_TX_INPLACE as c_int
-                | AV_TX_REAL_TO_IMAGINARY as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                2 as c_int + 2 as c_int * (1 as c_int == 0) as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int + 2 as c_int * (1 as c_int == 0) as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_rdft_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_rdft_r2i_mod2_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"rdft_r2i_mod2_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_rdft_r2i_mod2_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_RDFT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int | AV_TX_REAL_TO_IMAGINARY as c_int)
+        as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        2 as c_int + 2 as c_int * (1 as c_int == 0) as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int + 2 as c_int * (1 as c_int == 0) as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_rdft_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 unsafe extern "C" fn ff_tx_rdft_r2i_mod2_int32_c(
     s: *mut AVTXContext,
@@ -8588,117 +8076,99 @@ unsafe extern "C" fn ff_tx_dctIII_int32_c(
         i_0;
     }
 }
-static mut ff_tx_dctII_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"dctII_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_dctII_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_DCT,
-            flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 0,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_dct_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_dctII_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"dctII_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_dctII_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_DCT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 59 as c_int) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 0,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_dct_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_dctIII_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"dctIII_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_dctIII_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_DCT,
-            flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int
-                | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 0,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_dct_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_dctIII_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"dctIII_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_dctIII_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_DCT,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int
+        | (1 as c_ulonglong) << 60 as c_int) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 0,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_dct_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 #[cold]
 unsafe extern "C" fn ff_tx_dcstI_init_int32_c(
@@ -8805,115 +8275,97 @@ unsafe extern "C" fn ff_tx_dstI_int32_c(
         size_of::<c_float>() as c_ulong as ptrdiff_t,
     );
 }
-static mut ff_tx_dctI_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"dctI_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_dctI_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_DCT_I,
-            flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_dcstI_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_dctI_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"dctI_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_dctI_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_DCT_I,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_dcstI_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
-static mut ff_tx_dstI_def_int32_c: FFTXCodelet = unsafe {
-    {
-        FFTXCodelet {
-            name: c"dstI_int32_c".as_ptr(),
-            function: Some(
-                ff_tx_dstI_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *mut c_void,
-                        *mut c_void,
-                        ptrdiff_t,
-                    ) -> (),
-            ),
-            type_0: AV_TX_INT32_DST_I,
-            flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
-                | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
-            factors: [
-                2 as c_int,
-                -(1 as c_int),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            nb_factors: 2 as c_int,
-            min_len: 2 as c_int,
-            max_len: -(1 as c_int),
-            init: Some(
-                ff_tx_dcstI_init_int32_c
-                    as unsafe extern "C" fn(
-                        *mut AVTXContext,
-                        *const FFTXCodelet,
-                        c_ulong,
-                        *mut FFTXCodeletOptions,
-                        c_int,
-                        c_int,
-                        *const c_void,
-                    ) -> c_int,
-            ),
-            uninit: None,
-            cpu_flags: 0 as c_int,
-            prio: FF_TX_PRIO_BASE as c_int,
-        }
-    }
+static mut ff_tx_dstI_def_int32_c: FFTXCodelet = FFTXCodelet {
+    name: c"dstI_int32_c".as_ptr(),
+    function: Some(
+        ff_tx_dstI_int32_c
+            as unsafe extern "C" fn(*mut AVTXContext, *mut c_void, *mut c_void, ptrdiff_t) -> (),
+    ),
+    type_0: AV_TX_INT32_DST_I,
+    flags: ((AV_TX_UNALIGNED as c_int | AV_TX_INPLACE as c_int) as c_ulonglong
+        | (1 as c_ulonglong) << 63 as c_int) as c_ulong,
+    factors: [
+        2 as c_int,
+        -(1 as c_int),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ],
+    nb_factors: 2 as c_int,
+    min_len: 2 as c_int,
+    max_len: -(1 as c_int),
+    init: Some(
+        ff_tx_dcstI_init_int32_c
+            as unsafe extern "C" fn(
+                *mut AVTXContext,
+                *const FFTXCodelet,
+                c_ulong,
+                *mut FFTXCodeletOptions,
+                c_int,
+                c_int,
+                *const c_void,
+            ) -> c_int,
+    ),
+    uninit: None,
+    cpu_flags: 0 as c_int,
+    prio: FF_TX_PRIO_BASE as c_int,
 };
 
 pub unsafe extern "C" fn ff_tx_mdct_gen_exp_int32(
@@ -8975,68 +8427,68 @@ pub unsafe extern "C" fn ff_tx_mdct_gen_exp_int32(
 
 pub static mut ff_tx_codelet_list_int32_c: [*const FFTXCodelet; 63] = unsafe {
     [
-        &ff_tx_fft2_ns_def_int32_c,
-        &ff_tx_fft4_ns_def_int32_c,
-        &ff_tx_fft8_ns_def_int32_c,
-        &ff_tx_fft16_ns_def_int32_c,
-        &ff_tx_fft32_ns_def_int32_c,
-        &ff_tx_fft64_ns_def_int32_c,
-        &ff_tx_fft128_ns_def_int32_c,
-        &ff_tx_fft256_ns_def_int32_c,
-        &ff_tx_fft512_ns_def_int32_c,
-        &ff_tx_fft1024_ns_def_int32_c,
-        &ff_tx_fft2048_ns_def_int32_c,
-        &ff_tx_fft4096_ns_def_int32_c,
-        &ff_tx_fft8192_ns_def_int32_c,
-        &ff_tx_fft16384_ns_def_int32_c,
-        &ff_tx_fft32768_ns_def_int32_c,
-        &ff_tx_fft65536_ns_def_int32_c,
-        &ff_tx_fft131072_ns_def_int32_c,
-        &ff_tx_fft262144_ns_def_int32_c,
-        &ff_tx_fft524288_ns_def_int32_c,
-        &ff_tx_fft1048576_ns_def_int32_c,
-        &ff_tx_fft2097152_ns_def_int32_c,
-        &ff_tx_fft3_ns_def_int32_c,
-        &ff_tx_fft5_ns_def_int32_c,
-        &ff_tx_fft7_ns_def_int32_c,
-        &ff_tx_fft9_ns_def_int32_c,
-        &ff_tx_fft15_ns_def_int32_c,
-        &ff_tx_fft3_fwd_def_int32_c,
-        &ff_tx_fft5_fwd_def_int32_c,
-        &ff_tx_fft7_fwd_def_int32_c,
-        &ff_tx_fft9_fwd_def_int32_c,
-        &ff_tx_fft_def_int32_c,
-        &ff_tx_fft_inplace_def_int32_c,
-        &ff_tx_fft_inplace_small_def_int32_c,
-        &ff_tx_fft_pfa_def_int32_c,
-        &ff_tx_fft_pfa_ns_def_int32_c,
-        &ff_tx_fft_naive_def_int32_c,
-        &ff_tx_fft_naive_small_def_int32_c,
-        &ff_tx_mdct_fwd_def_int32_c,
-        &ff_tx_mdct_inv_def_int32_c,
-        &ff_tx_mdct_pfa_3xM_fwd_def_int32_c,
-        &ff_tx_mdct_pfa_5xM_fwd_def_int32_c,
-        &ff_tx_mdct_pfa_7xM_fwd_def_int32_c,
-        &ff_tx_mdct_pfa_9xM_fwd_def_int32_c,
-        &ff_tx_mdct_pfa_15xM_fwd_def_int32_c,
-        &ff_tx_mdct_pfa_3xM_inv_def_int32_c,
-        &ff_tx_mdct_pfa_5xM_inv_def_int32_c,
-        &ff_tx_mdct_pfa_7xM_inv_def_int32_c,
-        &ff_tx_mdct_pfa_9xM_inv_def_int32_c,
-        &ff_tx_mdct_pfa_15xM_inv_def_int32_c,
-        &ff_tx_mdct_naive_fwd_def_int32_c,
-        &ff_tx_mdct_naive_inv_def_int32_c,
-        &ff_tx_mdct_inv_full_def_int32_c,
-        &ff_tx_rdft_r2c_def_int32_c,
-        &ff_tx_rdft_r2r_def_int32_c,
-        &ff_tx_rdft_r2r_mod2_def_int32_c,
-        &ff_tx_rdft_r2i_def_int32_c,
-        &ff_tx_rdft_r2i_mod2_def_int32_c,
-        &ff_tx_rdft_c2r_def_int32_c,
-        &ff_tx_dctII_def_int32_c,
-        &ff_tx_dctIII_def_int32_c,
-        &ff_tx_dctI_def_int32_c,
-        &ff_tx_dstI_def_int32_c,
+        addr_of!(ff_tx_fft2_ns_def_int32_c),
+        addr_of!(ff_tx_fft4_ns_def_int32_c),
+        addr_of!(ff_tx_fft8_ns_def_int32_c),
+        addr_of!(ff_tx_fft16_ns_def_int32_c),
+        addr_of!(ff_tx_fft32_ns_def_int32_c),
+        addr_of!(ff_tx_fft64_ns_def_int32_c),
+        addr_of!(ff_tx_fft128_ns_def_int32_c),
+        addr_of!(ff_tx_fft256_ns_def_int32_c),
+        addr_of!(ff_tx_fft512_ns_def_int32_c),
+        addr_of!(ff_tx_fft1024_ns_def_int32_c),
+        addr_of!(ff_tx_fft2048_ns_def_int32_c),
+        addr_of!(ff_tx_fft4096_ns_def_int32_c),
+        addr_of!(ff_tx_fft8192_ns_def_int32_c),
+        addr_of!(ff_tx_fft16384_ns_def_int32_c),
+        addr_of!(ff_tx_fft32768_ns_def_int32_c),
+        addr_of!(ff_tx_fft65536_ns_def_int32_c),
+        addr_of!(ff_tx_fft131072_ns_def_int32_c),
+        addr_of!(ff_tx_fft262144_ns_def_int32_c),
+        addr_of!(ff_tx_fft524288_ns_def_int32_c),
+        addr_of!(ff_tx_fft1048576_ns_def_int32_c),
+        addr_of!(ff_tx_fft2097152_ns_def_int32_c),
+        addr_of!(ff_tx_fft3_ns_def_int32_c),
+        addr_of!(ff_tx_fft5_ns_def_int32_c),
+        addr_of!(ff_tx_fft7_ns_def_int32_c),
+        addr_of!(ff_tx_fft9_ns_def_int32_c),
+        addr_of!(ff_tx_fft15_ns_def_int32_c),
+        addr_of!(ff_tx_fft3_fwd_def_int32_c),
+        addr_of!(ff_tx_fft5_fwd_def_int32_c),
+        addr_of!(ff_tx_fft7_fwd_def_int32_c),
+        addr_of!(ff_tx_fft9_fwd_def_int32_c),
+        addr_of!(ff_tx_fft_def_int32_c),
+        addr_of!(ff_tx_fft_inplace_def_int32_c),
+        addr_of!(ff_tx_fft_inplace_small_def_int32_c),
+        addr_of!(ff_tx_fft_pfa_def_int32_c),
+        addr_of!(ff_tx_fft_pfa_ns_def_int32_c),
+        addr_of!(ff_tx_fft_naive_def_int32_c),
+        addr_of!(ff_tx_fft_naive_small_def_int32_c),
+        addr_of!(ff_tx_mdct_fwd_def_int32_c),
+        addr_of!(ff_tx_mdct_inv_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_3xM_fwd_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_5xM_fwd_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_7xM_fwd_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_9xM_fwd_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_15xM_fwd_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_3xM_inv_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_5xM_inv_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_7xM_inv_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_9xM_inv_def_int32_c),
+        addr_of!(ff_tx_mdct_pfa_15xM_inv_def_int32_c),
+        addr_of!(ff_tx_mdct_naive_fwd_def_int32_c),
+        addr_of!(ff_tx_mdct_naive_inv_def_int32_c),
+        addr_of!(ff_tx_mdct_inv_full_def_int32_c),
+        addr_of!(ff_tx_rdft_r2c_def_int32_c),
+        addr_of!(ff_tx_rdft_r2r_def_int32_c),
+        addr_of!(ff_tx_rdft_r2r_mod2_def_int32_c),
+        addr_of!(ff_tx_rdft_r2i_def_int32_c),
+        addr_of!(ff_tx_rdft_r2i_mod2_def_int32_c),
+        addr_of!(ff_tx_rdft_c2r_def_int32_c),
+        addr_of!(ff_tx_dctII_def_int32_c),
+        addr_of!(ff_tx_dctIII_def_int32_c),
+        addr_of!(ff_tx_dctI_def_int32_c),
+        addr_of!(ff_tx_dstI_def_int32_c),
         ptr::null(),
     ]
 };

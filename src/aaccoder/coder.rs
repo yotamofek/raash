@@ -1,7 +1,7 @@
 use ffi::codec::AVCodecContext;
 use libc::{c_float, c_int};
 
-use super::{encode_window_bands_info, quantizers, search_for_quantizers_fast, trellis};
+use super::{quantizers, search_for_quantizers_fast, trellis};
 use crate::{aacenc::ctx::AACEncContext, types::SingleChannelElement};
 
 pub(crate) trait CoeffsEncoder {
