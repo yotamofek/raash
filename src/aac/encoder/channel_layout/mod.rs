@@ -5,7 +5,9 @@ use std::ptr::null_mut;
 use ffi::codec::channel::{self, AVChannel, AVChannelLayout, ChannelLayoutMaskOrMap, ORDER_NATIVE};
 use libc::{c_uchar, c_ulong};
 
-use crate::types::*;
+use crate::aac::SyntaxElementType::{
+    self, ChannelPairElement as CPE, LowFrequencyEffects as LFE, SingleChannelElement as SCE,
+};
 
 const fn channel_mask(channels: &[AVChannel]) -> ChannelLayoutMaskOrMap {
     let mut mask: c_ulong = 0;
@@ -26,7 +28,7 @@ const fn channel_layout(channels: &[AVChannel]) -> AVChannelLayout {
     }
 }
 
-const fn config_map<const N: usize>(types: &[RawDataBlockType]) -> [c_uchar; N] {
+const fn config_map<const N: usize>(types: &[SyntaxElementType]) -> [c_uchar; N] {
     let mut map: [u8; N] = [0; N];
     let mut i = 0;
     map[0] = types.len() as c_uchar;
@@ -79,14 +81,14 @@ pub(super) const NORMAL_LAYOUTS: [AVChannelLayout; 7] = [
 ];
 
 pub(super) const CONFIGS: [[c_uchar; 6]; 16] = [
-    config_map(&[TYPE_SCE]),
-    config_map(&[TYPE_CPE]),
-    config_map(&[TYPE_SCE, TYPE_CPE]),
-    config_map(&[TYPE_SCE, TYPE_CPE, TYPE_SCE]),
-    config_map(&[TYPE_SCE, TYPE_CPE, TYPE_CPE]),
-    config_map(&[TYPE_SCE, TYPE_CPE, TYPE_CPE, TYPE_LFE]),
+    config_map(&[SCE]),
+    config_map(&[CPE]),
+    config_map(&[SCE, CPE]),
+    config_map(&[SCE, CPE, SCE]),
+    config_map(&[SCE, CPE, CPE]),
+    config_map(&[SCE, CPE, CPE, LFE]),
     config_map(&[]),
-    config_map(&[TYPE_SCE, TYPE_CPE, TYPE_CPE, TYPE_CPE, TYPE_LFE]),
+    config_map(&[SCE, CPE, CPE, CPE, LFE]),
     config_map(&[]),
     config_map(&[]),
     config_map(&[]),

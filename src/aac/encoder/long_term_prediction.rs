@@ -15,6 +15,7 @@ use crate::{
     aac::{
         coder::quantize_and_encode_band::quantize_and_encode_band_cost,
         encoder::{abs_pow34_v, ctx::AACEncContext},
+        SyntaxElementType,
     },
     common::*,
     types::*,
@@ -162,7 +163,11 @@ pub(crate) unsafe fn ltp_insert_new_frame(mut s: *mut AACEncContext) {
     while i < (*s).chan_map[0] as c_int {
         cpe = &mut *((*s).cpe.as_mut_ptr()).offset(i as isize) as *mut ChannelElement;
         tag = (*s).chan_map[(i + 1) as usize] as c_int;
-        chans = if tag == TYPE_CPE as c_int { 2 } else { 1 };
+        chans = if tag == SyntaxElementType::ChannelPairElement as c_int {
+            2
+        } else {
+            1
+        };
         ch = 0;
         while ch < chans {
             sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;

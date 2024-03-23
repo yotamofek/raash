@@ -240,13 +240,6 @@ impl ChannelElement {
     }
 }
 
-pub(crate) type RawDataBlockType = c_uint;
-pub(crate) const TYPE_END: RawDataBlockType = 7;
-pub(crate) const TYPE_FIL: RawDataBlockType = 6;
-pub(crate) const TYPE_LFE: RawDataBlockType = 3;
-pub(crate) const TYPE_CPE: RawDataBlockType = 1;
-pub(crate) const TYPE_SCE: RawDataBlockType = 0;
-
 #[derive(Copy, Clone, Default)]
 pub(crate) struct FFPsyBand {
     pub(crate) bits: c_int,

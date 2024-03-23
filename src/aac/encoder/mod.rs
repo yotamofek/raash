@@ -55,6 +55,7 @@ use self::{
     temporal_noise_shaping::{apply_tns, encode_tns_info, search_for_tns},
     window::{apply_window_and_mdct, APPLY_WINDOW},
 };
+use super::SyntaxElementType;
 use crate::{
     aac::{
         coder::{
@@ -657,7 +658,11 @@ unsafe fn put_bitstream_info(mut s: *mut AACEncContext, mut name: &CStr) {
     let mut namelen: c_int = 0;
     let mut padbits: c_int = 0;
     namelen = name.to_bytes().len().wrapping_add(2) as c_int;
-    put_bits(&mut (*s).pb, 3, TYPE_FIL as c_int as BitBuf);
+    put_bits(
+        &mut (*s).pb,
+        3,
+        SyntaxElementType::FillElement as c_int as BitBuf,
+    );
     put_bits(
         &mut (*s).pb,
         4,
@@ -757,7 +762,11 @@ unsafe fn aac_encode_frame(
     while i < (*ctx).chan_map[0] as c_int {
         let mut wi: *mut FFPsyWindowInfo = windows.as_mut_ptr().offset(start_ch as isize);
         tag = ((*ctx).chan_map[(i + 1) as usize]) as c_int;
-        chans = if tag == TYPE_CPE as c_int { 2 } else { 1 };
+        chans = if tag == SyntaxElementType::ChannelPairElement as c_int {
+            2
+        } else {
+            1
+        };
         cpe = &mut (*ctx).cpe[i as usize] as *mut ChannelElement;
         ch = 0;
         while ch < chans {
@@ -774,7 +783,7 @@ unsafe fn aac_encode_frame(
             if frame.is_null() {
                 la = ptr::null_mut::<c_float>();
             }
-            if tag == TYPE_LFE as c_int {
+            if tag == SyntaxElementType::LowFrequencyEffects as c_int {
                 let fresh2 = &mut (*wi.offset(ch as isize)).window_type[1];
                 *fresh2 = ONLY_LONG_SEQUENCE as c_int;
                 (*wi.offset(ch as isize)).window_type[0] = *fresh2;
@@ -799,7 +808,7 @@ unsafe fn aac_encode_frame(
             (*ics).use_kb_window[0] = (*wi.offset(ch as isize)).window_shape as c_uchar;
             (*ics).num_windows = (*wi.offset(ch as isize)).num_windows;
             (*ics).swb_sizes = ((*ctx).psy.bands)[((*ics).num_windows == 8) as usize].as_ptr();
-            (*ics).num_swb = if tag == TYPE_LFE as c_int {
+            (*ics).num_swb = if tag == SyntaxElementType::LowFrequencyEffects as c_int {
                 (*ics).num_swb
             } else {
                 ((*ctx).psy.num_bands)[((*ics).num_windows == 8) as usize]
@@ -929,7 +938,11 @@ unsafe fn aac_encode_frame(
             let mut wi_0: *mut FFPsyWindowInfo = windows.as_mut_ptr().offset(start_ch as isize);
             let mut coeffs: [*const c_float; 2] = [ptr::null::<c_float>(); 2];
             tag = (*ctx).chan_map[(i + 1) as usize] as c_int;
-            chans = if tag == TYPE_CPE as c_int { 2 } else { 1 };
+            chans = if tag == SyntaxElementType::ChannelPairElement as c_int {
+                2
+            } else {
+                1
+            };
             cpe = &mut (*ctx).cpe[i as usize] as *mut ChannelElement;
             (*cpe).common_window = 0;
             (*cpe).is_mask.fill(0);
@@ -978,7 +991,7 @@ unsafe fn aac_encode_frame(
                             }) as c_float)) as c_int;
                 (*ctx).psy.bitres.alloc /= chans;
             }
-            (*ctx).cur_type = tag as RawDataBlockType;
+            (*ctx).cur_type = (tag as u32).try_into().unwrap();
             ch = 0;
             while ch < chans {
                 (*ctx).cur_channel = start_ch + ch;
@@ -1197,7 +1210,11 @@ unsafe fn aac_encode_frame(
             if is_mode != 0 || ms_mode != 0 || tns_mode != 0 || pred_mode != 0 {
                 i = 0;
                 while i < (*ctx).chan_map[0] as c_int {
-                    chans = if tag == TYPE_CPE as c_int { 2 } else { 1 };
+                    chans = if tag == SyntaxElementType::ChannelPairElement as c_int {
+                        2
+                    } else {
+                        1
+                    };
                     cpe = &mut (*ctx).cpe[i as usize] as *mut ChannelElement;
                     ch = 0;
                     while ch < chans {
@@ -1216,7 +1233,7 @@ unsafe fn aac_encode_frame(
     if (*ctx).options.ltp != 0 {
         ltp_insert_new_frame(ctx);
     }
-    put_bits(&mut (*ctx).pb, 3, TYPE_END as c_int as BitBuf);
+    put_bits(&mut (*ctx).pb, 3, SyntaxElementType::End as c_int as BitBuf);
     flush_put_bits(&mut (*ctx).pb);
     (*ctx).last_frame_pb_count = put_bits_count(&mut (*ctx).pb);
     avpkt.truncate(put_bytes_output(&mut (*ctx).pb) as usize);
@@ -1354,7 +1371,7 @@ impl Encoder for AACEncoder {
                 last_frame_pb_count: 0,
                 lambda_sum: 0.,
                 lambda_count: 0,
-                cur_type: 0,
+                cur_type: SyntaxElementType::SingleChannelElement,
                 afq: AudioFrameQueue::new(avctx),
                 qcoefs: [0; _],
                 scoefs: [0.; _],
@@ -1369,13 +1386,12 @@ impl Encoder for AACEncoder {
             if avctx.bit_rate == 0 {
                 i = 1;
                 while i <= ctx.chan_map[0] as c_int {
-                    avctx.bit_rate += (if ctx.chan_map[i as usize] as c_int == TYPE_CPE as c_int {
-                        128000
-                    } else if ctx.chan_map[i as usize] as c_int == TYPE_LFE as c_int {
-                        16000
-                    } else {
-                        69000
-                    }) as c_long;
+                    avctx.bit_rate += match u32::from(ctx.chan_map[i as usize]).try_into() {
+                        Ok(SyntaxElementType::ChannelPairElement) => 128000,
+                        Ok(SyntaxElementType::LowFrequencyEffects) => 16000,
+                        _ => 69000,
+                    } as c_long;
+
                     i += 1;
                     i;
                 }
@@ -1490,8 +1506,8 @@ impl Encoder for AACEncoder {
             i = 0;
             while i < ctx.chan_map[0] as c_int {
                 grouping[i as usize] = (ctx.chan_map[(i + 1) as usize] as c_int
-                    == TYPE_CPE as c_int) as c_int
-                    as c_uchar;
+                    == SyntaxElementType::ChannelPairElement as c_int)
+                    as c_int as c_uchar;
                 i += 1;
                 i;
             }

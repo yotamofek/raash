@@ -3,7 +3,7 @@ use libc::{c_float, c_int, c_uchar, c_ushort};
 use lpc::LPCContext;
 
 use super::channel_layout::pce;
-use crate::{audio_frame_queue::AudioFrameQueue, types::*};
+use crate::{aac::SyntaxElementType, audio_frame_queue::AudioFrameQueue, types::*};
 
 pub(crate) struct AACEncContext {
     pub options: AACEncOptions,
@@ -31,7 +31,7 @@ pub(crate) struct AACEncContext {
     pub last_frame_pb_count: c_int,
     pub lambda_sum: c_float,
     pub lambda_count: c_int,
-    pub cur_type: RawDataBlockType,
+    pub cur_type: SyntaxElementType,
     pub afq: AudioFrameQueue,
     pub qcoefs: [c_int; 96],
     pub scoefs: [c_float; 1024],

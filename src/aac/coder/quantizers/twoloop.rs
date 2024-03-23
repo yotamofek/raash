@@ -13,6 +13,7 @@ use crate::{
         },
         encoder::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
         tables::ff_aac_scalefactor_bits,
+        SyntaxElementType,
     },
     common::*,
     types::*,
@@ -79,7 +80,7 @@ pub(crate) unsafe fn search(
     }
 
     if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
-        if s.options.mid_side != 0 && s.cur_type == TYPE_CPE {
+        if s.options.mid_side != 0 && s.cur_type == SyntaxElementType::ChannelPairElement {
             dest_bits *= 2;
         }
         too_many_bits = 5800;
