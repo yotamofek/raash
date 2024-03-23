@@ -4,7 +4,7 @@ use libc::{c_float, c_int, c_uint, c_ulong, c_void};
 
 use super::ctx::AACEncContext;
 use crate::{
-    aactab::{KBD_LONG, KBD_SHORT},
+    aac::tables::{KBD_LONG, KBD_SHORT},
     sinewin::{SINE_WIN_1024, SINE_WIN_128},
     types::{ptrdiff_t, AVFloatDSPContext, SingleChannelElement, EIGHT_SHORT_SEQUENCE},
 };

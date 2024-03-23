@@ -12,7 +12,7 @@ use std::ptr::addr_of;
 use ffi::codec::AVCodecContext;
 use libc::{c_int, c_uchar};
 
-use crate::{aacpsy::ff_aac_psy_model, types::*};
+use crate::{aac::psy_model::ff_aac_psy_model, types::*};
 
 #[cold]
 pub(crate) unsafe fn ff_psy_init(

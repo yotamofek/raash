@@ -12,9 +12,11 @@ use ffi::codec::AVCodecContext;
 use libc::{c_double, c_float, c_int, c_uchar, c_uint};
 
 use crate::{
-    aaccoder::quantize_and_encode_band::quantize_and_encode_band_cost,
-    aacenc::{abs_pow34_v, ctx::AACEncContext},
-    aactab::POW_SF_TABLES,
+    aac::{
+        coder::quantize_and_encode_band::quantize_and_encode_band_cost,
+        encoder::{abs_pow34_v, ctx::AACEncContext},
+        tables::POW_SF_TABLES,
+    },
     common::*,
     types::*,
 };

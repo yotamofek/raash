@@ -22,8 +22,10 @@ use self::{
     quantize_and_encode_band::quantize_and_encode_band_cost,
 };
 use crate::{
-    aacenc::{abs_pow34_v, ctx::AACEncContext},
-    aactab::*,
+    aac::{
+        encoder::{abs_pow34_v, ctx::AACEncContext},
+        tables::*,
+    },
     common::*,
     types::*,
 };

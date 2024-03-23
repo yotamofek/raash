@@ -11,7 +11,7 @@ use std::mem::size_of;
 
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
-use crate::{aacenc::ctx::AACEncContext, common::*, types::*};
+use crate::{aac::encoder::ctx::AACEncContext, common::*, types::*};
 
 static mut BUF_BITS: c_int = 0;
 #[inline]

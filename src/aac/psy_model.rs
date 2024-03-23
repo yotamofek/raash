@@ -12,7 +12,7 @@ use std::alloc::{alloc_zeroed, Layout};
 use ffi::codec::AVCodecContext;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
-use crate::{common::*, psymodel::ff_psy_find_group, types::*};
+use crate::{common::*, psy_model::ff_psy_find_group, types::*};
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 // TODO: remove explicit repr and discriminants when `AacPsyBand` has a default impl

@@ -7,8 +7,10 @@ use super::{
     ff_init_nextband_map, ff_sfdelta_can_remove_band, math::lcg_random, quantize_band_cost,
 };
 use crate::{
-    aacenc::{abs_pow34_v, ctx::AACEncContext},
-    aactab::POW_SF_TABLES,
+    aac::{
+        encoder::{abs_pow34_v, ctx::AACEncContext},
+        tables::POW_SF_TABLES,
+    },
     common::*,
     types::*,
 };

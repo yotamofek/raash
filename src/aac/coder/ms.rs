@@ -7,7 +7,7 @@ use super::{
     quantize_band_cost,
 };
 use crate::{
-    aacenc::{abs_pow34_v, ctx::AACEncContext},
+    aac::encoder::{abs_pow34_v, ctx::AACEncContext},
     common::av_clip_c,
     types::{BandType, ChannelElement, FFPsyBand, NOISE_BT, RESERVED_BT},
 };

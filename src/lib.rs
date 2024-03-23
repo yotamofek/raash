@@ -26,17 +26,10 @@
 #![warn(clippy::approx_constant)]
 #![deny(dead_code)]
 
-mod aaccoder;
-mod aacenc;
-mod aacenc_is;
-mod aacenc_ltp;
-mod aacenc_tns;
-mod aacenctab;
-mod aacpsy;
-mod aactab;
+mod aac;
 mod audio_frame_queue;
 mod mpeg4audio_sample_rates;
-mod psymodel;
+mod psy_model;
 mod sinewin;
 
 mod common;

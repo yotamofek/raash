@@ -13,7 +13,12 @@ mod dsp;
 pub mod options;
 mod pb;
 pub(crate) mod pow;
+mod tables;
 mod window;
+
+mod intensity_stereo;
+mod long_term_prediction;
+mod temporal_noise_shaping;
 
 use core::panic;
 use std::{
@@ -28,8 +33,8 @@ use encoder::{encoder, Class, Encoder, PacketBuilder};
 use ffi::{
     class::option::AVOption,
     codec::{
-        channel::AVChannelLayout, frame::AVFrame, profile, AVCodecContext, AVCodecID, AVPacket,
-        FFCodec, FFCodecDefault,
+        channel::AVChannelLayout, frame::AVFrame, profile, AVCodecContext, AVCodecID, FFCodec,
+        FFCodecDefault,
     },
 };
 use itertools::Itertools;
@@ -39,32 +44,35 @@ use lpc::LPCContext;
 use self::{
     channel_layout::pce,
     ctx::{AACEncContext, PrivData},
+    intensity_stereo::search_for_is,
+    long_term_prediction::{
+        adjust_common_ltp, encode_ltp_info, ltp_insert_new_frame, search_for_ltp, update_ltp,
+    },
     options::OPTIONS,
     pb::*,
     pow::Pow34,
+    tables::{SWB_SIZE_1024, SWB_SIZE_128},
+    temporal_noise_shaping::{apply_tns, encode_tns_info, search_for_tns},
     window::{apply_window_and_mdct, APPLY_WINDOW},
 };
 use crate::{
-    aaccoder::{
-        encode_window_bands_info, ms::search_for_ms, pns,
-        quantize_and_encode_band::quantize_and_encode_band, quantizers,
-        set_special_band_scalefactors,
-    },
-    aacenc_is::search_for_is,
-    aacenc_ltp::{
-        adjust_common_ltp, encode_ltp_info, ltp_insert_new_frame, search_for_ltp, update_ltp,
-    },
-    aacenc_tns::{apply_tns, encode_tns_info, search_for_tns},
-    aacenctab::{SWB_SIZE_1024, SWB_SIZE_128},
-    aactab::{
-        ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits, ff_aac_scalefactor_code,
-        ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024, ff_tns_max_bands_128,
+    aac::{
+        coder::{
+            encode_window_bands_info, ms::search_for_ms, pns,
+            quantize_and_encode_band::quantize_and_encode_band, quantizers,
+            set_special_band_scalefactors,
+        },
+        tables::{
+            ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits,
+            ff_aac_scalefactor_code, ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024,
+            ff_tns_max_bands_128,
+        },
     },
     audio_frame_queue::{AudioFrameQueue, AudioRemoved},
     avutil::tx::av_tx_uninit,
     common::*,
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
-    psymodel::{ff_psy_end, ff_psy_init},
+    psy_model::{ff_psy_end, ff_psy_init},
     types::*,
 };
 

@@ -12,8 +12,10 @@ use std::{mem::size_of, ptr};
 use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
 
 use crate::{
-    aaccoder::quantize_and_encode_band::quantize_and_encode_band_cost,
-    aacenc::{abs_pow34_v, ctx::AACEncContext},
+    aac::{
+        coder::quantize_and_encode_band::quantize_and_encode_band_cost,
+        encoder::{abs_pow34_v, ctx::AACEncContext},
+    },
     common::*,
     types::*,
 };

@@ -5,12 +5,15 @@ use itertools::izip;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
 use crate::{
-    aaccoder::{
-        cutoff_from_bitrate, ff_init_nextband_map, ff_pns_bits, ff_sfdelta_can_remove_band,
-        find_form_factor, find_max_val, find_min_book, math::coef2minsf, quantize_band_cost_cached,
+    aac::{
+        coder::{
+            cutoff_from_bitrate, ff_init_nextband_map, ff_pns_bits, ff_sfdelta_can_remove_band,
+            find_form_factor, find_max_val, find_min_book, math::coef2minsf,
+            quantize_band_cost_cached,
+        },
+        encoder::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
+        tables::ff_aac_scalefactor_bits,
     },
-    aacenc::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
-    aactab::ff_aac_scalefactor_bits,
     common::*,
     types::*,
 };

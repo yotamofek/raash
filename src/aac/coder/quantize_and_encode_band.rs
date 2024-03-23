@@ -8,8 +8,12 @@ use super::{
     put_bits, put_sbits, quant,
 };
 use crate::{
-    aacenc::{abs_pow34_v, ctx::AACEncContext, quantize_bands},
-    aactab::{ff_aac_codebook_vectors, ff_aac_spectral_bits, ff_aac_spectral_codes, POW_SF_TABLES},
+    aac::{
+        encoder::{abs_pow34_v, ctx::AACEncContext, quantize_bands},
+        tables::{
+            ff_aac_codebook_vectors, ff_aac_spectral_bits, ff_aac_spectral_codes, POW_SF_TABLES,
+        },
+    },
     common::*,
     types::*,
 };
