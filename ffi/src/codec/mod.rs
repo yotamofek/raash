@@ -5,7 +5,6 @@ pub mod subtitle;
 
 use std::{ffi::CStr, ptr};
 
-use c2rust_bitfields::BitfieldStruct;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
 use self::{channel::AVChannelLayout, frame::AVFrame, subtitle::AVSubtitle};
@@ -338,12 +337,10 @@ impl FFCodecDefault {
 pub type FFCodecType = c_uint;
 pub const FF_CODEC_CB_TYPE_ENCODE: FFCodecType = 3;
 
-#[derive(Copy, Clone, BitfieldStruct)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub struct FFCodec {
     pub p: AVCodec,
-    #[bitfield(name = "caps_internal", ty = "c_uint", bits = "0..=28")]
-    #[bitfield(name = "cb_type", ty = "c_uint", bits = "29..=31")]
     pub caps_internal_cb_type: [u8; 4],
     pub priv_data_size: c_int,
     pub update_thread_context:
