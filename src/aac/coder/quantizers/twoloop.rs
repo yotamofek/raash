@@ -1,6 +1,7 @@
 use std::{iter::zip, slice};
 
 use ffi::codec::AVCodecContext;
+use ffmpeg_src_macro::ffmpeg_src;
 use itertools::izip;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
@@ -19,6 +20,7 @@ use crate::{
     types::*,
 };
 
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 67..=761, name = "search_for_quantizers_twoloop")]
 pub(crate) unsafe fn search(
     mut avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
@@ -1106,28 +1108,38 @@ fn loop1(
     res
 }
 
+/// zeroscale controls a multiplier of the threshold, if band energy
+/// is below this, a zero is forced. Keep it lower than 1, unless
+/// low lambda is used, because energy < threshold doesn't mean there's
+/// no audible signal outright, it's just energy. Also make it rise
+/// slower than rdlambda, as rdscale has due compensation with
+/// noisy band depriorization below, whereas zeroing logic is rather dumb
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 187..=193)]
 fn zeroscale(lambda: f32) -> f32 {
-    if lambda > 120.0f32 {
-        (120.0f32 / lambda).powf(0.25f32).clamp(0.0625f32, 1.0f32)
+    if lambda > 120. {
+        (120. / lambda).powf(0.25).clamp(0.0625, 1.)
     } else {
-        1.0f32
+        1.
     }
 }
 
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 187..=193)]
 fn frame_bit_rate(
-    avctx: &mut AVCodecContext,
-    s: &mut AACEncContext,
+    avctx: &AVCodecContext,
+    s: &AACEncContext,
     refbits: i32,
     rate_bandwidth_multiplier: f32,
 ) -> i32 {
-    let mut frame_bit_rate: c_int = (if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
-        refbits as c_float * rate_bandwidth_multiplier * avctx.sample_rate as c_float
-            / 1024 as c_float
+    let mut frame_bit_rate = if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
+        refbits as c_float * rate_bandwidth_multiplier * avctx.sample_rate as c_float / 1024.
     } else {
         (avctx.bit_rate / avctx.ch_layout.nb_channels as c_long) as c_float
-    }) as c_int;
+    };
+
+    // Compensate for extensions that increase efficiency
     if s.options.pns != 0 || s.options.intensity_stereo != 0 {
-        frame_bit_rate = (frame_bit_rate as c_float * 1.15f32) as c_int;
+        frame_bit_rate *= 1.15;
     }
-    frame_bit_rate
+
+    frame_bit_rate as c_int
 }
