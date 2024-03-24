@@ -14,7 +14,8 @@ use crate::{
         encoder::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
         psy_model::cutoff_from_bitrate,
         tables::ff_aac_scalefactor_bits,
-        SyntaxElementType,
+        SyntaxElementType, SCALE_DIFF_ZERO, SCALE_DIV_512, SCALE_MAX_DIFF, SCALE_MAX_POS,
+        SCALE_ONE_POS,
     },
     common::*,
     types::*,
@@ -108,6 +109,9 @@ pub(crate) unsafe fn search(
     s.psy.cutoff = bandwidth;
     cutoff = bandwidth * 2 * wlen / avctx.sample_rate;
     pns_start_pos = 4000 * 2 * wlen / avctx.sample_rate;
+
+    // for values above this the decoder might end up in an endless loop
+    // due to always having more bits than what can be encoded.
     dest_bits = dest_bits.min(5800);
     too_many_bits = too_many_bits.min(5800);
     too_few_bits = too_few_bits.min(5800);
@@ -134,6 +138,7 @@ pub(crate) unsafe fn search(
 
     ff_quantize_band_cost_cache_init(s);
     minsf.fill(0);
+
     w = 0;
     while w < sce.ics.num_windows {
         start = w * 128;
@@ -162,6 +167,12 @@ pub(crate) unsafe fn search(
         }
         w += sce.ics.group_len[w as usize] as c_int;
     }
+
+    // Scale uplims to match rate distortion to quality
+    // bu applying noisy band depriorization and tonal band priorization.
+    // Maxval-energy ratio gives us an idea of how noisy/tonal the band is.
+    // If maxval^2 ~ energy, then that band is mostly noise, and we can
+    // relax rate distortion requirements.
     euplims = uplims;
     w = 0;
     while w < sce.ics.num_windows {
@@ -218,8 +229,13 @@ pub(crate) unsafe fn search(
         }
         w += sce.ics.group_len[w as usize] as c_int;
     }
-    maxsf.fill(255);
+
+    maxsf.fill(SCALE_MAX_POS.into());
+
+    // perform two-loop search
+    // outer loop - improve quality
     loop {
+        //inner loop - quantize spectrum to fit into given number of bits
         let mut overdist: c_int = 0;
         let mut qstep: c_int = if its != 0 { 1 } else { 32 };
         loop {
@@ -245,6 +261,7 @@ pub(crate) unsafe fn search(
                     {
                         start += *(sce.ics.swb_sizes).offset(g as isize) as c_int;
                         if sce.can_pns[(w * 16 + g) as usize] != 0 {
+                            // PNS isn't free
                             tbits += ff_pns_bits(sce, w, g);
                         }
                     } else {
@@ -279,8 +296,9 @@ pub(crate) unsafe fn search(
                         dists[(w * 16 + g) as usize] = dist - bits as c_float;
                         qenergies[(w * 16 + g) as usize] = qenergy;
                         if prev != -1 {
-                            let mut sfdiff: c_int =
-                                (sce.sf_idx[(w * 16 + g) as usize] - prev + 60).clamp(0, 2 * 60);
+                            let mut sfdiff = (sce.sf_idx[(w * 16 + g) as usize] - prev
+                                + c_int::from(SCALE_DIFF_ZERO))
+                            .clamp(0, 2 * c_int::from(SCALE_MAX_DIFF));
                             bits += ff_aac_scalefactor_bits[sfdiff as usize] as c_int;
                         }
                         tbits += bits;
@@ -922,24 +940,32 @@ pub(crate) unsafe fn search(
     }
 }
 
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 285..=290)]
 fn clip_non_zeros(sce: &mut SingleChannelElement, minscaler: i32) {
+    let minscaler = minscaler.clamp(
+        (SCALE_ONE_POS - SCALE_DIV_512).into(),
+        (SCALE_MAX_POS - SCALE_DIV_512).into(),
+    );
+
     let mut w = 0;
     while w < sce.ics.num_windows as usize {
         let num_swb = sce.ics.num_swb as usize;
-        for (&zero, sf_idx) in zip(
+
+        for (_, sf_idx) in zip(
             &sce.zeroes[w * 16..][..num_swb],
             &mut sce.sf_idx[w * 16..][..num_swb],
-        ) {
-            if zero == 0 {
-                *sf_idx = (*sf_idx).clamp(minscaler, minscaler + 60 - 1);
-            }
+        )
+        .filter(|(&zero, _)| zero == 0)
+        {
+            *sf_idx = (*sf_idx).clamp(minscaler, minscaler + i32::from(SCALE_MAX_DIFF) - 1);
         }
 
         w += sce.ics.group_len[w] as usize;
     }
 }
 
-// TODO: name?
+/// Compute initial scalers
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 262..=283)]
 fn find_min_scaler(
     sce: &mut SingleChannelElement,
     uplims: &[c_float; 128],
@@ -956,23 +982,23 @@ fn find_min_scaler(
             &sce.zeroes[w * 16..],
             &mut sce.sf_idx[w * 16..],
             &uplims[w * 16..],
-            // this one actually limits the rest to num_swb
+            // (yotam): this one actually limits the rest to num_swb
             swb_sizes
         ) {
             if zero != 0 {
-                *sf_idx = 140;
+                *sf_idx = SCALE_ONE_POS.into();
             } else {
-                *sf_idx = ((140.
+                *sf_idx = ((c_double::from(SCALE_ONE_POS)
                     + 1.75 * (uplim.max(0.00125) / swb_size as c_float).log2() as c_double
                     + sfoffs as c_double) as c_int)
-                    .clamp(60, 255);
+                    .clamp(60, SCALE_MAX_POS.into());
                 minscaler = minscaler.min(*sf_idx as c_int);
             }
         }
         w += sce.ics.group_len[w] as usize;
     }
 
-    minscaler.clamp(140, 255)
+    minscaler
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -1006,7 +1032,9 @@ impl Default for Loop1Result {
     }
 }
 
-// TODO: name
+/// XXX: some heuristic to determine initial quantizers will reduce search time
+/// determine zero bands and upper distortion limits
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 217..=260)]
 fn loop1(
     sce: &mut SingleChannelElement,
     s: &AACEncContext,
@@ -1083,16 +1111,8 @@ fn loop1(
                     *max_spread_thr_r = spread_thr_r[(w * 16 + g) as usize];
                     *min_spread_thr_r = *max_spread_thr_r;
                 } else {
-                    *min_spread_thr_r = if *min_spread_thr_r > spread_thr_r[(w * 16 + g) as usize] {
-                        spread_thr_r[(w * 16 + g) as usize]
-                    } else {
-                        *min_spread_thr_r
-                    };
-                    *max_spread_thr_r = if *max_spread_thr_r > spread_thr_r[(w * 16 + g) as usize] {
-                        *max_spread_thr_r
-                    } else {
-                        spread_thr_r[(w * 16 + g) as usize]
-                    };
+                    *min_spread_thr_r = min_spread_thr_r.min(spread_thr_r[(w * 16 + g) as usize]);
+                    *max_spread_thr_r = max_spread_thr_r.max(spread_thr_r[(w * 16 + g) as usize]);
                 }
             }
             let fresh1 = g;
@@ -1111,7 +1131,7 @@ fn loop1(
 /// no audible signal outright, it's just energy. Also make it rise
 /// slower than rdlambda, as rdscale has due compensation with
 /// noisy band depriorization below, whereas zeroing logic is rather dumb
-#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 187..=193)]
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 123..=128)]
 fn zeroscale(lambda: f32) -> f32 {
     if lambda > 120. {
         (120. / lambda).powf(0.25).clamp(0.0625, 1.)

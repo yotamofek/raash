@@ -10,8 +10,8 @@ use quote::quote;
 use syn::{
     meta,
     parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote, Expr, ExprLit, ExprRange, Item, ItemEnum, ItemFn, ItemStruct,
-    ItemType, ItemUnion, Lit, LitInt, LitStr, RangeLimits,
+    parse_macro_input, parse_quote, Expr, ExprLit, ExprRange, Item, ItemConst, ItemEnum, ItemFn,
+    ItemStruct, ItemType, ItemUnion, Lit, LitInt, LitStr, RangeLimits,
 };
 
 struct LinesRange(RangeInclusive<u16>);
@@ -102,7 +102,8 @@ pub fn ffmpeg_src(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut item = parse_macro_input!(item as Item);
     let attrs = match &mut item {
-        Item::Enum(ItemEnum { attrs, .. })
+        Item::Const(ItemConst { attrs, .. })
+        | Item::Enum(ItemEnum { attrs, .. })
         | Item::Fn(ItemFn { attrs, .. })
         | Item::Struct(ItemStruct { attrs, .. })
         | Item::Type(ItemType { attrs, .. })
