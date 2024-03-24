@@ -38,14 +38,3 @@ pub(crate) struct AACEncContext {
     pub quantize_band_cost_cache_generation: c_ushort,
     pub quantize_band_cost_cache: [[AACQuantizeBandCostCacheEntry; 128]; 256],
 }
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct PrivData {
-    // `class` and `options` are populated by `avcodec_open2`:
-    // https://github.com/FFmpeg/FFmpeg/blob/e9c93009fc34ca9dfcf0c6f2ed90ef1df298abf7/libavcodec/avcodec.c#L186C1-L189C14
-    pub class: *mut AVClass,
-    pub options: AACEncOptions,
-
-    pub ctx: *mut AACEncContext,
-}

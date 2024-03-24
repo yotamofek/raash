@@ -43,7 +43,7 @@ use lpc::LPCContext;
 
 use self::{
     channel_layout::pce,
-    ctx::{AACEncContext, PrivData},
+    ctx::AACEncContext,
     intensity_stereo::search_for_is,
     long_term_prediction::{
         adjust_common_ltp, encode_ltp_info, ltp_insert_new_frame, search_for_ltp, update_ltp,
@@ -130,10 +130,13 @@ pub(crate) unsafe fn quantize_bands(
         .for_each(|(val, out)| *out = val);
 }
 
-unsafe extern "C" fn put_pce(mut pb: *mut PutBitContext, mut avctx: *mut AVCodecContext) {
+unsafe extern "C" fn put_pce(
+    mut pb: *mut PutBitContext,
+    mut avctx: *mut AVCodecContext,
+    mut s: *mut AACEncContext,
+) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
-    let mut s: *mut AACEncContext = (*((*avctx).priv_data as *mut PrivData)).ctx;
     let mut pce: *mut pce::Info = &mut (*s).pce.unwrap();
     let bitexact: c_int = (*avctx).flags & (1) << 23;
     let mut aux_data = if bitexact != 0 {
@@ -200,7 +203,7 @@ unsafe extern "C" fn put_audio_specific_config(
     put_bits(&mut pb, 1, 0 as BitBuf);
     put_bits(&mut pb, 1, 0 as BitBuf);
     if s.needs_pce != 0 {
-        put_pce(&mut pb, avctx);
+        put_pce(&mut pb, avctx, s);
     }
     put_bits(&mut pb, 11, 0x2b7 as c_int as BitBuf);
     put_bits(&mut pb, 5, AOT_SBR as c_int as BitBuf);
