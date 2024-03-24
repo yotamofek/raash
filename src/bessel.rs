@@ -33,7 +33,7 @@ pub(crate) fn i0(x: c_double) -> c_double {
         -1.220_706_739_780_897_9e10_f64,
         1.037_708_105_806_216_6e7_f64,
         -4.852_756_017_996_277_5e3_f64,
-        1.0f64,
+        1.,
     ];
     const P2: [c_double; 7] = [
         -2.221_026_223_330_657_3e-4_f64,
@@ -52,11 +52,11 @@ pub(crate) fn i0(x: c_double) -> c_double {
         -6.022_800_206_674_334e1_f64,
         8.553_956_325_801_293e1_f64,
         -3.144_669_027_513_549e1_f64,
-        1.0f64,
+        1.,
     ];
 
     if x == 0. {
-        return 1.0f64;
+        return 1.;
     }
     let x = x.abs();
 
@@ -64,7 +64,7 @@ pub(crate) fn i0(x: c_double) -> c_double {
         let y = x * x;
         eval_poly(&P1, y) / eval_poly(&Q1, y)
     } else {
-        let y = 1. / x - 1.0f64 / 15.;
+        let y = 1. / x - 1. / 15.;
         let r = eval_poly(&P2, y) / eval_poly(&Q2, y);
         let factor = x.exp() / x.sqrt();
         factor * r

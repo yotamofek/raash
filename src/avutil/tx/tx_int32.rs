@@ -102,7 +102,7 @@ unsafe extern "C" fn ff_tx_init_tab_2097152_int32() {
         let fresh0 = tab;
         tab = tab.offset(1);
         *fresh0 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -120,7 +120,7 @@ unsafe extern "C" fn ff_tx_init_tab_262144_int32() {
         let fresh1 = tab;
         tab = tab.offset(1);
         *fresh1 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -138,7 +138,7 @@ unsafe extern "C" fn ff_tx_init_tab_16_int32() {
         let fresh2 = tab;
         tab = tab.offset(1);
         *fresh2 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -156,7 +156,7 @@ unsafe extern "C" fn ff_tx_init_tab_256_int32() {
         let fresh3 = tab;
         tab = tab.offset(1);
         *fresh3 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -174,7 +174,7 @@ unsafe extern "C" fn ff_tx_init_tab_8_int32() {
         let fresh4 = tab;
         tab = tab.offset(1);
         *fresh4 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -192,7 +192,7 @@ unsafe extern "C" fn ff_tx_init_tab_512_int32() {
         let fresh5 = tab;
         tab = tab.offset(1);
         *fresh5 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -210,7 +210,7 @@ unsafe extern "C" fn ff_tx_init_tab_32_int32() {
         let fresh6 = tab;
         tab = tab.offset(1);
         *fresh6 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -228,7 +228,7 @@ unsafe extern "C" fn ff_tx_init_tab_1024_int32() {
         let fresh7 = tab;
         tab = tab.offset(1);
         *fresh7 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -246,7 +246,7 @@ unsafe extern "C" fn ff_tx_init_tab_2048_int32() {
         let fresh8 = tab;
         tab = tab.offset(1);
         *fresh8 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -264,7 +264,7 @@ unsafe extern "C" fn ff_tx_init_tab_4096_int32() {
         let fresh9 = tab;
         tab = tab.offset(1);
         *fresh9 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -282,7 +282,7 @@ unsafe extern "C" fn ff_tx_init_tab_8192_int32() {
         let fresh10 = tab;
         tab = tab.offset(1);
         *fresh10 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -300,7 +300,7 @@ unsafe extern "C" fn ff_tx_init_tab_16384_int32() {
         let fresh11 = tab;
         tab = tab.offset(1);
         *fresh11 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -318,7 +318,7 @@ unsafe extern "C" fn ff_tx_init_tab_32768_int32() {
         let fresh12 = tab;
         tab = tab.offset(1);
         *fresh12 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -336,7 +336,7 @@ unsafe extern "C" fn ff_tx_init_tab_128_int32() {
         let fresh13 = tab;
         tab = tab.offset(1);
         *fresh13 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -354,7 +354,7 @@ unsafe extern "C" fn ff_tx_init_tab_131072_int32() {
         let fresh14 = tab;
         tab = tab.offset(1);
         *fresh14 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -372,7 +372,7 @@ unsafe extern "C" fn ff_tx_init_tab_65536_int32() {
         let fresh15 = tab;
         tab = tab.offset(1);
         *fresh15 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -390,7 +390,7 @@ unsafe extern "C" fn ff_tx_init_tab_524288_int32() {
         let fresh16 = tab;
         tab = tab.offset(1);
         *fresh16 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -408,7 +408,7 @@ unsafe extern "C" fn ff_tx_init_tab_64_int32() {
         let fresh17 = tab;
         tab = tab.offset(1);
         *fresh17 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -426,7 +426,7 @@ unsafe extern "C" fn ff_tx_init_tab_1048576_int32() {
         let fresh18 = tab;
         tab = tab.offset(1);
         *fresh18 = av_clip64_c(
-            llrintf((cos(i as c_double * freq) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * freq) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -482,62 +482,62 @@ static mut sr_tabs_init_once: [Once; 19] = [
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_53_int32() {
     ff_tx_tab_53_int32[0] = av_clip64_c(
-        llrintf((cos(2. * PI / 5.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 5.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[1] = av_clip64_c(
-        llrintf((cos(2. * PI / 5.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 5.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[2] = av_clip64_c(
-        llrintf((cos(2. * PI / 10.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 10.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[3] = av_clip64_c(
-        llrintf((cos(2. * PI / 10.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 10.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[4] = av_clip64_c(
-        llrintf((sin(2. * PI / 5.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 5.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[5] = av_clip64_c(
-        llrintf((sin(2. * PI / 5.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 5.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[6] = av_clip64_c(
-        llrintf((sin(2. * PI / 10.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 10.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[7] = av_clip64_c(
-        llrintf((sin(2. * PI / 10.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 10.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[8] = av_clip64_c(
-        llrintf((cos(2. * PI / 12.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 12.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[9] = av_clip64_c(
-        llrintf((cos(2. * PI / 12.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 12.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[10] = av_clip64_c(
-        llrintf((cos(2. * PI / 6.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 6.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_53_int32[11] = av_clip64_c(
-        llrintf((cos(8. * PI / 6.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(8. * PI / 6.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
@@ -545,32 +545,32 @@ unsafe extern "C" fn ff_tx_init_tab_53_int32() {
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_7_int32() {
     ff_tx_tab_7_int32[0] = av_clip64_c(
-        llrintf((cos(2. * PI / 7.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 7.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_7_int32[1] = av_clip64_c(
-        llrintf((sin(2. * PI / 7.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 7.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_7_int32[2] = av_clip64_c(
-        llrintf((sin(2. * PI / 28.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 28.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_7_int32[3] = av_clip64_c(
-        llrintf((cos(2. * PI / 28.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 28.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_7_int32[4] = av_clip64_c(
-        llrintf((cos(2. * PI / 14.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 14.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_7_int32[5] = av_clip64_c(
-        llrintf((sin(2. * PI / 14.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 14.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
@@ -578,32 +578,32 @@ unsafe extern "C" fn ff_tx_init_tab_7_int32() {
 #[cold]
 unsafe extern "C" fn ff_tx_init_tab_9_int32() {
     ff_tx_tab_9_int32[0] = av_clip64_c(
-        llrintf((cos(2. * PI / 3.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 3.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_9_int32[1] = av_clip64_c(
-        llrintf((sin(2. * PI / 3.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 3.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_9_int32[2] = av_clip64_c(
-        llrintf((cos(2. * PI / 9.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 9.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_9_int32[3] = av_clip64_c(
-        llrintf((sin(2. * PI / 9.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 9.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_9_int32[4] = av_clip64_c(
-        llrintf((cos(2. * PI / 36.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((cos(2. * PI / 36.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     ff_tx_tab_9_int32[5] = av_clip64_c(
-        llrintf((sin(2. * PI / 36.) * 2147483648.0f64) as c_float) as c_long,
+        llrintf((sin(2. * PI / 36.) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
@@ -3565,9 +3565,9 @@ unsafe extern "C" fn ff_tx_fft_init_naive_small_int32_c(
     _scale: *const c_void,
 ) -> c_int {
     let phase: c_double = if (*s).inv != 0 {
-        2.0f64 * PI / len as c_double
+        2. * PI / len as c_double
     } else {
-        -2.0f64 * PI / len as c_double
+        -2. * PI / len as c_double
     };
     (*s).exp = AVTXNum {
         int32: av_malloc(((len * len) as c_ulong).wrapping_mul(size_of::<TXComplex>() as c_ulong))
@@ -3584,12 +3584,12 @@ unsafe extern "C" fn ff_tx_fft_init_naive_small_int32_c(
             *((*s).exp).int32.offset((i * j) as isize) = {
                 AVComplexInt32 {
                     re: av_clip64_c(
-                        llrintf((cos(factor) * 2147483648.0f64) as c_float) as c_long,
+                        llrintf((cos(factor) * 2147483648.) as c_float) as c_long,
                         (-2147483647 - 1) as c_long,
                         2147483647 as c_long,
                     ) as c_int,
                     im: av_clip64_c(
-                        llrintf((sin(factor) * 2147483648.0f64) as c_float) as c_long,
+                        llrintf((sin(factor) * 2147483648.) as c_float) as c_long,
                         (-2147483647 - 1) as c_long,
                         2147483647 as c_long,
                     ) as c_int,
@@ -3613,9 +3613,9 @@ unsafe extern "C" fn ff_tx_fft_naive_int32_c(
     let dst: *mut TXComplex = _dst as *mut TXComplex;
     let n: c_int = (*s).len;
     let phase: c_double = if (*s).inv != 0 {
-        2.0f64 * PI / n as c_double
+        2. * PI / n as c_double
     } else {
-        -2.0f64 * PI / n as c_double
+        -2. * PI / n as c_double
     };
     stride = (stride as c_ulong).wrapping_div(size_of::<TXComplex>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
@@ -3628,12 +3628,12 @@ unsafe extern "C" fn ff_tx_fft_naive_int32_c(
             let mult: TXComplex = {
                 AVComplexInt32 {
                     re: av_clip64_c(
-                        llrintf((cos(factor) * 2147483648.0f64) as c_float) as c_long,
+                        llrintf((cos(factor) * 2147483648.) as c_float) as c_long,
                         (-2147483647 - 1) as c_long,
                         2147483647 as c_long,
                     ) as c_int,
                     im: av_clip64_c(
-                        llrintf((sin(factor) * 2147483648.0f64) as c_float) as c_long,
+                        llrintf((sin(factor) * 2147483648.) as c_float) as c_long,
                         (-2147483647 - 1) as c_long,
                         2147483647 as c_long,
                     ) as c_int,
@@ -4098,22 +4098,21 @@ unsafe extern "C" fn ff_tx_mdct_naive_fwd_int32_c(
     let dst: *mut TXSample = _dst as *mut TXSample;
     let scale: c_double = (*s).scale_d;
     let len: c_int = (*s).len;
-    let phase: c_double = PI / (4.0f64 * len as c_double);
+    let phase: c_double = PI / (4. * len as c_double);
     stride = (stride as c_ulong).wrapping_div(size_of::<TXSample>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
     let mut i: c_int = 0;
     while i < len {
-        let mut sum: c_double = 0.0f64;
+        let mut sum: c_double = 0.;
         let mut j: c_int = 0;
         while j < len * 2 {
             let a: c_int = (2 * j + 1 + len) * (2 * i + 1);
-            sum +=
-                *src.offset(j as isize) as c_double / 2147483648.0f64 * cos(a as c_double * phase);
+            sum += *src.offset(j as isize) as c_double / 2147483648. * cos(a as c_double * phase);
             j += 1;
             j;
         }
         *dst.offset((i as c_long * stride) as isize) = av_clip64_c(
-            llrintf((sum * scale * 2147483648.0f64) as c_float) as c_long,
+            llrintf((sum * scale * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -4132,13 +4131,13 @@ unsafe extern "C" fn ff_tx_mdct_naive_inv_int32_c(
     let scale: c_double = (*s).scale_d;
     let len: c_int = (*s).len >> 1;
     let len2: c_int = len * 2;
-    let phase: c_double = PI / (4.0f64 * len2 as c_double);
+    let phase: c_double = PI / (4. * len2 as c_double);
     stride = (stride as c_ulong).wrapping_div(size_of::<TXSample>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
     let mut i: c_int = 0;
     while i < len {
-        let mut sum_d: c_double = 0.0f64;
-        let mut sum_u: c_double = 0.0f64;
+        let mut sum_d: c_double = 0.;
+        let mut sum_u: c_double = 0.;
         let i_d: c_double = phase * (4 * len - 2 * i - 1) as c_double;
         let i_u: c_double = phase * (3 * len2 + 2 * i + 1) as c_double;
         let mut j: c_int = 0;
@@ -4147,19 +4146,19 @@ unsafe extern "C" fn ff_tx_mdct_naive_inv_int32_c(
             let a_d: c_double = cos(a * i_d);
             let a_u: c_double = cos(a * i_u);
             let val: c_double =
-                *src.offset((j as c_long * stride) as isize) as c_double / 2147483648.0f64;
+                *src.offset((j as c_long * stride) as isize) as c_double / 2147483648.;
             sum_d += a_d * val;
             sum_u += a_u * val;
             j += 1;
             j;
         }
         *dst.offset((i + 0) as isize) = av_clip64_c(
-            llrintf((sum_d * scale * 2147483648.0f64) as c_float) as c_long,
+            llrintf((sum_d * scale * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
         *dst.offset((i + len) as isize) = av_clip64_c(
-            llrintf((-sum_u * scale * 2147483648.0f64) as c_float) as c_long,
+            llrintf((-sum_u * scale * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -6154,49 +6153,47 @@ unsafe extern "C" fn ff_tx_rdft_init_int32_c(
     let fresh27 = tab;
     tab = tab.offset(1);
     *fresh27 = av_clip64_c(
-        llrintf(((if inv != 0 { 0.5f64 } else { 1.0f64 }) * m * 2147483648.0f64) as c_float)
-            as c_long,
+        llrintf(((if inv != 0 { 0.5 } else { 1. }) * m * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     let fresh28 = tab;
     tab = tab.offset(1);
     *fresh28 = av_clip64_c(
-        llrintf(((if inv != 0 { 0.5f64 * m } else { 1.0f64 * m }) * 2147483648.0f64) as c_float)
-            as c_long,
+        llrintf(((if inv != 0 { 0.5 * m } else { 1. * m }) * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     let fresh29 = tab;
     tab = tab.offset(1);
     *fresh29 = av_clip64_c(
-        llrintf((m * 2147483648.0f64) as c_float) as c_long,
+        llrintf((m * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     let fresh30 = tab;
     tab = tab.offset(1);
     *fresh30 = av_clip64_c(
-        llrintf((-m * 2147483648.0f64) as c_float) as c_long,
+        llrintf((-m * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     let fresh31 = tab;
     tab = tab.offset(1);
     *fresh31 = av_clip64_c(
-        llrintf(((0.5f64 - 0.0f64) * m * 2147483648.0f64) as c_float) as c_long,
+        llrintf(((0.5 - 0.) * m * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     if r2r != 0 {
         let fresh32 = tab;
         tab = tab.offset(1);
-        *fresh32 = (1 as c_float / (*s).scale_f) as TXSample;
+        *fresh32 = (1. / (*s).scale_f) as TXSample;
     } else {
         let fresh33 = tab;
         tab = tab.offset(1);
         *fresh33 = av_clip64_c(
-            llrintf(((0.0f64 - 0.5f64) * m * 2147483648.0f64) as c_float) as c_long,
+            llrintf(((0. - 0.5) * m * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -6204,14 +6201,14 @@ unsafe extern "C" fn ff_tx_rdft_init_int32_c(
     let fresh34 = tab;
     tab = tab.offset(1);
     *fresh34 = av_clip64_c(
-        llrintf(((0.5f64 - inv as c_double) * m * 2147483648.0f64) as c_float) as c_long,
+        llrintf(((0.5 - inv as c_double) * m * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
     let fresh35 = tab;
     tab = tab.offset(1);
     *fresh35 = av_clip64_c(
-        llrintf((-(0.5f64 - inv as c_double) * m * 2147483648.0f64) as c_float) as c_long,
+        llrintf((-(0.5 - inv as c_double) * m * 2147483648.) as c_float) as c_long,
         (-2147483647 - 1) as c_long,
         2147483647 as c_long,
     ) as TXSample;
@@ -6220,7 +6217,7 @@ unsafe extern "C" fn ff_tx_rdft_init_int32_c(
         let fresh36 = tab;
         tab = tab.offset(1);
         *fresh36 = av_clip64_c(
-            llrintf((cos(i as c_double * f) * 2147483648.0f64) as c_float) as c_long,
+            llrintf((cos(i as c_double * f) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) as TXSample;
@@ -6235,8 +6232,7 @@ unsafe extern "C" fn ff_tx_rdft_init_int32_c(
         let fresh37 = tab;
         tab = tab.offset(1);
         *fresh37 = (av_clip64_c(
-            llrintf((cos((len - i_0 * 4) as c_double / 4.0f64 * f) * 2147483648.0f64) as c_float)
-                as c_long,
+            llrintf((cos((len - i_0 * 4) as c_double / 4. * f) * 2147483648.) as c_float) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
         ) * (if inv != 0 { 1 } else { -1 }) as c_long) as TXSample;
@@ -7092,7 +7088,7 @@ unsafe extern "C" fn ff_tx_dct_init_int32_c(
     if inv != 0 {
         len *= 2;
         (*s).len *= 2;
-        rsc = (rsc as c_double * 0.5f64) as c_float;
+        rsc = (rsc as c_double * 0.5) as c_float;
     }
     ret = ff_tx_init_subtx(
         s,
@@ -7119,9 +7115,8 @@ unsafe extern "C" fn ff_tx_dct_init_int32_c(
     while i < len {
         *tab.offset(i as isize) = av_clip64_c(
             llrintf(
-                (cos(i as c_double * freq)
-                    * ((inv == 0) as c_int + 1) as c_double
-                    * 2147483648.0f64) as c_float,
+                (cos(i as c_double * freq) * ((inv == 0) as c_int + 1) as c_double * 2147483648.)
+                    as c_float,
             ) as c_long,
             (-2147483647 - 1) as c_long,
             2147483647 as c_long,
@@ -7133,9 +7128,8 @@ unsafe extern "C" fn ff_tx_dct_init_int32_c(
         let mut i_0: c_int = 0;
         while i_0 < len / 2 {
             *tab.offset((len + i_0) as isize) = av_clip64_c(
-                llrintf(
-                    (0.5f64 / sin((2 * i_0 + 1) as c_double * freq) * 2147483648.0f64) as c_float,
-                ) as c_long,
+                llrintf((0.5 / sin((2 * i_0 + 1) as c_double * freq) * 2147483648.) as c_float)
+                    as c_long,
                 (-2147483647 - 1) as c_long,
                 2147483647 as c_long,
             ) as TXSample;
@@ -7146,7 +7140,7 @@ unsafe extern "C" fn ff_tx_dct_init_int32_c(
         let mut i_1: c_int = 0;
         while i_1 < len / 2 {
             *tab.offset((len + i_1) as isize) = av_clip64_c(
-                llrintf((cos((len - 2 * i_1 - 1) as c_double * freq) * 2147483648.0f64) as c_float)
+                llrintf((cos((len - 2 * i_1 - 1) as c_double * freq) * 2147483648.) as c_float)
                     as c_long,
                 (-2147483647 - 1) as c_long,
                 2147483647 as c_long,
@@ -7337,7 +7331,7 @@ unsafe extern "C" fn ff_tx_dcstI_init_int32_c(
     if inv != 0 {
         len *= 2;
         (*s).len *= 2;
-        rsc = (rsc as c_double * 0.5f64) as c_float;
+        rsc = (rsc as c_double * 0.5) as c_float;
     }
     flags |= (if (*cd).type_0 as c_uint == AV_TX_INT32_DCT_I as c_int as c_uint {
         AV_TX_REAL_TO_REAL as c_int
@@ -7490,7 +7484,7 @@ pub unsafe extern "C" fn ff_tx_mdct_gen_exp_int32(
     let mut off: c_int = 0;
     let len4: c_int = (*s).len >> 1;
     let mut scale: c_double = (*s).scale_d;
-    let theta: c_double = (if scale < 0. { len4 } else { 0 }) as c_double + 1.0f64 / 8.0f64;
+    let theta: c_double = (if scale < 0. { len4 } else { 0 }) as c_double + 1. / 8.;
     let alloc: c_ulong = (if !pre_tab.is_null() { 2 * len4 } else { len4 }) as c_ulong;
     (*s).exp = AVTXNum {
         int32: av_malloc_array(alloc, size_of::<TXComplex>() as c_ulong) as *mut TXComplex,
@@ -7508,12 +7502,12 @@ pub unsafe extern "C" fn ff_tx_mdct_gen_exp_int32(
         *((*s).exp).int32.offset((off + i) as isize) = {
             AVComplexInt32 {
                 re: av_clip64_c(
-                    llrintf((cos(alpha) * scale * 2147483648.0f64) as c_float) as c_long,
+                    llrintf((cos(alpha) * scale * 2147483648.) as c_float) as c_long,
                     (-2147483647 - 1) as c_long,
                     2147483647 as c_long,
                 ) as c_int,
                 im: av_clip64_c(
-                    llrintf((sin(alpha) * scale * 2147483648.0f64) as c_float) as c_long,
+                    llrintf((sin(alpha) * scale * 2147483648.) as c_float) as c_long,
                     (-2147483647 - 1) as c_long,
                     2147483647 as c_long,
                 ) as c_int,

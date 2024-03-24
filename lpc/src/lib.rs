@@ -99,8 +99,8 @@ impl LPCContext {
 
         let mut j = 0;
         while j < lag {
-            let mut sum0: c_double = 1.0f64;
-            let mut sum1: c_double = 1.0f64;
+            let mut sum0: c_double = 1.;
+            let mut sum1: c_double = 1.;
             let mut i = j;
             while (i as c_long) < len as c_long {
                 sum0 += self.windowed_samples[padding_size + i as usize]
@@ -116,7 +116,7 @@ impl LPCContext {
             j += 2;
         }
         if j == lag {
-            let mut sum: c_double = 1.0f64;
+            let mut sum: c_double = 1.;
             let mut i = j - 1;
             while (i as c_long) < len as c_long {
                 sum += self.windowed_samples[padding_size + i as usize]
@@ -138,8 +138,8 @@ impl LPCContext {
     ) -> c_double {
         let mut autoc = [0.; MAX_ORDER as usize + 1];
         let mut error = [0.; MAX_ORDER as usize + 1];
-        let a: c_double = 0.5f32 as c_double;
-        let b: c_double = 1.0f32 as c_double - a;
+        let a: c_double = 0.5;
+        let b: c_double = 1. - a;
 
         let padding_size = Self::padding_size(self.max_order);
 

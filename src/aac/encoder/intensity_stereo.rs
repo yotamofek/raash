@@ -149,8 +149,8 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
 
     let [L34, R34, IS, I34] = [0, 1, 2, 3].map(|i| (*s).scoefs[256 * i..].as_mut_ptr());
 
-    let mut dist1: c_float = 0.0f32;
-    let mut dist2: c_float = 0.0f32;
+    let mut dist1: c_float = 0.;
+    let mut dist2: c_float = 0.;
     let mut is_error: AACISError = {
         AACISError {
             pass: 0,
@@ -161,7 +161,7 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
             ener01: 0.,
         }
     };
-    if ener01 <= 0 as c_float || ener0 <= 0 as c_float {
+    if ener01 <= 0. || ener0 <= 0. {
         is_error.pass = 0;
         return is_error;
     }
@@ -181,7 +181,7 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
         };
         let mut e01_34: c_float = phase as c_float * pos_pow34(ener1 / ener0);
         let mut maxval: c_float = 0.;
-        let mut dist_spec_err: c_float = 0.0f32;
+        let mut dist_spec_err: c_float = 0.;
         let mut minthr: c_float = if (*band0).threshold > (*band1).threshold {
             (*band1).threshold
         } else {
@@ -286,7 +286,7 @@ pub(crate) unsafe fn search_for_is(
     let mut prev_bt: c_int = -1;
     let mut prev_is: c_int = 0;
     let freq_mult: c_float =
-        (*avctx).sample_rate as c_float / (1024.0f32 / sce0.ics.num_windows as c_float) / 2.0f32;
+        (*avctx).sample_rate as c_float / (1024. / sce0.ics.num_windows as c_float) / 2.;
     let mut nextband1: [c_uchar; 128] = [0; 128];
     if (*cpe).common_window == 0 {
         return;
@@ -297,7 +297,7 @@ pub(crate) unsafe fn search_for_is(
         start = 0;
         g = 0;
         while g < sce0.ics.num_swb {
-            if start as c_float * freq_mult > 6100 as c_float * ((*s).lambda / 170.0f32)
+            if start as c_float * freq_mult > 6100. * ((*s).lambda / 170.)
                 && (*cpe).ch[0].band_type[(w * 16 + g) as usize] as c_uint
                     != NOISE_BT as c_int as c_uint
                 && (*cpe).ch[0].zeroes[(w * 16 + g) as usize] == 0
@@ -307,10 +307,10 @@ pub(crate) unsafe fn search_for_is(
                 && ff_sfdelta_can_remove_band(sce1, nextband1.as_mut_ptr(), prev_sf1, w * 16 + g)
                     != 0
             {
-                let mut ener0: c_float = 0.0f32;
-                let mut ener1: c_float = 0.0f32;
-                let mut ener01: c_float = 0.0f32;
-                let mut ener01p: c_float = 0.0f32;
+                let mut ener0: c_float = 0.;
+                let mut ener1: c_float = 0.;
+                let mut ener01: c_float = 0.;
+                let mut ener01p: c_float = 0.;
                 let mut ph_err1: AACISError = AACISError {
                     pass: 0,
                     phase: 0,

@@ -59,9 +59,9 @@ unsafe fn cost_template(
     let Q: c_float = POW_SF_TABLES.pow2[q_idx as usize];
     let Q34: c_float = POW_SF_TABLES.pow34[q_idx as usize];
     let IQ: c_float = POW_SF_TABLES.pow2[(200 + scale_idx - 140 + 36) as usize];
-    let CLIPPED_ESCAPE: c_float = 165140.0f32 * IQ;
-    let mut cost: c_float = 0 as c_float;
-    let mut qenergy: c_float = 0 as c_float;
+    let CLIPPED_ESCAPE: c_float = 165140. * IQ;
+    let mut cost: c_float = 0.;
+    let mut qenergy: c_float = 0.;
     let dim: c_int = if BT_PAIR != 0 { 2 } else { 4 };
     let mut resbits: c_int = 0;
     let mut off: c_int = 0;
@@ -83,7 +83,7 @@ unsafe fn cost_template(
             while i_0 < size {
                 let mut j: c_int = 0;
                 while j < dim {
-                    *out.offset((i_0 + j) as isize) = 0.0f32;
+                    *out.offset((i_0 + j) as isize) = 0.;
                     j += 1;
                     j;
                 }
@@ -118,7 +118,7 @@ unsafe fn cost_template(
         let mut curidx: c_int = 0;
         let mut curbits: c_int = 0;
         let mut quantized: c_float = 0.;
-        let mut rd: c_float = 0.0f32;
+        let mut rd: c_float = 0.;
         let mut j_0: c_int = 0;
         while j_0 < dim {
             curidx *= aac_cb_range[cb as usize] as c_int;
@@ -134,7 +134,7 @@ unsafe fn cost_template(
             while j_1 < dim {
                 let mut t: c_float = fabsf(*in_0.offset((i_1 + j_1) as isize));
                 let mut di: c_float = 0.;
-                if BT_ESC != 0 && *vec.offset(j_1 as isize) == 64.0f32 {
+                if BT_ESC != 0 && *vec.offset(j_1 as isize) == 64. {
                     if t >= CLIPPED_ESCAPE {
                         quantized = CLIPPED_ESCAPE;
                         curbits += 21;
@@ -148,14 +148,14 @@ unsafe fn cost_template(
                 }
                 di = t - quantized;
                 if !out.is_null() {
-                    *out.offset((i_1 + j_1) as isize) =
-                        if *in_0.offset((i_1 + j_1) as isize) >= 0 as c_float {
-                            quantized
-                        } else {
-                            -quantized
-                        };
+                    *out.offset((i_1 + j_1) as isize) = if *in_0.offset((i_1 + j_1) as isize) >= 0.
+                    {
+                        quantized
+                    } else {
+                        -quantized
+                    };
                 }
-                if *vec.offset(j_1 as isize) != 0.0f32 {
+                if *vec.offset(j_1 as isize) != 0. {
                     curbits += 1;
                     curbits;
                 }
@@ -193,12 +193,12 @@ unsafe fn cost_template(
                 let mut j_3: c_int = 0;
                 while j_3 < dim {
                     if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * dim + j_3) as usize]
-                        != 0.0f32
+                        != 0.
                     {
                         put_bits(
                             pb,
                             1,
-                            (*in_0.offset((i_1 + j_3) as isize) < 0.0f32) as c_int as BitBuf,
+                            (*in_0.offset((i_1 + j_3) as isize) < 0.) as c_int as BitBuf,
                         );
                     }
                     j_3 += 1;
@@ -209,7 +209,7 @@ unsafe fn cost_template(
                 let mut j_4: c_int = 0;
                 while j_4 < 2 {
                     if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * 2 + j_4) as usize]
-                        == 64.0f32
+                        == 64.
                     {
                         let mut coef: c_int = clip_uintp2_c(
                             quant(fabsf(*in_0.offset((i_1 + j_4) as isize)), Q, ROUNDING),
@@ -250,7 +250,7 @@ unsafe fn cost_NONE(
     mut _bits: *mut c_int,
     mut _energy: *mut c_float,
 ) -> c_float {
-    0.0f32
+    0.
 }
 unsafe fn cost_ZERO(
     s: *mut AACEncContext,
@@ -268,7 +268,7 @@ unsafe fn cost_ZERO(
 ) -> c_float {
     cost_template(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 1, 0, 0, 0,
-        0, 0, 0.4054f32,
+        0, 0, 0.4054,
     )
 }
 
@@ -288,7 +288,7 @@ unsafe fn cost_SQUAD(
 ) -> c_float {
     cost_template(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0,
-        0, 0, 0.4054f32,
+        0, 0, 0.4054,
     )
 }
 
@@ -308,7 +308,7 @@ unsafe fn cost_UQUAD(
 ) -> c_float {
     cost_template(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 0, 0,
-        0, 0, 0.4054f32,
+        0, 0, 0.4054,
     )
 }
 
@@ -328,7 +328,7 @@ unsafe fn cost_SPAIR(
 ) -> c_float {
     cost_template(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 1, 0,
-        0, 0, 0.4054f32,
+        0, 0, 0.4054,
     )
 }
 
@@ -348,7 +348,7 @@ unsafe fn cost_UPAIR(
 ) -> c_float {
     cost_template(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 1, 0,
-        0, 0, 0.4054f32,
+        0, 0, 0.4054,
     )
 }
 
@@ -385,7 +385,7 @@ unsafe fn cost_ESC(
         1,
         0,
         0,
-        0.4054f32,
+        0.4054,
     )
 }
 
@@ -442,7 +442,7 @@ unsafe fn cost_NOISE(
 ) -> c_float {
     cost_template(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0,
-        1, 0, 0.4054f32,
+        1, 0, 0.4054,
     )
 }
 
@@ -462,7 +462,7 @@ unsafe fn cost_STEREO(
 ) -> c_float {
     cost_template(
         s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0,
-        0, 1, 0.4054f32,
+        0, 1, 0.4054,
     )
 }
 

@@ -633,8 +633,8 @@ pub(crate) unsafe fn av_tx_init(
             opaque: std::ptr::null_mut::<c_void>(),
         }
     };
-    let default_scale_d: c_double = 1.0f64;
-    let default_scale_f: c_float = 1.0f32;
+    let default_scale_d: c_double = 1.;
+    let default_scale_f: c_float = 1.;
     if len == 0 || type_0 as c_uint >= AV_TX_NB as c_int as c_uint || ctx.is_null() || tx.is_null()
     {
         return -22;

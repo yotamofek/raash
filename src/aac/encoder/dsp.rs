@@ -9,7 +9,7 @@ use crate::{avutil::tx::av_tx_init, types::AV_TX_FLOAT_MDCT};
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 1204..=1221, name = "dsp_init")]
 pub(super) unsafe fn init(mut avctx: *mut AVCodecContext, mut s: *mut AACEncContext) -> c_int {
     let mut ret: c_int = 0;
-    let mut scale: c_float = 32768.0f32;
+    let mut scale: c_float = 32768.;
 
     (*s).fdsp = avpriv_float_dsp_alloc((*avctx).flags & (1) << 23);
     if ((*s).fdsp).is_null() {

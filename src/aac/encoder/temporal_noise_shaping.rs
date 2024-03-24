@@ -62,8 +62,7 @@ unsafe fn compute_lpc_coefs(
         autoc = autoc.offset(1);
         err = *fresh0;
     }
-    if fail != 0 && (*autoc.offset((max_order - 1) as isize) == 0 as c_float || err <= 0 as c_float)
-    {
+    if fail != 0 && (*autoc.offset((max_order - 1) as isize) == 0. || err <= 0.) {
         return -1;
     }
     i = 0;
@@ -79,7 +78,7 @@ unsafe fn compute_lpc_coefs(
             if err != 0. {
                 r /= err;
             }
-            err *= 1.0f64 as c_float - r * r;
+            err *= 1. - r * r;
         }
         *lpc.offset(i as isize) = r;
         j = 0;
@@ -91,7 +90,7 @@ unsafe fn compute_lpc_coefs(
             j += 1;
             j;
         }
-        if fail != 0 && err < 0 as c_float {
+        if fail != 0 && err < 0. {
             return -1;
         }
         lpc_last = lpc;
@@ -101,49 +100,44 @@ unsafe fn compute_lpc_coefs(
     }
     0
 }
-static mut tns_tmp2_map_1_3: [c_float; 4] = [
-    0.00000000f64 as c_float,
-    -0.43388373f64 as c_float,
-    0.64278758f64 as c_float,
-    0.34202015f64 as c_float,
-];
+static mut tns_tmp2_map_1_3: [c_float; 4] = [0.00000000, -0.43388373, 0.64278758, 0.34202015];
 static mut tns_tmp2_map_0_3: [c_float; 8] = [
-    0.00000000f64 as c_float,
-    -0.43388373f64 as c_float,
-    -0.78183150f64 as c_float,
-    -0.97492790f64 as c_float,
-    0.98480773f64 as c_float,
-    0.86602539f64 as c_float,
-    0.64278758f64 as c_float,
-    0.34202015f64 as c_float,
+    0.00000000,
+    -0.43388373,
+    -0.78183150,
+    -0.97492790,
+    0.98480773,
+    0.86602539,
+    0.64278758,
+    0.34202015,
 ];
 static mut tns_tmp2_map_1_4: [c_float; 8] = [
-    0.00000000f64 as c_float,
-    -0.20791170f64 as c_float,
-    -0.40673664f64 as c_float,
-    -0.58778524f64 as c_float,
-    0.67369562f64 as c_float,
-    0.52643216f64 as c_float,
-    0.36124167f64 as c_float,
-    0.18374951f64 as c_float,
+    0.00000000,
+    -0.20791170,
+    -0.40673664,
+    -0.58778524,
+    0.67369562,
+    0.52643216,
+    0.36124167,
+    0.18374951,
 ];
 static mut tns_tmp2_map_0_4: [c_float; 16] = [
-    0.00000000f64 as c_float,
-    -0.20791170f64 as c_float,
-    -0.40673664f64 as c_float,
-    -0.58778524f64 as c_float,
-    -0.74314481f64 as c_float,
-    -0.86602539f64 as c_float,
-    -0.95105654f64 as c_float,
-    -0.99452192f64 as c_float,
-    0.99573416f64 as c_float,
-    0.96182561f64 as c_float,
-    0.89516330f64 as c_float,
-    0.79801720f64 as c_float,
-    0.67369562f64 as c_float,
-    0.52643216f64 as c_float,
-    0.36124167f64 as c_float,
-    0.18374951f64 as c_float,
+    0.00000000,
+    -0.20791170,
+    -0.40673664,
+    -0.58778524,
+    -0.74314481,
+    -0.86602539,
+    -0.95105654,
+    -0.99452192,
+    0.99573416,
+    0.96182561,
+    0.89516330,
+    0.79801720,
+    0.67369562,
+    0.52643216,
+    0.36124167,
+    0.18374951,
 ];
 static mut tns_tmp2_map: [*const c_float; 4] = unsafe {
     [
@@ -428,7 +422,7 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
     }
     w = 0;
     while w < (*sce).ics.num_windows {
-        let mut en: [c_float; 2] = [0.0f32, 0.0f32];
+        let mut en: [c_float; 2] = [0., 0.];
         let mut oc_start: c_int = 0;
         let mut os_start: c_int = 0;
         let mut coef_start: c_int = *((*sce).ics.swb_offset).offset(sfb_start as isize) as c_int;
@@ -454,8 +448,8 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
 
         if !(order == 0
             || gain.is_finite() as i32 == 0
-            || gain < 1.4f32 as c_double
-            || gain > (1.16f32 * 1.4f32) as c_double)
+            || gain < 1.4
+            || gain > (1.16 * 1.4) as c_double)
         {
             (*tns).n_filt[w as usize] = if is8 != 0 {
                 1

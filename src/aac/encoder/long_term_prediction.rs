@@ -107,14 +107,7 @@ unsafe fn quant_array_idx(val: c_float, mut arr: *const c_float, num: c_int) -> 
     index
 }
 static mut ltp_coef: [c_float; 8] = [
-    0.570829f64 as c_float,
-    0.696616f64 as c_float,
-    0.813004f64 as c_float,
-    0.911304f64 as c_float,
-    0.984900f64 as c_float,
-    1.067894f64 as c_float,
-    1.194601f64 as c_float,
-    1.369533f64 as c_float,
+    0.570829, 0.696616, 0.813004, 0.911304, 0.984900, 1.067894, 1.194601, 1.369533,
 ];
 
 pub(crate) unsafe fn encode_ltp_info(
@@ -194,12 +187,12 @@ unsafe fn get_lag(
     let mut j: c_int = 0;
     let mut lag: c_int = 0;
     let mut max_corr: c_int = 0;
-    let mut max_ratio: c_float = 0.0f32;
+    let mut max_ratio: c_float = 0.;
     i = 0;
     while i < 2048 {
         let mut corr: c_float = 0.;
-        let mut s0: c_float = 0.0f32;
-        let mut s1: c_float = 0.0f32;
+        let mut s0: c_float = 0.;
+        let mut s1: c_float = 0.;
         let start: c_int = if 0 > i - 1024 { 0 } else { i - 1024 };
         j = start;
         while j < 2048 {
@@ -209,10 +202,10 @@ unsafe fn get_lag(
             j += 1;
             j;
         }
-        corr = (if s1 > 0.0f32 {
+        corr = (if s1 > 0. {
             s0 as c_double / sqrt(s1 as c_double)
         } else {
-            0.0f32 as c_double
+            0.
         }) as c_float;
         if corr > max_corr as c_float {
             max_corr = corr as c_int;
@@ -334,7 +327,7 @@ pub(crate) unsafe fn search_for_ltp(
         }
         return;
     }
-    if (*sce).ics.ltp.lag == 0 || (*s).lambda > 120.0f32 {
+    if (*sce).ics.ltp.lag == 0 || (*s).lambda > 120. {
         return;
     }
     w = 0;
@@ -344,8 +337,8 @@ pub(crate) unsafe fn search_for_ltp(
         while g < (*sce).ics.num_swb {
             let mut bits1: c_int = 0;
             let mut bits2: c_int = 0;
-            let mut dist1: c_float = 0.0f32;
-            let mut dist2: c_float = 0.0f32;
+            let mut dist1: c_float = 0.;
+            let mut dist2: c_float = 0.;
             if w * 16 + g > max_ltp {
                 start += *((*sce).ics.swb_sizes).offset(g as isize) as c_int;
             } else {

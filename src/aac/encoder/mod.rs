@@ -121,7 +121,7 @@ pub(crate) unsafe fn quantize_bands(
         .map(|(&in_0, &scaled)| {
             let qc = scaled * Q34;
             let mut out = (qc + rounding).min(maxval as c_float) as c_int;
-            if is_signed && in_0 < 0.0f32 {
+            if is_signed && in_0 < 0. {
                 out = -out;
             }
             out
@@ -394,7 +394,7 @@ unsafe extern "C" fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
                             + p as c_float * (*cpe).ch[1].coeffs[(start + i) as usize])
                             * scale;
                         (*cpe).ch[0].coeffs[(start + i) as usize] = sum;
-                        (*cpe).ch[1].coeffs[(start + i) as usize] = 0.0f32;
+                        (*cpe).ch[1].coeffs[(start + i) as usize] = 0.;
                         i += 1;
                         i;
                     }
@@ -438,7 +438,7 @@ unsafe extern "C" fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
                     while i < *((*ics).swb_sizes).offset(g as isize) as c_int {
                         let mut L: c_float = ((*cpe).ch[0].coeffs[(start + i) as usize]
                             + (*cpe).ch[1].coeffs[(start + i) as usize])
-                            * 0.5f32;
+                            * 0.5;
                         let mut R: c_float = L - (*cpe).ch[1].coeffs[(start + i) as usize];
                         (*cpe).ch[0].coeffs[(start + i) as usize] = L;
                         (*cpe).ch[1].coeffs[(start + i) as usize] = R;
@@ -607,7 +607,7 @@ unsafe extern "C" fn avoid_clipping(
     let mut i: c_int = 0;
     let mut j: c_int = 0;
     let mut w: c_int = 0;
-    if (*sce).ics.clip_avoidance_factor < 1.0f32 {
+    if (*sce).ics.clip_avoidance_factor < 1. {
         w = 0;
         while w < (*sce).ics.num_windows {
             start = 0;
@@ -793,7 +793,7 @@ unsafe fn aac_encode_frame(
                 (*wi.offset(ch as isize)).window_shape = 0;
                 (*wi.offset(ch as isize)).num_windows = 1;
                 (*wi.offset(ch as isize)).grouping[0] = 1;
-                (*wi.offset(ch as isize)).clipping[0] = 0 as c_float;
+                (*wi.offset(ch as isize)).clipping[0] = 0.;
                 (*ics).num_swb = if (*ctx).samplerate_index >= 8 { 1 } else { 3 };
             } else {
                 *wi.offset(ch as isize) = ((*(*ctx).psy.model).window)
@@ -840,12 +840,12 @@ unsafe fn aac_encode_frame(
                 w += 1;
                 w;
             }
-            clip_avoidance_factor = 0.0f32;
+            clip_avoidance_factor = 0.;
             w = 0;
             while w < (*ics).num_windows {
                 let mut wbuf: *const c_float = overlap.offset((w * 128) as isize);
                 let wlen: c_int = 2048 / (*ics).num_windows;
-                let mut max: c_float = 0 as c_float;
+                let mut max: c_float = 0.;
                 let mut j: c_int = 0;
                 j = 0;
                 while j < wlen {
@@ -863,7 +863,7 @@ unsafe fn aac_encode_frame(
             }
             w = 0;
             while w < (*ics).num_windows {
-                if (*wi.offset(ch as isize)).clipping[w as usize] > 0.95f32 {
+                if (*wi.offset(ch as isize)).clipping[w as usize] > 0.95 {
                     (*ics).window_clipping[w as usize] = 1;
                     clip_avoidance_factor =
                         if clip_avoidance_factor > (*wi.offset(ch as isize)).clipping[w as usize] {
@@ -877,10 +877,10 @@ unsafe fn aac_encode_frame(
                 w += 1;
                 w;
             }
-            if clip_avoidance_factor > 0.95f32 {
-                (*ics).clip_avoidance_factor = 0.95f32 / clip_avoidance_factor;
+            if clip_avoidance_factor > 0.95 {
+                (*ics).clip_avoidance_factor = 0.95 / clip_avoidance_factor;
             } else {
-                (*ics).clip_avoidance_factor = 1.0f32;
+                (*ics).clip_avoidance_factor = 1.;
             }
             apply_window_and_mdct(ctx, sce, overlap);
             if (*ctx).options.ltp != 0 {
@@ -1181,7 +1181,7 @@ unsafe fn aac_encode_frame(
         if (*avctx).bit_rate_tolerance == 0 {
             if rate_bits < frame_bits {
                 let mut ratio: c_float = rate_bits as c_float / frame_bits as c_float;
-                (*ctx).lambda *= if 0.9f32 > ratio { ratio } else { 0.9f32 };
+                (*ctx).lambda *= if 0.9 > ratio { ratio } else { 0.9 };
             } else {
                 (*ctx).lambda = (if (*avctx).global_quality > 0 {
                     (*avctx).global_quality
@@ -1202,12 +1202,12 @@ unsafe fn aac_encode_frame(
             let mut ratio_0: c_float = rate_bits as c_float / frame_bits as c_float;
             if frame_bits >= too_few_bits && frame_bits <= too_many_bits {
                 ratio_0 = sqrtf(sqrtf(ratio_0));
-                ratio_0 = av_clipf_c(ratio_0, 0.9f32, 1.1f32);
+                ratio_0 = av_clipf_c(ratio_0, 0.9, 1.1);
             } else {
                 ratio_0 = sqrtf(ratio_0);
             }
-            (*ctx).lambda = av_clipf_c((*ctx).lambda * ratio_0, 1.192_092_9e-7_f32, 65536.0f32);
-            if ratio_0 > 0.9f32 && ratio_0 < 1.1f32 {
+            (*ctx).lambda = av_clipf_c((*ctx).lambda * ratio_0, 1.192_092_9e-7_f32, 65536.);
+            if ratio_0 > 0.9 && ratio_0 < 1.1 {
                 break;
             }
             if is_mode != 0 || ms_mode != 0 || tns_mode != 0 || pred_mode != 0 {
@@ -1408,7 +1408,7 @@ impl Encoder for AACEncoder {
                     24,
                     b"Too many bits %f > %d per frame requested, clamping to max\n\0" as *const u8
                         as *const c_char,
-                    1024.0f64 * avctx.bit_rate as c_double / avctx.sample_rate as c_double,
+                    1024. * avctx.bit_rate as c_double / avctx.sample_rate as c_double,
                     6144 * ctx.channels,
                 );
             }

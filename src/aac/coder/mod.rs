@@ -99,7 +99,7 @@ unsafe fn find_max_val(
     mut swb_size: c_int,
     mut scaled: *const c_float,
 ) -> c_float {
-    let mut maxval: c_float = 0.0f32;
+    let mut maxval: c_float = 0.;
     let mut w2: c_int = 0;
     let mut i: c_int = 0;
     w2 = 0;
@@ -123,7 +123,7 @@ unsafe fn find_max_val(
 #[inline]
 fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
     let Q34: c_float = POW_SF_TABLES.pow34[(200 - sf + 140 - 36) as usize];
-    let qmaxval = (maxval * Q34 + 0.4054f32) as c_int;
+    let qmaxval = (maxval * Q34 + 0.4054) as c_int;
     aac_maxval_cb.get(qmaxval as usize).copied().unwrap_or(11) as c_int
 }
 
@@ -135,20 +135,20 @@ unsafe fn find_form_factor(
     mut scaled: *const c_float,
     mut nzslope: c_float,
 ) -> c_float {
-    let iswb_size: c_float = 1.0f32 / swb_size as c_float;
-    let iswb_sizem1: c_float = 1.0f32 / (swb_size - 1) as c_float;
+    let iswb_size: c_float = 1. / swb_size as c_float;
+    let iswb_sizem1: c_float = 1. / (swb_size - 1) as c_float;
     let ethresh: c_float = thresh;
-    let mut form: c_float = 0.0f32;
-    let mut weight: c_float = 0.0f32;
+    let mut form: c_float = 0.;
+    let mut weight: c_float = 0.;
     let mut w2: c_int = 0;
     let mut i: c_int = 0;
     w2 = 0;
     while w2 < group_len {
-        let mut e: c_float = 0.0f32;
-        let mut e2: c_float = 0.0f32;
-        let mut var: c_float = 0.0f32;
-        let mut maxval: c_float = 0.0f32;
-        let mut nzl: c_float = 0 as c_float;
+        let mut e: c_float = 0.;
+        let mut e2: c_float = 0.;
+        let mut var: c_float = 0.;
+        let mut maxval: c_float = 0.;
+        let mut nzl: c_float = 0.;
         i = 0;
         while i < swb_size {
             let mut s: c_float = fabsf(*scaled.offset((w2 * 128 + i) as isize));
@@ -157,8 +157,8 @@ unsafe fn find_form_factor(
             s *= s;
             e2 += s;
             if s >= ethresh {
-                nzl += 1.0f32;
-            } else if nzslope == 2.0f32 {
+                nzl += 1.;
+            } else if nzslope == 2. {
                 nzl += s / ethresh * (s / ethresh);
             } else {
                 nzl += ff_fast_powf(s / ethresh, nzslope);
@@ -179,21 +179,21 @@ unsafe fn find_form_factor(
             var = sqrtf(var * iswb_sizem1);
             e2 *= iswb_size;
             frm = e
-                / (if e + 4 as c_float * var > maxval {
+                / (if e + 4. * var > maxval {
                     maxval
                 } else {
-                    e + 4 as c_float * var
+                    e + 4. * var
                 });
-            form += e2 * sqrtf(frm) / (if 0.5f32 > nzl { 0.5f32 } else { nzl });
+            form += e2 * sqrtf(frm) / (if 0.5 > nzl { 0.5 } else { nzl });
             weight += e2;
         }
         w2 += 1;
         w2;
     }
-    if weight > 0 as c_float {
+    if weight > 0. {
         form / weight
     } else {
-        1.0f32
+        1.
     }
 }
 
@@ -378,7 +378,7 @@ pub(crate) unsafe fn encode_window_bands_info(
     start = win * 128;
     cb = 0;
     while cb < 15 {
-        path[0][cb as usize].cost = 0.0f32;
+        path[0][cb as usize].cost = 0.;
         path[0][cb as usize].prev_idx = -1;
         path[0][cb as usize].run = 0;
         cb += 1;
@@ -405,7 +405,7 @@ pub(crate) unsafe fn encode_window_bands_info(
             while cb < 15 {
                 let mut cost_stay_here: c_float = 0.;
                 let mut cost_get_here: c_float = 0.;
-                let mut rd: c_float = 0.0f32;
+                let mut rd: c_float = 0.;
                 if cb >= 12
                     && ((*sce).band_type[(win * 16 + swb) as usize] as c_uint)
                         < aac_cb_out_map[cb as usize] as c_uint
@@ -445,7 +445,7 @@ pub(crate) unsafe fn encode_window_bands_info(
                         w;
                     }
                     cost_stay_here = path[swb as usize][cb as usize].cost + rd;
-                    cost_get_here = minrd + rd + run_bits as c_float + 4 as c_float;
+                    cost_get_here = minrd + rd + run_bits as c_float + 4.;
                     if *(run_value_bits[((*sce).ics.num_windows == 8) as c_int as usize])
                         .offset(path[swb as usize][cb as usize].run as isize)
                         as c_int
@@ -551,8 +551,7 @@ pub(crate) unsafe fn set_special_band_scalefactors(
                         == INTENSITY_BT2 as c_int as c_uint
                 {
                     (*sce).sf_idx[(w * 16 + g) as usize] = av_clip_c(
-                        roundf(log2f((*sce).is_ener[(w * 16 + g) as usize]) * 2 as c_float)
-                            as c_int,
+                        roundf(log2f((*sce).is_ener[(w * 16 + g) as usize]) * 2.) as c_int,
                         -155,
                         100,
                     );
@@ -562,9 +561,7 @@ pub(crate) unsafe fn set_special_band_scalefactors(
                     == NOISE_BT as c_int as c_uint
                 {
                     (*sce).sf_idx[(w * 16 + g) as usize] = av_clip_c(
-                        (3 as c_float
-                            + ceilf(log2f((*sce).pns_ener[(w * 16 + g) as usize]) * 2 as c_float))
-                            as c_int,
+                        (3. + ceilf(log2f((*sce).pns_ener[(w * 16 + g) as usize]) * 2.)) as c_int,
                         -100,
                         155,
                     );

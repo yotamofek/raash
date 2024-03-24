@@ -12,7 +12,7 @@ pub(super) fn ff_fast_powf(mut x: c_float, mut y: c_float) -> c_float {
 
 #[inline(always)]
 pub(super) fn bval2bmax(mut b: c_float) -> c_float {
-    0.001f32 + 0.0035f32 * b.powi(3) / 15.5f32.powi(3)
+    0.001 + 0.0035 * b.powi(3) / 15.5_f32.powi(3)
 }
 
 #[inline(always)]

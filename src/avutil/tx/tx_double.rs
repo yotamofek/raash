@@ -3039,9 +3039,9 @@ unsafe extern "C" fn ff_tx_fft_init_naive_small_double_c(
     _scale: *const c_void,
 ) -> c_int {
     let phase: c_double = if (*s).inv != 0 {
-        2.0f64 * PI / len as c_double
+        2. * PI / len as c_double
     } else {
-        -2.0f64 * PI / len as c_double
+        -2. * PI / len as c_double
     };
     (*s).exp = AVTXNum {
         double: av_malloc(((len * len) as c_ulong).wrapping_mul(size_of::<TXComplex>() as c_ulong))
@@ -3079,9 +3079,9 @@ unsafe extern "C" fn ff_tx_fft_naive_double_c(
     let dst: *mut TXComplex = _dst as *mut TXComplex;
     let n: c_int = (*s).len;
     let phase: c_double = if (*s).inv != 0 {
-        2.0f64 * PI / n as c_double
+        2. * PI / n as c_double
     } else {
-        -2.0f64 * PI / n as c_double
+        -2. * PI / n as c_double
     };
     stride = (stride as c_ulong).wrapping_div(size_of::<TXComplex>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
@@ -3554,12 +3554,12 @@ unsafe extern "C" fn ff_tx_mdct_naive_fwd_double_c(
     let dst: *mut TXSample = _dst as *mut TXSample;
     let scale: c_double = (*s).scale_d;
     let len: c_int = (*s).len;
-    let phase: c_double = PI / (4.0f64 * len as c_double);
+    let phase: c_double = PI / (4. * len as c_double);
     stride = (stride as c_ulong).wrapping_div(size_of::<TXSample>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
     let mut i: c_int = 0;
     while i < len {
-        let mut sum: c_double = 0.0f64;
+        let mut sum: c_double = 0.;
         let mut j: c_int = 0;
         while j < len * 2 {
             let a: c_int = (2 * j + 1 + len) * (2 * i + 1);
@@ -3583,13 +3583,13 @@ unsafe extern "C" fn ff_tx_mdct_naive_inv_double_c(
     let scale: c_double = (*s).scale_d;
     let len: c_int = (*s).len >> 1;
     let len2: c_int = len * 2;
-    let phase: c_double = PI / (4.0f64 * len2 as c_double);
+    let phase: c_double = PI / (4. * len2 as c_double);
     stride = (stride as c_ulong).wrapping_div(size_of::<TXSample>() as c_ulong) as ptrdiff_t
         as ptrdiff_t;
     let mut i: c_int = 0;
     while i < len {
-        let mut sum_d: c_double = 0.0f64;
-        let mut sum_u: c_double = 0.0f64;
+        let mut sum_d: c_double = 0.;
+        let mut sum_u: c_double = 0.;
         let i_d: c_double = phase * (4 * len - 2 * i - 1) as c_double;
         let i_u: c_double = phase * (3 * len2 + 2 * i + 1) as c_double;
         let mut j: c_int = 0;
@@ -5426,10 +5426,10 @@ unsafe extern "C" fn ff_tx_rdft_init_double_c(
     };
     let fresh27 = tab;
     tab = tab.offset(1);
-    *fresh27 = (if inv != 0 { 0.5f64 } else { 1.0f64 }) * m;
+    *fresh27 = (if inv != 0 { 0.5 } else { 1. }) * m;
     let fresh28 = tab;
     tab = tab.offset(1);
-    *fresh28 = if inv != 0 { 0.5f64 * m } else { 1.0f64 * m };
+    *fresh28 = if inv != 0 { 0.5 * m } else { 1. * m };
     let fresh29 = tab;
     tab = tab.offset(1);
     *fresh29 = m;
@@ -5438,22 +5438,22 @@ unsafe extern "C" fn ff_tx_rdft_init_double_c(
     *fresh30 = -m;
     let fresh31 = tab;
     tab = tab.offset(1);
-    *fresh31 = (0.5f64 - 0.0f64) * m;
+    *fresh31 = (0.5 - 0.) * m;
     if r2r != 0 {
         let fresh32 = tab;
         tab = tab.offset(1);
-        *fresh32 = (1 as c_float / (*s).scale_f) as TXSample;
+        *fresh32 = (1. / (*s).scale_f) as TXSample;
     } else {
         let fresh33 = tab;
         tab = tab.offset(1);
-        *fresh33 = (0.0f64 - 0.5f64) * m;
+        *fresh33 = (0. - 0.5) * m;
     }
     let fresh34 = tab;
     tab = tab.offset(1);
-    *fresh34 = (0.5f64 - inv as c_double) * m;
+    *fresh34 = (0.5 - inv as c_double) * m;
     let fresh35 = tab;
     tab = tab.offset(1);
-    *fresh35 = -(0.5f64 - inv as c_double) * m;
+    *fresh35 = -(0.5 - inv as c_double) * m;
     let mut i: c_int = 0;
     while i < len4 {
         let fresh36 = tab;
@@ -5469,8 +5469,8 @@ unsafe extern "C" fn ff_tx_rdft_init_double_c(
     while i_0 < len4 {
         let fresh37 = tab;
         tab = tab.offset(1);
-        *fresh37 = cos((len - i_0 * 4) as c_double / 4.0f64 * f)
-            * (if inv != 0 { 1 } else { -1 }) as c_double;
+        *fresh37 =
+            cos((len - i_0 * 4) as c_double / 4. * f) * (if inv != 0 { 1 } else { -1 }) as c_double;
         i_0 += 1;
         i_0;
     }
@@ -6181,7 +6181,7 @@ unsafe extern "C" fn ff_tx_dct_init_double_c(
     if inv != 0 {
         len *= 2;
         (*s).len *= 2;
-        rsc *= 0.5f64;
+        rsc *= 0.5;
     }
     ret = ff_tx_init_subtx(
         s,
@@ -6213,7 +6213,7 @@ unsafe extern "C" fn ff_tx_dct_init_double_c(
     if inv != 0 {
         let mut i_0: c_int = 0;
         while i_0 < len / 2 {
-            *tab.offset((len + i_0) as isize) = 0.5f64 / sin((2 * i_0 + 1) as c_double * freq);
+            *tab.offset((len + i_0) as isize) = 0.5 / sin((2 * i_0 + 1) as c_double * freq);
             i_0 += 1;
             i_0;
         }
@@ -6246,7 +6246,7 @@ unsafe extern "C" fn ff_tx_dctII_double_c(
         let in1: TXSample = *src.offset(i as isize);
         let in2: TXSample = *src.offset((len - i - 1) as isize);
         let s_0: TXSample = *exp.offset((len + i) as isize);
-        tmp1 = (in1 + in2) * 0.5f64;
+        tmp1 = (in1 + in2) * 0.5;
         tmp2 = (in1 - in2) * s_0;
         *src.offset(i as isize) = tmp1 + tmp2;
         *src.offset((len - i - 1) as isize) = tmp1 - tmp2;
@@ -6396,7 +6396,7 @@ unsafe extern "C" fn ff_tx_dcstI_init_double_c(
     if inv != 0 {
         len *= 2;
         (*s).len *= 2;
-        rsc *= 0.5f64;
+        rsc *= 0.5;
     }
     flags |= (if (*cd).type_0 as c_uint == AV_TX_DOUBLE_DCT_I as c_int as c_uint {
         AV_TX_REAL_TO_REAL as c_int
@@ -6550,7 +6550,7 @@ pub unsafe extern "C" fn ff_tx_mdct_gen_exp_double(
     let mut off: c_int = 0;
     let len4: c_int = (*s).len >> 1;
     let mut scale: c_double = (*s).scale_d;
-    let theta: c_double = (if scale < 0. { len4 } else { 0 }) as c_double + 1.0f64 / 8.0f64;
+    let theta: c_double = (if scale < 0. { len4 } else { 0 }) as c_double + 1. / 8.;
     let alloc: c_ulong = (if !pre_tab.is_null() { 2 * len4 } else { len4 }) as c_ulong;
     (*s).exp = AVTXNum {
         double: av_malloc_array(alloc, size_of::<TXComplex>() as c_ulong) as *mut TXComplex,

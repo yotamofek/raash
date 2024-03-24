@@ -27,11 +27,11 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
     let [M, S, L34, R34, M34, S34] =
         [0, 1, 2, 3, 4, 5].map(|i| ((*s).scoefs)[128 * i..].as_mut_ptr());
 
-    let lambda: c_float = (*s).lambda;
-    let mslambda: c_float = if 1.0f32 > lambda / 120.0f32 {
-        lambda / 120.0f32
+    let lambda = (*s).lambda;
+    let mslambda = if 1. > lambda / 120. {
+        lambda / 120.
     } else {
-        1.0f32
+        1.
     };
 
     let [sce0, sce1] = &mut (*cpe).ch;
@@ -49,7 +49,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
         g = 0;
         while g < sce0.ics.num_swb {
             let mut bmax: c_float =
-                bval2bmax(g as c_float * 17.0f32 / sce0.ics.num_swb as c_float) / 0.0045f32;
+                bval2bmax(g as c_float * 17. / sce0.ics.num_swb as c_float) / 0.0045;
             if (*cpe).is_mask[(w * 16 + g) as usize] == 0 {
                 (*cpe).ms_mask[(w * 16 + g) as usize] = 0;
             }
@@ -57,8 +57,8 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                 && sce1.zeroes[(w * 16 + g) as usize] == 0
                 && (*cpe).is_mask[(w * 16 + g) as usize] == 0
             {
-                let mut Mmax: c_float = 0.0f32;
-                let mut Smax: c_float = 0.0f32;
+                let mut Mmax: c_float = 0.;
+                let mut Smax: c_float = 0.;
                 w2 = 0;
                 while w2 < sce0.ics.group_len[w as usize] as c_int {
                     i = 0;
@@ -67,7 +67,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                             [(start + (w + w2) * 128 + i) as usize]
                             + sce1.coeffs[(start + (w + w2) * 128 + i) as usize])
                             as c_double
-                            * 0.5f64) as c_float;
+                            * 0.5) as c_float;
                         *S.offset(i as isize) = *M.offset(i as isize)
                             - sce1.coeffs[(start + (w + w2) * 128 + i) as usize];
                         i += 1;
@@ -95,8 +95,8 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                 }
                 sid_sf_boost = 0;
                 while sid_sf_boost < 4 {
-                    let mut dist1: c_float = 0.0f32;
-                    let mut dist2: c_float = 0.0f32;
+                    let mut dist1: c_float = 0.;
+                    let mut dist2: c_float = 0.;
                     let mut B0: c_int = 0;
                     let mut B1: c_int = 0;
                     let mut minidx: c_int = 0;
@@ -161,7 +161,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                     ((sce0.coeffs[(start + (w + w2) * 128 + i) as usize]
                                         + sce1.coeffs[(start + (w + w2) * 128 + i) as usize])
                                         as c_double
-                                        * 0.5f64) as c_float;
+                                        * 0.5) as c_float;
                                 *S.offset(i as isize) = *M.offset(i as isize)
                                     - sce1.coeffs[(start + (w + w2) * 128 + i) as usize];
                                 i += 1;
@@ -194,7 +194,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
                                 sce0.sf_idx[(w * 16 + g) as usize],
                                 sce0.band_type[(w * 16 + g) as usize] as c_int,
-                                lambda / ((*band0).threshold + 1.175_494_4e-38_f32),
+                                lambda / ((*band0).threshold + 1.175_494_4e-38),
                                 ::core::f32::INFINITY,
                                 &mut b1,
                                 ptr::null_mut::<c_float>(),
@@ -208,7 +208,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 *(sce1.ics.swb_sizes).offset(g as isize) as c_int,
                                 sce1.sf_idx[(w * 16 + g) as usize],
                                 sce1.band_type[(w * 16 + g) as usize] as c_int,
-                                lambda / ((*band1).threshold + 1.175_494_4e-38_f32),
+                                lambda / ((*band1).threshold + 1.175_494_4e-38),
                                 ::core::f32::INFINITY,
                                 &mut b2,
                                 ptr::null_mut::<c_float>(),
@@ -220,7 +220,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
                                 mididx,
                                 midcb,
-                                lambda / (minthr + 1.175_494_4e-38_f32),
+                                lambda / (minthr + 1.175_494_4e-38),
                                 ::core::f32::INFINITY,
                                 &mut b3,
                                 ptr::null_mut::<c_float>(),
@@ -232,7 +232,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 *(sce1.ics.swb_sizes).offset(g as isize) as c_int,
                                 sididx,
                                 sidcb,
-                                mslambda / (minthr * bmax + 1.175_494_4e-38_f32),
+                                mslambda / (minthr * bmax + 1.175_494_4e-38),
                                 ::core::f32::INFINITY,
                                 &mut b4,
                                 ptr::null_mut::<c_float>(),

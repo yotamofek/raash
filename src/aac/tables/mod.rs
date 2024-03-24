@@ -54,10 +54,10 @@ pub(crate) static POW_SF_TABLES: Lazy<PowSfTables> = Lazy::new(|| {
         t1_inc_cur = 4 * (i as c_int % 4);
         t2_inc_cur = (8 + 3 * i as c_int) % 16;
         if t1_inc_cur < t1_inc_prev {
-            t1 *= 2 as c_float;
+            t1 *= 2.;
         }
         if t2_inc_cur < t2_inc_prev {
-            t2 *= 2 as c_float;
+            t2 *= 2.;
         }
         *pow2 = t1 * EXP2_LUT[t1_inc_cur as usize];
         *pow34 = t2 * EXP2_LUT[t2_inc_cur as usize];
@@ -75,8 +75,8 @@ where
     let mut float_window: [c_float; N] = [0.; N];
     let mut temp: [c_double; N / 2 + 1] = [0.; N / 2 + 1];
     let mut _i: c_int = 0;
-    let mut sum: c_double = 0.0f64;
-    let mut scale: c_double = 0.0f64;
+    let mut sum: c_double = 0.;
+    let mut scale: c_double = 0.;
     let mut alpha2: c_double =
         4. * (alpha as c_double * PI / N as c_double) * (alpha as c_double * PI / N as c_double);
 
@@ -86,7 +86,7 @@ where
         scale += *temp * (1 + (i != 0 && i < (N / 2)) as c_int) as c_double;
     }
 
-    scale = 1.0f64 / (scale + 1.);
+    scale = 1. / (scale + 1.);
 
     let mut i = 0;
     while i <= (N / 2) as c_int {
