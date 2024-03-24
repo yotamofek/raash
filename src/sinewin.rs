@@ -1,5 +1,6 @@
 use std::{array, f64::consts::PI, ops::Deref};
 
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float};
 use once_cell::sync::Lazy;
 
@@ -14,7 +15,7 @@ impl<const N: usize> Deref for SineWindow<N> {
 }
 
 impl<const N: usize> SineWindow<N> {
-    /// Source: [libavcodec/sinewin_tablegen.h](https://github.com/FFmpeg/FFmpeg/blob/2020ef9770d6bdf4ed2d8a32595d0e70afd2db8f/libavcodec/sinewin_tablegen.h#L59C1-L64)
+    #[ffmpeg_src(file = "libavcodec/sinewin_tablegen.h", lines = 59..=64, name = "ff_sine_window_init")]
     fn init() -> Self {
         Self(array::from_fn(|i| {
             (((i as c_double + 0.5) * (PI / (2.0 * N as c_double))) as c_float).sin()

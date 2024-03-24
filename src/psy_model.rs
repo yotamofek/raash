@@ -10,11 +10,12 @@
 use std::ptr::addr_of;
 
 use ffi::codec::AVCodecContext;
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_int, c_uchar};
 
 use crate::{aac::psy_model::ff_aac_psy_model, types::*};
 
-/// Source: [libavcodec/psymodel.h](https://github.com/FFmpeg/FFmpeg/blob/2d9ed64859c9887d0504cd71dbd5b2c15e14251a/libavcodec/psymodel.h#L41-L45)
+#[ffmpeg_src(file = "libavcodec/psymodel.h", lines = 41..=45, name = "AAC_CUTOFF")]
 pub(crate) unsafe fn aac_cutoff(ctx: *const AVCodecContext) -> c_int {
     if (*ctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
         (*ctx).sample_rate / 2
@@ -27,7 +28,7 @@ pub(crate) unsafe fn aac_cutoff(ctx: *const AVCodecContext) -> c_int {
     }
 }
 
-/// Source: [libavcodec/psymodel.h](https://github.com/FFmpeg/FFmpeg/blob/2d9ed64859c9887d0504cd71dbd5b2c15e14251a/libavcodec/psymodel.h#L35-L40) (`AAC_CUTOFF_FROM_BITRATE`)
+#[ffmpeg_src(file = "libavcodec/psymodel.h", lines = 35..=40, name = "AAC_CUTOFF_FROM_BITRATE")]
 pub(crate) fn cutoff_from_bitrate(bit_rate: c_int, channels: c_int, sample_rate: c_int) -> c_int {
     if bit_rate == 0 {
         return sample_rate / 2;

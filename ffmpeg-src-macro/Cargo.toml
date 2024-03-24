@@ -1,0 +1,13 @@
+[package]
+name = "ffmpeg-src-macro"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+parse-variants = "1.0.1"
+proc-macro2 = "1.0.79"
+quote = "1.0.35"
+syn = { version = "2.0.55", features = ["parsing", "full", "extra-traits"] }
+
+[lib]
+proc-macro = true

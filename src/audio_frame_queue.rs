@@ -2,6 +2,7 @@ use ffi::{
     codec::{frame::AVFrame, AVCodecContext},
     num::AVRational,
 };
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_char, c_int, c_long, c_uint, c_void};
 
 use crate::avutil::mathematics::av_rescale_q;
@@ -30,8 +31,9 @@ pub(crate) struct AudioFrameQueue {
     last_pts: c_long,
 }
 
+#[ffmpeg_src(file = "libavcodec/encode.h", lines = 84..=91, name = "ff_samples_to_time_base")]
 #[inline(always)]
-fn ff_samples_to_time_base(avctx: &AVCodecContext, samples: c_long) -> c_long {
+fn samples_to_time_base(avctx: &AVCodecContext, samples: c_long) -> c_long {
     if samples == c_long::MIN {
         return c_long::MIN;
     }
@@ -48,7 +50,7 @@ fn ff_samples_to_time_base(avctx: &AVCodecContext, samples: c_long) -> c_long {
 }
 
 impl AudioFrameQueue {
-    /// Source: [libavcodec/audio_frame_queue.c](https://github.com/ffmpeg/ffmpeg/blob/59eadb5060acd07ad2d4dc5dbb354ee81f034222/libavcodec/audio_frame_queue.c#L28-L34)
+    #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 28..=34, name = "ff_af_queue_init")]
     pub unsafe fn new(avctx: *const AVCodecContext) -> Self {
         Self {
             avctx,
@@ -59,7 +61,7 @@ impl AudioFrameQueue {
         }
     }
 
-    /// Source: [libavcodec/audio_frame_queue.c](https://github.com/ffmpeg/ffmpeg/blob/59eadb5060acd07ad2d4dc5dbb354ee81f034222/libavcodec/audio_frame_queue.c#L44-L73)
+    #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 44..=73, name = "ff_af_queue_add")]
     pub unsafe fn add_frame(&mut self, f: &AVFrame) {
         let new = AudioFrame {
             pts: if f.pts != c_long::MIN {
@@ -93,7 +95,7 @@ impl AudioFrameQueue {
         self.remaining_samples += f.nb_samples;
     }
 
-    /// Source: [libavcodec/audio_frame_queue.c](https://github.com/ffmpeg/ffmpeg/blob/59eadb5060acd07ad2d4dc5dbb354ee81f034222/libavcodec/audio_frame_queue.c#L75-L113)
+    #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 75..=113, name = "ff_af_queue_remove")]
     pub unsafe fn remove(&mut self, mut nb_samples: c_int) -> AudioRemoved {
         if self.frames.is_empty() {
             av_log(
@@ -107,7 +109,7 @@ impl AudioFrameQueue {
 
         let mut removed_samples: c_int = 0;
 
-        let pts = ff_samples_to_time_base(
+        let pts = samples_to_time_base(
             &*self.avctx,
             self.frames
                 .first()
@@ -158,7 +160,7 @@ impl AudioFrameQueue {
 
         AudioRemoved {
             pts,
-            duration: ff_samples_to_time_base(&*self.avctx, removed_samples as c_long),
+            duration: samples_to_time_base(&*self.avctx, removed_samples as c_long),
         }
     }
 
@@ -168,7 +170,7 @@ impl AudioFrameQueue {
 }
 
 impl Drop for AudioFrameQueue {
-    /// Source: [libavcodec/audio_frame_queue.c](https://github.com/ffmpeg/ffmpeg/blob/59eadb5060acd07ad2d4dc5dbb354ee81f034222/libavcodec/audio_frame_queue.c#L36-L42)
+    #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 36..=42, name = "ff_af_queue_close")]
     fn drop(&mut self) {
         if !self.frames.is_empty() {
             unsafe {

@@ -2,12 +2,12 @@
 
 use std::{f64::consts::PI, iter::zip};
 
+use ffmpeg_src_macro::ffmpeg_src;
 use itertools::izip;
 use libc::{c_double, c_float, c_int, c_long};
 
 /// LPC analysis type
-///
-/// Source: [libavcodec/lpc.h](https://github.com/ffmpeg/ffmpeg/blob/c8c4a162fc18c0fd99bada66d9ea3b48c64b2450/libavcodec/lpc.h#L41-L51)
+#[ffmpeg_src(file = "libavcodec/lpc.h", lines = 41..=51, name = "FFLPCType")]
 #[repr(i32)]
 #[derive(Clone, Copy)]
 pub enum Type {
@@ -32,8 +32,7 @@ pub struct LPCContext {
 
 /// Schur recursion.
 /// Produces reflection coefficients from autocorrelation data.
-///
-/// Source: [avcodec/lpc.h](https://github.com/ffmpeg/ffmpeg/blob/c8c4a162fc18c0fd99bada66d9ea3b48c64b2450/libavcodec/lpc.h#L136-L161)
+#[ffmpeg_src(file = "libavcodec/lpc.h", lines = 136..=161)]
 #[inline]
 fn compute_ref_coefs(
     autoc: &[c_double],
@@ -74,7 +73,7 @@ fn compute_ref_coefs(
 
 impl LPCContext {
     const fn padding_size(max_order: c_int) -> usize {
-        /// Source: [libavutil/macros.h](https://github.com/ffmpeg/ffmpeg/blob/2dd8acbe800f6ea3b72ebe730f8ed95a5c3dd407/libavutil/macros.h#L78)
+        #[ffmpeg_src(file = "libavutil/macros.h", lines = 78, name = "FFALIGN")]
         const fn align(x: c_int, a: c_int) -> c_int {
             (x + a - 1) & !(a - 1)
         }
@@ -94,8 +93,7 @@ impl LPCContext {
 
     /// Calculate autocorrelation data from audio samples.
     /// A Welch window function is applied before calculation.
-    ///
-    /// Source: [libavcodec/lpc.c](https://github.com/ffmpeg/ffmpeg/blob/0627e6d74ce6f28287ea787c099a0f9fe4baaacb/libavcodec/lpc.c#L70-L97)
+    #[ffmpeg_src(file = "libavcodec/lpc.c", lines = 70..=97)]
     fn compute_autocorr_c(&self, len: usize, lag: c_int, autoc: &mut [c_double]) {
         let padding_size = Self::padding_size(self.max_order);
 
@@ -131,7 +129,7 @@ impl LPCContext {
         }
     }
 
-    /// Source: [avcodec/lpc.c](https://github.com/ffmpeg/ffmpeg/blob/0627e6d74ce6f28287ea787c099a0f9fe4baaacb/libavcodec/lpc.c#L178-L199)
+    #[ffmpeg_src(file = "libavcodec/lpc.c", lines = 178..=199, name = "ff_lpc_calc_ref_coefs_f")]
     pub fn calc_ref_coefs_f(
         &mut self,
         samples: &[c_float],

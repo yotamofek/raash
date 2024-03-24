@@ -1,6 +1,7 @@
 use std::ptr;
 
 use ffi::codec::AVCodecContext;
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
 use super::{
@@ -16,7 +17,7 @@ use crate::{
     types::*,
 };
 
-/// Source: [libavcodec/aaccoder.c](https://github.com/FFmpeg/FFmpeg/blob/5d7f234e7ec45ccc385dca8c5fbe3b887af1c2c6/libavcodec/aaccoder.c#L765-L905) (`search_for_pns`)
+#[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 765..=905, name = "search_for_pns")]
 pub(crate) unsafe fn search(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
@@ -288,7 +289,7 @@ pub(crate) unsafe fn search(
     }
 }
 
-/// Source: [libavcodec/aaccoder.c](https://github.com/FFmpeg/FFmpeg/blob/5d7f234e7ec45ccc385dca8c5fbe3b887af1c2c6/libavcodec/aaccoder.c#L907-L976) (`mark_pns`)
+#[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 907..=976, name = "mark_pns")]
 pub(crate) unsafe fn mark(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
