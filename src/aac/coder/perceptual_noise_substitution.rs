@@ -4,9 +4,7 @@ use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
-use super::{
-    ff_init_nextband_map, ff_sfdelta_can_remove_band, math::lcg_random, quantize_band_cost,
-};
+use super::{ff_init_nextband_map, math::lcg_random, quantize_band_cost, sfdelta_can_remove_band};
 use crate::{
     aac::{
         encoder::{abs_pow34_v, ctx::AACEncContext},
@@ -16,6 +14,10 @@ use crate::{
     common::*,
     types::*,
 };
+
+/// Frequency in Hz for lower limit of noise substitution
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 54)]
+const NOISE_LOW_LIMIT: c_float = 4000.;
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 765..=905, name = "search_for_pns")]
 pub(crate) unsafe fn search(
@@ -104,12 +106,8 @@ pub(crate) unsafe fn search(
             let mut max_energy: c_float = 0.;
             let start: c_int = wstart + *((*sce).ics.swb_offset).offset(g as isize) as c_int;
             let freq: c_float = (start - wstart) as c_float * freq_mult;
-            let freq_boost: c_float = if 0.88 * freq / 4000. > 1. {
-                0.88 * freq / 4000.
-            } else {
-                1.
-            };
-            if freq < 4000. || start - wstart >= cutoff {
+            let freq_boost = (0.88 * freq / NOISE_LOW_LIMIT).max(1.);
+            if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
                 if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
                     prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
                 }
@@ -119,34 +117,33 @@ pub(crate) unsafe fn search(
                     band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
                         [((w + w2) * 16 + g) as usize] as *mut FFPsyBand;
                     sfb_energy += (*band).energy;
-                    spread = if spread > (*band).spread {
-                        (*band).spread
-                    } else {
-                        spread
-                    };
+                    spread = spread.min((*band).spread);
                     threshold += (*band).threshold;
                     if w2 == 0 {
                         max_energy = (*band).energy;
                         min_energy = max_energy;
                     } else {
-                        min_energy = if min_energy > (*band).energy {
-                            (*band).energy
-                        } else {
-                            min_energy
-                        };
-                        max_energy = if max_energy > (*band).energy {
-                            max_energy
-                        } else {
-                            (*band).energy
-                        };
+                        min_energy = min_energy.min((*band).energy);
+                        max_energy = max_energy.max((*band).energy);
                     }
                     w2 += 1;
                     w2;
                 }
-                dist_thresh = (2.5 * 4000. / freq).clamp(0.5, 2.5) * dist_bias;
+
+                // Ramps down at ~8000Hz and loosens the dist threshold
+                dist_thresh = (2.5 * NOISE_LOW_LIMIT / freq).clamp(0.5, 2.5) * dist_bias;
+
+                // PNS is acceptable when all of these are true:
+                // 1. high spread energy (noise-like band)
+                // 2. near-threshold energy (high PE means the random nature of PNS content
+                // will be noticed)
+                // 3. on short window groups, all windows have similar energy (variations in
+                // energy would be destroyed by PNS)
+                //
+                // At this stage, point 2 is relaxed for zeroed bands near
+                // the noise threshold (hole avoidance is more important)
                 if (*sce).zeroes[(w * 16 + g) as usize] == 0
-                    && ff_sfdelta_can_remove_band(sce, nextband.as_mut_ptr(), prev_sf, w * 16 + g)
-                        == 0
+                    && !sfdelta_can_remove_band(sce, nextband.as_mut_ptr(), prev_sf, w * 16 + g)
                     || ((*sce).zeroes[(w * 16 + g) as usize] as c_int != 0
                         || (*sce).band_alt[(w * 16 + g) as usize] as u64 == 0)
                         && sfb_energy < threshold * sqrtf(1. / freq_boost)

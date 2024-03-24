@@ -15,6 +15,7 @@ pub(super) mod quantizers;
 
 use std::{mem::size_of, ptr};
 
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
 use self::{
@@ -24,6 +25,7 @@ use self::{
 use super::{
     encoder::{abs_pow34_v, ctx::AACEncContext},
     tables::*,
+    SCALE_MAX_DIFF,
 };
 use crate::{common::*, types::*};
 
@@ -197,16 +199,21 @@ unsafe fn find_form_factor(
     }
 }
 
+/// Checks whether the specified band could be removed without inducing
+/// scalefactor delta that violates SF delta encoding constraints.
+/// prev_sf has to be the scalefactor of the previous nonzero, nonspecial
+/// band, in encoding order, or negative if there was no such band.
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 208..=214, name = "ff_sfdelta_can_remove_band")]
 #[inline]
-unsafe fn ff_sfdelta_can_remove_band(
+unsafe fn sfdelta_can_remove_band(
     mut sce: *const SingleChannelElement,
     mut nextband: *const c_uchar,
     mut prev_sf: c_int,
     mut band: c_int,
-) -> c_int {
-    (prev_sf >= 0
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= prev_sf - 60
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= prev_sf + 60) as c_int
+) -> bool {
+    prev_sf >= 0
+        && (prev_sf - c_int::from(SCALE_MAX_DIFF)..=prev_sf + c_int::from(SCALE_MAX_DIFF))
+            .contains(&(*sce).sf_idx[*nextband.offset(band as isize) as usize])
 }
 
 #[inline]

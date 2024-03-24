@@ -8,8 +8,8 @@ use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint};
 use crate::{
     aac::{
         coder::{
-            ff_init_nextband_map, ff_pns_bits, ff_sfdelta_can_remove_band, find_form_factor,
-            find_max_val, find_min_book, math::coef2minsf, quantize_band_cost_cached,
+            ff_init_nextband_map, ff_pns_bits, find_form_factor, find_max_val, find_min_book,
+            math::coef2minsf, quantize_band_cost_cached, sfdelta_can_remove_band,
         },
         encoder::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
         psy_model::cutoff_from_bitrate,
@@ -914,8 +914,7 @@ pub(crate) unsafe fn search(
                     sce.sf_idx[(w * 16 + g) as usize],
                 ) as BandType;
                 if sce.band_type[(w * 16 + g) as usize] as c_uint <= 0 as c_uint {
-                    if ff_sfdelta_can_remove_band(sce, nextband.as_mut_ptr(), prev, w * 16 + g) == 0
-                    {
+                    if !sfdelta_can_remove_band(sce, nextband.as_mut_ptr(), prev, w * 16 + g) {
                         sce.band_type[(w * 16 + g) as usize] = 1 as BandType;
                     } else {
                         sce.zeroes[(w * 16 + g) as usize] = 1;
