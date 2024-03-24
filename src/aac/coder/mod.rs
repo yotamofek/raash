@@ -344,20 +344,6 @@ unsafe fn ff_pns_bits(mut sce: *mut SingleChannelElement, mut w: c_int, mut g: c
     }
 }
 
-/// Source: [libavcodec/psymodel.h](https://github.com/FFmpeg/FFmpeg/blob/2d9ed64859c9887d0504cd71dbd5b2c15e14251a/libavcodec/psymodel.h#L35-L40)
-fn cutoff_from_bitrate(bit_rate: c_int, channels: c_int, sample_rate: c_int) -> c_int {
-    if bit_rate == 0 {
-        return sample_rate / 2;
-    }
-
-    (bit_rate / channels / 5)
-        .max(bit_rate / channels * 15 / 32 - 5500)
-        .min(3000 + bit_rate / channels / 4)
-        .min(12000 + bit_rate / channels / 16)
-        .min(22000)
-        .min(sample_rate / 2)
-}
-
 pub(crate) unsafe fn encode_window_bands_info(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,

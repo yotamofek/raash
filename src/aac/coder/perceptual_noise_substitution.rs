@@ -12,9 +12,11 @@ use crate::{
         tables::POW_SF_TABLES,
     },
     common::*,
+    psy_model::cutoff_from_bitrate,
     types::*,
 };
 
+/// Source: [libavcodec/aaccoder.c](https://github.com/FFmpeg/FFmpeg/blob/5d7f234e7ec45ccc385dca8c5fbe3b887af1c2c6/libavcodec/aaccoder.c#L765-L905) (`search_for_pns`)
 pub(crate) unsafe fn search(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
@@ -26,7 +28,6 @@ pub(crate) unsafe fn search(
     let mut w2: c_int = 0;
     let mut i: c_int = 0;
     let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
-    let mut bandwidth: c_int = 0;
     let mut cutoff: c_int = 0;
 
     let [PNS, PNS34, NOR34] = [0, 1, 3].map(|i| (*s).scoefs[128 * i..].as_mut_ptr());
@@ -75,240 +76,11 @@ pub(crate) unsafe fn search(
         ((*avctx).bit_rate / (*avctx).ch_layout.nb_channels as c_long) as c_float
     }) as c_int;
     frame_bit_rate = (frame_bit_rate as c_float * 1.15f32) as c_int;
-    if (*avctx).cutoff > 0 {
-        bandwidth = (*avctx).cutoff;
+    let bandwidth = if (*avctx).cutoff > 0 {
+        (*avctx).cutoff
     } else {
-        bandwidth = if 3000
-            > (if frame_bit_rate != 0 {
-                if (if (if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 12000 + frame_bit_rate / 16
-                {
-                    12000 + frame_bit_rate / 16
-                } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 22000
-                {
-                    22000
-                } else if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 12000 + frame_bit_rate / 16
-                {
-                    12000 + frame_bit_rate / 16
-                } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > (*avctx).sample_rate / 2
-                {
-                    (*avctx).sample_rate / 2
-                } else if (if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 12000 + frame_bit_rate / 16
-                {
-                    12000 + frame_bit_rate / 16
-                } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 22000
-                {
-                    22000
-                } else if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 12000 + frame_bit_rate / 16
-                {
-                    12000 + frame_bit_rate / 16
-                } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }
-            } else {
-                (*avctx).sample_rate / 2
-            }) {
-            3000
-        } else if frame_bit_rate != 0 {
-            if (if (if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 12000 + frame_bit_rate / 16
-            {
-                12000 + frame_bit_rate / 16
-            } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 22000
-            {
-                22000
-            } else if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 12000 + frame_bit_rate / 16
-            {
-                12000 + frame_bit_rate / 16
-            } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > (*avctx).sample_rate / 2
-            {
-                (*avctx).sample_rate / 2
-            } else if (if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 12000 + frame_bit_rate / 16
-            {
-                12000 + frame_bit_rate / 16
-            } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 22000
-            {
-                22000
-            } else if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 12000 + frame_bit_rate / 16
-            {
-                12000 + frame_bit_rate / 16
-            } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }
-        } else {
-            (*avctx).sample_rate / 2
-        };
-    }
+        3000.max(cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate))
+    };
     cutoff = bandwidth * 2 * wlen / (*avctx).sample_rate;
     (*sce).band_alt = (*sce).band_type;
     ff_init_nextband_map(sce, nextband.as_mut_ptr());
@@ -516,6 +288,7 @@ pub(crate) unsafe fn search(
     }
 }
 
+/// Source: [libavcodec/aaccoder.c](https://github.com/FFmpeg/FFmpeg/blob/5d7f234e7ec45ccc385dca8c5fbe3b887af1c2c6/libavcodec/aaccoder.c#L907-L976) (`mark_pns`)
 pub(crate) unsafe fn mark(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
@@ -526,7 +299,6 @@ pub(crate) unsafe fn mark(
     let mut g: c_int = 0;
     let mut w2: c_int = 0;
     let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
-    let mut bandwidth: c_int = 0;
     let mut cutoff: c_int = 0;
     let lambda: c_float = (*s).lambda;
     let freq_mult: c_float = (*avctx).sample_rate as c_float * 0.5f32 / wlen as c_float;
@@ -567,240 +339,11 @@ pub(crate) unsafe fn mark(
         ((*avctx).bit_rate / (*avctx).ch_layout.nb_channels as c_long) as c_float
     }) as c_int;
     frame_bit_rate = (frame_bit_rate as c_float * 1.15f32) as c_int;
-    if (*avctx).cutoff > 0 {
-        bandwidth = (*avctx).cutoff;
+    let bandwidth = if (*avctx).cutoff > 0 {
+        (*avctx).cutoff
     } else {
-        bandwidth = if 3000
-            > (if frame_bit_rate != 0 {
-                if (if (if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 12000 + frame_bit_rate / 16
-                {
-                    12000 + frame_bit_rate / 16
-                } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 22000
-                {
-                    22000
-                } else if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 12000 + frame_bit_rate / 16
-                {
-                    12000 + frame_bit_rate / 16
-                } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > (*avctx).sample_rate / 2
-                {
-                    (*avctx).sample_rate / 2
-                } else if (if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 12000 + frame_bit_rate / 16
-                {
-                    12000 + frame_bit_rate / 16
-                } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 22000
-                {
-                    22000
-                } else if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 12000 + frame_bit_rate / 16
-                {
-                    12000 + frame_bit_rate / 16
-                } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }) > 3000 + frame_bit_rate / 4
-                {
-                    3000 + frame_bit_rate / 4
-                } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                    frame_bit_rate / 5
-                } else {
-                    frame_bit_rate * 15 / 32 - 5500
-                }
-            } else {
-                (*avctx).sample_rate / 2
-            }) {
-            3000
-        } else if frame_bit_rate != 0 {
-            if (if (if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 12000 + frame_bit_rate / 16
-            {
-                12000 + frame_bit_rate / 16
-            } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 22000
-            {
-                22000
-            } else if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 12000 + frame_bit_rate / 16
-            {
-                12000 + frame_bit_rate / 16
-            } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > (*avctx).sample_rate / 2
-            {
-                (*avctx).sample_rate / 2
-            } else if (if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 12000 + frame_bit_rate / 16
-            {
-                12000 + frame_bit_rate / 16
-            } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 22000
-            {
-                22000
-            } else if (if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 12000 + frame_bit_rate / 16
-            {
-                12000 + frame_bit_rate / 16
-            } else if (if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }) > 3000 + frame_bit_rate / 4
-            {
-                3000 + frame_bit_rate / 4
-            } else if frame_bit_rate / 5 > frame_bit_rate * 15 / 32 - 5500 {
-                frame_bit_rate / 5
-            } else {
-                frame_bit_rate * 15 / 32 - 5500
-            }
-        } else {
-            (*avctx).sample_rate / 2
-        };
-    }
+        3000.max(cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate))
+    };
     cutoff = bandwidth * 2 * wlen / (*avctx).sample_rate;
     (*sce).band_alt = (*sce).band_type;
     w = 0;
