@@ -15,33 +15,6 @@ use libc::{c_int, c_uchar};
 
 use crate::{aac::psy_model::ff_aac_psy_model, types::*};
 
-#[ffmpeg_src(file = "libavcodec/psymodel.h", lines = 41..=45, name = "AAC_CUTOFF")]
-pub(crate) unsafe fn aac_cutoff(ctx: *const AVCodecContext) -> c_int {
-    if (*ctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
-        (*ctx).sample_rate / 2
-    } else {
-        cutoff_from_bitrate(
-            (*ctx).bit_rate.try_into().unwrap(),
-            (*ctx).ch_layout.nb_channels,
-            (*ctx).sample_rate,
-        )
-    }
-}
-
-#[ffmpeg_src(file = "libavcodec/psymodel.h", lines = 35..=40, name = "AAC_CUTOFF_FROM_BITRATE")]
-pub(crate) fn cutoff_from_bitrate(bit_rate: c_int, channels: c_int, sample_rate: c_int) -> c_int {
-    if bit_rate == 0 {
-        return sample_rate / 2;
-    }
-
-    (bit_rate / channels / 5)
-        .max(bit_rate / channels * 15 / 32 - 5500)
-        .min(3000 + bit_rate / channels / 4)
-        .min(12000 + bit_rate / channels / 16)
-        .min(22000)
-        .min(sample_rate / 2)
-}
-
 #[cold]
 pub(crate) unsafe fn ff_psy_init(
     mut ctx: *mut FFPsyContext,
@@ -75,7 +48,8 @@ pub(crate) unsafe fn ff_psy_init(
     0
 }
 
-pub(crate) unsafe fn ff_psy_find_group(
+#[ffmpeg_src(file = "libavcodec/psymodel.c", lines = 73..=81, name = "ff_psy_find_group")]
+pub(crate) unsafe fn find_group(
     mut ctx: *mut FFPsyContext,
     mut channel: c_int,
 ) -> *mut FFPsyChannelGroup {

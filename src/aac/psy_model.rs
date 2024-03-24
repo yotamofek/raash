@@ -10,13 +10,10 @@
 use std::alloc::{alloc_zeroed, Layout};
 
 use ffi::codec::AVCodecContext;
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
-use crate::{
-    common::*,
-    psy_model::{aac_cutoff, ff_psy_find_group},
-    types::*,
-};
+use crate::{common::*, psy_model::find_group, types::*};
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 // TODO: remove explicit repr and discriminants when `AacPsyBand` has a default impl
@@ -142,6 +139,35 @@ static FIR_COEFFS: [c_float; 10] = [
     -0.313819 * 2.,
 ];
 
+#[ffmpeg_src(file = "libavcodec/psymodel.h", lines = 41..=45, name = "AAC_CUTOFF")]
+pub(crate) unsafe fn cutoff(ctx: *const AVCodecContext) -> c_int {
+    if (*ctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
+        (*ctx).sample_rate / 2
+    } else {
+        cutoff_from_bitrate(
+            (*ctx).bit_rate.try_into().unwrap(),
+            (*ctx).ch_layout.nb_channels,
+            (*ctx).sample_rate,
+        )
+    }
+}
+
+/// cutoff for VBR is purposely increased, since LP filtering actually
+/// hinders VBR performance rather than the opposite
+#[ffmpeg_src(file = "libavcodec/psymodel.h", lines = 35..=40, name = "AAC_CUTOFF_FROM_BITRATE")]
+pub(crate) fn cutoff_from_bitrate(bit_rate: c_int, channels: c_int, sample_rate: c_int) -> c_int {
+    if bit_rate == 0 {
+        return sample_rate / 2;
+    }
+
+    (bit_rate / channels / 5)
+        .max(bit_rate / channels * 15 / 32 - 5500)
+        .min(3000 + bit_rate / channels / 4)
+        .min(12000 + bit_rate / channels / 16)
+        .min(22000)
+        .min(sample_rate / 2)
+}
+
 fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
     let mut lower_range: c_int = 12;
     let mut upper_range: c_int = 12;
@@ -241,7 +267,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     let bandwidth: c_int = (if (*ctx).cutoff != 0 {
         (*ctx).cutoff
     } else {
-        aac_cutoff((*ctx).avctx)
+        cutoff((*ctx).avctx)
     }) as c_int;
     let num_bark: c_float = calc_bark(bandwidth as c_float);
     if bandwidth <= 0 {
@@ -662,7 +688,7 @@ unsafe fn psy_3gpp_analyze_channel(
     let bandwidth: c_int = (if (*ctx).cutoff != 0 {
         (*ctx).cutoff
     } else {
-        aac_cutoff((*ctx).avctx)
+        cutoff((*ctx).avctx)
     }) as c_int;
     let cutoff: c_int = bandwidth * 2048 / (*wi).num_windows / (*(*ctx).avctx).sample_rate;
     calc_thr_3gpp(wi, num_bands, pch, band_sizes.as_ptr(), coefs, cutoff);
@@ -966,6 +992,7 @@ unsafe fn psy_3gpp_analyze_channel(
     }
     (*pch).prev_band = (*pch).band;
 }
+
 unsafe extern "C" fn psy_3gpp_analyze(
     mut ctx: *mut FFPsyContext,
     mut channel: c_int,
@@ -973,7 +1000,7 @@ unsafe extern "C" fn psy_3gpp_analyze(
     mut wi: *const FFPsyWindowInfo,
 ) {
     let mut ch: c_int = 0;
-    let mut group: *mut FFPsyChannelGroup = ff_psy_find_group(ctx, channel);
+    let mut group: *mut FFPsyChannelGroup = find_group(ctx, channel);
     ch = 0;
     while ch < (*group).num_ch as c_int {
         psy_3gpp_analyze_channel(
@@ -986,6 +1013,7 @@ unsafe extern "C" fn psy_3gpp_analyze(
         ch;
     }
 }
+
 #[cold]
 unsafe extern "C" fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
     let mut pctx: *mut AacPsyContext = (*apc).model_priv_data as *mut AacPsyContext;
@@ -995,6 +1023,7 @@ unsafe extern "C" fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
     }
     // av_freep(&mut (*apc).model_priv_data as *mut *mut c_void as *mut c_void);
 }
+
 unsafe fn lame_apply_block_type(
     mut ctx: *mut AacPsyChannel,
     mut wi: *mut FFPsyWindowInfo,

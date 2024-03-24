@@ -1,4 +1,3 @@
-use ffi::class::AVClass;
 use libc::{c_float, c_int, c_uchar, c_ushort};
 use lpc::LPCContext;
 

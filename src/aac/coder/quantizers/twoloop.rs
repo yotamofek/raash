@@ -11,11 +11,11 @@ use crate::{
             find_max_val, find_min_book, math::coef2minsf, quantize_band_cost_cached,
         },
         encoder::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
+        psy_model::cutoff_from_bitrate,
         tables::ff_aac_scalefactor_bits,
         SyntaxElementType,
     },
     common::*,
-    psy_model::cutoff_from_bitrate,
     types::*,
 };
 

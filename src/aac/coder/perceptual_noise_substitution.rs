@@ -10,10 +10,10 @@ use super::{
 use crate::{
     aac::{
         encoder::{abs_pow34_v, ctx::AACEncContext},
+        psy_model::cutoff_from_bitrate,
         tables::POW_SF_TABLES,
     },
     common::*,
-    psy_model::cutoff_from_bitrate,
     types::*,
 };
 
