@@ -17,7 +17,7 @@ use crate::{
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct AVFloatDSPContext {
-    pub(crate) vector_fmul:
+    vector_fmul:
         Option<unsafe extern "C" fn(*mut c_float, *const c_float, *const c_float, c_int) -> ()>,
     pub(crate) vector_fmac_scalar:
         Option<unsafe extern "C" fn(*mut c_float, *const c_float, c_float, c_int) -> ()>,
@@ -45,7 +45,7 @@ pub(crate) struct AVFloatDSPContext {
             c_int,
         ) -> (),
     >,
-    pub(crate) vector_fmul_reverse:
+    vector_fmul_reverse:
         Option<unsafe extern "C" fn(*mut c_float, *const c_float, *const c_float, c_int) -> ()>,
     pub(crate) butterflies_float:
         Option<unsafe extern "C" fn(*mut c_float, *mut c_float, c_int) -> ()>,

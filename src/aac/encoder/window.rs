@@ -1,135 +1,143 @@
-use std::{mem::size_of, ptr};
+use std::{mem::size_of, ptr, slice};
 
+use itertools::izip;
 use libc::{c_float, c_int, c_uint, c_ulong, c_void};
 
 use super::ctx::AACEncContext;
 use crate::{
     aac::tables::{KBD_LONG, KBD_SHORT},
     sinewin::{SINE_WIN_1024, SINE_WIN_128},
-    types::{ptrdiff_t, AVFloatDSPContext, SingleChannelElement, EIGHT_SHORT_SEQUENCE},
+    types::{ptrdiff_t, SingleChannelElement, EIGHT_SHORT_SEQUENCE},
 };
 
-unsafe fn apply_only_long_window(
-    mut fdsp: *mut AVFloatDSPContext,
-    mut sce: *mut SingleChannelElement,
-    mut audio: *const c_float,
-) {
-    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
-        KBD_LONG.as_ptr()
-    } else {
-        SINE_WIN_1024.as_ptr()
-    };
-    let mut pwindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
-        KBD_LONG.as_ptr()
-    } else {
-        SINE_WIN_1024.as_ptr()
-    };
-    let mut out: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
-    ((*fdsp).vector_fmul).expect("non-null function pointer")(out, audio, lwindow, 1024);
-    ((*fdsp).vector_fmul_reverse).expect("non-null function pointer")(
-        out.offset(1024),
-        audio.offset(1024),
-        pwindow,
-        1024,
-    );
+unsafe fn apply_only_long_window(mut sce: *mut SingleChannelElement, mut audio: *const c_float) {
+    let audio = slice::from_raw_parts(audio, 1024 * 2);
+    let out = &mut *(*sce).ret_buf;
+
+    let [lwindow, pwindow] = (*sce).ics.use_kb_window.map(|use_kb| {
+        if use_kb != 0 {
+            &*KBD_LONG
+        } else {
+            &SINE_WIN_1024
+        }
+    });
+
+    for (out, audio, lwindow) in izip!(&mut out[..1024], &audio[..1024], &lwindow[..1024]) {
+        *out = *audio * *lwindow;
+    }
+    for (out, audio, pwindow) in izip!(
+        &mut out[1024..][..1024],
+        &audio[1024..][..1024],
+        pwindow[..1024].iter().rev()
+    ) {
+        *out = *audio * *pwindow;
+    }
 }
-unsafe fn apply_long_start_window(
-    mut fdsp: *mut AVFloatDSPContext,
-    mut sce: *mut SingleChannelElement,
-    mut audio: *const c_float,
-) {
-    let mut lwindow = if (*sce).ics.use_kb_window[1] as c_int != 0 {
+
+unsafe fn apply_long_start_window(mut sce: *mut SingleChannelElement, mut audio: *const c_float) {
+    let audio = slice::from_raw_parts(audio, 1024 * 2);
+    let out = &mut *(*sce).ret_buf;
+
+    let mut lwindow = if (*sce).ics.use_kb_window[1] != 0 {
         &*KBD_LONG
     } else {
         &SINE_WIN_1024
     };
-    let mut swindow = if (*sce).ics.use_kb_window[0] as c_int != 0 {
+    let mut swindow = if (*sce).ics.use_kb_window[0] != 0 {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128
     };
-    let mut out: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
-    ((*fdsp).vector_fmul).expect("non-null function pointer")(out, audio, lwindow.as_ptr(), 1024);
-    ptr::copy_nonoverlapping(audio.offset(1024), out.offset(1024), 448);
-    ((*fdsp).vector_fmul_reverse).expect("non-null function pointer")(
-        out.offset(1024).offset(448),
-        audio.offset(1024).offset(448),
-        swindow.as_ptr(),
-        128,
-    );
-    ptr::write_bytes(out.offset(1024).offset(576), 0, 448);
+
+    for (out, audio, lwindow) in izip!(&mut out[..1024], &audio[..1024], &lwindow[..1024]) {
+        *out = *audio * *lwindow;
+    }
+
+    out[1024..][..448].copy_from_slice(&audio[1024..][..448]);
+
+    for (out, audio, swindow) in izip!(
+        &mut out[1024..][448..][..128],
+        &audio[1024..][448..],
+        swindow[..128].iter().rev()
+    ) {
+        *out = *audio * *swindow;
+    }
+
+    out[1024..][576..][..448].fill(0.);
 }
-unsafe fn apply_long_stop_window(
-    mut fdsp: *mut AVFloatDSPContext,
-    mut sce: *mut SingleChannelElement,
-    mut audio: *const c_float,
-) {
-    let mut lwindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
-        KBD_LONG.as_ptr()
+
+unsafe fn apply_long_stop_window(mut sce: *mut SingleChannelElement, mut audio: *const c_float) {
+    let audio = slice::from_raw_parts(audio, 1024 * 2);
+    let out = &mut *(*sce).ret_buf;
+
+    let mut lwindow = if (*sce).ics.use_kb_window[0] != 0 {
+        &*KBD_LONG
     } else {
-        SINE_WIN_1024.as_ptr()
+        &SINE_WIN_1024
     };
-    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
-        KBD_SHORT.as_ptr()
+    let mut swindow = if (*sce).ics.use_kb_window[1] != 0 {
+        &*KBD_SHORT
     } else {
-        SINE_WIN_128.as_ptr()
+        &SINE_WIN_128
     };
-    let mut out: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
-    ptr::write_bytes(out, 0, 448);
-    ((*fdsp).vector_fmul).expect("non-null function pointer")(
-        out.offset(448),
-        audio.offset(448),
-        swindow,
-        128,
-    );
-    ptr::copy_nonoverlapping(audio.offset(576), out.offset(576), 448);
-    ((*fdsp).vector_fmul_reverse).expect("non-null function pointer")(
-        out.offset(1024),
-        audio.offset(1024),
-        lwindow,
-        1024,
-    );
-}
-unsafe fn apply_eight_short_window(
-    mut fdsp: *mut AVFloatDSPContext,
-    mut sce: *mut SingleChannelElement,
-    mut audio: *const c_float,
-) {
-    let mut swindow: *const c_float = if (*sce).ics.use_kb_window[0] as c_int != 0 {
-        KBD_SHORT.as_ptr()
-    } else {
-        SINE_WIN_128.as_ptr()
-    };
-    let mut pwindow: *const c_float = if (*sce).ics.use_kb_window[1] as c_int != 0 {
-        KBD_SHORT.as_ptr()
-    } else {
-        SINE_WIN_128.as_ptr()
-    };
-    let mut in_0: *const c_float = audio.offset(448);
-    let mut out: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
-    let mut w: c_int = 0;
-    w = 0;
-    while w < 8 {
-        ((*fdsp).vector_fmul).expect("non-null function pointer")(
-            out,
-            in_0,
-            if w != 0 { pwindow } else { swindow },
-            128,
-        );
-        out = out.offset(128);
-        in_0 = in_0.offset(128);
-        ((*fdsp).vector_fmul_reverse).expect("non-null function pointer")(out, in_0, swindow, 128);
-        out = out.offset(128);
-        w += 1;
-        w;
+
+    out[..448].fill(0.);
+
+    for (out, audio, swindow) in izip!(
+        &mut out[448..][..128],
+        &audio[448..][..128],
+        &swindow[..128]
+    ) {
+        *out = *audio * *swindow;
+    }
+
+    out[576..][..448].copy_from_slice(&audio[576..][..448]);
+
+    for (out, audio, lwindow) in izip!(
+        &mut out[1024..][..1024],
+        &audio[1024..][..1024],
+        lwindow[..1024].iter().rev()
+    ) {
+        *out = *audio * *lwindow;
     }
 }
 
-pub(super) const APPLY_WINDOW: [unsafe fn(
-    *mut AVFloatDSPContext,
-    *mut SingleChannelElement,
-    *const c_float,
-) -> (); 4] = [
+unsafe fn apply_eight_short_window(mut sce: *mut SingleChannelElement, mut audio: *const c_float) {
+    let audio = slice::from_raw_parts(audio, 1024 * 2);
+    let out = &mut *(*sce).ret_buf;
+
+    let mut swindow = if (*sce).ics.use_kb_window[0] != 0 {
+        &*KBD_SHORT
+    } else {
+        &SINE_WIN_128
+    };
+    let mut pwindow = if (*sce).ics.use_kb_window[1] != 0 {
+        &*KBD_SHORT
+    } else {
+        &SINE_WIN_128
+    };
+
+    let mut in_ = &audio[448..];
+    let mut out = &mut out[..];
+    for w in 0..8 {
+        for (out, in_, window) in izip!(
+            &mut out[..128],
+            &in_[..128],
+            &(if w != 0 { pwindow } else { swindow })[..128]
+        ) {
+            *out = *in_ * *window;
+        }
+        out = &mut out[128..];
+        in_ = &in_[128..];
+        for (out, in_, swindow) in izip!(&mut out[..128], &in_[..128], swindow[..128].iter().rev())
+        {
+            *out = *in_ * *swindow;
+        }
+        out = &mut out[128..];
+    }
+}
+
+pub(super) const APPLY_WINDOW: [unsafe fn(*mut SingleChannelElement, *const c_float) -> (); 4] = [
     apply_only_long_window,
     apply_long_start_window,
     apply_eight_short_window,
@@ -143,7 +151,7 @@ pub(super) unsafe fn apply_window_and_mdct(
 ) {
     let mut i: c_int = 0;
     let mut output: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
-    APPLY_WINDOW[(*sce).ics.window_sequence[0] as usize]((*s).fdsp, sce, audio);
+    APPLY_WINDOW[(*sce).ics.window_sequence[0] as usize](sce, audio);
     if (*sce).ics.window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE as c_int as c_uint {
         ((*s).mdct1024_fn).expect("non-null function pointer")(
             (*s).mdct1024,

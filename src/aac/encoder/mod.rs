@@ -869,7 +869,6 @@ unsafe fn aac_encode_frame(
             if (*ctx).options.ltp != 0 {
                 update_ltp(ctx, sce);
                 APPLY_WINDOW[sce.ics.window_sequence[0] as usize](
-                    (*ctx).fdsp,
                     sce,
                     &mut *sce.ltp_state.as_mut_ptr().offset(0),
                 );
