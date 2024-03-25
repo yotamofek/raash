@@ -231,7 +231,7 @@ unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextban
     while w < (*sce).ics.num_windows {
         g = 0;
         while g < (*sce).ics.num_swb {
-            if (*sce).zeroes[(w * 16 + g) as usize] == 0
+            if !(*sce).zeroes[(w * 16 + g) as usize]
                 && ((*sce).band_type[(w * 16 + g) as usize] as c_uint)
                     < RESERVED_BT as c_int as c_uint
             {
@@ -342,7 +342,7 @@ unsafe fn quantize_band_cost(
 #[inline]
 unsafe fn ff_pns_bits(mut sce: *mut SingleChannelElement, mut w: c_int, mut g: c_int) -> c_int {
     if g == 0
-        || (*sce).zeroes[(w * 16 + g - 1) as usize] == 0
+        || !(*sce).zeroes[(w * 16 + g - 1) as usize]
         || (*sce).can_pns[(w * 16 + g - 1) as usize] == 0
     {
         9
@@ -394,7 +394,7 @@ pub(crate) unsafe fn encode_window_bands_info(
     swb = 0;
     while swb < max_sfb {
         size = *((*sce).ics.swb_sizes).offset(swb as isize) as c_int;
-        if (*sce).zeroes[(win * 16 + swb) as usize] != 0 {
+        if (*sce).zeroes[(win * 16 + swb) as usize] {
             cb = 0;
             while cb < 15 {
                 path[(swb + 1) as usize][cb as usize].prev_idx = cb;
@@ -551,7 +551,7 @@ pub(crate) unsafe fn set_special_band_scalefactors(
     while w < (*sce).ics.num_windows {
         g = 0;
         while g < (*sce).ics.num_swb {
-            if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
+            if !(*sce).zeroes[(w * 16 + g) as usize] {
                 if (*sce).band_type[(w * 16 + g) as usize] as c_uint
                     == INTENSITY_BT as c_int as c_uint
                     || (*sce).band_type[(w * 16 + g) as usize] as c_uint
@@ -591,7 +591,7 @@ pub(crate) unsafe fn set_special_band_scalefactors(
     while w < (*sce).ics.num_windows {
         g = 0;
         while g < (*sce).ics.num_swb {
-            if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
+            if !(*sce).zeroes[(w * 16 + g) as usize] {
                 if (*sce).band_type[(w * 16 + g) as usize] as c_uint
                     == INTENSITY_BT as c_int as c_uint
                     || (*sce).band_type[(w * 16 + g) as usize] as c_uint

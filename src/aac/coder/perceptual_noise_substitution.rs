@@ -108,7 +108,7 @@ pub(crate) unsafe fn search(
             let freq: c_float = (start - wstart) as c_float * freq_mult;
             let freq_boost = (0.88 * freq / NOISE_LOW_LIMIT).max(1.);
             if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
-                if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
+                if !(*sce).zeroes[(w * 16 + g) as usize] {
                     prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
                 }
             } else {
@@ -142,19 +142,19 @@ pub(crate) unsafe fn search(
                 //
                 // At this stage, point 2 is relaxed for zeroed bands near
                 // the noise threshold (hole avoidance is more important)
-                if (*sce).zeroes[(w * 16 + g) as usize] == 0
+                if !(*sce).zeroes[(w * 16 + g) as usize]
                     && !sfdelta_can_remove_band(sce, nextband.as_mut_ptr(), prev_sf, w * 16 + g)
-                    || ((*sce).zeroes[(w * 16 + g) as usize] as c_int != 0
+                    || ((*sce).zeroes[(w * 16 + g) as usize]
                         || (*sce).band_alt[(w * 16 + g) as usize] as u64 == 0)
                         && sfb_energy < threshold * sqrtf(1. / freq_boost)
                     || spread < spread_threshold
-                    || (*sce).zeroes[(w * 16 + g) as usize] == 0
+                    || !(*sce).zeroes[(w * 16 + g) as usize]
                         && (*sce).band_alt[(w * 16 + g) as usize] as c_uint != 0
                         && sfb_energy > threshold * thr_mult * freq_boost
                     || min_energy < pns_transient_energy_r * max_energy
                 {
                     (*sce).pns_ener[(w * 16 + g) as usize] = sfb_energy;
-                    if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
+                    if !(*sce).zeroes[(w * 16 + g) as usize] {
                         prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
                     }
                 } else {
@@ -169,7 +169,7 @@ pub(crate) unsafe fn search(
                     if prev != -1000 {
                         let mut noise_sfdiff: c_int = noise_sfi - prev + 60;
                         if !(0..=2 * 60).contains(&noise_sfdiff) {
-                            if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
+                            if !(*sce).zeroes[(w * 16 + g) as usize] {
                                 prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
                             }
                             current_block_67 = 1054647088692577877;
@@ -264,9 +264,9 @@ pub(crate) unsafe fn search(
                                 || energy_ratio > 0.85 && energy_ratio < 1.25 && dist2 < dist1
                             {
                                 (*sce).band_type[(w * 16 + g) as usize] = NOISE_BT;
-                                (*sce).zeroes[(w * 16 + g) as usize] = 0;
+                                (*sce).zeroes[(w * 16 + g) as usize] = false;
                                 prev = noise_sfi;
-                            } else if (*sce).zeroes[(w * 16 + g) as usize] == 0 {
+                            } else if !(*sce).zeroes[(w * 16 + g) as usize] {
                                 prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
                             }
                         }

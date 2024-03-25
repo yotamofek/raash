@@ -63,7 +63,7 @@ unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextban
     while w < (*sce).ics.num_windows {
         g = 0;
         while g < (*sce).ics.num_swb {
-            if (*sce).zeroes[(w * 16 + g) as usize] == 0
+            if !(*sce).zeroes[(w * 16 + g) as usize]
                 && ((*sce).band_type[(w * 16 + g) as usize] as c_uint)
                     < RESERVED_BT as c_int as c_uint
             {
@@ -300,10 +300,10 @@ pub(crate) unsafe fn search_for_is(
             if start as c_float * freq_mult > 6100. * ((*s).lambda / 170.)
                 && (*cpe).ch[0].band_type[(w * 16 + g) as usize] as c_uint
                     != NOISE_BT as c_int as c_uint
-                && (*cpe).ch[0].zeroes[(w * 16 + g) as usize] == 0
+                && !(*cpe).ch[0].zeroes[(w * 16 + g) as usize]
                 && (*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_uint
                     != NOISE_BT as c_int as c_uint
-                && (*cpe).ch[1].zeroes[(w * 16 + g) as usize] == 0
+                && !(*cpe).ch[1].zeroes[(w * 16 + g) as usize]
                 && ff_sfdelta_can_remove_band(sce1, nextband1.as_mut_ptr(), prev_sf1, w * 16 + g)
                     != 0
             {
@@ -380,7 +380,7 @@ pub(crate) unsafe fn search_for_is(
                     count;
                 }
             }
-            if sce1.zeroes[(w * 16 + g) as usize] == 0
+            if !sce1.zeroes[(w * 16 + g) as usize]
                 && (sce1.band_type[(w * 16 + g) as usize] as c_uint)
                     < RESERVED_BT as c_int as c_uint
             {

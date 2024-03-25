@@ -53,8 +53,8 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
             if (*cpe).is_mask[(w * 16 + g) as usize] == 0 {
                 (*cpe).ms_mask[(w * 16 + g) as usize] = 0;
             }
-            if sce0.zeroes[(w * 16 + g) as usize] == 0
-                && sce1.zeroes[(w * 16 + g) as usize] == 0
+            if !sce0.zeroes[(w * 16 + g) as usize]
+                && !sce1.zeroes[(w * 16 + g) as usize]
                 && (*cpe).is_mask[(w * 16 + g) as usize] == 0
             {
                 let mut Mmax: c_float = 0.;
@@ -275,13 +275,13 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                     sid_sf_boost;
                 }
             }
-            if sce0.zeroes[(w * 16 + g) as usize] == 0
+            if !sce0.zeroes[(w * 16 + g) as usize]
                 && (sce0.band_type[(w * 16 + g) as usize] as c_uint)
                     < RESERVED_BT as c_int as c_uint
             {
                 prev_mid = sce0.sf_idx[(w * 16 + g) as usize];
             }
-            if sce1.zeroes[(w * 16 + g) as usize] == 0
+            if !sce1.zeroes[(w * 16 + g) as usize]
                 && (*cpe).is_mask[(w * 16 + g) as usize] == 0
                 && (sce1.band_type[(w * 16 + g) as usize] as c_uint)
                     < RESERVED_BT as c_int as c_uint

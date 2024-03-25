@@ -305,18 +305,18 @@ unsafe extern "C" fn adjust_frame_information(mut cpe: *mut ChannelElement, mut 
         while w < (*ics).num_windows {
             g = 0;
             while g < (*ics).max_sfb as c_int {
-                i = 1;
+                let mut i = true;
                 w2 = w;
                 while w2 < w + (*ics).group_len[w as usize] as c_int {
-                    if (*cpe).ch[ch as usize].zeroes[(w2 * 16 + g) as usize] == 0 {
-                        i = 0;
+                    if !(*cpe).ch[ch as usize].zeroes[(w2 * 16 + g) as usize] {
+                        i = false;
                         break;
                     } else {
                         w2 += 1;
                         w2;
                     }
                 }
-                (*cpe).ch[ch as usize].zeroes[(w * 16 + g) as usize] = i as c_uchar;
+                (*cpe).ch[ch as usize].zeroes[(w * 16 + g) as usize] = i;
                 g += 1;
                 g;
             }
@@ -491,7 +491,7 @@ unsafe extern "C" fn encode_scale_factors(
         let mut current_block_19: u64;
         i = 0;
         while i < (*sce).ics.max_sfb as c_int {
-            if (*sce).zeroes[(w * 16 + i) as usize] == 0 {
+            if !(*sce).zeroes[(w * 16 + i) as usize] {
                 if (*sce).band_type[(w * 16 + i) as usize] as c_uint == NOISE_BT as c_int as c_uint
                 {
                     diff = (*sce).sf_idx[(w * 16 + i) as usize] - off_pns;
@@ -570,7 +570,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
         start = 0;
         i = 0;
         while i < (*sce).ics.max_sfb as c_int {
-            if (*sce).zeroes[(w * 16 + i) as usize] != 0 {
+            if (*sce).zeroes[(w * 16 + i) as usize] {
                 start += *((*sce).ics.swb_sizes).offset(i as isize) as c_int;
             } else {
                 w2 = w;

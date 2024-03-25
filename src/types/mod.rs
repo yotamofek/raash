@@ -135,7 +135,7 @@ pub(crate) struct SingleChannelElement {
     // pub(crate) band_type_run_end: [c_int; 120],
     // pub(crate) sf: [c_float; 120],
     pub(crate) sf_idx: [c_int; 128],
-    pub(crate) zeroes: [c_uchar; 128],
+    pub(crate) zeroes: [bool; 128],
     pub(crate) can_pns: [c_uchar; 128],
     pub(crate) is_ener: [c_float; 128],
     pub(crate) pns_ener: [c_float; 128],
