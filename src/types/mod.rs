@@ -281,6 +281,19 @@ pub(crate) struct FFPsyWindowInfo {
     pub(crate) window_sizes: *mut c_int,
 }
 
+impl FFPsyWindowInfo {
+    pub(crate) const fn zero() -> Self {
+        Self {
+            window_type: [0; 3],
+            window_shape: 0,
+            num_windows: 0,
+            grouping: [0; 8],
+            clipping: [0.; 8],
+            window_sizes: null_mut::<c_int>(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct FFPsyContext {
     pub(crate) avctx: *mut AVCodecContext,

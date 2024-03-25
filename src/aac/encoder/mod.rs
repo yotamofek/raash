@@ -37,6 +37,7 @@ use ffi::{
         FFCodecDefault,
     },
 };
+use ffmpeg_src_macro::ffmpeg_src;
 use itertools::Itertools;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 use lpc::LPCContext;
@@ -599,39 +600,28 @@ unsafe extern "C" fn encode_spectral_coeffs(
         w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }
-unsafe extern "C" fn avoid_clipping(
-    mut _s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-) {
-    let mut start: c_int = 0;
-    let mut i: c_int = 0;
-    let mut j: c_int = 0;
-    let mut w: c_int = 0;
-    if (*sce).ics.clip_avoidance_factor < 1. {
-        w = 0;
-        while w < (*sce).ics.num_windows {
-            start = 0;
-            i = 0;
-            while i < (*sce).ics.max_sfb as c_int {
-                let mut swb_coeffs: *mut c_float = &mut *((*sce).coeffs)
-                    .as_mut_ptr()
-                    .offset((start + w * 128) as isize)
-                    as *mut c_float;
-                j = 0;
-                while j < *((*sce).ics.swb_sizes).offset(i as isize) as c_int {
-                    *swb_coeffs.offset(j as isize) *= (*sce).ics.clip_avoidance_factor;
-                    j += 1;
-                    j;
-                }
-                start += *((*sce).ics.swb_sizes).offset(i as isize) as c_int;
-                i += 1;
-                i;
+
+/// Downscale spectral coefficients for near-clipping windows to avoid artifacts
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 738..=756)]
+unsafe fn avoid_clipping(mut sce: &mut SingleChannelElement) {
+    if sce.ics.clip_avoidance_factor < 1. {
+        for w in 0..sce.ics.num_windows {
+            let mut start = 0;
+
+            for i in 0..sce.ics.max_sfb {
+                sce.coeffs[(start + w * 128).try_into().unwrap()..]
+                    [..usize::from(*(sce.ics.swb_sizes).offset(i.into()))]
+                    .iter_mut()
+                    .for_each(|swb_coeff| {
+                        *swb_coeff *= sce.ics.clip_avoidance_factor;
+                    });
+
+                start += *(sce.ics.swb_sizes).offset(i.into()) as c_int;
             }
-            w += 1;
-            w;
         }
     }
 }
+
 unsafe extern "C" fn encode_individual_channel(
     mut avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
@@ -713,6 +703,7 @@ unsafe extern "C" fn copy_input_samples(mut s: *mut AACEncContext, mut frame: *c
         ch;
     }
 }
+
 unsafe fn aac_encode_frame(
     mut avctx: *mut AVCodecContext,
     mut ctx: *mut AACEncContext,
@@ -725,7 +716,6 @@ unsafe fn aac_encode_frame(
     let mut overlap: *mut c_float = ptr::null_mut::<c_float>();
     let mut cpe: *mut ChannelElement = ptr::null_mut::<ChannelElement>();
     let mut sce: *mut SingleChannelElement = ptr::null_mut::<SingleChannelElement>();
-    let mut ics: *mut IndividualChannelStream = ptr::null_mut::<IndividualChannelStream>();
     let mut i: c_int = 0;
     let mut its: c_int = 0;
     let mut ch: c_int = 0;
@@ -743,14 +733,7 @@ unsafe fn aac_encode_frame(
     let mut tns_mode: c_int = 0;
     let mut pred_mode: c_int = 0;
     let mut chan_el_counter: [c_int; 4] = [0; 4];
-    let mut windows: [FFPsyWindowInfo; 16] = [FFPsyWindowInfo {
-        window_type: [0; 3],
-        window_shape: 0,
-        num_windows: 0,
-        grouping: [0; 8],
-        clipping: [0.; 8],
-        window_sizes: ptr::null_mut::<c_int>(),
-    }; 16];
+    let mut windows = [FFPsyWindowInfo::zero(); 16];
     if !frame.is_null() {
         (*ctx).afq.add_frame(&*frame)
     } else if (*ctx).afq.is_empty() {
@@ -763,20 +746,19 @@ unsafe fn aac_encode_frame(
     start_ch = 0;
     i = 0;
     while i < (*ctx).chan_map[0] as c_int {
-        let mut wi: *mut FFPsyWindowInfo = windows.as_mut_ptr().offset(start_ch as isize);
+        let mut wi = &mut windows[start_ch.try_into().unwrap()..];
         tag = ((*ctx).chan_map[(i + 1) as usize]) as c_int;
         chans = if tag == SyntaxElementType::ChannelPairElement as c_int {
             2
         } else {
             1
         };
-        cpe = &mut (*ctx).cpe[i as usize] as *mut ChannelElement;
+        let mut cpe = &mut (*ctx).cpe[i as usize];
         ch = 0;
         while ch < chans {
-            let mut k: c_int = 0;
             let mut clip_avoidance_factor: c_float = 0.;
-            sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
-            ics = &mut (*sce).ics;
+            let sce = &mut cpe.ch[usize::try_from(ch).unwrap()];
+            let ics = &mut sce.ics;
             (*ctx).cur_channel = start_ch + ch;
             overlap = &mut *(*ctx).planar_samples[(*ctx).cur_channel as usize]
                 .as_mut_ptr()
@@ -786,65 +768,62 @@ unsafe fn aac_encode_frame(
             if frame.is_null() {
                 la = ptr::null_mut::<c_float>();
             }
+            let mut wi = &mut wi[usize::try_from(ch).unwrap()];
             if tag == SyntaxElementType::LowFrequencyEffects as c_int {
-                let fresh2 = &mut (*wi.offset(ch as isize)).window_type[1];
+                let fresh2 = &mut wi.window_type[1];
                 *fresh2 = ONLY_LONG_SEQUENCE as c_int;
-                (*wi.offset(ch as isize)).window_type[0] = *fresh2;
-                (*wi.offset(ch as isize)).window_shape = 0;
-                (*wi.offset(ch as isize)).num_windows = 1;
-                (*wi.offset(ch as isize)).grouping[0] = 1;
-                (*wi.offset(ch as isize)).clipping[0] = 0.;
-                (*ics).num_swb = if (*ctx).samplerate_index >= 8 { 1 } else { 3 };
+                wi.window_type[0] = *fresh2;
+                wi.window_shape = 0;
+                wi.num_windows = 1;
+                wi.grouping[0] = 1;
+                wi.clipping[0] = 0.;
+                ics.num_swb = if (*ctx).samplerate_index >= 8 { 1 } else { 3 };
             } else {
-                *wi.offset(ch as isize) = ((*(*ctx).psy.model).window)
-                    .expect("non-null function pointer")(
+                *wi = ((*(*ctx).psy.model).window).expect("non-null function pointer")(
                     &mut (*ctx).psy,
                     samples2,
                     la,
                     (*ctx).cur_channel,
-                    (*ics).window_sequence[0] as c_int,
+                    ics.window_sequence[0] as c_int,
                 );
             }
-            (*ics).window_sequence[1] = (*ics).window_sequence[0];
-            (*ics).window_sequence[0] = (*wi.offset(ch as isize)).window_type[0] as WindowSequence;
-            (*ics).use_kb_window[1] = (*ics).use_kb_window[0];
-            (*ics).use_kb_window[0] = (*wi.offset(ch as isize)).window_shape as c_uchar;
-            (*ics).num_windows = (*wi.offset(ch as isize)).num_windows;
-            (*ics).swb_sizes = ((*ctx).psy.bands)[((*ics).num_windows == 8) as usize].as_ptr();
-            (*ics).num_swb = if tag == SyntaxElementType::LowFrequencyEffects as c_int {
-                (*ics).num_swb
+            ics.window_sequence[1] = ics.window_sequence[0];
+            ics.window_sequence[0] = wi.window_type[0] as WindowSequence;
+            ics.use_kb_window[1] = ics.use_kb_window[0];
+            ics.use_kb_window[0] = wi.window_shape as c_uchar;
+            ics.num_windows = wi.num_windows;
+            ics.swb_sizes = ((*ctx).psy.bands)[(ics.num_windows == 8) as usize].as_ptr();
+            ics.num_swb = if tag == SyntaxElementType::LowFrequencyEffects as c_int {
+                ics.num_swb
             } else {
-                ((*ctx).psy.num_bands)[((*ics).num_windows == 8) as usize]
+                ((*ctx).psy.num_bands)[(ics.num_windows == 8) as usize]
             };
-            (*ics).max_sfb = (if (*ics).max_sfb as c_int > (*ics).num_swb {
-                (*ics).num_swb
+            ics.max_sfb = (if ics.max_sfb as c_int > ics.num_swb {
+                ics.num_swb
             } else {
-                (*ics).max_sfb as c_int
+                ics.max_sfb as c_int
             }) as c_uchar;
-            (*ics).swb_offset =
-                if (*wi.offset(ch as isize)).window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                    ff_swb_offset_128[(*ctx).samplerate_index as usize].as_ptr()
-                } else {
-                    ff_swb_offset_1024[(*ctx).samplerate_index as usize].as_ptr()
-                };
-            (*ics).tns_max_bands =
-                if (*wi.offset(ch as isize)).window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                    ff_tns_max_bands_128[(*ctx).samplerate_index as usize] as c_int
-                } else {
-                    ff_tns_max_bands_1024[(*ctx).samplerate_index as usize] as c_int
-                };
+            ics.swb_offset = if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
+                ff_swb_offset_128[(*ctx).samplerate_index as usize].as_ptr()
+            } else {
+                ff_swb_offset_1024[(*ctx).samplerate_index as usize].as_ptr()
+            };
+            ics.tns_max_bands = if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
+                ff_tns_max_bands_128[(*ctx).samplerate_index as usize] as c_int
+            } else {
+                ff_tns_max_bands_1024[(*ctx).samplerate_index as usize] as c_int
+            };
             w = 0;
-            while w < (*ics).num_windows {
-                (*ics).group_len[w as usize] =
-                    (*wi.offset(ch as isize)).grouping[w as usize] as c_uchar;
+            while w < ics.num_windows {
+                ics.group_len[w as usize] = wi.grouping[w as usize] as c_uchar;
                 w += 1;
                 w;
             }
             clip_avoidance_factor = 0.;
             w = 0;
-            while w < (*ics).num_windows {
+            while w < ics.num_windows {
                 let mut wbuf: *const c_float = overlap.offset((w * 128) as isize);
-                let wlen: c_int = 2048 / (*ics).num_windows;
+                let wlen: c_int = 2048 / ics.num_windows;
                 let mut max: c_float = 0.;
                 let mut j: c_int = 0;
                 j = 0;
@@ -857,60 +836,60 @@ unsafe fn aac_encode_frame(
                     j += 1;
                     j;
                 }
-                (*wi.offset(ch as isize)).clipping[w as usize] = max;
+                wi.clipping[w as usize] = max;
                 w += 1;
                 w;
             }
             w = 0;
-            while w < (*ics).num_windows {
-                if (*wi.offset(ch as isize)).clipping[w as usize] > 0.95 {
-                    (*ics).window_clipping[w as usize] = 1;
-                    clip_avoidance_factor =
-                        if clip_avoidance_factor > (*wi.offset(ch as isize)).clipping[w as usize] {
-                            clip_avoidance_factor
-                        } else {
-                            (*wi.offset(ch as isize)).clipping[w as usize]
-                        };
+            while w < ics.num_windows {
+                if wi.clipping[w as usize] > 0.95 {
+                    ics.window_clipping[w as usize] = 1;
+                    clip_avoidance_factor = if clip_avoidance_factor > wi.clipping[w as usize] {
+                        clip_avoidance_factor
+                    } else {
+                        wi.clipping[w as usize]
+                    };
                 } else {
-                    (*ics).window_clipping[w as usize] = 0;
+                    ics.window_clipping[w as usize] = 0;
                 }
                 w += 1;
                 w;
             }
             if clip_avoidance_factor > 0.95 {
-                (*ics).clip_avoidance_factor = 0.95 / clip_avoidance_factor;
+                ics.clip_avoidance_factor = 0.95 / clip_avoidance_factor;
             } else {
-                (*ics).clip_avoidance_factor = 1.;
+                ics.clip_avoidance_factor = 1.;
             }
             apply_window_and_mdct(ctx, sce, overlap);
             if (*ctx).options.ltp != 0 {
                 update_ltp(ctx, sce);
-                APPLY_WINDOW[(*sce).ics.window_sequence[0] as usize](
+                APPLY_WINDOW[sce.ics.window_sequence[0] as usize](
                     (*ctx).fdsp,
                     sce,
-                    &mut *((*sce).ltp_state).as_mut_ptr().offset(0),
+                    &mut *sce.ltp_state.as_mut_ptr().offset(0),
                 );
                 ((*ctx).mdct1024_fn).expect("non-null function pointer")(
                     (*ctx).mdct1024,
-                    ((*sce).lcoeffs).as_mut_ptr() as *mut c_void,
-                    ((*sce).ret_buf).as_mut_ptr() as *mut c_void,
+                    sce.lcoeffs.as_mut_ptr() as *mut c_void,
+                    sce.ret_buf.as_mut_ptr() as *mut c_void,
                     size_of::<c_float>() as c_ulong as ptrdiff_t,
                 );
             }
-            k = 0;
-            while k < 1024 {
-                if !(fabs((*cpe).ch[ch as usize].coeffs[k as usize] as c_double) < 1E16f64) {
-                    av_log(
-                        avctx as *mut c_void,
-                        16,
-                        b"Input contains (near) NaN/+-Inf\n\0" as *const u8 as *const c_char,
-                    );
-                    return -22;
-                }
-                k += 1;
-                k;
+
+            if sce
+                .coeffs
+                .iter()
+                .any(|coeff| coeff.partial_cmp(&1E16) != Some(std::cmp::Ordering::Less))
+            {
+                av_log(
+                    avctx as *mut c_void,
+                    16,
+                    b"Input contains (near) NaN/+-Inf\n\0" as *const u8 as *const c_char,
+                );
+                return -22;
             }
-            avoid_clipping(ctx, sce);
+
+            avoid_clipping(sce);
             ch += 1;
             ch;
         }
