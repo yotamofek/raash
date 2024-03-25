@@ -7,15 +7,35 @@
     unused_mut
 )]
 
-use std::mem::size_of;
+mod tables;
+
+use std::{mem::size_of, ops::RangeInclusive};
 
 use ffmpeg_src_macro::ffmpeg_src;
-use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
+use libc::{c_double, c_float, c_int, c_long, c_uint, c_ulong};
 
+use self::tables::{tns_min_sfb, tns_tmp2_map};
 use crate::{aac::encoder::ctx::AACEncContext, common::*, types::*};
 
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 49, name = "TNS_MAX_ORDER")]
 const MAX_ORDER: u8 = 20;
+
+/// Could be set to 3 to save an additional bit at the cost of little quality
+#[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 35, name = "TNS_Q_BITS")]
+const Q_BITS: u8 = 4;
+
+/// Coefficient resolution in short windows
+#[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 38, name = "TNS_Q_BITS_IS8")]
+const Q_BITS_IS8: u8 = 4;
+
+/// TNS will only be used if the LPC gain is within these margins
+#[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 43..=45)]
+#[doc(alias = "TNS_GAIN_THRESHOLD_LOW")]
+#[doc(alias = "TNS_GAIN_THRESHOLD_HIGH")]
+const GAIN_THRESHOLD: RangeInclusive<f64> = {
+    const LOW: f64 = 1.4;
+    LOW..=1.16 * LOW
+};
 
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 193..=204)]
 #[derive(Copy, Clone, Default)]
@@ -116,68 +136,15 @@ unsafe fn compute_lpc_coefs(
     }
     0
 }
-static mut tns_tmp2_map_1_3: [c_float; 4] = [0.00000000, -0.43388373, 0.64278758, 0.34202015];
-static mut tns_tmp2_map_0_3: [c_float; 8] = [
-    0.00000000,
-    -0.43388373,
-    -0.78183150,
-    -0.97492790,
-    0.98480773,
-    0.86602539,
-    0.64278758,
-    0.34202015,
-];
-static mut tns_tmp2_map_1_4: [c_float; 8] = [
-    0.00000000,
-    -0.20791170,
-    -0.40673664,
-    -0.58778524,
-    0.67369562,
-    0.52643216,
-    0.36124167,
-    0.18374951,
-];
-static mut tns_tmp2_map_0_4: [c_float; 16] = [
-    0.00000000,
-    -0.20791170,
-    -0.40673664,
-    -0.58778524,
-    -0.74314481,
-    -0.86602539,
-    -0.95105654,
-    -0.99452192,
-    0.99573416,
-    0.96182561,
-    0.89516330,
-    0.79801720,
-    0.67369562,
-    0.52643216,
-    0.36124167,
-    0.18374951,
-];
-static mut tns_tmp2_map: [*const c_float; 4] = unsafe {
-    [
-        tns_tmp2_map_0_3.as_ptr(),
-        tns_tmp2_map_0_4.as_ptr(),
-        tns_tmp2_map_1_3.as_ptr(),
-        tns_tmp2_map_1_4.as_ptr(),
-    ]
-};
-static mut tns_min_sfb: [*const c_uchar; 2] =
-    unsafe { [tns_min_sfb_long.as_ptr(), tns_min_sfb_short.as_ptr()] };
-static mut tns_min_sfb_short: [c_uchar; 16] =
-    [2, 2, 2, 3, 3, 4, 6, 6, 8, 10, 10, 12, 12, 12, 12, 12];
-static mut tns_min_sfb_long: [c_uchar; 16] = [
-    12, 13, 15, 16, 17, 20, 25, 26, 24, 28, 30, 31, 31, 31, 31, 31,
-];
+
 #[inline]
-unsafe fn quant_array_idx(val: c_float, mut arr: *const c_float, num: c_int) -> c_int {
+fn quant_array_idx(val: c_float, mut arr: &[c_float], num: c_int) -> c_int {
     let mut i: c_int = 0;
     let mut index: c_int = 0;
     let mut quant_min_err: c_float = ::core::f32::INFINITY;
     i = 0;
     while i < num {
-        let mut error: c_float = (val - *arr.offset(i as isize)) * (val - *arr.offset(i as isize));
+        let mut error: c_float = (val - arr[i as usize]) * (val - arr[i as usize]);
         if error < quant_min_err {
             quant_min_err = error;
             index = i;
@@ -187,6 +154,7 @@ unsafe fn quant_array_idx(val: c_float, mut arr: *const c_float, num: c_int) -> 
     }
     index
 }
+
 #[inline]
 unsafe fn compress_coeffs(mut coef: *mut c_int, mut order: c_int, mut c_bits: c_int) -> c_int {
     let mut i: c_int = 0;
@@ -214,23 +182,20 @@ unsafe fn compress_coeffs(mut coef: *mut c_int, mut order: c_int, mut c_bits: c_
     1
 }
 
-pub(crate) unsafe fn encode_tns_info(
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-) {
+/// Encode TNS data.
+///
+/// Coefficient compression is simply not lossless as it should be
+/// on any decoder tested and as such is not active.
+#[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 64..=98, name = "ff_aac_encode_tns_info")]
+pub(super) unsafe fn encode_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
     let mut i: c_int = 0;
     let mut w: c_int = 0;
     let mut filt: c_int = 0;
     let mut coef_compress: c_int = 0;
     let mut coef_len: c_int = 0;
-    let is8: c_int = ((*sce).ics.window_sequence[0] as c_uint
-        == EIGHT_SHORT_SEQUENCE as c_int as c_uint) as c_int;
-    let c_bits: c_int = if is8 != 0 {
-        (4 == 4) as c_int
-    } else {
-        (4 == 4) as c_int
-    };
+    let is8 = (*sce).ics.window_sequence[0] == EIGHT_SHORT_SEQUENCE;
+    let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
     if (*sce).tns.present == 0 {
         return;
     }
@@ -238,7 +203,7 @@ pub(crate) unsafe fn encode_tns_info(
     while i < (*sce).ics.num_windows {
         put_bits(
             &mut (*s).pb,
-            2 - is8,
+            2 - i32::from(is8),
             (*sce).tns.n_filt[i as usize] as BitBuf,
         );
         if (*tns).n_filt[i as usize] != 0 {
@@ -247,12 +212,12 @@ pub(crate) unsafe fn encode_tns_info(
             while filt < (*tns).n_filt[i as usize] {
                 put_bits(
                     &mut (*s).pb,
-                    6 - 2 * is8,
+                    6 - 2 * i32::from(is8),
                     (*tns).length[i as usize][filt as usize] as BitBuf,
                 );
                 put_bits(
                     &mut (*s).pb,
-                    5 - 2 * is8,
+                    5 - 2 * i32::from(is8),
                     (*tns).order[i as usize][filt as usize] as BitBuf,
                 );
                 if (*tns).order[i as usize][filt as usize] != 0 {
@@ -288,7 +253,9 @@ pub(crate) unsafe fn encode_tns_info(
     }
 }
 
-pub(crate) unsafe fn apply_tns(mut _s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
+/// Apply TNS filter
+#[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 100..=141, name = "ff_aac_apply_tns")]
+pub(crate) unsafe fn apply(mut sce: *mut SingleChannelElement) {
     let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
     let mut ics: *mut IndividualChannelStream = &mut (*sce).ics;
     let mut w: c_int = 0;
@@ -302,11 +269,7 @@ pub(crate) unsafe fn apply_tns(mut _s: *mut AACEncContext, mut sce: *mut SingleC
     let mut end: c_int = 0;
     let mut size: c_int = 0;
     let mut inc: c_int = 0;
-    let mmm: c_int = if (*ics).tns_max_bands > (*ics).max_sfb as c_int {
-        (*ics).max_sfb as c_int
-    } else {
-        (*ics).tns_max_bands
-    };
+    let mmm = (*ics).tns_max_bands.min((*ics).max_sfb as c_int);
     let mut lpc: [c_float; 20] = [0.; 20];
     w = 0;
     while w < (*ics).num_windows {
@@ -314,11 +277,7 @@ pub(crate) unsafe fn apply_tns(mut _s: *mut AACEncContext, mut sce: *mut SingleC
         filt = 0;
         while filt < (*tns).n_filt[w as usize] {
             top = bottom;
-            bottom = if 0 > top - (*tns).length[w as usize][filt as usize] {
-                0
-            } else {
-                top - (*tns).length[w as usize][filt as usize]
-            };
+            bottom = 0.max(top - (*tns).length[w as usize][filt as usize]);
             order = (*tns).order[w as usize][filt as usize];
             if order != 0 {
                 compute_lpc_coefs(
@@ -329,9 +288,8 @@ pub(crate) unsafe fn apply_tns(mut _s: *mut AACEncContext, mut sce: *mut SingleC
                     0,
                     0,
                 );
-                start =
-                    (*ics).swb_offset[if bottom > mmm { mmm } else { bottom } as usize] as c_int;
-                end = (*ics).swb_offset[if top > mmm { mmm } else { top } as usize] as c_int;
+                start = (*ics).swb_offset[bottom.min(mmm) as usize] as c_int;
+                end = (*ics).swb_offset[top.min(mmm) as usize] as c_int;
                 size = end - start;
                 if size > 0 {
                     if (*tns).direction[w as usize][filt as usize] != 0 {
@@ -344,7 +302,7 @@ pub(crate) unsafe fn apply_tns(mut _s: *mut AACEncContext, mut sce: *mut SingleC
                     m = 0;
                     while m < size {
                         i = 1;
-                        while i <= (if m > order { order } else { m }) {
+                        while i <= m.min(order) {
                             (*sce).coeffs[start as usize] +=
                                 lpc[(i - 1) as usize] * (*sce).pcoeffs[(start - i * inc) as usize];
                             i += 1;
@@ -363,6 +321,7 @@ pub(crate) unsafe fn apply_tns(mut _s: *mut AACEncContext, mut sce: *mut SingleC
         w;
     }
 }
+
 #[inline]
 unsafe fn quantize_coefs(
     mut coef: *mut c_double,
@@ -372,7 +331,7 @@ unsafe fn quantize_coefs(
     mut c_bits: c_int,
 ) {
     let mut i: c_int = 0;
-    let mut quant_arr: *const c_float = tns_tmp2_map[c_bits as usize];
+    let mut quant_arr = tns_tmp2_map[c_bits as usize];
     i = 0;
     while i < order {
         *idx.offset(i as isize) = quant_array_idx(
@@ -380,43 +339,36 @@ unsafe fn quantize_coefs(
             quant_arr,
             if c_bits != 0 { 16 } else { 8 },
         );
-        *lpc.offset(i as isize) = *quant_arr.offset(*idx.offset(i as isize) as isize);
+        *lpc.offset(i as isize) = quant_arr[*idx.offset(i as isize) as usize];
         i += 1;
         i;
     }
 }
 
-pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
+/// 3 bits per coefficient with 8 short windows
+#[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 157..=214, name = "ff_aac_search_for_tns")]
+pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
     let mut w: c_int = 0;
     let mut g: c_int = 0;
     let mut count: c_int = 0;
     let mut gain: c_double = 0.;
     let mut coefs: [c_double; 32] = [0.; 32];
-    let mmm: c_int = if (*sce).ics.tns_max_bands > (*sce).ics.max_sfb as c_int {
-        (*sce).ics.max_sfb as c_int
-    } else {
-        (*sce).ics.tns_max_bands
-    };
-    let is8: c_int = ((*sce).ics.window_sequence[0] as c_uint
-        == EIGHT_SHORT_SEQUENCE as c_int as c_uint) as c_int;
-    let c_bits: c_int = if is8 != 0 {
-        (4 == 4) as c_int
-    } else {
-        (4 == 4) as c_int
-    };
+    let mmm: c_int = (*sce).ics.tns_max_bands.min((*sce).ics.max_sfb as c_int);
+    let is8 = (*sce).ics.window_sequence[0] == EIGHT_SHORT_SEQUENCE;
+    let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
     let sfb_start: c_int = av_clip_c(
-        *(tns_min_sfb[is8 as usize]).offset((*s).samplerate_index as isize) as c_int,
+        tns_min_sfb[is8 as usize][(*s).samplerate_index as usize] as c_int,
         0,
         mmm,
     );
     let sfb_end: c_int = av_clip_c((*sce).ics.num_swb, 0, mmm);
-    let order: c_int = if is8 != 0 {
+    let order: c_int = if is8 {
         7
     } else if (*s).profile == 1 {
         12
     } else {
-        20
+        MAX_ORDER.into()
     };
     let slant: c_int = if (*sce).ics.window_sequence[0] as c_uint
         == LONG_STOP_SEQUENCE as c_int as c_uint
@@ -460,14 +412,10 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
             &mut coefs,
         );
 
-        if !(order == 0
-            || gain.is_finite() as i32 == 0
-            || gain < 1.4
-            || gain > (1.16 * 1.4) as c_double)
-        {
-            (*tns).n_filt[w as usize] = if is8 != 0 {
+        if !(order == 0 || !gain.is_finite() || !GAIN_THRESHOLD.contains(&gain)) {
+            (*tns).n_filt[w as usize] = if is8 {
                 1
-            } else if order != 20 {
+            } else if order != MAX_ORDER.into() {
                 2
             } else {
                 3
@@ -509,6 +457,7 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
     }
     (*sce).tns.present = (count != 0) as c_int;
 }
+
 unsafe fn run_static_initializers() {
     BUF_BITS = (8 as c_ulong).wrapping_mul(size_of::<BitBuf>() as c_ulong) as c_int;
 }

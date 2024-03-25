@@ -53,7 +53,7 @@ use self::{
     pb::*,
     pow::Pow34,
     tables::{SWB_SIZE_1024, SWB_SIZE_128},
-    temporal_noise_shaping::{apply_tns, encode_tns_info, search_for_tns},
+    temporal_noise_shaping as tns,
     window::{apply_window_and_mdct, APPLY_WINDOW},
 };
 pub(crate) use self::{
@@ -63,7 +63,8 @@ use super::SyntaxElementType;
 use crate::{
     aac::{
         coder::{
-            encode_window_bands_info, mid_stereo::search_for_ms, perceptual_noise_substitution,
+            encode_window_bands_info, mid_stereo::search_for_ms,
+            perceptual_noise_substitution as pns,
             quantize_and_encode_band::quantize_and_encode_band, quantizers,
             set_special_band_scalefactors,
         },
@@ -644,7 +645,7 @@ unsafe extern "C" fn encode_individual_channel(
         1,
         ((*sce).tns.present != 0) as c_int as BitBuf,
     );
-    encode_tns_info(s, sce);
+    tns::encode_info(s, sce);
     put_bits(&mut (*s).pb, 1, 0 as BitBuf);
     encode_spectral_coeffs(s, sce);
     0
@@ -981,7 +982,7 @@ unsafe fn aac_encode_frame(
             while ch < chans {
                 (*ctx).cur_channel = start_ch + ch;
                 if (*ctx).options.pns != 0 {
-                    perceptual_noise_substitution::mark(
+                    pns::mark(
                         ctx,
                         avctx,
                         &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
@@ -1020,16 +1021,16 @@ unsafe fn aac_encode_frame(
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
                 (*ctx).cur_channel = start_ch + ch;
                 if (*ctx).options.tns != 0 {
-                    search_for_tns(ctx, sce);
+                    tns::search(ctx, sce);
                 }
                 if (*ctx).options.tns != 0 {
-                    apply_tns(ctx, sce);
+                    tns::apply(sce);
                 }
                 if (*sce).tns.present != 0 {
                     tns_mode = 1;
                 }
                 if (*ctx).options.pns != 0 {
-                    perceptual_noise_substitution::search(ctx, avctx, sce);
+                    pns::search(ctx, avctx, sce);
                 }
                 ch += 1;
                 ch;
