@@ -47,15 +47,15 @@ pub trait Encoder: Class {
     type Ctx;
     type Options;
 
-    fn init(avctx: &mut AVCodecContext, options: &Self::Options) -> Box<Self::Ctx>;
+    fn init(avctx: *mut AVCodecContext, options: &Self::Options) -> Box<Self::Ctx>;
     fn encode_frame(
-        avctx: &mut AVCodecContext,
+        avctx: *mut AVCodecContext,
         ctx: &mut Self::Ctx,
         options: &Self::Options,
         frame: &AVFrame,
         packet_builder: PacketBuilder<'_>,
     );
-    fn close(avctx: &mut AVCodecContext, ctx: Box<Self::Ctx>);
+    fn close(avctx: *mut AVCodecContext, ctx: Box<Self::Ctx>);
 }
 
 #[derive(Copy, Clone)]

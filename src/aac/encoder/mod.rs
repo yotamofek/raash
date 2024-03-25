@@ -25,7 +25,7 @@ use std::{
     ffi::CStr,
     iter::zip,
     mem::size_of,
-    ptr::{self, null_mut},
+    ptr::{self, addr_of, null_mut},
     slice,
 };
 
@@ -181,8 +181,9 @@ unsafe extern "C" fn put_pce(
         put_bits(pb, 8, *c as u32);
     }
 }
-unsafe extern "C" fn put_audio_specific_config(
-    mut avctx: &mut AVCodecContext,
+
+unsafe fn put_audio_specific_config(
+    mut avctx: *mut AVCodecContext,
     s: &mut AACEncContext,
 ) -> c_int {
     let mut pb: PutBitContext = PutBitContext {
@@ -196,11 +197,11 @@ unsafe extern "C" fn put_audio_specific_config(
     let mut channels: c_int =
         (s.needs_pce == 0) as c_int * (s.channels - (if s.channels == 8 { 1 } else { 0 }));
     let max_size: c_int = 32;
-    avctx.extradata = av_mallocz(max_size as c_ulong) as *mut c_uchar;
-    if (avctx.extradata).is_null() {
+    (*avctx).extradata = av_mallocz(max_size as c_ulong) as *mut c_uchar;
+    if ((*avctx).extradata).is_null() {
         return -12;
     }
-    init_put_bits(&mut pb, avctx.extradata, max_size);
+    init_put_bits(&mut pb, (*avctx).extradata, max_size);
     put_bits(&mut pb, 5, (s.profile + 1) as BitBuf);
     put_bits(&mut pb, 4, s.samplerate_index as BitBuf);
     put_bits(&mut pb, 4, channels as BitBuf);
@@ -214,7 +215,7 @@ unsafe extern "C" fn put_audio_specific_config(
     put_bits(&mut pb, 5, AOT_SBR as c_int as BitBuf);
     put_bits(&mut pb, 1, 0 as BitBuf);
     flush_put_bits(&mut pb);
-    avctx.extradata_size = put_bytes_output(&mut pb);
+    (*avctx).extradata_size = put_bytes_output(&mut pb);
     0
 }
 
@@ -1259,41 +1260,38 @@ impl Encoder for AACEncoder {
     type Ctx = AACEncContext;
     type Options = AACEncOptions;
 
-    fn init(avctx: &mut AVCodecContext, options: &Self::Options) -> Box<Self::Ctx> {
+    fn init(avctx: *mut AVCodecContext, options: &Self::Options) -> Box<Self::Ctx> {
         unsafe {
-            avctx.frame_size = 1024;
-            avctx.initial_padding = 1024;
+            (*avctx).frame_size = 1024;
+            (*avctx).initial_padding = 1024;
+            let ch_layout = addr_of!((*avctx).ch_layout);
 
             let needs_pce = if channel_layout::NORMAL_LAYOUTS
                 .iter()
-                .any(|layout| av_channel_layout_compare(&avctx.ch_layout, layout) == 0)
+                .any(|layout| av_channel_layout_compare(ch_layout, layout) == 0)
             {
                 options.pce
             } else {
                 1
             };
 
-            let channels = avctx.ch_layout.nb_channels;
+            let channels = (*ch_layout).nb_channels;
 
             let samplerate_index = ff_mpeg4audio_sample_rates
                 .iter()
-                .find_position(|&&sample_rate| avctx.sample_rate == sample_rate)
+                .find_position(|&&sample_rate| (*avctx).sample_rate == sample_rate)
                 .map(|(i, _)| i)
                 .filter(|&i| i < SWB_SIZE_1024.len() && i < SWB_SIZE_128.len())
-                .unwrap_or_else(|| panic!("Unsupported sample rate {}", avctx.sample_rate))
+                .unwrap_or_else(|| panic!("Unsupported sample rate {}", (*avctx).sample_rate))
                 as c_int;
 
             let (pce, reorder_map, chan_map) = if needs_pce != 0 {
                 let mut buf: [c_char; 64] = [0; 64];
-                av_channel_layout_describe(
-                    &mut avctx.ch_layout,
-                    buf.as_mut_ptr(),
-                    buf.len() as c_ulong,
-                );
+                av_channel_layout_describe(ch_layout, buf.as_mut_ptr(), buf.len() as c_ulong);
 
                 let config = pce::CONFIGS
                     .iter()
-                    .find(|config| av_channel_layout_compare(&avctx.ch_layout, &config.layout) == 0)
+                    .find(|config| av_channel_layout_compare(ch_layout, &config.layout) == 0)
                     .unwrap_or_else(|| {
                         panic!(
                             "Unsupported channel layout {}",
@@ -1302,7 +1300,7 @@ impl Encoder for AACEncoder {
                     });
 
                 av_log(
-                    ptr::from_mut(avctx).cast(),
+                    avctx.cast(),
                     32,
                     b"Using a PCE to encode channel layout \"%s\"\n\0" as *const u8
                         as *const c_char,
@@ -1336,21 +1334,20 @@ impl Encoder for AACEncoder {
                 mdct128_fn: None,
                 fdsp: null_mut(),
                 pce,
-                planar_samples: vec![[0.; _]; avctx.ch_layout.nb_channels as usize]
-                    .into_boxed_slice(),
+                planar_samples: vec![[0.; _]; (*ch_layout).nb_channels as usize].into_boxed_slice(),
                 profile: 0,
                 needs_pce,
-                lpc: LPCContext::new(2 * avctx.frame_size, 20, lpc::Type::Levinson),
+                lpc: LPCContext::new(2 * (*avctx).frame_size, 20, lpc::Type::Levinson),
                 samplerate_index,
-                channels: avctx.ch_layout.nb_channels,
+                channels: (*ch_layout).nb_channels,
                 reorder_map,
                 chan_map,
                 cpe: vec![ChannelElement::default(); chan_map[0] as usize].into_boxed_slice(),
                 psy: FFPsyContext::zero(),
                 cur_channel: 0,
                 random_state: 0x1f2e3d4c,
-                lambda: if avctx.global_quality > 0 {
-                    avctx.global_quality as c_float
+                lambda: if (*avctx).global_quality > 0 {
+                    (*avctx).global_quality as c_float
                 } else {
                     120.
                 },
@@ -1369,10 +1366,10 @@ impl Encoder for AACEncoder {
             let mut ret: c_int = 0;
             let mut grouping: [c_uchar; 16] = [0; 16];
 
-            if avctx.bit_rate == 0 {
+            if (*avctx).bit_rate == 0 {
                 i = 1;
                 while i <= ctx.chan_map[0] as c_int {
-                    avctx.bit_rate += match u32::from(ctx.chan_map[i as usize]).try_into() {
+                    (*avctx).bit_rate += match u32::from(ctx.chan_map[i as usize]).try_into() {
                         Ok(SyntaxElementType::ChannelPairElement) => 128000,
                         Ok(SyntaxElementType::LowFrequencyEffects) => 16000,
                         _ => 69000,
@@ -1383,30 +1380,30 @@ impl Encoder for AACEncoder {
                 }
             }
 
-            if 1024. * avctx.bit_rate as c_double / avctx.sample_rate as c_double
+            if 1024. * (*avctx).bit_rate as c_double / (*avctx).sample_rate as c_double
                 > (6144 * ctx.channels) as c_double
             {
                 av_log(
-                    ptr::from_mut(avctx).cast(),
+                    avctx.cast(),
                     24,
                     b"Too many bits %f > %d per frame requested, clamping to max\n\0" as *const u8
                         as *const c_char,
-                    1024. * avctx.bit_rate as c_double / avctx.sample_rate as c_double,
+                    1024. * (*avctx).bit_rate as c_double / (*avctx).sample_rate as c_double,
                     6144 * ctx.channels,
                 );
             }
-            avctx.bit_rate = (((6144 * ctx.channels) as c_double / 1024.
-                * avctx.sample_rate as c_double) as c_long)
-                .min(avctx.bit_rate);
+            (*avctx).bit_rate = (((6144 * ctx.channels) as c_double / 1024.
+                * (*avctx).sample_rate as c_double) as c_long)
+                .min((*avctx).bit_rate);
 
-            avctx.profile = if avctx.profile == profile::UNKNOWN {
+            (*avctx).profile = if (*avctx).profile == profile::UNKNOWN {
                 profile::AAC_LOW
             } else {
-                avctx.profile
+                (*avctx).profile
             };
 
-            if avctx.profile == profile::MPEG2_AAC_LOW as c_int {
-                avctx.profile = profile::AAC_LOW;
+            if (*avctx).profile == profile::MPEG2_AAC_LOW as c_int {
+                (*avctx).profile = profile::AAC_LOW;
                 assert_eq!(
                     ctx.options.pred, 0,
                     "Main prediction unavailable in the \"mpeg2_aac_low\" profile"
@@ -1417,29 +1414,29 @@ impl Encoder for AACEncoder {
                 );
                 if ctx.options.pns != 0 {
                     av_log(
-                        ptr::from_mut(avctx).cast(),
+                        avctx.cast(),
                         24,
                         b"PNS unavailable in the \"mpeg2_aac_low\" profile, turning off\n\0"
                             as *const u8 as *const c_char,
                     );
                 }
                 ctx.options.pns = 0;
-            } else if avctx.profile == profile::AAC_LTP {
+            } else if (*avctx).profile == profile::AAC_LTP {
                 ctx.options.ltp = 1;
                 assert_eq!(
                     ctx.options.pred, 0,
                     "Main prediction unavailable in the \"aac_ltp\" profile"
                 );
-            } else if avctx.profile == profile::AAC_MAIN {
+            } else if (*avctx).profile == profile::AAC_MAIN {
                 ctx.options.pred = 1;
                 assert_eq!(
                     ctx.options.ltp, 0,
                     "LTP prediction unavailable in the \"aac_main\" profile"
                 );
             } else if ctx.options.ltp != 0 {
-                avctx.profile = profile::AAC_LTP;
+                (*avctx).profile = profile::AAC_LTP;
                 av_log(
-                    ptr::from_mut(avctx).cast(),
+                    avctx.cast(),
                     24,
                     b"Chainging profile to \"aac_ltp\"\n\0" as *const u8 as *const c_char,
                 );
@@ -1448,9 +1445,9 @@ impl Encoder for AACEncoder {
                     "Main prediction unavailable in the \"aac_ltp\" profile"
                 );
             } else if ctx.options.pred != 0 {
-                avctx.profile = profile::AAC_MAIN;
+                (*avctx).profile = profile::AAC_MAIN;
                 av_log(
-                    ptr::from_mut(avctx).cast(),
+                    avctx.cast(),
                     24,
                     c"Chainging profile to \"aac_main\"\n".as_ptr(),
                 );
@@ -1459,8 +1456,8 @@ impl Encoder for AACEncoder {
                     "LTP prediction unavailable in the \"aac_main\" profile"
                 );
             }
-            ctx.profile = avctx.profile;
-            let experimental = avctx.strict_std_compliance <= -2;
+            ctx.profile = (*avctx).profile;
+            let experimental = (*avctx).strict_std_compliance <= -2;
             if ctx.options.coder == AAC_CODER_ANMR as c_int {
                 if !experimental {
                     panic!("The ANMR coder is considered experimental, add -strict -2 to enable!");
@@ -1513,7 +1510,7 @@ impl Encoder for AACEncoder {
     }
 
     fn encode_frame(
-        avctx: &mut AVCodecContext,
+        avctx: *mut AVCodecContext,
         ctx: &mut Self::Ctx,
         _: &Self::Options,
         frame: &AVFrame,
@@ -1523,10 +1520,10 @@ impl Encoder for AACEncoder {
         assert!(ret >= 0, "aac_encode_frame failed");
     }
 
-    fn close(avctx: &mut AVCodecContext, mut ctx: Box<Self::Ctx>) {
+    fn close(avctx: *mut AVCodecContext, mut ctx: Box<Self::Ctx>) {
         unsafe {
             av_log(
-                ptr::from_mut(avctx).cast(),
+                avctx.cast(),
                 32,
                 c"Qavg: %.3f\n".as_ptr(),
                 if ctx.lambda_count != 0 {
