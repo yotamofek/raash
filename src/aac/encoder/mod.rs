@@ -56,6 +56,9 @@ use self::{
     temporal_noise_shaping::{apply_tns, encode_tns_info, search_for_tns},
     window::{apply_window_and_mdct, APPLY_WINDOW},
 };
+pub(crate) use self::{
+    long_term_prediction::LongTermPrediction, temporal_noise_shaping::TemporalNoiseShaping,
+};
 use super::SyntaxElementType;
 use crate::{
     aac::{

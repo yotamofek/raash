@@ -9,9 +9,25 @@
 
 use std::mem::size_of;
 
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
 use crate::{aac::encoder::ctx::AACEncContext, common::*, types::*};
+
+#[ffmpeg_src(file = "libavcodec/aac.h", lines = 49, name = "TNS_MAX_ORDER")]
+const MAX_ORDER: u8 = 20;
+
+#[ffmpeg_src(file = "libavcodec/aac.h", lines = 193..=204)]
+#[derive(Copy, Clone, Default)]
+pub(crate) struct TemporalNoiseShaping {
+    pub(super) present: c_int,
+    pub(super) n_filt: [c_int; 8],
+    pub(super) length: [[c_int; 4]; 8],
+    pub(super) direction: [[c_int; 4]; 8],
+    pub(super) order: [[c_int; 4]; 8],
+    pub(super) coef_idx: [[[c_int; MAX_ORDER as usize]; 4]; 8],
+    pub(super) coef: [[[c_float; MAX_ORDER as usize]; 4]; 8],
+}
 
 static mut BUF_BITS: c_int = 0;
 #[inline]

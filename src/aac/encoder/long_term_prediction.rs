@@ -9,6 +9,7 @@
 
 use std::{mem::size_of, ptr};
 
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
 
 use crate::{
@@ -17,9 +18,23 @@ use crate::{
         encoder::{abs_pow34_v, ctx::AACEncContext},
         SyntaxElementType,
     },
+    array::Array,
     common::*,
     types::*,
 };
+
+#[ffmpeg_src(file = "libavcodec/aac.h", lines = 50, name = "MAX_LTP_LONG_SFB")]
+const MAX_LONG_SFB: u8 = 40;
+
+#[ffmpeg_src(file = "libavcodec/aac.h", lines = 158..=167)]
+#[derive(Default, Copy, Clone)]
+pub(crate) struct LongTermPrediction {
+    pub(super) present: c_schar,
+    pub(super) lag: c_short,
+    pub(super) coef_idx: c_int,
+    pub(super) coef: c_float,
+    pub(super) used: Array<c_schar, { MAX_LONG_SFB as usize }>,
+}
 
 #[inline(always)]
 unsafe fn av_clip_uintp2_c(mut a: c_int, mut p: c_int) -> c_uint {

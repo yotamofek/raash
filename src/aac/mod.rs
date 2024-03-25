@@ -9,6 +9,7 @@ pub mod tables;
 /// Tag for AAC syntax elements which comprise an element.
 ///
 /// <https://wiki.multimedia.cx/index.php/Understanding_AAC#Frames_And_Syntax_Elements>
+#[ffmpeg_src(file = "libavcodec/aac.h", lines = 54..=63, name = "RawDataBlockType")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum SyntaxElementType {

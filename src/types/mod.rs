@@ -1,21 +1,18 @@
 #![deny(dead_code)]
 
-use std::{
-    mem::MaybeUninit,
-    ptr::{null, null_mut},
-};
+use std::ptr::{null, null_mut};
 
 use ffi::{
     class::option::AVOptionType,
     codec::{AVCodecContext, AVCodecID},
     num::{AVComplexDouble, AVComplexFloat, AVComplexInt32},
 };
-use libc::{
-    c_char, c_double, c_float, c_int, c_long, c_schar, c_short, c_uchar, c_uint, c_ulong, c_ushort,
-    c_void,
-};
+use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
-use crate::array::Array;
+use crate::{
+    aac::encoder::{LongTermPrediction, TemporalNoiseShaping},
+    array::Array,
+};
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -162,17 +159,6 @@ pub(crate) struct Pulse {
     pub(crate) amp: [c_int; 4],
 }
 
-#[derive(Copy, Clone, Default)]
-pub(crate) struct TemporalNoiseShaping {
-    pub(crate) present: c_int,
-    pub(crate) n_filt: [c_int; 8],
-    pub(crate) length: [[c_int; 4]; 8],
-    pub(crate) direction: [[c_int; 4]; 8],
-    pub(crate) order: [[c_int; 4]; 8],
-    pub(crate) coef_idx: [[[c_int; 20]; 4]; 8],
-    pub(crate) coef: [[[c_float; 20]; 4]; 8],
-}
-
 #[derive(Default, Copy, Clone)]
 pub(crate) struct IndividualChannelStream {
     pub(crate) max_sfb: c_uchar,
@@ -189,15 +175,6 @@ pub(crate) struct IndividualChannelStream {
     pub(crate) prediction_used: Array<c_uchar, 41>,
     pub(crate) window_clipping: [c_uchar; 8],
     pub(crate) clip_avoidance_factor: c_float,
-}
-
-#[derive(Default, Copy, Clone)]
-pub(crate) struct LongTermPrediction {
-    pub(crate) present: c_schar,
-    pub(crate) lag: c_short,
-    pub(crate) coef_idx: c_int,
-    pub(crate) coef: c_float,
-    pub(crate) used: Array<c_schar, 40>,
 }
 
 pub(crate) type WindowSequence = c_uint;
