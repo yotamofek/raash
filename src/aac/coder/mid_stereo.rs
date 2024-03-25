@@ -62,7 +62,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                 w2 = 0;
                 while w2 < sce0.ics.group_len[w as usize] as c_int {
                     i = 0;
-                    while i < *(sce0.ics.swb_sizes).offset(g as isize) as c_int {
+                    while i < sce0.ics.swb_sizes[g as usize] as c_int {
                         *M.offset(i as isize) = ((sce0.coeffs
                             [(start + (w + w2) * 128 + i) as usize]
                             + sce1.coeffs[(start + (w + w2) * 128 + i) as usize])
@@ -73,10 +73,10 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                         i += 1;
                         i;
                     }
-                    abs_pow34_v(M34, M, *(sce0.ics.swb_sizes).offset(g as isize) as c_int);
-                    abs_pow34_v(S34, S, *(sce0.ics.swb_sizes).offset(g as isize) as c_int);
+                    abs_pow34_v(M34, M, sce0.ics.swb_sizes[g as usize] as c_int);
+                    abs_pow34_v(S34, S, sce0.ics.swb_sizes[g as usize] as c_int);
                     i = 0;
-                    while i < *(sce0.ics.swb_sizes).offset(g as isize) as c_int {
+                    while i < sce0.ics.swb_sizes[g as usize] as c_int {
                         Mmax = if Mmax > *M34.offset(i as isize) {
                             Mmax
                         } else {
@@ -156,7 +156,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                             let mut b3: c_int = 0;
                             let mut b4: c_int = 0;
                             i = 0;
-                            while i < *(sce0.ics.swb_sizes).offset(g as isize) as c_int {
+                            while i < sce0.ics.swb_sizes[g as usize] as c_int {
                                 *M.offset(i as isize) =
                                     ((sce0.coeffs[(start + (w + w2) * 128 + i) as usize]
                                         + sce1.coeffs[(start + (w + w2) * 128 + i) as usize])
@@ -173,7 +173,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                     .as_mut_ptr()
                                     .offset(start as isize)
                                     .offset(((w + w2) * 128) as isize),
-                                *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
+                                sce0.ics.swb_sizes[g as usize] as c_int,
                             );
                             abs_pow34_v(
                                 R34,
@@ -181,17 +181,17 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                     .as_mut_ptr()
                                     .offset(start as isize)
                                     .offset(((w + w2) * 128) as isize),
-                                *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
+                                sce0.ics.swb_sizes[g as usize] as c_int,
                             );
-                            abs_pow34_v(M34, M, *(sce0.ics.swb_sizes).offset(g as isize) as c_int);
-                            abs_pow34_v(S34, S, *(sce0.ics.swb_sizes).offset(g as isize) as c_int);
+                            abs_pow34_v(M34, M, sce0.ics.swb_sizes[g as usize] as c_int);
+                            abs_pow34_v(S34, S, sce0.ics.swb_sizes[g as usize] as c_int);
                             dist1 += quantize_band_cost(
                                 s,
                                 &mut *(sce0.coeffs)
                                     .as_mut_ptr()
                                     .offset((start + (w + w2) * 128) as isize),
                                 L34,
-                                *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
+                                sce0.ics.swb_sizes[g as usize] as c_int,
                                 sce0.sf_idx[(w * 16 + g) as usize],
                                 sce0.band_type[(w * 16 + g) as usize] as c_int,
                                 lambda / ((*band0).threshold + 1.175_494_4e-38),
@@ -205,7 +205,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                     .as_mut_ptr()
                                     .offset((start + (w + w2) * 128) as isize),
                                 R34,
-                                *(sce1.ics.swb_sizes).offset(g as isize) as c_int,
+                                sce1.ics.swb_sizes[g as usize] as c_int,
                                 sce1.sf_idx[(w * 16 + g) as usize],
                                 sce1.band_type[(w * 16 + g) as usize] as c_int,
                                 lambda / ((*band1).threshold + 1.175_494_4e-38),
@@ -217,7 +217,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 s,
                                 M,
                                 M34,
-                                *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
+                                sce0.ics.swb_sizes[g as usize] as c_int,
                                 mididx,
                                 midcb,
                                 lambda / (minthr + 1.175_494_4e-38),
@@ -229,7 +229,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                                 s,
                                 S,
                                 S34,
-                                *(sce1.ics.swb_sizes).offset(g as isize) as c_int,
+                                sce1.ics.swb_sizes[g as usize] as c_int,
                                 sididx,
                                 sidcb,
                                 mslambda / (minthr * bmax + 1.175_494_4e-38),
@@ -288,7 +288,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
             {
                 prev_side = sce1.sf_idx[(w * 16 + g) as usize];
             }
-            start += *(sce0.ics.swb_sizes).offset(g as isize) as c_int;
+            start += sce0.ics.swb_sizes[g as usize] as c_int;
             g += 1;
             g;
         }

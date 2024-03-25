@@ -384,13 +384,13 @@ unsafe extern "C" fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
                 ) as c_int;
                 let mut scale: c_float = (*cpe).ch[0].is_ener[(w * 16 + g) as usize];
                 if (*cpe).is_mask[(w * 16 + g) as usize] == 0 {
-                    start += *((*ics).swb_sizes).offset(g as isize) as c_int;
+                    start += (*ics).swb_sizes[g as usize] as c_int;
                 } else {
                     if (*cpe).ms_mask[(w * 16 + g) as usize] != 0 {
                         p *= -1;
                     }
                     i = 0;
-                    while i < *((*ics).swb_sizes).offset(g as isize) as c_int {
+                    while i < (*ics).swb_sizes[g as usize] as c_int {
                         let mut sum: c_float = ((*cpe).ch[0].coeffs[(start + i) as usize]
                             + p as c_float * (*cpe).ch[1].coeffs[(start + i) as usize])
                             * scale;
@@ -399,7 +399,7 @@ unsafe extern "C" fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
                         i += 1;
                         i;
                     }
-                    start += *((*ics).swb_sizes).offset(g as isize) as c_int;
+                    start += (*ics).swb_sizes[g as usize] as c_int;
                 }
                 g += 1;
                 g;
@@ -433,10 +433,10 @@ unsafe extern "C" fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
                     || (*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_uint
                         >= NOISE_BT as c_int as c_uint
                 {
-                    start += *((*ics).swb_sizes).offset(g as isize) as c_int;
+                    start += (*ics).swb_sizes[g as usize] as c_int;
                 } else {
                     i = 0;
-                    while i < *((*ics).swb_sizes).offset(g as isize) as c_int {
+                    while i < ((*ics).swb_sizes)[g as usize] as c_int {
                         let mut L: c_float = ((*cpe).ch[0].coeffs[(start + i) as usize]
                             + (*cpe).ch[1].coeffs[(start + i) as usize])
                             * 0.5;
@@ -446,7 +446,7 @@ unsafe extern "C" fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
                         i += 1;
                         i;
                     }
-                    start += *((*ics).swb_sizes).offset(g as isize) as c_int;
+                    start += (*ics).swb_sizes[g as usize] as c_int;
                 }
                 g += 1;
                 g;
@@ -572,7 +572,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
         i = 0;
         while i < (*sce).ics.max_sfb as c_int {
             if (*sce).zeroes[(w * 16 + i) as usize] {
-                start += *((*sce).ics.swb_sizes).offset(i as isize) as c_int;
+                start += (*sce).ics.swb_sizes[i as usize] as c_int;
             } else {
                 w2 = w;
                 while w2 < w + (*sce).ics.group_len[w as usize] as c_int {
@@ -583,7 +583,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
                             .as_mut_ptr()
                             .offset((start + w2 * 128) as isize),
                         ptr::null_mut::<c_float>(),
-                        *((*sce).ics.swb_sizes).offset(i as isize) as c_int,
+                        (*sce).ics.swb_sizes[i as usize] as c_int,
                         (*sce).sf_idx[(w * 16 + i) as usize],
                         (*sce).band_type[(w * 16 + i) as usize] as c_int,
                         (*s).lambda,
@@ -592,7 +592,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
                     w2 += 1;
                     w2;
                 }
-                start += *((*sce).ics.swb_sizes).offset(i as isize) as c_int;
+                start += (*sce).ics.swb_sizes[i as usize] as c_int;
             }
             i += 1;
             i;
@@ -603,20 +603,20 @@ unsafe extern "C" fn encode_spectral_coeffs(
 
 /// Downscale spectral coefficients for near-clipping windows to avoid artifacts
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 738..=756)]
-unsafe fn avoid_clipping(mut sce: &mut SingleChannelElement) {
+fn avoid_clipping(mut sce: &mut SingleChannelElement) {
     if sce.ics.clip_avoidance_factor < 1. {
         for w in 0..sce.ics.num_windows {
             let mut start = 0;
 
             for i in 0..sce.ics.max_sfb {
                 sce.coeffs[(start + w * 128).try_into().unwrap()..]
-                    [..usize::from(*(sce.ics.swb_sizes).offset(i.into()))]
+                    [..sce.ics.swb_sizes[usize::from(i)].into()]
                     .iter_mut()
                     .for_each(|swb_coeff| {
                         *swb_coeff *= sce.ics.clip_avoidance_factor;
                     });
 
-                start += *(sce.ics.swb_sizes).offset(i.into()) as c_int;
+                start += sce.ics.swb_sizes[usize::from(i)] as c_int;
             }
         }
     }
@@ -792,7 +792,7 @@ unsafe fn aac_encode_frame(
             ics.use_kb_window[1] = ics.use_kb_window[0];
             ics.use_kb_window[0] = wi.window_shape as c_uchar;
             ics.num_windows = wi.num_windows;
-            ics.swb_sizes = ((*ctx).psy.bands)[(ics.num_windows == 8) as usize].as_ptr();
+            ics.swb_sizes = (*ctx).psy.bands[(ics.num_windows == 8) as usize];
             ics.num_swb = if tag == SyntaxElementType::LowFrequencyEffects as c_int {
                 ics.num_swb
             } else {
@@ -804,9 +804,9 @@ unsafe fn aac_encode_frame(
                 ics.max_sfb as c_int
             }) as c_uchar;
             ics.swb_offset = if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                ff_swb_offset_128[(*ctx).samplerate_index as usize].as_ptr()
+                ff_swb_offset_128[(*ctx).samplerate_index as usize]
             } else {
-                ff_swb_offset_1024[(*ctx).samplerate_index as usize].as_ptr()
+                ff_swb_offset_1024[(*ctx).samplerate_index as usize]
             };
             ics.tns_max_bands = if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
                 ff_tns_max_bands_128[(*ctx).samplerate_index as usize] as c_int
@@ -1341,7 +1341,7 @@ impl Encoder for AACEncoder {
                 channels: avctx.ch_layout.nb_channels,
                 reorder_map,
                 chan_map,
-                cpe: vec![ChannelElement::zero(); chan_map[0] as usize].into_boxed_slice(),
+                cpe: vec![ChannelElement::default(); chan_map[0] as usize].into_boxed_slice(),
                 psy: FFPsyContext::zero(),
                 cur_channel: 0,
                 random_state: 0x1f2e3d4c,

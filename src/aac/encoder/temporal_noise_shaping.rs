@@ -313,11 +313,9 @@ pub(crate) unsafe fn apply_tns(mut _s: *mut AACEncContext, mut sce: *mut SingleC
                     0,
                     0,
                 );
-                start = *((*ics).swb_offset)
-                    .offset((if bottom > mmm { mmm } else { bottom }) as isize)
-                    as c_int;
-                end = *((*ics).swb_offset).offset((if top > mmm { mmm } else { top }) as isize)
-                    as c_int;
+                start =
+                    (*ics).swb_offset[if bottom > mmm { mmm } else { bottom } as usize] as c_int;
+                end = (*ics).swb_offset[if top > mmm { mmm } else { top } as usize] as c_int;
                 size = end - start;
                 if size > 0 {
                     if (*tns).direction[w as usize][filt as usize] != 0 {
@@ -414,8 +412,8 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
         2
     };
     let sfb_len: c_int = sfb_end - sfb_start;
-    let coef_len: c_int = *((*sce).ics.swb_offset).offset(sfb_end as isize) as c_int
-        - *((*sce).ics.swb_offset).offset(sfb_start as isize) as c_int;
+    let coef_len: c_int = (*sce).ics.swb_offset[sfb_end as usize] as c_int
+        - (*sce).ics.swb_offset[sfb_start as usize] as c_int;
     if coef_len <= 0 || sfb_len <= 0 {
         (*sce).tns.present = 0;
         return;
@@ -425,7 +423,7 @@ pub(crate) unsafe fn search_for_tns(mut s: *mut AACEncContext, mut sce: *mut Sin
         let mut en: [c_float; 2] = [0., 0.];
         let mut oc_start: c_int = 0;
         let mut os_start: c_int = 0;
-        let mut coef_start: c_int = *((*sce).ics.swb_offset).offset(sfb_start as isize) as c_int;
+        let mut coef_start: c_int = (*sce).ics.swb_offset[sfb_start as usize] as c_int;
         g = sfb_start;
         while g < (*sce).ics.num_swb && g <= sfb_end {
             let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands

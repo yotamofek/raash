@@ -35,6 +35,8 @@ mod sinewin;
 mod common;
 mod types;
 
+mod array;
+
 mod avutil;
 
 mod bessel;

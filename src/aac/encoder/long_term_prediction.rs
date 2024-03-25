@@ -340,7 +340,7 @@ pub(crate) unsafe fn search_for_ltp(
             let mut dist1: c_float = 0.;
             let mut dist2: c_float = 0.;
             if w * 16 + g > max_ltp {
-                start += *((*sce).ics.swb_sizes).offset(g as isize) as c_int;
+                start += (*sce).ics.swb_sizes[g as usize] as c_int;
             } else {
                 w2 = 0;
                 while w2 < (*sce).ics.group_len[w as usize] as c_int {
@@ -350,7 +350,7 @@ pub(crate) unsafe fn search_for_ltp(
                         .psy_bands[((w + w2) * 16 + g) as usize]
                         as *mut FFPsyBand;
                     i = 0;
-                    while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
+                    while i < (*sce).ics.swb_sizes[g as usize] as c_int {
                         *PCD.offset(i as isize) = (*sce).coeffs
                             [(start + (w + w2) * 128 + i) as usize]
                             - (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
@@ -362,20 +362,16 @@ pub(crate) unsafe fn search_for_ltp(
                         &mut *((*sce).coeffs)
                             .as_mut_ptr()
                             .offset((start + (w + w2) * 128) as isize),
-                        *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
+                        (*sce).ics.swb_sizes[g as usize] as c_int,
                     );
-                    abs_pow34_v(
-                        PCD34,
-                        PCD,
-                        *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
-                    );
+                    abs_pow34_v(PCD34, PCD, (*sce).ics.swb_sizes[g as usize] as c_int);
                     dist1 += quantize_band_cost(
                         s,
                         &mut *((*sce).coeffs)
                             .as_mut_ptr()
                             .offset((start + (w + w2) * 128) as isize),
                         C34,
-                        *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
+                        (*sce).ics.swb_sizes[g as usize] as c_int,
                         (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                         (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
@@ -387,7 +383,7 @@ pub(crate) unsafe fn search_for_ltp(
                         s,
                         PCD,
                         PCD34,
-                        *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
+                        (*sce).ics.swb_sizes[g as usize] as c_int,
                         (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                         (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
@@ -404,7 +400,7 @@ pub(crate) unsafe fn search_for_ltp(
                     w2 = 0;
                     while w2 < (*sce).ics.group_len[w as usize] as c_int {
                         i = 0;
-                        while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
+                        while i < (*sce).ics.swb_sizes[g as usize] as c_int {
                             (*sce).coeffs[(start + (w + w2) * 128 + i) as usize] -=
                                 (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                             i += 1;
@@ -418,7 +414,7 @@ pub(crate) unsafe fn search_for_ltp(
                     count += 1;
                     count;
                 }
-                start += *((*sce).ics.swb_sizes).offset(g as isize) as c_int;
+                start += (*sce).ics.swb_sizes[g as usize] as c_int;
             }
             g += 1;
             g;
@@ -437,7 +433,7 @@ pub(crate) unsafe fn search_for_ltp(
                     w2 = 0;
                     while w2 < (*sce).ics.group_len[w as usize] as c_int {
                         i = 0;
-                        while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
+                        while i < (*sce).ics.swb_sizes[g as usize] as c_int {
                             (*sce).coeffs[(start + (w + w2) * 128 + i) as usize] +=
                                 (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                             i += 1;
@@ -447,7 +443,7 @@ pub(crate) unsafe fn search_for_ltp(
                         w2;
                     }
                 }
-                start += *((*sce).ics.swb_sizes).offset(g as isize) as c_int;
+                start += (*sce).ics.swb_sizes[g as usize] as c_int;
                 g += 1;
                 g;
             }

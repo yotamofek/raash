@@ -188,7 +188,7 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
             (*band0).threshold
         };
         i = 0;
-        while i < *(sce0.ics.swb_sizes).offset(g as isize) as c_int {
+        while i < sce0.ics.swb_sizes[g as usize] as c_int {
             *IS.offset(i as isize) = ((*L.offset((start + (w + w2) * 128 + i) as isize)
                 + phase as c_float * *R.offset((start + (w + w2) * 128 + i) as isize))
                 as c_double
@@ -200,21 +200,21 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
         abs_pow34_v(
             L34,
             &mut *L.offset((start + (w + w2) * 128) as isize),
-            *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
+            sce0.ics.swb_sizes[g as usize] as c_int,
         );
         abs_pow34_v(
             R34,
             &mut *R.offset((start + (w + w2) * 128) as isize),
-            *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
+            sce0.ics.swb_sizes[g as usize] as c_int,
         );
-        abs_pow34_v(I34, IS, *(sce0.ics.swb_sizes).offset(g as isize) as c_int);
-        maxval = find_max_val(1, *(sce0.ics.swb_sizes).offset(g as isize) as c_int, I34);
+        abs_pow34_v(I34, IS, sce0.ics.swb_sizes[g as usize] as c_int);
+        maxval = find_max_val(1, sce0.ics.swb_sizes[g as usize] as c_int, I34);
         is_band_type = find_min_book(maxval, is_sf_idx);
         dist1 += quantize_band_cost(
             s,
             &mut *L.offset((start + (w + w2) * 128) as isize),
             L34,
-            *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
+            sce0.ics.swb_sizes[g as usize] as c_int,
             sce0.sf_idx[(w * 16 + g) as usize],
             sce0.band_type[(w * 16 + g) as usize] as c_int,
             (*s).lambda / (*band0).threshold,
@@ -226,7 +226,7 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
             s,
             &mut *R.offset((start + (w + w2) * 128) as isize),
             R34,
-            *(sce1.ics.swb_sizes).offset(g as isize) as c_int,
+            sce1.ics.swb_sizes[g as usize] as c_int,
             sce1.sf_idx[(w * 16 + g) as usize],
             sce1.band_type[(w * 16 + g) as usize] as c_int,
             (*s).lambda / (*band1).threshold,
@@ -238,7 +238,7 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
             s,
             IS,
             I34,
-            *(sce0.ics.swb_sizes).offset(g as isize) as c_int,
+            sce0.ics.swb_sizes[g as usize] as c_int,
             is_sf_idx,
             is_band_type,
             (*s).lambda / minthr,
@@ -247,7 +247,7 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
             std::ptr::null_mut::<c_float>(),
         );
         i = 0;
-        while i < *(sce0.ics.swb_sizes).offset(g as isize) as c_int {
+        while i < sce0.ics.swb_sizes[g as usize] as c_int {
             dist_spec_err += (*L34.offset(i as isize) - *I34.offset(i as isize))
                 * (*L34.offset(i as isize) - *I34.offset(i as isize));
             dist_spec_err += (*R34.offset(i as isize) - *I34.offset(i as isize) * e01_34)
@@ -331,7 +331,7 @@ pub(crate) unsafe fn search_for_is(
                 w2 = 0;
                 while w2 < sce0.ics.group_len[w as usize] as c_int {
                     i = 0;
-                    while i < *(sce0.ics.swb_sizes).offset(g as isize) as c_int {
+                    while i < sce0.ics.swb_sizes[g as usize] as c_int {
                         let mut coef0: c_float = sce0.coeffs[(start + (w + w2) * 128 + i) as usize];
                         let mut coef1: c_float = sce1.coeffs[(start + (w + w2) * 128 + i) as usize];
                         ener0 += coef0 * coef0;
@@ -387,7 +387,7 @@ pub(crate) unsafe fn search_for_is(
                 prev_sf1 = sce1.sf_idx[(w * 16 + g) as usize];
             }
             prev_is = (*cpe).is_mask[(w * 16 + g) as usize] as c_int;
-            start += *(sce0.ics.swb_sizes).offset(g as isize) as c_int;
+            start += sce0.ics.swb_sizes[g as usize] as c_int;
             g += 1;
             g;
         }

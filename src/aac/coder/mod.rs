@@ -393,7 +393,7 @@ pub(crate) unsafe fn encode_window_bands_info(
     }
     swb = 0;
     while swb < max_sfb {
-        size = *((*sce).ics.swb_sizes).offset(swb as isize) as c_int;
+        size = (*sce).ics.swb_sizes[swb as usize] as c_int;
         if (*sce).zeroes[(win * 16 + swb) as usize] {
             cb = 0;
             while cb < 15 {
@@ -481,7 +481,7 @@ pub(crate) unsafe fn encode_window_bands_info(
                 cb;
             }
         }
-        start += *((*sce).ics.swb_sizes).offset(swb as isize) as c_int;
+        start += (*sce).ics.swb_sizes[swb as usize] as c_int;
         swb += 1;
         swb;
     }

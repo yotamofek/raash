@@ -1,4 +1,4 @@
-use std::{iter::zip, slice};
+use std::iter::zip;
 
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
@@ -148,7 +148,7 @@ pub(crate) unsafe fn search(
 
             maxvals[(w * 16 + g) as usize] = find_max_val(
                 sce.ics.group_len[w as usize] as c_int,
-                *(sce.ics.swb_sizes).offset(g as isize) as c_int,
+                sce.ics.swb_sizes[g as usize] as c_int,
                 scaled,
             );
 
@@ -161,7 +161,7 @@ pub(crate) unsafe fn search(
                     w2;
                 }
             }
-            start += *(sce.ics.swb_sizes).offset(g as isize) as c_int;
+            start += sce.ics.swb_sizes[g as usize] as c_int;
             g += 1;
             g;
         }
@@ -189,10 +189,9 @@ pub(crate) unsafe fn search(
                     ((start as c_float / (cutoff as c_float * 0.75)).clamp(1., 2.)).powi(2);
                 let mut energy2uplim: c_float = find_form_factor(
                     sce.ics.group_len[w as usize] as c_int,
-                    *(sce.ics.swb_sizes).offset(g as isize) as c_int,
+                    sce.ics.swb_sizes[g as usize] as c_int,
                     uplims[(w * 16 + g) as usize]
-                        / (nzs[g as usize] as c_int
-                            * *(sce.ics.swb_sizes).offset(w as isize) as c_int)
+                        / (nzs[g as usize] as c_int * sce.ics.swb_sizes[w as usize] as c_int)
                             as c_float,
                     (sce.coeffs).as_mut_ptr().offset(start as isize),
                     nzslope * cleanup_factor,
@@ -206,10 +205,9 @@ pub(crate) unsafe fn search(
                     * sce.ics.group_len[w as usize] as c_int as c_float;
                 energy2uplim = find_form_factor(
                     sce.ics.group_len[w as usize] as c_int,
-                    *(sce.ics.swb_sizes).offset(g as isize) as c_int,
+                    sce.ics.swb_sizes[g as usize] as c_int,
                     uplims[(w * 16 + g) as usize]
-                        / (nzs[g as usize] as c_int
-                            * *(sce.ics.swb_sizes).offset(w as isize) as c_int)
+                        / (nzs[g as usize] as c_int * sce.ics.swb_sizes[w as usize] as c_int)
                             as c_float,
                     (sce.coeffs).as_mut_ptr().offset(start as isize),
                     2.,
@@ -223,7 +221,7 @@ pub(crate) unsafe fn search(
                     (rdlambda * energy2uplim * sce.ics.group_len[w as usize] as c_int as c_float)
                         .clamp(0.5, 1.);
             }
-            start += *(sce.ics.swb_sizes).offset(g as isize) as c_int;
+            start += sce.ics.swb_sizes[g as usize] as c_int;
             g += 1;
             g;
         }
@@ -259,7 +257,7 @@ pub(crate) unsafe fn search(
                     if sce.zeroes[(w * 16 + g) as usize] as c_int != 0
                         || sce.sf_idx[(w * 16 + g) as usize] >= 218
                     {
-                        start += *(sce.ics.swb_sizes).offset(g as isize) as c_int;
+                        start += sce.ics.swb_sizes[g as usize] as c_int;
                         if sce.can_pns[(w * 16 + g) as usize] != 0 {
                             // PNS isn't free
                             tbits += ff_pns_bits(sce, w, g);
@@ -279,7 +277,7 @@ pub(crate) unsafe fn search(
                                 g,
                                 coefs.offset((w2 * 128) as isize),
                                 scaled_0.offset((w2 * 128) as isize),
-                                *(sce.ics.swb_sizes).offset(g as isize) as c_int,
+                                sce.ics.swb_sizes[g as usize] as c_int,
                                 sce.sf_idx[(w * 16 + g) as usize],
                                 cb,
                                 1.,
@@ -302,7 +300,7 @@ pub(crate) unsafe fn search(
                             bits += ff_aac_scalefactor_bits[sfdiff as usize] as c_int;
                         }
                         tbits += bits;
-                        start += *(sce.ics.swb_sizes).offset(g as isize) as c_int;
+                        start += sce.ics.swb_sizes[g as usize] as c_int;
                         prev = sce.sf_idx[(w * 16 + g) as usize];
                     }
                     g += 1;
@@ -388,7 +386,7 @@ pub(crate) unsafe fn search(
                         if sce.zeroes[(w * 16 + g) as usize] as c_int != 0
                             || sce.sf_idx[(w * 16 + g) as usize] >= 218
                         {
-                            start += *(sce.ics.swb_sizes).offset(g as isize) as c_int;
+                            start += sce.ics.swb_sizes[g as usize] as c_int;
                             if sce.can_pns[(w * 16 + g) as usize] != 0 {
                                 tbits += ff_pns_bits(sce, w, g);
                             }
@@ -407,7 +405,7 @@ pub(crate) unsafe fn search(
                                     g,
                                     coefs_0.offset((w2 * 128) as isize),
                                     scaled_1.offset((w2 * 128) as isize),
-                                    *(sce.ics.swb_sizes).offset(g as isize) as c_int,
+                                    sce.ics.swb_sizes[g as usize] as c_int,
                                     sce.sf_idx[(w * 16 + g) as usize],
                                     cb_0,
                                     1.,
@@ -432,7 +430,7 @@ pub(crate) unsafe fn search(
                                 bits_0 += ff_aac_scalefactor_bits[sfdiff_0 as usize] as c_int;
                             }
                             tbits += bits_0;
-                            start += *(sce.ics.swb_sizes).offset(g as isize) as c_int;
+                            start += sce.ics.swb_sizes[g as usize] as c_int;
                             prev = sce.sf_idx[(w * 16 + g) as usize];
                         }
                         g += 1;
@@ -474,7 +472,7 @@ pub(crate) unsafe fn search(
                         }
                         let fresh2 = g;
                         g += 1;
-                        start += *(sce.ics.swb_sizes).offset(fresh2 as isize) as c_int;
+                        start += sce.ics.swb_sizes[fresh2 as usize] as c_int;
                     }
                     w += sce.ics.group_len[w as usize] as c_int;
                 }
@@ -510,7 +508,7 @@ pub(crate) unsafe fn search(
                             }
                             let fresh3 = g;
                             g += 1;
-                            start += *(sce.ics.swb_sizes).offset(fresh3 as isize) as c_int;
+                            start += sce.ics.swb_sizes[fresh3 as usize] as c_int;
                         }
                         w += sce.ics.group_len[w as usize] as c_int;
                     }
@@ -552,8 +550,7 @@ pub(crate) unsafe fn search(
                         let mut mcb: c_int = 0;
                         g = sce.ics.num_swb - 1;
                         while g > 0 && zeroed < maxzeroed {
-                            if (*(sce.ics.swb_offset).offset(g as isize) as c_int) >= pns_start_pos
-                            {
+                            if (sce.ics.swb_offset[g as usize] as c_int) >= pns_start_pos {
                                 w = 0;
                                 while w < sce.ics.num_windows {
                                     if !sce.zeroes[(w * 16 + g) as usize]
@@ -735,7 +732,7 @@ pub(crate) unsafe fn search(
                                     g,
                                     coefs_1.offset((w2 * 128) as isize),
                                     scaled_2.offset((w2 * 128) as isize),
-                                    *(sce.ics.swb_sizes).offset(g as isize) as c_int,
+                                    sce.ics.swb_sizes[g as usize] as c_int,
                                     sce.sf_idx[(w * 16 + g) as usize] - 1,
                                     cb_1,
                                     1.,
@@ -814,7 +811,7 @@ pub(crate) unsafe fn search(
                                         g,
                                         coefs_1.offset((w2 * 128) as isize),
                                         scaled_2.offset((w2 * 128) as isize),
-                                        *(sce.ics.swb_sizes).offset(g as isize) as c_int,
+                                        sce.ics.swb_sizes[g as usize] as c_int,
                                         sce.sf_idx[(w * 16 + g) as usize] + 1,
                                         cb_2,
                                         1.,
@@ -864,7 +861,7 @@ pub(crate) unsafe fn search(
                         sce.sf_idx[(w * 16 + g) as usize],
                     ) as BandType;
                 }
-                start += *(sce.ics.swb_sizes).offset(g as isize) as c_int;
+                start += sce.ics.swb_sizes[g as usize] as c_int;
                 g += 1;
                 g;
             }
@@ -973,8 +970,7 @@ fn find_min_scaler(
     let mut minscaler = 65535;
     let mut w = 0;
 
-    // TODO: is this safe?
-    let swb_sizes = unsafe { slice::from_raw_parts(sce.ics.swb_sizes, sce.ics.num_swb as usize) };
+    let swb_sizes = &sce.ics.swb_sizes[..sce.ics.num_swb as usize];
 
     while w < sce.ics.num_windows as usize {
         for (&zero, sf_idx, &uplim, &swb_size) in izip!(
@@ -1052,7 +1048,7 @@ fn loop1(
     } = &mut res;
 
     // TODO: is this safe?
-    let swb_sizes = unsafe { slice::from_raw_parts(sce.ics.swb_sizes, sce.ics.num_swb as usize) };
+    let swb_sizes = &sce.ics.swb_sizes[..sce.ics.num_swb as usize];
     let ch = &s.psy.ch[s.cur_channel as usize];
 
     let mut w = 0;

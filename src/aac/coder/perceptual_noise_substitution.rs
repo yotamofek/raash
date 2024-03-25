@@ -104,7 +104,7 @@ pub(crate) unsafe fn search(
             let mut spread: c_float = 2.;
             let mut min_energy: c_float = -1.;
             let mut max_energy: c_float = 0.;
-            let start: c_int = wstart + *((*sce).ics.swb_offset).offset(g as isize) as c_int;
+            let start: c_int = wstart + (*sce).ics.swb_offset[g as usize] as c_int;
             let freq: c_float = (start - wstart) as c_float * freq_mult;
             let freq_boost = (0.88 * freq / NOISE_LOW_LIMIT).max(1.);
             if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
@@ -187,13 +187,13 @@ pub(crate) unsafe fn search(
                                 let mut band_energy: c_float = 0.;
                                 let mut scale: c_float = 0.;
                                 let mut pns_senergy: c_float = 0.;
-                                let start_c: c_int = (w + w2) * 128
-                                    + *((*sce).ics.swb_offset).offset(g as isize) as c_int;
+                                let start_c: c_int =
+                                    (w + w2) * 128 + (*sce).ics.swb_offset[g as usize] as c_int;
                                 band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
                                     [((w + w2) * 16 + g) as usize]
                                     as *mut FFPsyBand;
                                 i = 0;
-                                while i < *((*sce).ics.swb_sizes).offset(g as isize) as c_int {
+                                while i < (*sce).ics.swb_sizes[g as usize] as c_int {
                                     (*s).random_state = lcg_random((*s).random_state as c_uint);
                                     *PNS.offset(i as isize) = (*s).random_state as c_float;
                                     i += 1;
@@ -203,7 +203,7 @@ pub(crate) unsafe fn search(
                                     .expect("non-null function pointer")(
                                     PNS,
                                     PNS,
-                                    *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
+                                    (*sce).ics.swb_sizes[g as usize] as c_int,
                                 );
                                 scale = noise_amp / sqrtf(band_energy);
                                 ((*(*s).fdsp).vector_fmul_scalar)
@@ -211,30 +211,26 @@ pub(crate) unsafe fn search(
                                     PNS,
                                     PNS,
                                     scale,
-                                    *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
+                                    (*sce).ics.swb_sizes[g as usize] as c_int,
                                 );
                                 pns_senergy = ((*(*s).fdsp).scalarproduct_float)
                                     .expect("non-null function pointer")(
                                     PNS,
                                     PNS,
-                                    *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
+                                    (*sce).ics.swb_sizes[g as usize] as c_int,
                                 );
                                 pns_energy += pns_senergy;
                                 abs_pow34_v(
                                     NOR34,
                                     &mut *((*sce).coeffs).as_mut_ptr().offset(start_c as isize),
-                                    *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
+                                    (*sce).ics.swb_sizes[g as usize] as c_int,
                                 );
-                                abs_pow34_v(
-                                    PNS34,
-                                    PNS,
-                                    *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
-                                );
+                                abs_pow34_v(PNS34, PNS, (*sce).ics.swb_sizes[g as usize] as c_int);
                                 dist1 += quantize_band_cost(
                                     s,
                                     &mut *((*sce).coeffs).as_mut_ptr().offset(start_c as isize),
                                     NOR34,
-                                    *((*sce).ics.swb_sizes).offset(g as isize) as c_int,
+                                    (*sce).ics.swb_sizes[g as usize] as c_int,
                                     (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                                     (*sce).band_alt[((w + w2) * 16 + g) as usize] as c_int,
                                     lambda / (*band).threshold,
@@ -345,7 +341,7 @@ pub(crate) unsafe fn mark(
             let mut spread: c_float = 2.;
             let mut min_energy: c_float = -1.;
             let mut max_energy: c_float = 0.;
-            let start: c_int = *((*sce).ics.swb_offset).offset(g as isize) as c_int;
+            let start: c_int = (*sce).ics.swb_offset[g as usize] as c_int;
             let freq: c_float = start as c_float * freq_mult;
             let freq_boost: c_float = if 0.88 * freq / 4000. > 1. {
                 0.88 * freq / 4000.
