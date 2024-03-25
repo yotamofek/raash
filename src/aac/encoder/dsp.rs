@@ -2,7 +2,7 @@ use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_void};
 
-use super::{avpriv_float_dsp_alloc, ctx::AACEncContext};
+use super::ctx::AACEncContext;
 use crate::{avutil::tx::av_tx_init, types::AV_TX_FLOAT_MDCT};
 
 #[cold]
@@ -11,10 +11,6 @@ pub(super) unsafe fn init(mut avctx: *mut AVCodecContext, mut s: *mut AACEncCont
     let mut ret: c_int = 0;
     let mut scale: c_float = 32768.;
 
-    (*s).fdsp = avpriv_float_dsp_alloc((*avctx).flags & (1) << 23);
-    if ((*s).fdsp).is_null() {
-        return -12;
-    }
     ret = av_tx_init(
         &mut (*s).mdct1024,
         &mut (*s).mdct1024_fn,

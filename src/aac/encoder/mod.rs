@@ -92,9 +92,7 @@ extern "C" {
         chl: *const AVChannelLayout,
         chl1: *const AVChannelLayout,
     ) -> c_int;
-    fn avpriv_float_dsp_alloc(strict: c_int) -> *mut AVFloatDSPContext;
     fn av_mallocz(size: c_ulong) -> *mut c_void;
-    fn av_freep(ptr: *mut c_void);
     fn av_log(avcl: *mut c_void, level: c_int, fmt: *const c_char, _: ...);
 }
 
@@ -1331,7 +1329,6 @@ impl Encoder for AACEncoder {
                 mdct1024_fn: None,
                 mdct128: null_mut(),
                 mdct128_fn: None,
-                fdsp: null_mut(),
                 pce,
                 planar_samples: vec![[0.; _]; (*ch_layout).nb_channels as usize].into_boxed_slice(),
                 profile: 0,
@@ -1534,7 +1531,6 @@ impl Encoder for AACEncoder {
             av_tx_uninit(&mut ctx.mdct1024);
             av_tx_uninit(&mut ctx.mdct128);
             ff_psy_end(&mut ctx.psy);
-            av_freep(&mut ctx.fdsp as *mut *mut AVFloatDSPContext as *mut c_void);
         }
     }
 }

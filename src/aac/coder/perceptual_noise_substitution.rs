@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{ptr, slice};
 
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
@@ -199,26 +199,26 @@ pub(crate) unsafe fn search(
                                     i += 1;
                                     i;
                                 }
-                                band_energy = ((*(*s).fdsp).scalarproduct_float)
-                                    .expect("non-null function pointer")(
-                                    PNS,
-                                    PNS,
-                                    (*sce).ics.swb_sizes[g as usize] as c_int,
-                                );
-                                scale = noise_amp / sqrtf(band_energy);
-                                ((*(*s).fdsp).vector_fmul_scalar)
-                                    .expect("non-null function pointer")(
-                                    PNS,
-                                    PNS,
-                                    scale,
-                                    (*sce).ics.swb_sizes[g as usize] as c_int,
-                                );
-                                pns_senergy = ((*(*s).fdsp).scalarproduct_float)
-                                    .expect("non-null function pointer")(
-                                    PNS,
-                                    PNS,
-                                    (*sce).ics.swb_sizes[g as usize] as c_int,
-                                );
+
+                                {
+                                    // TODO(yotam): is this safe?
+                                    let PNS = slice::from_raw_parts_mut(
+                                        PNS,
+                                        (*sce).ics.swb_sizes[g as usize].into(),
+                                    );
+                                    // (yotam): scalarproduct_float
+                                    band_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+
+                                    scale = noise_amp / sqrtf(band_energy);
+
+                                    // (yotam): vector_fmac_scalar
+                                    PNS.iter_mut().for_each(|PNS| {
+                                        *PNS *= scale;
+                                    });
+                                    // (yotam): scalarproduct_float
+                                    pns_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+                                }
+
                                 pns_energy += pns_senergy;
                                 abs_pow34_v(
                                     NOR34,

@@ -14,47 +14,6 @@ use crate::{
     array::Array,
 };
 
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct AVFloatDSPContext {
-    vector_fmul:
-        Option<unsafe extern "C" fn(*mut c_float, *const c_float, *const c_float, c_int) -> ()>,
-    pub(crate) vector_fmac_scalar:
-        Option<unsafe extern "C" fn(*mut c_float, *const c_float, c_float, c_int) -> ()>,
-    pub(crate) vector_dmac_scalar:
-        Option<unsafe extern "C" fn(*mut c_double, *const c_double, c_double, c_int) -> ()>,
-    pub(crate) vector_fmul_scalar:
-        Option<unsafe extern "C" fn(*mut c_float, *const c_float, c_float, c_int) -> ()>,
-    pub(crate) vector_dmul_scalar:
-        Option<unsafe extern "C" fn(*mut c_double, *const c_double, c_double, c_int) -> ()>,
-    pub(crate) vector_fmul_window: Option<
-        unsafe extern "C" fn(
-            *mut c_float,
-            *const c_float,
-            *const c_float,
-            *const c_float,
-            c_int,
-        ) -> (),
-    >,
-    pub(crate) vector_fmul_add: Option<
-        unsafe extern "C" fn(
-            *mut c_float,
-            *const c_float,
-            *const c_float,
-            *const c_float,
-            c_int,
-        ) -> (),
-    >,
-    vector_fmul_reverse:
-        Option<unsafe extern "C" fn(*mut c_float, *const c_float, *const c_float, c_int) -> ()>,
-    pub(crate) butterflies_float:
-        Option<unsafe extern "C" fn(*mut c_float, *mut c_float, c_int) -> ()>,
-    pub(crate) scalarproduct_float:
-        Option<unsafe extern "C" fn(*const c_float, *const c_float, c_int) -> c_float>,
-    pub(crate) vector_dmul:
-        Option<unsafe extern "C" fn(*mut c_double, *const c_double, *const c_double, c_int) -> ()>,
-}
-
 // pub(crate) const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
 
 pub(crate) type ptrdiff_t = c_long;

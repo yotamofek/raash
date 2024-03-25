@@ -12,7 +12,6 @@ pub(crate) struct AACEncContext {
     pub mdct1024_fn: av_tx_fn,
     pub mdct128: *mut AVTXContext,
     pub mdct128_fn: av_tx_fn,
-    pub fdsp: *mut AVFloatDSPContext,
     pub pce: Option<pce::Info>,
     pub planar_samples: Box<[[c_float; 3 * 1024]]>,
     pub profile: c_int,
