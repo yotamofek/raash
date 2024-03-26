@@ -9,6 +9,7 @@
     inline_const,
     let_chains,
     new_uninit,
+    slice_as_chunks,
     slice_take
 )]
 #![allow(

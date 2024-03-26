@@ -1,13 +1,14 @@
-use std::{ptr, slice};
+use std::{iter, ptr, slice};
 
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
+use itertools::izip;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
 use super::{ff_init_nextband_map, math::lcg_random, quantize_band_cost, sfdelta_can_remove_band};
 use crate::{
     aac::{
-        encoder::{abs_pow34_v, ctx::AACEncContext},
+        encoder::{abs_pow34_v, ctx::AACEncContext, pow::Pow34},
         psy_model::cutoff_from_bitrate,
         tables::POW_SF_TABLES,
     },
@@ -33,7 +34,9 @@ pub(crate) unsafe fn search(
     let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
     let mut cutoff: c_int = 0;
 
-    let [PNS, PNS34, NOR34] = [0, 1, 3].map(|i| (*s).scoefs[128 * i..].as_mut_ptr());
+    let ([PNS, PNS34, _, NOR34, ..], _) = (*s).scoefs.as_chunks_mut::<128>() else {
+        panic!();
+    };
 
     let mut nextband: [c_uchar; 128] = [0; 128];
     let lambda: c_float = (*s).lambda;
@@ -192,44 +195,44 @@ pub(crate) unsafe fn search(
                                 band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
                                     [((w + w2) * 16 + g) as usize]
                                     as *mut FFPsyBand;
-                                i = 0;
-                                while i < (*sce).ics.swb_sizes[g as usize] as c_int {
+
+                                let cur_swb_size = usize::from((*sce).ics.swb_sizes[g as usize]);
+                                let [PNS, PNS34, NOR34] =
+                                    [&mut *PNS, PNS34, NOR34].map(|arr| &mut arr[..cur_swb_size]);
+
+                                PNS.fill_with(|| {
                                     (*s).random_state = lcg_random((*s).random_state as c_uint);
-                                    *PNS.offset(i as isize) = (*s).random_state as c_float;
-                                    i += 1;
-                                    i;
-                                }
+                                    (*s).random_state as c_float
+                                });
 
-                                {
-                                    // TODO(yotam): is this safe?
-                                    let PNS = slice::from_raw_parts_mut(
-                                        PNS,
-                                        (*sce).ics.swb_sizes[g as usize].into(),
-                                    );
-                                    // (yotam): scalarproduct_float
-                                    band_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+                                // (yotam): scalarproduct_float
+                                band_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
 
-                                    scale = noise_amp / sqrtf(band_energy);
+                                scale = noise_amp / sqrtf(band_energy);
 
-                                    // (yotam): vector_fmac_scalar
-                                    PNS.iter_mut().for_each(|PNS| {
-                                        *PNS *= scale;
-                                    });
-                                    // (yotam): scalarproduct_float
-                                    pns_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
-                                }
+                                // (yotam): vector_fmac_scalar
+                                PNS.iter_mut().for_each(|PNS| {
+                                    *PNS *= scale;
+                                });
+                                // (yotam): scalarproduct_float
+                                pns_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
 
                                 pns_energy += pns_senergy;
-                                abs_pow34_v(
-                                    NOR34,
-                                    &mut *((*sce).coeffs).as_mut_ptr().offset(start_c as isize),
-                                    (*sce).ics.swb_sizes[g as usize] as c_int,
-                                );
-                                abs_pow34_v(PNS34, PNS, (*sce).ics.swb_sizes[g as usize] as c_int);
+
+                                for (NOR34, coeff) in NOR34
+                                    .iter_mut()
+                                    .zip(&(*sce).coeffs[start_c as usize..][..cur_swb_size])
+                                {
+                                    *NOR34 = coeff.abs_pow34();
+                                }
+                                for (PNS34, PNS) in PNS34.iter_mut().zip(&*PNS) {
+                                    *PNS34 = PNS.abs_pow34();
+                                }
+
                                 dist1 += quantize_band_cost(
                                     s,
                                     &mut *((*sce).coeffs).as_mut_ptr().offset(start_c as isize),
-                                    NOR34,
+                                    NOR34.as_mut_ptr(),
                                     (*sce).ics.swb_sizes[g as usize] as c_int,
                                     (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                                     (*sce).band_alt[((w + w2) * 16 + g) as usize] as c_int,
