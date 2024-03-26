@@ -161,9 +161,6 @@ pub(crate) unsafe fn search(
             }
 
             for w2 in 0..c_int::from((*sce).ics.group_len[w as usize]) {
-                let mut band_energy: c_float = 0.;
-                let mut scale: c_float = 0.;
-                let mut pns_senergy: c_float = 0.;
                 let start_c: c_int = (w + w2) * 128 + (*sce).ics.swb_offset[g as usize] as c_int;
                 let band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
                     [((w + w2) * 16 + g) as usize];
@@ -178,16 +175,16 @@ pub(crate) unsafe fn search(
                 });
 
                 // (yotam): scalarproduct_float
-                band_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+                let band_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
 
-                scale = noise_amp / sqrtf(band_energy);
+                let scale = noise_amp / sqrtf(band_energy);
 
                 // (yotam): vector_fmac_scalar
                 PNS.iter_mut().for_each(|PNS| {
                     *PNS *= scale;
                 });
                 // (yotam): scalarproduct_float
-                pns_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+                let pns_senergy: c_float = PNS.iter().map(|PNS| PNS.powi(2)).sum();
 
                 pns_energy += pns_senergy;
 
