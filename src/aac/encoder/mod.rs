@@ -141,8 +141,7 @@ unsafe extern "C" fn put_pce(
     let mut i: c_int = 0;
     let mut j: c_int = 0;
     let mut pce: *mut pce::Info = &mut (*s).pce.unwrap();
-    let bitexact: c_int = (*avctx).flags & (1) << 23;
-    let mut aux_data = if bitexact != 0 {
+    let mut aux_data = if (*avctx).flags.bit_exact() {
         c"Lavc"
     } else {
         c"Lavc60.33.100"
@@ -910,7 +909,7 @@ unsafe fn aac_encode_frame(
             avpkt.data().len() as c_int,
         );
         if (*avctx).frame_num & 0xff as c_int as c_long == 1 as c_long
-            && (*avctx).flags & (1) << 23 == 0
+            && !(*avctx).flags.bit_exact()
         {
             put_bitstream_info(ctx, c"Lavc60.33.100");
         }
@@ -1127,7 +1126,7 @@ unsafe fn aac_encode_frame(
             i += 1;
             i;
         }
-        if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
+        if (*avctx).flags.qscale() {
             break;
         }
         frame_bits = put_bits_count(&mut (*ctx).pb);

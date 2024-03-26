@@ -5,6 +5,7 @@ pub mod subtitle;
 
 use std::{ffi::CStr, ptr};
 
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
 use self::{channel::AVChannelLayout, frame::AVFrame, subtitle::AVSubtitle};
@@ -81,6 +82,24 @@ pub type ExecuteFn = Option<
     ) -> c_int,
 >;
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct Flags(c_int);
+
+impl Flags {
+    /// Use fixed qscale.
+    #[ffmpeg_src(file = "libavcodec/avcodec.h", lines = 217..=220, name = "AV_CODEC_FLAG_QSCALE")]
+    pub fn qscale(&self) -> bool {
+        self.0 & (1 << 1) != 0
+    }
+
+    /// Use only bitexact stuff (except (I)DCT).
+    #[ffmpeg_src(file = "libavcodec/avcodec.h", lines = 335..=338, name = "AV_CODEC_FLAG_QSCALE")]
+    pub fn bit_exact(&self) -> bool {
+        self.0 & (1 << 23) != 0
+    }
+}
+
 #[derive(Clone)]
 #[repr(C)]
 pub struct AVCodecContext {
@@ -98,7 +117,7 @@ pub struct AVCodecContext {
     pub bit_rate_tolerance: c_int,
     pub global_quality: c_int,
     pub compression_level: c_int,
-    pub flags: c_int,
+    pub flags: Flags,
     pub flags2: c_int,
     pub extradata: *mut c_uchar,
     pub extradata_size: c_int,

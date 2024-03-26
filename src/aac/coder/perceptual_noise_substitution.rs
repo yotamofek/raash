@@ -1,6 +1,6 @@
 use std::ptr;
 
-use ffi::codec::AVCodecContext;
+use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
@@ -29,15 +29,88 @@ const NOISE_SPREAD_THRESHOLD: c_float = 0.9;
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 61)]
 const NOISE_LAMBDA_REPLACE: c_float = 1.948;
 
+fn pns_transient_energy_r(lambda: c_float) -> c_float {
+    0.7_f32.min(lambda / 140.)
+}
+
+unsafe fn refbits(avctx: *const AVCodecContext, lambda: c_float) -> c_int {
+    let AVCodecContext {
+        bit_rate,
+        sample_rate,
+        flags,
+        ch_layout: AVChannelLayout { nb_channels, .. },
+        ..
+    } = *avctx;
+
+    (bit_rate as c_double * 1024.
+        / sample_rate as c_double
+        / if flags.qscale() {
+            2.
+        } else {
+            nb_channels as c_float
+        } as c_double
+        * (lambda / 120.) as c_double) as c_int
+}
+
+fn spread_threshold(lambda: c_float) -> c_float {
+    0.75_f32.min(NOISE_SPREAD_THRESHOLD * 0.5_f32.max(lambda / 100.))
+}
+
+unsafe fn frame_bit_rate(avctx: *const AVCodecContext, lambda: c_float) -> c_int {
+    // Keep this in sync with twoloop's cutoff selection
+    let rate_bandwidth_multiplier = 1.5;
+
+    let AVCodecContext {
+        bit_rate,
+        sample_rate,
+        flags,
+        ch_layout: AVChannelLayout { nb_channels, .. },
+        ..
+    } = *avctx;
+
+    let mut frame_bit_rate: c_int = (if flags.qscale() {
+        refbits(avctx, lambda) as c_float * rate_bandwidth_multiplier * sample_rate as c_float
+            / 1024.
+    } else {
+        (bit_rate / nb_channels as c_long) as c_float
+    }) as c_int;
+    frame_bit_rate = (frame_bit_rate as c_float * 1.15) as c_int;
+    frame_bit_rate
+}
+
+unsafe fn bandwidth(avctx: *const AVCodecContext, lambda: c_float) -> c_int {
+    if (*avctx).cutoff > 0 {
+        (*avctx).cutoff
+    } else {
+        3000.max(cutoff_from_bitrate(
+            frame_bit_rate(avctx, lambda),
+            1,
+            (*avctx).sample_rate,
+        ))
+    }
+}
+
+fn freq_mult(sample_rate: c_int, wlen: c_int) -> c_float {
+    sample_rate as c_float * 0.5 / wlen as c_float
+}
+
+unsafe fn cutoff(avctx: *const AVCodecContext, lambda: c_float, wlen: c_int) -> c_int {
+    bandwidth(avctx, lambda) * 2 * wlen / (*avctx).sample_rate
+}
+
+fn freq_boost(freq: c_float) -> c_float {
+    (0.88 * freq / NOISE_LOW_LIMIT).max(1.)
+}
+
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 765..=905, name = "search_for_pns")]
 pub(crate) unsafe fn search(
     mut s: *mut AACEncContext,
-    mut avctx: *mut AVCodecContext,
+    mut avctx: *const AVCodecContext,
     mut sce: *mut SingleChannelElement,
 ) {
-    let mut w: c_int = 0;
     let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
-    let mut cutoff: c_int = 0;
+
+    let AVCodecContext { sample_rate, .. } = *avctx;
 
     let ([PNS, PNS34, _, NOR34, ..], _) = (*s).scoefs.as_chunks_mut::<128>() else {
         panic!();
@@ -45,48 +118,23 @@ pub(crate) unsafe fn search(
 
     let mut nextband: [c_uchar; 128] = [0; 128];
     let lambda: c_float = (*s).lambda;
-    let freq_mult: c_float = (*avctx).sample_rate as c_float * 0.5 / wlen as c_float;
+    let freq_mult = freq_mult(sample_rate, wlen);
     let thr_mult: c_float = NOISE_LAMBDA_REPLACE * (100. / lambda);
-    let spread_threshold = 0.75_f32.min(NOISE_SPREAD_THRESHOLD * 0.5_f32.max(lambda / 100.));
+    let spread_threshold = spread_threshold(lambda);
     let dist_bias: c_float = (4. * 120. / lambda).clamp(0.25, 4.);
-    let pns_transient_energy_r = 0.7_f32.min(lambda / 140.);
-    let mut refbits: c_int = ((*avctx).bit_rate as c_double * 1024.
-        / (*avctx).sample_rate as c_double
-        / (if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
-            2.
-        } else {
-            (*avctx).ch_layout.nb_channels as c_float
-        }) as c_double
-        * (lambda / 120.) as c_double) as c_int;
-    let mut rate_bandwidth_multiplier: c_float = 1.5;
+    let pns_transient_energy_r = pns_transient_energy_r(lambda);
     let mut prev: c_int = -1000;
     let mut prev_sf: c_int = -1;
-    let mut frame_bit_rate: c_int = (if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
-        refbits as c_float * rate_bandwidth_multiplier * (*avctx).sample_rate as c_float / 1024.
-    } else {
-        ((*avctx).bit_rate / (*avctx).ch_layout.nb_channels as c_long) as c_float
-    }) as c_int;
-    frame_bit_rate = (frame_bit_rate as c_float * 1.15) as c_int;
-    let bandwidth = if (*avctx).cutoff > 0 {
-        (*avctx).cutoff
-    } else {
-        3000.max(cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate))
-    };
-    cutoff = bandwidth * 2 * wlen / (*avctx).sample_rate;
+    let cutoff = cutoff(avctx, lambda, wlen);
     (*sce).band_alt = (*sce).band_type;
     ff_init_nextband_map(sce, nextband.as_mut_ptr());
-    w = 0;
+    let mut w = 0;
     while w < (*sce).ics.num_windows {
         let mut wstart: c_int = w * 128;
         for g in 0..(*sce).ics.num_swb {
-            let mut noise_sfi: c_int = 0;
             let mut dist1: c_float = 0.;
             let mut dist2: c_float = 0.;
-            let mut noise_amp: c_float = 0.;
             let mut pns_energy: c_float = 0.;
-            let mut pns_tgt_energy: c_float = 0.;
-            let mut energy_ratio: c_float = 0.;
-            let mut dist_thresh: c_float = 0.;
             let mut sfb_energy: c_float = 0.;
             let mut threshold: c_float = 0.;
             let mut spread: c_float = 2.;
@@ -94,7 +142,7 @@ pub(crate) unsafe fn search(
             let mut max_energy: c_float = 0.;
             let start: c_int = wstart + (*sce).ics.swb_offset[g as usize] as c_int;
             let freq: c_float = (start - wstart) as c_float * freq_mult;
-            let freq_boost = (0.88 * freq / NOISE_LOW_LIMIT).max(1.);
+            let freq_boost = freq_boost(freq);
             if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
                 if !(*sce).zeroes[(w * 16 + g) as usize] {
                     prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
@@ -103,8 +151,8 @@ pub(crate) unsafe fn search(
             }
 
             for w2 in 0..c_int::from((*sce).ics.group_len[w as usize]) {
-                let band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
-                    [((w + w2) * 16 + g) as usize];
+                let band =
+                    &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[((w + w2) * 16 + g) as usize];
                 sfb_energy += band.energy;
                 spread = spread.min(band.spread);
                 threshold += band.threshold;
@@ -118,7 +166,7 @@ pub(crate) unsafe fn search(
             }
 
             // Ramps down at ~8000Hz and loosens the dist threshold
-            dist_thresh = (2.5 * NOISE_LOW_LIMIT / freq).clamp(0.5, 2.5) * dist_bias;
+            let dist_thresh = (2.5 * NOISE_LOW_LIMIT / freq).clamp(0.5, 2.5) * dist_bias;
 
             // PNS is acceptable when all of these are true:
             // 1. high spread energy (noise-like band)
@@ -147,9 +195,9 @@ pub(crate) unsafe fn search(
                 continue;
             }
 
-            pns_tgt_energy = sfb_energy * c_float::min(1., spread * spread);
-            noise_sfi = av_clip_c(roundf(log2f(pns_tgt_energy) * 2.) as c_int, -100, 155);
-            noise_amp = -POW_SF_TABLES.pow2[(noise_sfi + 200) as usize];
+            let pns_tgt_energy = sfb_energy * c_float::min(1., spread * spread);
+            let noise_sfi = av_clip_c(roundf(log2f(pns_tgt_energy) * 2.) as c_int, -100, 155);
+            let noise_amp = -POW_SF_TABLES.pow2[(noise_sfi + 200) as usize];
             if prev != -1000 {
                 let mut noise_sfdiff: c_int = noise_sfi - prev + 60;
                 if !(0..=2 * 60).contains(&noise_sfdiff) {
@@ -220,9 +268,9 @@ pub(crate) unsafe fn search(
             } else {
                 9.
             };
-            energy_ratio = pns_tgt_energy / pns_energy; // Compensates for quantization error
+            let energy_ratio = pns_tgt_energy / pns_energy; // Compensates for quantization error
             (*sce).pns_ener[(w * 16 + g) as usize] = energy_ratio * pns_tgt_energy;
-            if (*sce).zeroes[(w * 16 + g) as usize] as c_int != 0
+            if (*sce).zeroes[(w * 16 + g) as usize]
                 || (*sce).band_alt[(w * 16 + g) as usize] as u64 == 0
                 || energy_ratio > 0.85 && energy_ratio < 1.25 && dist2 < dist1
             {
@@ -248,50 +296,11 @@ pub(crate) unsafe fn mark(
     let mut g: c_int = 0;
     let mut w2: c_int = 0;
     let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
-    let mut cutoff: c_int = 0;
     let lambda: c_float = (*s).lambda;
-    let freq_mult: c_float = (*avctx).sample_rate as c_float * 0.5 / wlen as c_float;
-    let spread_threshold: c_float = if 0.75
-        > 0.9
-            * (if 0.5 > lambda / 100. {
-                0.5
-            } else {
-                lambda / 100.
-            }) {
-        0.9 * (if 0.5 > lambda / 100. {
-            0.5
-        } else {
-            lambda / 100.
-        })
-    } else {
-        0.75
-    };
-    let pns_transient_energy_r: c_float = if 0.7 > lambda / 140. {
-        lambda / 140.
-    } else {
-        0.7
-    };
-    let mut refbits: c_int = ((*avctx).bit_rate as c_double * 1024.
-        / (*avctx).sample_rate as c_double
-        / (if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
-            2.
-        } else {
-            (*avctx).ch_layout.nb_channels as c_float
-        }) as c_double
-        * (lambda / 120.) as c_double) as c_int;
-    let mut rate_bandwidth_multiplier: c_float = 1.5;
-    let mut frame_bit_rate: c_int = (if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
-        refbits as c_float * rate_bandwidth_multiplier * (*avctx).sample_rate as c_float / 1024.
-    } else {
-        ((*avctx).bit_rate / (*avctx).ch_layout.nb_channels as c_long) as c_float
-    }) as c_int;
-    frame_bit_rate = (frame_bit_rate as c_float * 1.15) as c_int;
-    let bandwidth = if (*avctx).cutoff > 0 {
-        (*avctx).cutoff
-    } else {
-        3000.max(cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate))
-    };
-    cutoff = bandwidth * 2 * wlen / (*avctx).sample_rate;
+    let freq_mult = freq_mult((*avctx).sample_rate, wlen);
+    let spread_threshold = spread_threshold(lambda);
+    let pns_transient_energy_r = pns_transient_energy_r(lambda);
+    let cutoff = cutoff(avctx, lambda, wlen);
     (*sce).band_alt = (*sce).band_type;
     w = 0;
     while w < (*sce).ics.num_windows {
@@ -304,12 +313,8 @@ pub(crate) unsafe fn mark(
             let mut max_energy: c_float = 0.;
             let start: c_int = (*sce).ics.swb_offset[g as usize] as c_int;
             let freq: c_float = start as c_float * freq_mult;
-            let freq_boost: c_float = if 0.88 * freq / 4000. > 1. {
-                0.88 * freq / 4000.
-            } else {
-                1.
-            };
-            if freq < 4000. || start >= cutoff {
+            let freq_boost = freq_boost(freq);
+            if freq < NOISE_LOW_LIMIT || start >= cutoff {
                 (*sce).can_pns[(w * 16 + g) as usize] = 0;
             } else {
                 w2 = 0;

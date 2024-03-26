@@ -402,5 +402,3 @@ pub(crate) struct FFTabInitData {
     pub(crate) func: Option<unsafe extern "C" fn() -> ()>,
     pub(crate) factors: [c_int; 4],
 }
-
-pub(crate) const AV_CODEC_FLAG_QSCALE: c_int = 1 << 1;

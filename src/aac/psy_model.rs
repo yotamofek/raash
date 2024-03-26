@@ -140,8 +140,8 @@ static FIR_COEFFS: [c_float; 10] = [
 ];
 
 #[ffmpeg_src(file = "libavcodec/psymodel.h", lines = 41..=45, name = "AAC_CUTOFF")]
-pub(crate) unsafe fn cutoff(ctx: *const AVCodecContext) -> c_int {
-    if (*ctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
+unsafe fn cutoff(ctx: *const AVCodecContext) -> c_int {
+    if (*ctx).flags.qscale() {
         (*ctx).sample_rate / 2
     } else {
         cutoff_from_bitrate(
@@ -206,7 +206,7 @@ unsafe fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecC
     while i < (*avctx).ch_layout.nb_channels {
         let mut pch: *mut AacPsyChannel =
             &mut *((*ctx).ch).offset(i as isize) as *mut AacPsyChannel;
-        if (*avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
+        if (*avctx).flags.qscale() {
             (*pch).attack_threshold =
                 VBR_MAP[av_clip_c((*avctx).global_quality / 118, 0, 10) as usize].st_lrm;
         } else {
@@ -259,7 +259,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     let mut minsnr: c_float = 0.;
     let mut pe_min: c_float = 0.;
     let mut chan_bitrate: c_int = ((*(*ctx).avctx).bit_rate as c_float
-        / (if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
+        / (if (*(*ctx).avctx).flags.qscale() {
             2.
         } else {
             (*(*ctx).avctx).ch_layout.nb_channels as c_float
@@ -284,7 +284,7 @@ unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
         120
     }) as c_float
         * 0.01;
-    if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
+    if (*(*ctx).avctx).flags.qscale() {
         chan_bitrate = (chan_bitrate as c_double / 120.
             * (if (*(*ctx).avctx).global_quality != 0 {
                 (*(*ctx).avctx).global_quality
@@ -771,7 +771,7 @@ unsafe fn psy_3gpp_analyze_channel(
         w += 16;
     }
     (*ctx).ch[channel as usize].entropy = pe;
-    if (*(*ctx).avctx).flags & AV_CODEC_FLAG_QSCALE != 0 {
+    if (*(*ctx).avctx).flags.qscale() {
         desired_pe = pe
             * (if (*(*ctx).avctx).global_quality != 0 {
                 (*(*ctx).avctx).global_quality

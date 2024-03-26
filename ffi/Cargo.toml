@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ffmpeg-src-macro = { version = "0.1.0", path = "../ffmpeg-src-macro" }
 libc = "0.2.150"

@@ -41,7 +41,7 @@ pub(crate) unsafe fn search(
     let mut recomprd: c_int = 0;
     let mut dest_bits: c_int = (avctx.bit_rate as c_double * 1024.
         / avctx.sample_rate as c_double
-        / (if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
+        / (if avctx.flags.qscale() {
             2.
         } else {
             avctx.ch_layout.nb_channels as c_float
@@ -82,7 +82,7 @@ pub(crate) unsafe fn search(
                 }) as c_float)) as c_int;
     }
 
-    if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
+    if avctx.flags.qscale() {
         if s.options.mid_side != 0 && s.cur_type == SyntaxElementType::ChannelPairElement {
             dest_bits *= 2;
         }
@@ -197,7 +197,7 @@ pub(crate) unsafe fn search(
                     nzslope * cleanup_factor,
                 );
                 energy2uplim *= de_psy_factor;
-                if avctx.flags & AV_CODEC_FLAG_QSCALE == 0 {
+                if !avctx.flags.qscale() {
                     energy2uplim = sqrtf(energy2uplim);
                 }
                 energy2uplim = energy2uplim.clamp(0.015625, 1.);
@@ -213,7 +213,7 @@ pub(crate) unsafe fn search(
                     2.,
                 );
                 energy2uplim *= de_psy_factor;
-                if avctx.flags & AV_CODEC_FLAG_QSCALE == 0 {
+                if !avctx.flags.qscale() {
                     energy2uplim = energy2uplim.sqrt();
                 }
                 energy2uplim = energy2uplim.clamp(0.015625, 1.);
@@ -1142,7 +1142,7 @@ fn frame_bit_rate(
     refbits: i32,
     rate_bandwidth_multiplier: f32,
 ) -> i32 {
-    let mut frame_bit_rate = if avctx.flags & AV_CODEC_FLAG_QSCALE != 0 {
+    let mut frame_bit_rate = if avctx.flags.qscale() {
         refbits as c_float * rate_bandwidth_multiplier * avctx.sample_rate as c_float / 1024.
     } else {
         (avctx.bit_rate / avctx.ch_layout.nb_channels as c_long) as c_float
