@@ -258,7 +258,7 @@ pub(crate) unsafe fn search(
                         || sce.sf_idx[(w * 16 + g) as usize] >= 218
                     {
                         start += sce.ics.swb_sizes[g as usize] as c_int;
-                        if sce.can_pns[(w * 16 + g) as usize] != 0 {
+                        if sce.can_pns[(w * 16 + g) as usize] {
                             // PNS isn't free
                             tbits += ff_pns_bits(sce, w, g);
                         }
@@ -387,7 +387,7 @@ pub(crate) unsafe fn search(
                             || sce.sf_idx[(w * 16 + g) as usize] >= 218
                         {
                             start += sce.ics.swb_sizes[g as usize] as c_int;
-                            if sce.can_pns[(w * 16 + g) as usize] != 0 {
+                            if sce.can_pns[(w * 16 + g) as usize] {
                                 tbits += ff_pns_bits(sce, w, g);
                             }
                         } else {

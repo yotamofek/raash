@@ -343,7 +343,7 @@ unsafe fn quantize_band_cost(
 unsafe fn ff_pns_bits(mut sce: *mut SingleChannelElement, mut w: c_int, mut g: c_int) -> c_int {
     if g == 0
         || !(*sce).zeroes[(w * 16 + g - 1) as usize]
-        || (*sce).can_pns[(w * 16 + g - 1) as usize] == 0
+        || !(*sce).can_pns[(w * 16 + g - 1) as usize]
     {
         9
     } else {

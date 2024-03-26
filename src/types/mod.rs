@@ -92,7 +92,7 @@ pub(crate) struct SingleChannelElement {
     pub(crate) band_alt: Array<BandType, 128>,
     pub(crate) sf_idx: Array<c_int, 128>,
     pub(crate) zeroes: Array<bool, 128>,
-    pub(crate) can_pns: Array<c_uchar, 128>,
+    pub(crate) can_pns: Array<bool, 128>,
     pub(crate) is_ener: Array<c_float, 128>,
     pub(crate) pns_ener: Array<c_float, 128>,
     pub(crate) pcoeffs: Array<c_float, 1024>,

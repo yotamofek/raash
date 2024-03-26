@@ -315,7 +315,7 @@ pub(crate) unsafe fn mark(
             let freq: c_float = start as c_float * freq_mult;
             let freq_boost = freq_boost(freq);
             if freq < NOISE_LOW_LIMIT || start >= cutoff {
-                (*sce).can_pns[(w * 16 + g) as usize] = 0;
+                (*sce).can_pns[(w * 16 + g) as usize] = false;
             } else {
                 w2 = 0;
                 while w2 < (*sce).ics.group_len[w as usize] as c_int {
@@ -347,14 +347,10 @@ pub(crate) unsafe fn mark(
                     w2;
                 }
                 (*sce).pns_ener[(w * 16 + g) as usize] = sfb_energy;
-                if sfb_energy < threshold * sqrtf(1.5 / freq_boost)
+                (*sce).can_pns[(w * 16 + g) as usize] = !(sfb_energy
+                    < threshold * sqrtf(1.5 / freq_boost)
                     || spread < spread_threshold
-                    || min_energy < pns_transient_energy_r * max_energy
-                {
-                    (*sce).can_pns[(w * 16 + g) as usize] = 0;
-                } else {
-                    (*sce).can_pns[(w * 16 + g) as usize] = 1;
-                }
+                    || min_energy < pns_transient_energy_r * max_energy);
             }
             g += 1;
             g;
