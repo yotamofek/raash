@@ -3,6 +3,7 @@ use std::ptr;
 use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
+use reductor::{MinF, MinMaxF, Reduce, Reductors, Sum};
 
 use super::{ff_init_nextband_map, math::lcg_random, quantize_band_cost, sfdelta_can_remove_band};
 use crate::{
@@ -102,6 +103,40 @@ fn freq_boost(freq: c_float) -> c_float {
     (0.88 * freq / NOISE_LOW_LIMIT).max(1.)
 }
 
+struct ReducedBands {
+    sfb_energy: f32,
+    spread: f32,
+    threshold: f32,
+    energy: MinMaxF<f32>,
+}
+
+fn reduce_bands(psy_bands: &[FFPsyBand], group_len: u8) -> ReducedBands {
+    let (
+        Reductors::<(_, Option<MinMaxF<_>>)>((Sum(sfb_energy), energy)),
+        MinF::<Option<_>>(spread),
+        Sum::<f32>(threshold),
+    ) = psy_bands
+        .iter()
+        .step_by(16)
+        .take(group_len.into())
+        .map(
+            |&FFPsyBand {
+                 energy,
+                 threshold,
+                 spread,
+                 ..
+             }| (energy, spread, threshold),
+        )
+        .reduce_with();
+
+    ReducedBands {
+        sfb_energy,
+        spread: spread.unwrap_or(2.),
+        threshold,
+        energy: energy.unwrap_or(MinMaxF { min: -1., max: 0. }),
+    }
+}
+
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 765..=905, name = "search_for_pns")]
 pub(crate) unsafe fn search(
     mut s: *mut AACEncContext,
@@ -135,11 +170,6 @@ pub(crate) unsafe fn search(
             let mut dist1: c_float = 0.;
             let mut dist2: c_float = 0.;
             let mut pns_energy: c_float = 0.;
-            let mut sfb_energy: c_float = 0.;
-            let mut threshold: c_float = 0.;
-            let mut spread: c_float = 2.;
-            let mut min_energy: c_float = -1.;
-            let mut max_energy: c_float = 0.;
             let start: c_int = wstart + (*sce).ics.swb_offset[g as usize] as c_int;
             let freq: c_float = (start - wstart) as c_float * freq_mult;
             let freq_boost = freq_boost(freq);
@@ -150,20 +180,19 @@ pub(crate) unsafe fn search(
                 continue;
             }
 
-            for w2 in 0..c_int::from((*sce).ics.group_len[w as usize]) {
-                let band =
-                    &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[((w + w2) * 16 + g) as usize];
-                sfb_energy += band.energy;
-                spread = spread.min(band.spread);
-                threshold += band.threshold;
-                if w2 == 0 {
-                    max_energy = band.energy;
-                    min_energy = max_energy;
-                } else {
-                    min_energy = min_energy.min(band.energy);
-                    max_energy = max_energy.max(band.energy);
-                }
-            }
+            let ReducedBands {
+                sfb_energy,
+                spread,
+                threshold,
+                energy:
+                    MinMaxF {
+                        min: min_energy,
+                        max: max_energy,
+                    },
+            } = reduce_bands(
+                &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[(w * 16 + g) as usize..],
+                (*sce).ics.group_len[w as usize],
+            );
 
             // Ramps down at ~8000Hz and loosens the dist threshold
             let dist_thresh = (2.5 * NOISE_LOW_LIMIT / freq).clamp(0.5, 2.5) * dist_bias;
@@ -302,36 +331,28 @@ pub(crate) unsafe fn mark(
     w = 0;
     while w < (*sce).ics.num_windows {
         for g in 0..(*sce).ics.num_swb {
-            let mut sfb_energy: c_float = 0.;
-            let mut threshold: c_float = 0.;
-            let mut spread: c_float = 2.;
-            let mut min_energy: c_float = -1.;
-            let mut max_energy: c_float = 0.;
             let start: c_int = (*sce).ics.swb_offset[g as usize] as c_int;
             let freq: c_float = start as c_float * freq_mult;
             let freq_boost = freq_boost(freq);
+
             if freq < NOISE_LOW_LIMIT || start >= cutoff {
                 (*sce).can_pns[(w * 16 + g) as usize] = false;
                 continue;
             }
 
-            (*s).psy.ch[(*s).cur_channel as usize].psy_bands[(w * 16 + g) as usize..]
-                .iter()
-                .step_by(16)
-                .take((*sce).ics.group_len[w as usize].into())
-                .enumerate()
-                .for_each(|(w2, band)| {
-                    sfb_energy += band.energy;
-                    spread = spread.min(band.spread);
-                    threshold += band.threshold;
-                    if w2 == 0 {
-                        max_energy = band.energy;
-                        min_energy = max_energy;
-                    } else {
-                        min_energy = min_energy.min(band.energy);
-                        max_energy = max_energy.max(band.energy);
-                    }
-                });
+            let ReducedBands {
+                sfb_energy,
+                spread,
+                threshold,
+                energy:
+                    MinMaxF {
+                        min: min_energy,
+                        max: max_energy,
+                    },
+            } = reduce_bands(
+                &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[(w * 16 + g) as usize..],
+                (*sce).ics.group_len[w as usize],
+            );
 
             // PNS is acceptable when all of these are true:
             // 1. high spread energy (noise-like band)
