@@ -291,10 +291,7 @@ pub(crate) unsafe fn mark(
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
 ) {
-    let mut band: *mut FFPsyBand = ptr::null_mut::<FFPsyBand>();
     let mut w: c_int = 0;
-    let mut g: c_int = 0;
-    let mut w2: c_int = 0;
     let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
     let lambda: c_float = (*s).lambda;
     let freq_mult = freq_mult((*avctx).sample_rate, wlen);
@@ -304,8 +301,7 @@ pub(crate) unsafe fn mark(
     (*sce).band_alt = (*sce).band_type;
     w = 0;
     while w < (*sce).ics.num_windows {
-        g = 0;
-        while g < (*sce).ics.num_swb {
+        for g in 0..(*sce).ics.num_swb {
             let mut sfb_energy: c_float = 0.;
             let mut threshold: c_float = 0.;
             let mut spread: c_float = 2.;
@@ -316,44 +312,38 @@ pub(crate) unsafe fn mark(
             let freq_boost = freq_boost(freq);
             if freq < NOISE_LOW_LIMIT || start >= cutoff {
                 (*sce).can_pns[(w * 16 + g) as usize] = false;
-            } else {
-                w2 = 0;
-                while w2 < (*sce).ics.group_len[w as usize] as c_int {
-                    band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
-                        [((w + w2) * 16 + g) as usize] as *mut FFPsyBand;
-                    sfb_energy += (*band).energy;
-                    spread = if spread > (*band).spread {
-                        (*band).spread
-                    } else {
-                        spread
-                    };
-                    threshold += (*band).threshold;
+                continue;
+            }
+
+            (*s).psy.ch[(*s).cur_channel as usize].psy_bands[(w * 16 + g) as usize..]
+                .iter()
+                .step_by(16)
+                .take((*sce).ics.group_len[w as usize].into())
+                .enumerate()
+                .for_each(|(w2, band)| {
+                    sfb_energy += band.energy;
+                    spread = spread.min(band.spread);
+                    threshold += band.threshold;
                     if w2 == 0 {
-                        max_energy = (*band).energy;
+                        max_energy = band.energy;
                         min_energy = max_energy;
                     } else {
-                        min_energy = if min_energy > (*band).energy {
-                            (*band).energy
-                        } else {
-                            min_energy
-                        };
-                        max_energy = if max_energy > (*band).energy {
-                            max_energy
-                        } else {
-                            (*band).energy
-                        };
+                        min_energy = min_energy.min(band.energy);
+                        max_energy = max_energy.max(band.energy);
                     }
-                    w2 += 1;
-                    w2;
-                }
-                (*sce).pns_ener[(w * 16 + g) as usize] = sfb_energy;
-                (*sce).can_pns[(w * 16 + g) as usize] = !(sfb_energy
-                    < threshold * sqrtf(1.5 / freq_boost)
-                    || spread < spread_threshold
-                    || min_energy < pns_transient_energy_r * max_energy);
-            }
-            g += 1;
-            g;
+                });
+
+            // PNS is acceptable when all of these are true:
+            // 1. high spread energy (noise-like band)
+            // 2. near-threshold energy (high PE means the random nature of PNS content will
+            //    be noticed)
+            // 3. on short window groups, all windows have similar energy (variations in
+            //    energy would be destroyed by PNS)
+            (*sce).pns_ener[(w * 16 + g) as usize] = sfb_energy;
+            (*sce).can_pns[(w * 16 + g) as usize] = !(sfb_energy
+                < threshold * sqrtf(1.5 / freq_boost)
+                || spread < spread_threshold
+                || min_energy < pns_transient_energy_r * max_energy);
         }
         w += (*sce).ics.group_len[w as usize] as c_int;
     }
