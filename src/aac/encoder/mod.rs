@@ -66,8 +66,7 @@ use super::{
 use crate::{
     aac::{
         coder::{
-            encode_window_bands_info, mid_stereo::search_for_ms,
-            perceptual_noise_substitution as pns,
+            encode_window_bands_info, mid_stereo as ms, perceptual_noise_substitution as pns,
             quantize_and_encode_band::quantize_and_encode_band, quantizers,
             set_special_band_scalefactors,
         },
@@ -1049,7 +1048,7 @@ unsafe fn aac_encode_frame(
             }
             if (*ctx).options.mid_side != 0 {
                 if (*ctx).options.mid_side == -1 {
-                    search_for_ms(ctx, cpe);
+                    ms::search(ctx, cpe);
                 } else if (*cpe).common_window != 0 {
                     (*cpe).ms_mask.fill(1);
                 }
