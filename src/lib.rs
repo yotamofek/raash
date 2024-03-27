@@ -1,17 +1,10 @@
 #![feature(
     arbitrary_self_types,
     array_chunks,
-    const_for,
-    const_mut_refs,
-    const_trait_impl,
-    coroutines,
-    extern_types,
     generic_arg_infer,
     generic_const_exprs,
     inline_const,
-    iter_from_coroutine,
     let_chains,
-    new_uninit,
     slice_as_chunks,
     slice_take
 )]

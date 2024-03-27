@@ -106,13 +106,16 @@ impl IndividualChannelStream {
             ..
         } = *self;
 
-        iter::from_coroutine(move || {
-            let mut w = 0;
-            while w < num_windows {
-                let group_len = group_len[w as usize];
-                yield WindowedIteration { w, group_len };
-                w += c_int::from(group_len);
+        let mut w = 0;
+        iter::from_fn(move || {
+            if w >= num_windows {
+                return None;
             }
+
+            let group_len = group_len[w as usize];
+            let iter = WindowedIteration { w, group_len };
+            w += c_int::from(group_len);
+            Some(iter)
         })
     }
 }
