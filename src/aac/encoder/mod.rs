@@ -339,7 +339,7 @@ unsafe fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_in
         while w < (*ics0).num_windows * 16 {
             i = 0;
             while i < (*ics0).max_sfb as c_int {
-                if (*cpe).ms_mask[(w + i) as usize] != 0 {
+                if (*cpe).ms_mask[(w + i) as usize] {
                     msc += 1;
                     msc;
                 }
@@ -381,10 +381,10 @@ unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
                     ),
                 ) as c_int;
                 let mut scale: c_float = (*cpe).ch[0].is_ener[(w * 16 + g) as usize];
-                if (*cpe).is_mask[(w * 16 + g) as usize] == 0 {
+                if !(*cpe).is_mask[(w * 16 + g) as usize] {
                     start += (*ics).swb_sizes[g as usize] as c_int;
                 } else {
-                    if (*cpe).ms_mask[(w * 16 + g) as usize] != 0 {
+                    if (*cpe).ms_mask[(w * 16 + g) as usize] {
                         p *= -1;
                     }
                     i = 0;
@@ -422,8 +422,8 @@ unsafe fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
             let mut start: c_int = (w + w2) * 128;
             g = 0;
             while g < (*ics).num_swb {
-                if (*cpe).ms_mask[(w * 16 + g) as usize] == 0
-                    || (*cpe).is_mask[(w * 16 + g) as usize] as c_int != 0
+                if !(*cpe).ms_mask[(w * 16 + g) as usize]
+                    || (*cpe).is_mask[(w * 16 + g) as usize]
                     || (*cpe).ch[0].band_type[(w * 16 + g) as usize] as c_uint
                         >= NOISE_BT as c_int as c_uint
                     || (*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_uint
@@ -905,8 +905,8 @@ unsafe fn aac_encode_frame(
             };
             cpe = &mut (*ctx).cpe[i as usize] as *mut ChannelElement;
             (*cpe).common_window = 0;
-            (*cpe).is_mask.fill(0);
-            (*cpe).ms_mask.fill(0);
+            (*cpe).is_mask.fill(false);
+            (*cpe).ms_mask.fill(false);
             put_bits(&mut (*ctx).pb, 3, tag as BitBuf);
             let fresh3 = chan_el_counter[tag as usize];
             chan_el_counter[tag as usize] += 1;
@@ -1012,7 +1012,7 @@ unsafe fn aac_encode_frame(
             (*ctx).cur_channel = start_ch;
             if (*ctx).options.intensity_stereo != 0 {
                 search_for_is(ctx, avctx, cpe);
-                if (*cpe).is_mode != 0 {
+                if (*cpe).is_mode {
                     is_mode = 1;
                 }
                 apply_intensity_stereo(cpe);
@@ -1050,7 +1050,7 @@ unsafe fn aac_encode_frame(
                 if (*ctx).options.mid_side == -1 {
                     ms::search(ctx, cpe);
                 } else if (*cpe).common_window != 0 {
-                    (*cpe).ms_mask.fill(1);
+                    (*cpe).ms_mask.fill(true);
                 }
                 apply_mid_side_stereo(cpe);
             }

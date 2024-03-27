@@ -307,8 +307,8 @@ pub(crate) unsafe fn search_for_is(
                     &mut ph_err2
                 };
                 if (*best).pass != 0 {
-                    (*cpe).is_mask[(w * 16 + g) as usize] = 1;
-                    (*cpe).ms_mask[(w * 16 + g) as usize] = 0;
+                    (*cpe).is_mask[(w * 16 + g) as usize] = true;
+                    (*cpe).ms_mask[(w * 16 + g) as usize] = false;
                     (*cpe).ch[0].is_ener[(w * 16 + g) as usize] =
                         sqrt((ener0 / (*best).ener01) as c_double) as c_float;
                     (*cpe).ch[1].is_ener[(w * 16 + g) as usize] = ener0 / ener1;
@@ -322,7 +322,7 @@ pub(crate) unsafe fn search_for_is(
                         && prev_bt as c_uint
                             != (*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_uint
                     {
-                        (*cpe).ms_mask[(w * 16 + g) as usize] = 1;
+                        (*cpe).ms_mask[(w * 16 + g) as usize] = true;
                         (*cpe).ch[1].band_type[(w * 16 + g) as usize] = (if (*best).phase > 0 {
                             INTENSITY_BT2 as c_int
                         } else {
@@ -347,5 +347,5 @@ pub(crate) unsafe fn search_for_is(
             g;
         }
     }
-    (*cpe).is_mode = (count != 0) as c_int as c_uchar;
+    (*cpe).is_mode = count != 0;
 }

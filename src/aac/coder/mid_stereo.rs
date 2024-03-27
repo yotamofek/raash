@@ -40,12 +40,12 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
         for g in 0..sce0.ics.num_swb {
             let swb_size = sce0.ics.swb_sizes[g as usize];
             let bmax = bval2bmax(g as c_float * 17. / sce0.ics.num_swb as c_float) / 0.0045;
-            if (*cpe).is_mask[(w * 16 + g) as usize] == 0 {
-                (*cpe).ms_mask[(w * 16 + g) as usize] = 0;
+            if !(*cpe).is_mask[(w * 16 + g) as usize] {
+                (*cpe).ms_mask[(w * 16 + g) as usize] = false;
             }
             if !sce0.zeroes[(w * 16 + g) as usize]
                 && !sce1.zeroes[(w * 16 + g) as usize]
-                && (*cpe).is_mask[(w * 16 + g) as usize] == 0
+                && !(*cpe).is_mask[(w * 16 + g) as usize]
             {
                 let mut Mmax: c_float = 0.;
                 let mut Smax: c_float = 0.;
@@ -207,9 +207,8 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                         dist1 -= (b1 + b2) as c_float;
                         dist2 -= (b3 + b4) as c_float;
                     }
-                    (*cpe).ms_mask[(w * 16 + g) as usize] =
-                        c_uchar::from(dist2 <= dist1 && B1 < B0);
-                    if (*cpe).ms_mask[(w * 16 + g) as usize] != 0 {
+                    (*cpe).ms_mask[(w * 16 + g) as usize] = dist2 <= dist1 && B1 < B0;
+                    if (*cpe).ms_mask[(w * 16 + g) as usize] {
                         if sce0.band_type[(w * 16 + g) as usize] != NOISE_BT
                             && sce1.band_type[(w * 16 + g) as usize] != NOISE_BT
                         {
@@ -221,7 +220,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             ^ (sce1.band_type[(w * 16 + g) as usize] != NOISE_BT)
                         {
                             // ms_mask unneeded, and it confuses some decoders
-                            (*cpe).ms_mask[(w * 16 + g) as usize] = 0;
+                            (*cpe).ms_mask[(w * 16 + g) as usize] = false;
                         }
                         break;
                     } else if B1 > B0 {
@@ -236,7 +235,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                 prev_mid = sce0.sf_idx[(w * 16 + g) as usize];
             }
             if !sce1.zeroes[(w * 16 + g) as usize]
-                && (*cpe).is_mask[(w * 16 + g) as usize] == 0
+                && !(*cpe).is_mask[(w * 16 + g) as usize]
                 && sce1.band_type[(w * 16 + g) as usize] < RESERVED_BT
             {
                 prev_side = sce1.sf_idx[(w * 16 + g) as usize];

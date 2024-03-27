@@ -122,9 +122,9 @@ pub(crate) struct Pulse {
 pub(crate) struct ChannelElement {
     pub(crate) common_window: c_int,
     pub(crate) ms_mode: c_int,
-    pub(crate) is_mode: c_uchar,
-    pub(crate) ms_mask: Array<c_uchar, 128>,
-    pub(crate) is_mask: Array<c_uchar, 128>,
+    pub(crate) is_mode: bool,
+    pub(crate) ms_mask: Array<bool, 128>,
+    pub(crate) is_mask: Array<bool, 128>,
     pub(crate) ch: [SingleChannelElement; 2],
 }
 
