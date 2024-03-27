@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{iter, ptr};
 
 use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
 use ffmpeg_src_macro::ffmpeg_src;
@@ -166,11 +166,18 @@ pub(crate) unsafe fn search(
     ff_init_nextband_map(sce, nextband.as_mut_ptr());
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         let mut wstart: c_int = w * 128;
-        for g in 0..(*sce).ics.num_swb {
+        let num_swb = (*sce).ics.num_swb as usize;
+        for (g, (&swb_offset, &swb_size)) in iter::zip(
+            &(*sce).ics.swb_offset[..num_swb],
+            &(*sce).ics.swb_sizes[..num_swb],
+        )
+        .enumerate()
+        {
+            let g = g as c_int;
             let mut dist1: c_float = 0.;
             let mut dist2: c_float = 0.;
             let mut pns_energy: c_float = 0.;
-            let start: c_int = wstart + (*sce).ics.swb_offset[g as usize] as c_int;
+            let start: c_int = wstart + swb_offset as c_int;
             let freq: c_float = (start - wstart) as c_float * freq_mult;
             let freq_boost = freq_boost(freq);
             if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
@@ -238,13 +245,12 @@ pub(crate) unsafe fn search(
             }
 
             for w2 in 0..c_int::from(group_len) {
-                let start_c: c_int = (w + w2) * 128 + (*sce).ics.swb_offset[g as usize] as c_int;
+                let start_c: c_int = (w + w2) * 128 + swb_offset as c_int;
                 let band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
                     [((w + w2) * 16 + g) as usize];
 
-                let cur_swb_size = usize::from((*sce).ics.swb_sizes[g as usize]);
                 let [PNS, PNS34, NOR34] =
-                    [&mut *PNS, PNS34, NOR34].map(|arr| &mut arr[..cur_swb_size]);
+                    [&mut *PNS, PNS34, NOR34].map(|arr| &mut arr[..usize::from(swb_size)]);
 
                 PNS.fill_with(|| {
                     (*s).random_state = lcg_random((*s).random_state as c_uint);
@@ -267,7 +273,7 @@ pub(crate) unsafe fn search(
 
                 for (NOR34, coeff) in NOR34
                     .iter_mut()
-                    .zip(&(*sce).coeffs[start_c as usize..][..cur_swb_size])
+                    .zip(&(*sce).coeffs[start_c as usize..][..usize::from(swb_size)])
                 {
                     *NOR34 = coeff.abs_pow34();
                 }
@@ -279,13 +285,13 @@ pub(crate) unsafe fn search(
                     s,
                     &mut *((*sce).coeffs).as_mut_ptr().offset(start_c as isize),
                     NOR34.as_mut_ptr(),
-                    (*sce).ics.swb_sizes[g as usize] as c_int,
+                    swb_size.into(),
                     (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                     (*sce).band_alt[((w + w2) * 16 + g) as usize] as c_int,
                     lambda / band.threshold,
                     f32::INFINITY,
-                    ptr::null_mut::<c_int>(),
-                    ptr::null_mut::<c_float>(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
                 );
                 // Estimate rd on average as 5 bits for SF, 4 for the CB, plus spread energy *
                 // lambda/thr
@@ -327,8 +333,12 @@ pub(crate) unsafe fn mark(
     let cutoff = cutoff(avctx, lambda, wlen);
     (*sce).band_alt = (*sce).band_type;
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-        for g in 0..(*sce).ics.num_swb {
-            let start: c_int = (*sce).ics.swb_offset[g as usize] as c_int;
+        for (g, &swb_offset) in (*sce).ics.swb_offset[..(*sce).ics.num_swb as usize]
+            .iter()
+            .enumerate()
+        {
+            let g = g as c_int;
+            let start = c_int::from(swb_offset);
             let freq: c_float = start as c_float * freq_mult;
             let freq_boost = freq_boost(freq);
 
