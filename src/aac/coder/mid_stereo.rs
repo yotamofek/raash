@@ -4,7 +4,10 @@ use libc::{c_double, c_float, c_int, c_uchar, c_uint};
 
 use super::{ff_sfdelta_can_replace, find_min_book, math::bval2bmax, quantize_band_cost};
 use crate::{
-    aac::encoder::{abs_pow34_v, ctx::AACEncContext},
+    aac::{
+        encoder::{abs_pow34_v, ctx::AACEncContext},
+        WindowedIteration,
+    },
     common::av_clip_c,
     types::{BandType, ChannelElement, FFPsyBand, NOISE_BT, RESERVED_BT},
 };
@@ -12,7 +15,6 @@ use crate::{
 pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut start: c_int = 0;
     let mut i: c_int = 0;
-    let mut w: c_int = 0;
     let mut w2: c_int = 0;
     let mut g: c_int = 0;
     let mut sid_sf_boost: c_int = 0;
@@ -38,8 +40,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
     let mut nextband1 = ptr::from_mut(sce1).init_nextband_map();
     prev_mid = sce0.sf_idx[0];
     prev_side = sce1.sf_idx[0];
-    w = 0;
-    while w < sce0.ics.num_windows {
+    for WindowedIteration { w, group_len } in sce0.ics.iter_windows() {
         start = 0;
         g = 0;
         while g < sce0.ics.num_swb {
@@ -55,7 +56,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                 let mut Mmax: c_float = 0.;
                 let mut Smax: c_float = 0.;
                 w2 = 0;
-                while w2 < sce0.ics.group_len[w as usize] as c_int {
+                while w2 < c_int::from(group_len) {
                     i = 0;
                     while i < sce0.ics.swb_sizes[g as usize] as c_int {
                         *M.offset(i as isize) = ((sce0.coeffs
@@ -132,7 +133,7 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                         midcb = if 1 > midcb { 1 } else { midcb };
                         sidcb = if 1 > sidcb { 1 } else { sidcb };
                         w2 = 0;
-                        while w2 < sce0.ics.group_len[w as usize] as c_int {
+                        while w2 < c_int::from(group_len) {
                             let mut band0: *mut FFPsyBand = &mut (*s).psy.ch
                                 [((*s).cur_channel) as usize]
                                 .psy_bands[((w + w2) * 16 + g) as usize]
@@ -287,6 +288,5 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
             g += 1;
             g;
         }
-        w += sce0.ics.group_len[w as usize] as c_int;
     }
 }

@@ -258,20 +258,18 @@ unsafe extern "C" fn put_ics_info(
         }
     };
 }
+
 unsafe extern "C" fn encode_ms_info(mut pb: *mut PutBitContext, mut cpe: *mut ChannelElement) {
     let mut i: c_int = 0;
-    let mut w: c_int = 0;
     put_bits(pb, 2, (*cpe).ms_mode as BitBuf);
     if (*cpe).ms_mode == 1 {
-        w = 0;
-        while w < (*cpe).ch[0].ics.num_windows {
+        for WindowedIteration { w, .. } in (*cpe).ch[0].ics.iter_windows() {
             i = 0;
             while i < (*cpe).ch[0].ics.max_sfb as c_int {
                 put_bits(pb, 1, (*cpe).ms_mask[(w * 16 + i) as usize] as BitBuf);
                 i += 1;
                 i;
             }
-            w += (*cpe).ch[0].ics.group_len[w as usize] as c_int;
         }
     }
 }

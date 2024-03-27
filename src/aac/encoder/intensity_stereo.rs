@@ -16,6 +16,7 @@ use crate::{
         coder::quantize_and_encode_band::quantize_and_encode_band_cost,
         encoder::{abs_pow34_v, ctx::AACEncContext},
         tables::POW_SF_TABLES,
+        WindowedIteration,
     },
     common::*,
     types::*,
@@ -247,7 +248,6 @@ pub(crate) unsafe fn search_for_is(
 
     let mut start: c_int = 0;
     let mut count: c_int = 0;
-    let mut w: c_int = 0;
     let mut w2: c_int = 0;
     let mut g: c_int = 0;
     let mut i: c_int = 0;
@@ -260,8 +260,7 @@ pub(crate) unsafe fn search_for_is(
         return;
     }
     let mut nextband1 = ptr::from_mut(sce1).init_nextband_map();
-    w = 0;
-    while w < sce0.ics.num_windows {
+    for WindowedIteration { w, group_len } in sce0.ics.iter_windows() {
         start = 0;
         g = 0;
         while g < sce0.ics.num_swb {
@@ -297,7 +296,7 @@ pub(crate) unsafe fn search_for_is(
                 };
                 let mut best: *mut AACISError = std::ptr::null_mut::<AACISError>();
                 w2 = 0;
-                while w2 < sce0.ics.group_len[w as usize] as c_int {
+                while w2 < c_int::from(group_len) {
                     i = 0;
                     while i < sce0.ics.swb_sizes[g as usize] as c_int {
                         let mut coef0: c_float = sce0.coeffs[(start + (w + w2) * 128 + i) as usize];
@@ -359,7 +358,6 @@ pub(crate) unsafe fn search_for_is(
             g += 1;
             g;
         }
-        w += sce0.ics.group_len[w as usize] as c_int;
     }
     (*cpe).is_mode = (count != 0) as c_int as c_uchar;
 }

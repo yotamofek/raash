@@ -14,8 +14,8 @@ use crate::{
         encoder::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
         psy_model::cutoff_from_bitrate,
         tables::ff_aac_scalefactor_bits,
-        SyntaxElementType, SCALE_DIFF_ZERO, SCALE_DIV_512, SCALE_MAX_DIFF, SCALE_MAX_POS,
-        SCALE_ONE_POS,
+        SyntaxElementType, WindowedIteration, SCALE_DIFF_ZERO, SCALE_DIV_512, SCALE_MAX_DIFF,
+        SCALE_MAX_POS, SCALE_ONE_POS,
     },
     common::*,
     types::*,
@@ -35,7 +35,6 @@ pub(crate) unsafe fn search(
 
     let mut start: c_int = 0;
     let mut i: c_int = 0;
-    let mut w: c_int = 0;
     let mut w2: c_int = 0;
     let mut g: c_int = 0;
     let mut recomprd: c_int = 0;
@@ -138,15 +137,14 @@ pub(crate) unsafe fn search(
     ff_quantize_band_cost_cache_init(s);
     minsf.fill(0);
 
-    w = 0;
-    while w < sce.ics.num_windows {
+    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
         start = w * 128;
         g = 0;
         while g < sce.ics.num_swb {
             let mut scaled = s.scoefs[start as usize..].as_ptr();
 
             maxvals[(w * 16 + g) as usize] = find_max_val(
-                sce.ics.group_len[w as usize] as c_int,
+                c_int::from(group_len),
                 sce.ics.swb_sizes[g as usize] as c_int,
                 scaled,
             );
@@ -154,7 +152,7 @@ pub(crate) unsafe fn search(
             if maxvals[(w * 16 + g) as usize] > 0. {
                 let minsfidx = coef2minsf(maxvals[(w * 16 + g) as usize]) as c_int;
                 w2 = 0;
-                while w2 < sce.ics.group_len[w as usize] as c_int {
+                while w2 < c_int::from(group_len) {
                     minsf[((w + w2) * 16 + g) as usize] = minsfidx;
                     w2 += 1;
                     w2;
@@ -164,7 +162,6 @@ pub(crate) unsafe fn search(
             g += 1;
             g;
         }
-        w += sce.ics.group_len[w as usize] as c_int;
     }
 
     // Scale uplims to match rate distortion to quality
@@ -173,10 +170,9 @@ pub(crate) unsafe fn search(
     // If maxval^2 ~ energy, then that band is mostly noise, and we can
     // relax rate distortion requirements.
     euplims = uplims;
-    w = 0;
-    while w < sce.ics.num_windows {
+    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
         let mut de_psy_factor: c_float = if sce.ics.num_windows > 1 {
-            8. / sce.ics.group_len[w as usize] as c_int as c_float
+            8. / c_float::from(group_len)
         } else {
             1.
         };
@@ -187,7 +183,7 @@ pub(crate) unsafe fn search(
                 let mut cleanup_factor: c_float =
                     ((start as c_float / (cutoff as c_float * 0.75)).clamp(1., 2.)).powi(2);
                 let mut energy2uplim: c_float = find_form_factor(
-                    sce.ics.group_len[w as usize] as c_int,
+                    c_int::from(group_len),
                     sce.ics.swb_sizes[g as usize] as c_int,
                     uplims[(w * 16 + g) as usize]
                         / (nzs[g as usize] as c_int * sce.ics.swb_sizes[w as usize] as c_int)
@@ -200,10 +196,10 @@ pub(crate) unsafe fn search(
                     energy2uplim = sqrtf(energy2uplim);
                 }
                 energy2uplim = energy2uplim.clamp(0.015625, 1.);
-                uplims[(w * 16 + g) as usize] *= (rdlambda * energy2uplim).clamp(rdmin, rdmax)
-                    * sce.ics.group_len[w as usize] as c_int as c_float;
+                uplims[(w * 16 + g) as usize] *=
+                    (rdlambda * energy2uplim).clamp(rdmin, rdmax) * c_float::from(group_len);
                 energy2uplim = find_form_factor(
-                    sce.ics.group_len[w as usize] as c_int,
+                    c_int::from(group_len),
                     sce.ics.swb_sizes[g as usize] as c_int,
                     uplims[(w * 16 + g) as usize]
                         / (nzs[g as usize] as c_int * sce.ics.swb_sizes[w as usize] as c_int)
@@ -224,7 +220,6 @@ pub(crate) unsafe fn search(
             g += 1;
             g;
         }
-        w += sce.ics.group_len[w as usize] as c_int;
     }
 
     maxsf.fill(SCALE_MAX_POS.into());
@@ -240,8 +235,7 @@ pub(crate) unsafe fn search(
             prev = -1;
             recomprd = 0;
             tbits = 0;
-            w = 0;
-            while w < sce.ics.num_windows {
+            for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
                 start = w * 128;
                 g = 0;
                 while g < sce.ics.num_swb {
@@ -267,7 +261,7 @@ pub(crate) unsafe fn search(
                             sce.sf_idx[(w * 16 + g) as usize],
                         );
                         w2 = 0;
-                        while w2 < sce.ics.group_len[w as usize] as c_int {
+                        while w2 < c_int::from(group_len) {
                             let mut b: c_int = 0;
                             let mut sqenergy: c_float = 0.;
                             dist += quantize_band_cost_cached(
@@ -305,7 +299,6 @@ pub(crate) unsafe fn search(
                     g += 1;
                     g;
                 }
-                w += sce.ics.group_len[w as usize] as c_int;
             }
             if tbits > too_many_bits {
                 recomprd = 1;
@@ -369,8 +362,7 @@ pub(crate) unsafe fn search(
             if recomprd != 0 {
                 prev = -1;
                 tbits = 0;
-                w = 0;
-                while w < sce.ics.num_windows {
+                for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
                     start = w * 128;
                     g = 0;
                     while g < sce.ics.num_swb {
@@ -395,7 +387,7 @@ pub(crate) unsafe fn search(
                                 sce.sf_idx[(w * 16 + g) as usize],
                             );
                             w2 = 0;
-                            while w2 < sce.ics.group_len[w as usize] as c_int {
+                            while w2 < c_int::from(group_len) {
                                 let mut b_0: c_int = 0;
                                 let mut sqenergy_0: c_float = 0.;
                                 dist_0 += quantize_band_cost_cached(
@@ -435,7 +427,6 @@ pub(crate) unsafe fn search(
                         g += 1;
                         g;
                     }
-                    w += sce.ics.group_len[w as usize] as c_int;
                 }
             }
             if i == 0 && s.options.pns != 0 && its > maxits / 2 && tbits > too_few_bits {
@@ -444,8 +435,7 @@ pub(crate) unsafe fn search(
                     1. + (maxits - its) as c_float * 16. / maxits as c_float;
                 recomprd = 0;
                 overdist = recomprd;
-                w = 0;
-                while w < sce.ics.num_windows {
+                for WindowedIteration { w, .. } in sce.ics.iter_windows() {
                     start = 0;
                     g = start;
                     while g < sce.ics.num_swb {
@@ -473,7 +463,6 @@ pub(crate) unsafe fn search(
                         g += 1;
                         start += sce.ics.swb_sizes[fresh2 as usize] as c_int;
                     }
-                    w += sce.ics.group_len[w as usize] as c_int;
                 }
                 if overdist != 0 {
                     let mut minspread: c_float = max_spread_thr_r;
@@ -483,8 +472,7 @@ pub(crate) unsafe fn search(
                     let mut zeroed: c_int = 0;
                     let mut maxzeroed: c_int = 0;
                     let mut zloop: c_int = 0;
-                    w = 0;
-                    while w < sce.ics.num_windows {
+                    for WindowedIteration { w, .. } in sce.ics.iter_windows() {
                         start = 0;
                         g = start;
                         while g < sce.ics.num_swb {
@@ -509,7 +497,6 @@ pub(crate) unsafe fn search(
                             g += 1;
                             start += sce.ics.swb_sizes[fresh3 as usize] as c_int;
                         }
-                        w += sce.ics.group_len[w as usize] as c_int;
                     }
                     zspread = (maxspread - minspread) * 0.0125 + minspread;
                     zspread = if (if min_spread_thr_r * 8. > zspread {
@@ -550,8 +537,7 @@ pub(crate) unsafe fn search(
                         g = sce.ics.num_swb - 1;
                         while g > 0 && zeroed < maxzeroed {
                             if (sce.ics.swb_offset[g as usize] as c_int) >= pns_start_pos {
-                                w = 0;
-                                while w < sce.ics.num_windows {
+                                for WindowedIteration { w, .. } in sce.ics.iter_windows() {
                                     if !sce.zeroes[(w * 16 + g) as usize]
                                         && sce.can_pns[(w * 16 + g) as usize] as c_int != 0
                                         && spread_thr_r[(w * 16 + g) as usize] <= zspread
@@ -580,7 +566,6 @@ pub(crate) unsafe fn search(
                                         zeroed += 1;
                                         zeroed;
                                     }
-                                    w += sce.ics.group_len[w as usize] as c_int;
                                 }
                             }
                             g -= 1;
@@ -602,8 +587,7 @@ pub(crate) unsafe fn search(
         }
         let mut minscaler = 255;
         maxscaler = 0;
-        w = 0;
-        while w < sce.ics.num_windows {
+        for WindowedIteration { w, .. } in sce.ics.iter_windows() {
             g = 0;
             while g < sce.ics.num_swb {
                 if !sce.zeroes[(w * 16 + g) as usize] {
@@ -621,13 +605,11 @@ pub(crate) unsafe fn search(
                 g += 1;
                 g;
             }
-            w += sce.ics.group_len[w as usize] as c_int;
         }
         nminscaler = av_clip_c(minscaler, 140 - 36, 255 - 36);
         minscaler = nminscaler;
         prev = -1;
-        w = 0;
-        while w < sce.ics.num_windows {
+        for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
             let mut depth: c_int = if its > maxits / 2 {
                 if its > maxits * 2 / 3 {
                     1
@@ -722,7 +704,7 @@ pub(crate) unsafe fn search(
                                 };
                             }
                             w2 = 0;
-                            while w2 < sce.ics.group_len[w as usize] as c_int {
+                            while w2 < c_int::from(group_len) {
                                 let mut b_1: c_int = 0;
                                 let mut sqenergy_1: c_float = 0.;
                                 dist_1 += quantize_band_cost_cached(
@@ -801,7 +783,7 @@ pub(crate) unsafe fn search(
                                 dist_2 = qenergy_2;
                                 bits_2 = 0;
                                 w2 = 0;
-                                while w2 < sce.ics.group_len[w as usize] as c_int {
+                                while w2 < c_int::from(group_len) {
                                     let mut b_2: c_int = 0;
                                     let mut sqenergy_2: c_float = 0.;
                                     dist_2 += quantize_band_cost_cached(
@@ -864,11 +846,9 @@ pub(crate) unsafe fn search(
                 g += 1;
                 g;
             }
-            w += sce.ics.group_len[w as usize] as c_int;
         }
         prev = -1;
-        w = 0;
-        while w < sce.ics.num_windows {
+        for WindowedIteration { w, .. } in sce.ics.iter_windows() {
             g = 0;
             while g < sce.ics.num_swb {
                 if !sce.zeroes[(w * 16 + g) as usize] {
@@ -890,7 +870,6 @@ pub(crate) unsafe fn search(
                 g += 1;
                 g;
             }
-            w += sce.ics.group_len[w as usize] as c_int;
         }
         its += 1;
         its;
@@ -900,8 +879,7 @@ pub(crate) unsafe fn search(
     }
     let mut nextband = ptr::from_mut(sce).init_nextband_map();
     prev = -1;
-    w = 0;
-    while w < sce.ics.num_windows {
+    for WindowedIteration { w, .. } in sce.ics.iter_windows() {
         g = 0;
         while g < sce.ics.num_swb {
             if !sce.zeroes[(w * 16 + g) as usize] {
@@ -931,7 +909,6 @@ pub(crate) unsafe fn search(
             g += 1;
             g;
         }
-        w += sce.ics.group_len[w as usize] as c_int;
     }
 }
 
@@ -1050,10 +1027,9 @@ fn loop1(
     let swb_sizes = &sce.ics.swb_sizes[..sce.ics.num_swb as usize];
     let ch = &s.psy.ch[s.cur_channel as usize];
 
-    let mut w = 0;
     let mut start;
     let mut g;
-    while w < sce.ics.num_windows {
+    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
         start = 0;
         g = start;
         while g < sce.ics.num_swb {
@@ -1062,7 +1038,7 @@ fn loop1(
             let mut energy: c_float = 0.;
             let mut spread: c_float = 0.;
             let mut w2 = 0;
-            while w2 < sce.ics.group_len[w as usize] as c_int {
+            while w2 < c_int::from(group_len) {
                 let band = ch.psy_bands[((w + w2) * 16 + g) as usize];
                 if start >= cutoff
                     || band.energy <= band.threshold * zeroscale
@@ -1113,7 +1089,6 @@ fn loop1(
             g += 1;
             start += swb_sizes[fresh1 as usize] as c_int;
         }
-        w += sce.ics.group_len[w as usize] as c_int;
     }
 
     res
