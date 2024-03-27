@@ -888,7 +888,7 @@ pub(crate) unsafe fn search(
                     sce.sf_idx[(w * 16 + g) as usize],
                 ) as BandType;
                 if sce.band_type[(w * 16 + g) as usize] as c_uint <= 0 as c_uint {
-                    if !sfdelta_can_remove_band(sce, nextband.as_mut_ptr(), prev, w * 16 + g) {
+                    if !sfdelta_can_remove_band(sce, &nextband, prev, w * 16 + g) {
                         sce.band_type[(w * 16 + g) as usize] = 1 as BandType;
                     } else {
                         sce.zeroes[(w * 16 + g) as usize] = true;

@@ -2,7 +2,7 @@ use std::ptr;
 
 use libc::{c_double, c_float, c_int, c_uchar, c_uint};
 
-use super::{ff_sfdelta_can_replace, find_min_book, math::bval2bmax, quantize_band_cost};
+use super::{find_min_book, math::bval2bmax, quantize_band_cost, sfdelta_can_replace};
 use crate::{
     aac::{
         encoder::{abs_pow34_v, ctx::AACEncContext},
@@ -109,24 +109,16 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
                     };
                     mididx = av_clip_c(minidx, 0, 255 - 36);
                     sididx = av_clip_c(minidx - sid_sf_boost * 3, 0, 255 - 36);
-                    if !(sce0.band_type[(w * 16 + g) as usize] as c_uint
-                        != NOISE_BT as c_int as c_uint
-                        && sce1.band_type[(w * 16 + g) as usize] as c_uint
-                            != NOISE_BT as c_int as c_uint
-                        && (ff_sfdelta_can_replace(
-                            sce0,
-                            nextband0.as_mut_ptr(),
-                            prev_mid,
-                            mididx,
-                            w * 16 + g,
-                        ) == 0
-                            || ff_sfdelta_can_replace(
+                    if !(sce0.band_type[(w * 16 + g) as usize] != NOISE_BT
+                        && sce1.band_type[(w * 16 + g) as usize] != NOISE_BT
+                        && (!sfdelta_can_replace(sce0, &nextband0, prev_mid, mididx, w * 16 + g)
+                            || !sfdelta_can_replace(
                                 sce1,
-                                nextband1.as_mut_ptr(),
+                                &nextband1,
                                 prev_side,
                                 sididx,
                                 w * 16 + g,
-                            ) == 0))
+                            )))
                     {
                         midcb = find_min_book(Mmax, mididx);
                         sidcb = find_min_book(Smax, sididx);

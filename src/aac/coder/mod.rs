@@ -13,7 +13,7 @@ pub(super) mod perceptual_noise_substitution;
 pub(super) mod quantize_and_encode_band;
 pub(super) mod quantizers;
 
-use std::{array, iter, mem::size_of, ptr};
+use std::{array, iter, mem::size_of, ops::RangeInclusive, ptr};
 
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
@@ -199,21 +199,43 @@ unsafe fn find_form_factor(
     }
 }
 
+fn sfdelta_encoding_range(sf: c_int) -> RangeInclusive<c_int> {
+    sf - c_int::from(SCALE_MAX_DIFF)..=sf + c_int::from(SCALE_MAX_DIFF)
+}
+
 /// Checks whether the specified band could be removed without inducing
 /// scalefactor delta that violates SF delta encoding constraints.
 /// prev_sf has to be the scalefactor of the previous nonzero, nonspecial
 /// band, in encoding order, or negative if there was no such band.
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 208..=214, name = "ff_sfdelta_can_remove_band")]
 #[inline]
-unsafe fn sfdelta_can_remove_band(
+pub(super) unsafe fn sfdelta_can_remove_band(
     mut sce: *const SingleChannelElement,
-    mut nextband: *const c_uchar,
+    mut nextband: &[c_uchar; 128],
     mut prev_sf: c_int,
     mut band: c_int,
 ) -> bool {
     prev_sf >= 0
-        && (prev_sf - c_int::from(SCALE_MAX_DIFF)..=prev_sf + c_int::from(SCALE_MAX_DIFF))
-            .contains(&(*sce).sf_idx[*nextband.offset(band as isize) as usize])
+        && sfdelta_encoding_range(prev_sf)
+            .contains(&(*sce).sf_idx[usize::from(nextband[band as usize])])
+}
+
+/// Checks whether the specified band's scalefactor could be replaced
+/// with another one without violating SF delta encoding constraints.
+/// prev_sf has to be the scalefactor of the previous nonzero, nonsepcial
+/// band, in encoding order, or negative if there was no such band.
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 216..=229, name = "ff_sfdelta_can_replace")]
+#[inline]
+unsafe fn sfdelta_can_replace(
+    mut sce: *const SingleChannelElement,
+    mut nextband: &[c_uchar; 128],
+    mut prev_sf: c_int,
+    mut new_sf: c_int,
+    mut band: c_int,
+) -> bool {
+    sfdelta_encoding_range(prev_sf).contains(&new_sf)
+        && sfdelta_encoding_range(new_sf)
+            .contains(&(*sce).sf_idx[usize::from(nextband[band as usize])])
 }
 
 impl SingleChannelElement {
@@ -249,19 +271,6 @@ impl SingleChannelElement {
     }
 }
 
-#[inline]
-unsafe fn ff_sfdelta_can_replace(
-    mut sce: *const SingleChannelElement,
-    mut nextband: *const c_uchar,
-    mut prev_sf: c_int,
-    mut new_sf: c_int,
-    mut band: c_int,
-) -> c_int {
-    (new_sf >= prev_sf - 60
-        && new_sf <= prev_sf + 60
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= new_sf - 60
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= new_sf + 60) as c_int
-}
 #[inline]
 unsafe fn quantize_band_cost_cached(
     mut s: *mut AACEncContext,

@@ -13,7 +13,7 @@ use libc::{c_double, c_float, c_int, c_uchar, c_uint};
 
 use crate::{
     aac::{
-        coder::quantize_and_encode_band::quantize_and_encode_band_cost,
+        coder::{quantize_and_encode_band::quantize_and_encode_band_cost, sfdelta_can_remove_band},
         encoder::{abs_pow34_v, ctx::AACEncContext},
         tables::POW_SF_TABLES,
         WindowedIteration,
@@ -49,17 +49,6 @@ fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
     aac_maxval_cb.get(qmaxval).copied().unwrap_or(11) as c_int
 }
 
-#[inline]
-unsafe fn ff_sfdelta_can_remove_band(
-    mut sce: *const SingleChannelElement,
-    mut nextband: *const c_uchar,
-    mut prev_sf: c_int,
-    mut band: c_int,
-) -> c_int {
-    (prev_sf >= 0
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] >= prev_sf - 60
-        && (*sce).sf_idx[*nextband.offset(band as isize) as usize] <= prev_sf + 60) as c_int
-}
 #[inline]
 unsafe fn quantize_band_cost(
     mut s: *mut AACEncContext,
@@ -271,8 +260,7 @@ pub(crate) unsafe fn search_for_is(
                 && (*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_uint
                     != NOISE_BT as c_int as c_uint
                 && !(*cpe).ch[1].zeroes[(w * 16 + g) as usize]
-                && ff_sfdelta_can_remove_band(sce1, nextband1.as_mut_ptr(), prev_sf1, w * 16 + g)
-                    != 0
+                && sfdelta_can_remove_band(sce1, &nextband1, prev_sf1, w * 16 + g)
             {
                 let mut ener0: c_float = 0.;
                 let mut ener1: c_float = 0.;
