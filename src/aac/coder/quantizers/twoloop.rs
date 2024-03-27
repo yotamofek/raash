@@ -1,15 +1,15 @@
-use std::iter::zip;
+use std::{iter::zip, ptr};
 
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::izip;
-use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint};
+use libc::{c_char, c_double, c_float, c_int, c_long, c_uint};
 
 use crate::{
     aac::{
         coder::{
-            ff_init_nextband_map, ff_pns_bits, find_form_factor, find_max_val, find_min_book,
-            math::coef2minsf, quantize_band_cost_cached, sfdelta_can_remove_band,
+            ff_pns_bits, find_form_factor, find_max_val, find_min_book, math::coef2minsf,
+            quantize_band_cost_cached, sfdelta_can_remove_band,
         },
         encoder::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
         psy_model::cutoff_from_bitrate,
@@ -50,7 +50,6 @@ pub(crate) unsafe fn search(
     let mut refbits: c_int = dest_bits;
     let mut too_many_bits: c_int = 0;
     let mut too_few_bits: c_int = 0;
-    let mut nextband: [c_uchar; 128] = [0; 128];
     let mut maxsf: [c_int; 128] = [0; 128];
     let mut minsf: [c_int; 128] = [0; 128];
     let mut dists: [c_float; 128] = [0.; 128];
@@ -899,7 +898,7 @@ pub(crate) unsafe fn search(
             break;
         }
     }
-    ff_init_nextband_map(sce, nextband.as_mut_ptr());
+    let mut nextband = ptr::from_mut(sce).init_nextband_map();
     prev = -1;
     w = 0;
     while w < sce.ics.num_windows {

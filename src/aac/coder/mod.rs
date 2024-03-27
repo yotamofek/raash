@@ -13,7 +13,7 @@ pub(super) mod perceptual_noise_substitution;
 pub(super) mod quantize_and_encode_band;
 pub(super) mod quantizers;
 
-use std::{mem::size_of, ptr};
+use std::{array, iter, mem::size_of, ptr};
 
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
@@ -25,7 +25,7 @@ use self::{
 use super::{
     encoder::{abs_pow34_v, ctx::AACEncContext},
     tables::*,
-    WindowedIteration, SCALE_MAX_DIFF,
+    IndividualChannelStream, WindowedIteration, SCALE_MAX_DIFF,
 };
 use crate::{common::*, types::*};
 
@@ -216,33 +216,39 @@ unsafe fn sfdelta_can_remove_band(
             .contains(&(*sce).sf_idx[*nextband.offset(band as isize) as usize])
 }
 
-#[inline]
-unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut c_uchar) {
-    let mut prevband: c_uchar = 0;
-    let mut g: c_int = 0;
-    g = 0;
-    while g < 128 {
-        *nextband.offset(g as isize) = g as c_uchar;
-        g += 1;
-        g;
-    }
-    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
-        g = 0;
-        while g < (*sce).ics.num_swb {
-            if !(*sce).zeroes[(w * 16 + g) as usize]
-                && ((*sce).band_type[(w * 16 + g) as usize] as c_uint)
-                    < RESERVED_BT as c_int as c_uint
+impl SingleChannelElement {
+    /// Compute a nextband map to be used with SF delta constraint utilities.
+    /// The nextband array should contain 128 elements, and positions that don't
+    /// map to valid, nonzero bands of the form w*16+g (with w being the initial
+    /// window of the window group, only) are left indetermined.
+    #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 169..=191, name = "ff_init_nextband_map")]
+    pub(super) unsafe fn init_nextband_map(self: *const Self) -> [c_uchar; 128] {
+        let Self {
+            ics: ics @ IndividualChannelStream { num_swb, .. },
+            ref zeroes,
+            ref band_type,
+            ..
+        } = *self;
+        let mut prevband: c_uchar = 0;
+        let mut nextband = array::from_fn(|g| g as c_uchar);
+        for WindowedIteration { w, .. } in ics.iter_windows() {
+            let start = w as usize * 16;
+            let zeroes = &zeroes[start..][..num_swb as usize];
+            let band_type = &band_type[start..][..num_swb as usize];
+            for (g, _) in iter::zip(zeroes, band_type)
+                .enumerate()
+                .filter(|(_, (&zero, &band_type))| !zero && band_type < RESERVED_BT)
             {
-                let fresh0 = &mut (*nextband.offset(prevband as isize));
-                *fresh0 = (w * 16 + g) as c_uchar;
+                let fresh0 = &mut nextband[prevband as usize];
+                *fresh0 = (w * 16 + g as c_int) as c_uchar;
                 prevband = *fresh0;
             }
-            g += 1;
-            g;
         }
+        nextband[prevband as usize] = prevband;
+        nextband
     }
-    *nextband.offset(prevband as isize) = prevband;
 }
+
 #[inline]
 unsafe fn ff_sfdelta_can_replace(
     mut sce: *const SingleChannelElement,

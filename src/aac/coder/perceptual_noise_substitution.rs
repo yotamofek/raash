@@ -2,10 +2,10 @@ use std::{iter, ptr};
 
 use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
 use ffmpeg_src_macro::ffmpeg_src;
-use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
+use libc::{c_double, c_float, c_int, c_long, c_uint};
 use reductor::{MinF, MinMaxF, Reduce, Reductors, Sum};
 
-use super::{ff_init_nextband_map, math::lcg_random, quantize_band_cost, sfdelta_can_remove_band};
+use super::{math::lcg_random, quantize_band_cost, sfdelta_can_remove_band};
 use crate::{
     aac::{
         encoder::{ctx::AACEncContext, pow::Pow34},
@@ -152,7 +152,6 @@ pub(crate) unsafe fn search(
         panic!();
     };
 
-    let mut nextband: [c_uchar; 128] = [0; 128];
     let lambda: c_float = (*s).lambda;
     let freq_mult = freq_mult(sample_rate, wlen);
     let thr_mult: c_float = NOISE_LAMBDA_REPLACE * (100. / lambda);
@@ -163,7 +162,7 @@ pub(crate) unsafe fn search(
     let mut prev_sf: c_int = -1;
     let cutoff = cutoff(avctx, lambda, wlen);
     (*sce).band_alt = (*sce).band_type;
-    ff_init_nextband_map(sce, nextband.as_mut_ptr());
+    let mut nextband = sce.init_nextband_map();
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         let mut wstart: c_int = w * 128;
         let num_swb = (*sce).ics.num_swb as usize;

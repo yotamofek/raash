@@ -1,4 +1,5 @@
 #![feature(
+    arbitrary_self_types,
     array_chunks,
     const_for,
     const_mut_refs,

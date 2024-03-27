@@ -6,7 +6,7 @@
     unused_mut
 )]
 
-use std::slice;
+use std::{ptr, slice};
 
 use ffi::codec::AVCodecContext;
 use libc::{c_double, c_float, c_int, c_uchar, c_uint};
@@ -16,7 +16,6 @@ use crate::{
         coder::quantize_and_encode_band::quantize_and_encode_band_cost,
         encoder::{abs_pow34_v, ctx::AACEncContext},
         tables::POW_SF_TABLES,
-        WindowedIteration,
     },
     common::*,
     types::*,
@@ -47,34 +46,6 @@ fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
     let mut Q34: c_float = POW_SF_TABLES.pow34[(200 - sf + 140 - 36) as usize];
     let qmaxval = (maxval * Q34 + 0.405_4_f32) as usize;
     aac_maxval_cb.get(qmaxval).copied().unwrap_or(11) as c_int
-}
-
-#[inline]
-unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut c_uchar) {
-    let mut prevband: c_uchar = 0;
-    let mut g: c_int = 0;
-    g = 0;
-    while g < 128 {
-        *nextband.offset(g as isize) = g as c_uchar;
-        g += 1;
-        g;
-    }
-    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
-        g = 0;
-        while g < (*sce).ics.num_swb {
-            if !(*sce).zeroes[(w * 16 + g) as usize]
-                && ((*sce).band_type[(w * 16 + g) as usize] as c_uint)
-                    < RESERVED_BT as c_int as c_uint
-            {
-                let fresh0 = &mut (*nextband.offset(prevband as isize));
-                *fresh0 = (w * 16 + g) as c_uchar;
-                prevband = *fresh0;
-            }
-            g += 1;
-            g;
-        }
-    }
-    *nextband.offset(prevband as isize) = prevband;
 }
 
 #[inline]
@@ -285,11 +256,10 @@ pub(crate) unsafe fn search_for_is(
     let mut prev_is: c_int = 0;
     let freq_mult: c_float =
         (*avctx).sample_rate as c_float / (1024. / sce0.ics.num_windows as c_float) / 2.;
-    let mut nextband1: [c_uchar; 128] = [0; 128];
     if (*cpe).common_window == 0 {
         return;
     }
-    ff_init_nextband_map(sce1, nextband1.as_mut_ptr());
+    let mut nextband1 = ptr::from_mut(sce1).init_nextband_map();
     w = 0;
     while w < sce0.ics.num_windows {
         start = 0;

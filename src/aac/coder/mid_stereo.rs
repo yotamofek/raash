@@ -2,10 +2,7 @@ use std::ptr;
 
 use libc::{c_double, c_float, c_int, c_uchar, c_uint};
 
-use super::{
-    ff_init_nextband_map, ff_sfdelta_can_replace, find_min_book, math::bval2bmax,
-    quantize_band_cost,
-};
+use super::{ff_sfdelta_can_replace, find_min_book, math::bval2bmax, quantize_band_cost};
 use crate::{
     aac::encoder::{abs_pow34_v, ctx::AACEncContext},
     common::av_clip_c,
@@ -21,8 +18,6 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
     let mut sid_sf_boost: c_int = 0;
     let mut prev_mid: c_int = 0;
     let mut prev_side: c_int = 0;
-    let mut nextband0: [c_uchar; 128] = [0; 128];
-    let mut nextband1: [c_uchar; 128] = [0; 128];
 
     let [M, S, L34, R34, M34, S34] =
         [0, 1, 2, 3, 4, 5].map(|i| ((*s).scoefs)[128 * i..].as_mut_ptr());
@@ -39,8 +34,8 @@ pub(crate) unsafe fn search_for_ms(mut s: *mut AACEncContext, mut cpe: *mut Chan
     if (*cpe).common_window == 0 {
         return;
     }
-    ff_init_nextband_map(sce0, nextband0.as_mut_ptr());
-    ff_init_nextband_map(sce1, nextband1.as_mut_ptr());
+    let mut nextband0 = ptr::from_mut(sce0).init_nextband_map();
+    let mut nextband1 = ptr::from_mut(sce1).init_nextband_map();
     prev_mid = sce0.sf_idx[0];
     prev_side = sce1.sf_idx[0];
     w = 0;
