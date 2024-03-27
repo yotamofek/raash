@@ -66,7 +66,7 @@ use super::{
 use crate::{
     aac::{
         coder::{
-            encode_window_bands_info, mid_stereo as ms, perceptual_noise_substitution as pns,
+            encode_window_bands_info, mid_side as ms, perceptual_noise_substitution as pns,
             quantize_and_encode_band::quantize_and_encode_band, quantizers,
             set_special_band_scalefactors,
         },

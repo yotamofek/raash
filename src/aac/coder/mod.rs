@@ -8,7 +8,7 @@
 )]
 
 mod math;
-pub(super) mod mid_stereo;
+pub(super) mod mid_side;
 pub(super) mod perceptual_noise_substitution;
 pub(super) mod quantize_and_encode_band;
 pub(super) mod quantizers;

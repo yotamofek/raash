@@ -1,7 +1,7 @@
 use std::{iter, ptr};
 
 use ffmpeg_src_macro::ffmpeg_src;
-use libc::{c_double, c_float, c_int, c_uchar};
+use libc::{c_double, c_float, c_int};
 
 use super::{find_min_book, math::bval2bmax, quantize_band_cost, sfdelta_can_replace};
 use crate::{
