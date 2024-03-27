@@ -5,6 +5,7 @@ use std::{
 
 /// Array that provides a [`Default`] impl for any `N`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(C)]
 pub struct Array<T, const N: usize>(pub [T; N]);
 
 impl<T: Default, const N: usize> Default for Array<T, N> {
