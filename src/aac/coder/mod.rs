@@ -207,7 +207,7 @@ fn sfdelta_encoding_range(sf: c_int) -> RangeInclusive<c_int> {
 /// scalefactor delta that violates SF delta encoding constraints.
 /// prev_sf has to be the scalefactor of the previous nonzero, nonspecial
 /// band, in encoding order, or negative if there was no such band.
-#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 208..=214, name = "ff_sfdelta_can_remove_band")]
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 226..=238, name = "ff_sfdelta_can_remove_band")]
 #[inline]
 pub(super) unsafe fn sfdelta_can_remove_band(
     mut sce: *const SingleChannelElement,
@@ -224,7 +224,7 @@ pub(super) unsafe fn sfdelta_can_remove_band(
 /// with another one without violating SF delta encoding constraints.
 /// prev_sf has to be the scalefactor of the previous nonzero, nonsepcial
 /// band, in encoding order, or negative if there was no such band.
-#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 216..=229, name = "ff_sfdelta_can_replace")]
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 240..=253, name = "ff_sfdelta_can_replace")]
 #[inline]
 unsafe fn sfdelta_can_replace(
     mut sce: *const SingleChannelElement,
