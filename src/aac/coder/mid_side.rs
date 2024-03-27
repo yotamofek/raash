@@ -7,7 +7,7 @@ use super::{find_min_book, math::bval2bmax, quantize_band_cost, sfdelta_can_repl
 use crate::{
     aac::{
         encoder::{ctx::AACEncContext, pow::Pow34},
-        WindowedIteration, SCALE_DIV_512, SCALE_MAX_POS,
+        IndividualChannelStream, WindowedIteration, SCALE_DIV_512, SCALE_MAX_POS,
     },
     types::{BandType, ChannelElement, NOISE_BT, RESERVED_BT},
 };
@@ -241,6 +241,48 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                 prev_side = sce1.sf_idx[(w * 16 + g) as usize];
             }
             start += c_int::from(swb_size);
+        }
+    }
+}
+
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 609..=639, name = "apply_mid_side_stereo")]
+pub(crate) unsafe fn apply(mut cpe: *mut ChannelElement) {
+    let ref ics @ IndividualChannelStream {
+        num_swb, swb_sizes, ..
+    } = (*cpe).ch[0].ics;
+
+    if (*cpe).common_window == 0 {
+        return;
+    }
+
+    for WindowedIteration { w, group_len } in ics.iter_windows() {
+        for w2 in 0..c_int::from(group_len) {
+            let mut start: c_int = (w + w2) * 128;
+            for g in 0..num_swb {
+                // ms_mask can be used for other purposes in PNS and I/S,
+                // so must not apply M/S if any band uses either, even if
+                // ms_mask is set.
+                let w_index = (w * 16 + g) as usize;
+                let swb_size = swb_sizes[g as usize];
+                if !(*cpe).ms_mask[w_index]
+                    || (*cpe).is_mask[w_index]
+                    || (*cpe).ch[0].band_type[w_index] >= NOISE_BT
+                    || (*cpe).ch[1].band_type[w_index] >= NOISE_BT
+                {
+                    start += c_int::from(swb_size);
+                    continue;
+                }
+
+                let [L_coeffs, R_coeffs] = (*cpe)
+                    .ch
+                    .each_mut()
+                    .map(|ch| &mut ch.coeffs[start as usize..][..swb_size.into()]);
+                for (L, R) in iter::zip(L_coeffs, R_coeffs) {
+                    *L = (*L + *R) * 0.5;
+                    *R = *L - *R;
+                }
+                start += c_int::from(swb_size);
+            }
         }
     }
 }
