@@ -59,7 +59,10 @@ use self::{
 pub(crate) use self::{
     long_term_prediction::LongTermPrediction, temporal_noise_shaping::TemporalNoiseShaping,
 };
-use super::SyntaxElementType;
+use super::{
+    IndividualChannelStream, SyntaxElementType, WindowSequence, EIGHT_SHORT_SEQUENCE,
+    ONLY_LONG_SEQUENCE,
+};
 use crate::{
     aac::{
         coder::{

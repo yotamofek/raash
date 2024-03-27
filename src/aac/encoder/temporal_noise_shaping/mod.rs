@@ -15,7 +15,14 @@ use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uint, c_ulong};
 
 use self::tables::{tns_min_sfb, tns_tmp2_map};
-use crate::{aac::encoder::ctx::AACEncContext, common::*, types::*};
+use crate::{
+    aac::{
+        encoder::ctx::AACEncContext, IndividualChannelStream, EIGHT_SHORT_SEQUENCE,
+        LONG_START_SEQUENCE, LONG_STOP_SEQUENCE,
+    },
+    common::*,
+    types::*,
+};
 
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 49, name = "TNS_MAX_ORDER")]
 const MAX_ORDER: u8 = 20;

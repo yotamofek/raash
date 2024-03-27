@@ -16,7 +16,7 @@ use crate::{
     aac::{
         coder::quantize_and_encode_band::quantize_and_encode_band_cost,
         encoder::{abs_pow34_v, ctx::AACEncContext},
-        SyntaxElementType,
+        IndividualChannelStream, SyntaxElementType, EIGHT_SHORT_SEQUENCE,
     },
     array::Array,
     common::*,

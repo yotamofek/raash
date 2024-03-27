@@ -10,7 +10,7 @@ use ffi::{
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
 use crate::{
-    aac::encoder::{LongTermPrediction, TemporalNoiseShaping},
+    aac::{encoder::TemporalNoiseShaping, IndividualChannelStream},
     array::Array,
 };
 
@@ -117,30 +117,6 @@ pub(crate) struct Pulse {
     pub(crate) pos: [c_int; 4],
     pub(crate) amp: [c_int; 4],
 }
-
-#[derive(Default, Copy, Clone)]
-pub(crate) struct IndividualChannelStream {
-    pub(crate) max_sfb: c_uchar,
-    pub(crate) window_sequence: [WindowSequence; 2],
-    pub(crate) use_kb_window: [c_uchar; 2],
-    pub(crate) group_len: [c_uchar; 8],
-    pub(crate) ltp: LongTermPrediction,
-    pub(crate) swb_offset: &'static [c_ushort],
-    pub(crate) swb_sizes: &'static [c_uchar],
-    pub(crate) num_swb: c_int,
-    pub(crate) num_windows: c_int,
-    pub(crate) tns_max_bands: c_int,
-    pub(crate) predictor_present: c_int,
-    pub(crate) prediction_used: Array<c_uchar, 41>,
-    pub(crate) window_clipping: [c_uchar; 8],
-    pub(crate) clip_avoidance_factor: c_float,
-}
-
-pub(crate) type WindowSequence = c_uint;
-pub(crate) const LONG_STOP_SEQUENCE: WindowSequence = 3;
-pub(crate) const EIGHT_SHORT_SEQUENCE: WindowSequence = 2;
-pub(crate) const LONG_START_SEQUENCE: WindowSequence = 1;
-pub(crate) const ONLY_LONG_SEQUENCE: WindowSequence = 0;
 
 #[derive(Default, Copy, Clone)]
 pub(crate) struct ChannelElement {

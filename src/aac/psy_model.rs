@@ -13,6 +13,10 @@ use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 
+use super::{
+    WindowSequence, EIGHT_SHORT_SEQUENCE, LONG_START_SEQUENCE, LONG_STOP_SEQUENCE,
+    ONLY_LONG_SEQUENCE,
+};
 use crate::{common::*, psy_model::find_group, types::*};
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]

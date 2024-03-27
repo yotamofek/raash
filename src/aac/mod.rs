@@ -1,5 +1,8 @@
 use ffmpeg_src_macro::ffmpeg_src;
-use libc::c_uchar;
+use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
+
+use self::encoder::LongTermPrediction;
+use crate::array::Array;
 
 pub mod coder;
 pub mod encoder;
@@ -53,3 +56,37 @@ const SCALE_MAX_DIFF: c_uchar = 60;
 /// codebook index corresponding to zero scalefactor indices difference
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 150)]
 const SCALE_DIFF_ZERO: c_uchar = 60;
+
+type WindowSequence = c_uint;
+const LONG_STOP_SEQUENCE: WindowSequence = 3;
+const EIGHT_SHORT_SEQUENCE: WindowSequence = 2;
+const LONG_START_SEQUENCE: WindowSequence = 1;
+const ONLY_LONG_SEQUENCE: WindowSequence = 0;
+
+#[ffmpeg_src(file = "libavcodec/aac.h", lines = 169..=191)]
+#[derive(Default, Copy, Clone)]
+pub(crate) struct IndividualChannelStream {
+    /// number of scalefactor bands per group
+    max_sfb: c_uchar,
+    window_sequence: [WindowSequence; 2],
+    /// If set, use Kaiser-Bessel window, otherwise use a sine window.
+    use_kb_window: [c_uchar; 2],
+    group_len: [c_uchar; 8],
+    ltp: LongTermPrediction,
+    /// table of offsets to the lowest spectral coefficient of a scalefactor
+    /// band, sfb, for a particular window
+    swb_offset: &'static [c_ushort],
+    /// table of scalefactor band sizes for a particular window
+    swb_sizes: &'static [c_uchar],
+    /// number of scalefactor window bands
+    num_swb: c_int,
+    num_windows: c_int,
+    tns_max_bands: c_int,
+    predictor_present: c_int,
+    prediction_used: Array<c_uchar, 41>,
+    /// set if a certain window is near clipping
+    window_clipping: [c_uchar; 8],
+    /// set if any window is near clipping to the necessary atennuation factor
+    /// to avoid it
+    clip_avoidance_factor: c_float,
+}
