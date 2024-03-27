@@ -1,3 +1,5 @@
+use std::iter;
+
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
 
@@ -89,4 +91,28 @@ pub(crate) struct IndividualChannelStream {
     /// set if any window is near clipping to the necessary atennuation factor
     /// to avoid it
     clip_avoidance_factor: c_float,
+}
+
+struct WindowedIteration {
+    w: c_int,
+    group_len: c_uchar,
+}
+
+impl IndividualChannelStream {
+    fn iter_windows(&self) -> impl Iterator<Item = WindowedIteration> {
+        let Self {
+            group_len,
+            num_windows,
+            ..
+        } = *self;
+
+        iter::from_coroutine(move || {
+            let mut w = 0;
+            while w < num_windows {
+                let group_len = group_len[w as usize];
+                yield WindowedIteration { w, group_len };
+                w += c_int::from(group_len);
+            }
+        })
+    }
 }

@@ -60,8 +60,8 @@ pub(crate) use self::{
     long_term_prediction::LongTermPrediction, temporal_noise_shaping::TemporalNoiseShaping,
 };
 use super::{
-    IndividualChannelStream, SyntaxElementType, WindowSequence, EIGHT_SHORT_SEQUENCE,
-    ONLY_LONG_SEQUENCE,
+    IndividualChannelStream, SyntaxElementType, WindowSequence, WindowedIteration,
+    EIGHT_SHORT_SEQUENCE, ONLY_LONG_SEQUENCE,
 };
 use crate::{
     aac::{
@@ -275,7 +275,8 @@ unsafe extern "C" fn encode_ms_info(mut pb: *mut PutBitContext, mut cpe: *mut Ch
         }
     }
 }
-unsafe extern "C" fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_int) {
+
+unsafe fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_int) {
     let mut i: c_int = 0;
     let mut w: c_int = 0;
     let mut w2: c_int = 0;
@@ -289,10 +290,9 @@ unsafe extern "C" fn adjust_frame_information(mut cpe: *mut ChannelElement, mut 
             &mut (*((*cpe).ch).as_mut_ptr().offset(ch as isize)).ics;
         maxsfb = 0;
         (*cpe).ch[ch as usize].pulse.num_pulse = 0;
-        w = 0;
-        while w < (*ics).num_windows {
+        for WindowedIteration { w, group_len } in (*ics).iter_windows() {
             w2 = 0;
-            while w2 < (*ics).group_len[w as usize] as c_int {
+            while w2 < group_len as c_int {
                 cmaxsfb = (*ics).num_swb;
                 while cmaxsfb > 0
                     && (*cpe).ch[ch as usize].zeroes[(w * 16 + cmaxsfb - 1) as usize] as c_int != 0
@@ -304,16 +304,14 @@ unsafe extern "C" fn adjust_frame_information(mut cpe: *mut ChannelElement, mut 
                 w2 += 1;
                 w2;
             }
-            w += (*ics).group_len[w as usize] as c_int;
         }
         (*ics).max_sfb = maxsfb as c_uchar;
-        w = 0;
-        while w < (*ics).num_windows {
+        for WindowedIteration { w, group_len } in (*ics).iter_windows() {
             g = 0;
             while g < (*ics).max_sfb as c_int {
                 let mut i = true;
                 w2 = w;
-                while w2 < w + (*ics).group_len[w as usize] as c_int {
+                while w2 < w + group_len as c_int {
                     if !(*cpe).ch[ch as usize].zeroes[(w2 * 16 + g) as usize] {
                         i = false;
                         break;
@@ -326,7 +324,6 @@ unsafe extern "C" fn adjust_frame_information(mut cpe: *mut ChannelElement, mut 
                 g += 1;
                 g;
             }
-            w += (*ics).group_len[w as usize] as c_int;
         }
         ch += 1;
         ch;
@@ -365,8 +362,8 @@ unsafe extern "C" fn adjust_frame_information(mut cpe: *mut ChannelElement, mut 
         }
     }
 }
-unsafe extern "C" fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
-    let mut w: c_int = 0;
+
+unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
     let mut w2: c_int = 0;
     let mut g: c_int = 0;
     let mut i: c_int = 0;
@@ -374,10 +371,9 @@ unsafe extern "C" fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
     if (*cpe).common_window == 0 {
         return;
     }
-    w = 0;
-    while w < (*ics).num_windows {
+    for WindowedIteration { w, group_len } in (*ics).iter_windows() {
         w2 = 0;
-        while w2 < (*ics).group_len[w as usize] as c_int {
+        while w2 < group_len as c_int {
             let mut start: c_int = (w + w2) * 128;
             g = 0;
             while g < (*ics).num_swb {
@@ -412,11 +408,10 @@ unsafe extern "C" fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
             w2 += 1;
             w2;
         }
-        w += (*ics).group_len[w as usize] as c_int;
     }
 }
-unsafe extern "C" fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
-    let mut w: c_int = 0;
+
+unsafe fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
     let mut w2: c_int = 0;
     let mut g: c_int = 0;
     let mut i: c_int = 0;
@@ -424,10 +419,9 @@ unsafe extern "C" fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
     if (*cpe).common_window == 0 {
         return;
     }
-    w = 0;
-    while w < (*ics).num_windows {
+    for WindowedIteration { w, group_len } in (*ics).iter_windows() {
         w2 = 0;
-        while w2 < (*ics).group_len[w as usize] as c_int {
+        while w2 < group_len as c_int {
             let mut start: c_int = (w + w2) * 128;
             g = 0;
             while g < (*ics).num_swb {
@@ -459,28 +453,17 @@ unsafe extern "C" fn apply_mid_side_stereo(mut cpe: *mut ChannelElement) {
             w2 += 1;
             w2;
         }
-        w += (*ics).group_len[w as usize] as c_int;
     }
 }
-unsafe extern "C" fn encode_band_info(
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-) {
-    let mut w: c_int = 0;
+
+unsafe fn encode_band_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     set_special_band_scalefactors(s, sce);
-    w = 0;
-    while w < (*sce).ics.num_windows {
-        encode_window_bands_info(
-            s,
-            sce,
-            w,
-            (*sce).ics.group_len[w as usize] as c_int,
-            (*s).lambda,
-        );
-        w += (*sce).ics.group_len[w as usize] as c_int;
+    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
+        encode_window_bands_info(s, sce, w, group_len.into(), (*s).lambda);
     }
 }
-unsafe extern "C" fn encode_scale_factors(
+
+unsafe fn encode_scale_factors(
     mut _avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
@@ -491,9 +474,7 @@ unsafe extern "C" fn encode_scale_factors(
     let mut off_is: c_int = 0;
     let mut noise_flag: c_int = 1;
     let mut i: c_int = 0;
-    let mut w: c_int = 0;
-    w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
         let mut current_block_19: u64;
         i = 0;
         while i < (*sce).ics.max_sfb as c_int {
@@ -540,7 +521,6 @@ unsafe extern "C" fn encode_scale_factors(
             i += 1;
             i;
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }
 unsafe extern "C" fn encode_pulses(mut s: *mut AACEncContext, mut pulse: *mut Pulse) {
@@ -569,10 +549,8 @@ unsafe extern "C" fn encode_spectral_coeffs(
 ) {
     let mut start: c_int = 0;
     let mut i: c_int = 0;
-    let mut w: c_int = 0;
     let mut w2: c_int = 0;
-    w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         start = 0;
         i = 0;
         while i < (*sce).ics.max_sfb as c_int {
@@ -580,7 +558,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
                 start += (*sce).ics.swb_sizes[i as usize] as c_int;
             } else {
                 w2 = w;
-                while w2 < w + (*sce).ics.group_len[w as usize] as c_int {
+                while w2 < w + group_len as c_int {
                     quantize_and_encode_band(
                         s,
                         &mut (*s).pb,
@@ -602,7 +580,6 @@ unsafe extern "C" fn encode_spectral_coeffs(
             i += 1;
             i;
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }
 

@@ -11,6 +11,7 @@ use crate::{
         encoder::{ctx::AACEncContext, pow::Pow34},
         psy_model::cutoff_from_bitrate,
         tables::POW_SF_TABLES,
+        WindowedIteration,
     },
     common::*,
     types::*,
@@ -163,8 +164,7 @@ pub(crate) unsafe fn search(
     let cutoff = cutoff(avctx, lambda, wlen);
     (*sce).band_alt = (*sce).band_type;
     ff_init_nextband_map(sce, nextband.as_mut_ptr());
-    let mut w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         let mut wstart: c_int = w * 128;
         for g in 0..(*sce).ics.num_swb {
             let mut dist1: c_float = 0.;
@@ -191,7 +191,7 @@ pub(crate) unsafe fn search(
                     },
             } = reduce_bands(
                 &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[(w * 16 + g) as usize..],
-                (*sce).ics.group_len[w as usize],
+                group_len,
             );
 
             // Ramps down at ~8000Hz and loosens the dist threshold
@@ -237,7 +237,7 @@ pub(crate) unsafe fn search(
                 }
             }
 
-            for w2 in 0..c_int::from((*sce).ics.group_len[w as usize]) {
+            for w2 in 0..c_int::from(group_len) {
                 let start_c: c_int = (w + w2) * 128 + (*sce).ics.swb_offset[g as usize] as c_int;
                 let band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
                     [((w + w2) * 16 + g) as usize];
@@ -310,7 +310,6 @@ pub(crate) unsafe fn search(
                 prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
             }
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }
 
@@ -320,7 +319,6 @@ pub(crate) unsafe fn mark(
     mut avctx: *mut AVCodecContext,
     mut sce: *mut SingleChannelElement,
 ) {
-    let mut w: c_int = 0;
     let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
     let lambda: c_float = (*s).lambda;
     let freq_mult = freq_mult((*avctx).sample_rate, wlen);
@@ -328,8 +326,7 @@ pub(crate) unsafe fn mark(
     let pns_transient_energy_r = pns_transient_energy_r(lambda);
     let cutoff = cutoff(avctx, lambda, wlen);
     (*sce).band_alt = (*sce).band_type;
-    w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         for g in 0..(*sce).ics.num_swb {
             let start: c_int = (*sce).ics.swb_offset[g as usize] as c_int;
             let freq: c_float = start as c_float * freq_mult;
@@ -351,7 +348,7 @@ pub(crate) unsafe fn mark(
                     },
             } = reduce_bands(
                 &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[(w * 16 + g) as usize..],
-                (*sce).ics.group_len[w as usize],
+                group_len,
             );
 
             // PNS is acceptable when all of these are true:
@@ -366,6 +363,5 @@ pub(crate) unsafe fn mark(
                 || spread < spread_threshold
                 || min_energy < pns_transient_energy_r * max_energy);
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }

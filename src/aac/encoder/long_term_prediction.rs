@@ -16,7 +16,7 @@ use crate::{
     aac::{
         coder::quantize_and_encode_band::quantize_and_encode_band_cost,
         encoder::{abs_pow34_v, ctx::AACEncContext},
-        IndividualChannelStream, SyntaxElementType, EIGHT_SHORT_SEQUENCE,
+        IndividualChannelStream, SyntaxElementType, WindowedIteration, EIGHT_SHORT_SEQUENCE,
     },
     array::Array,
     common::*,
@@ -315,7 +315,6 @@ pub(crate) unsafe fn search_for_ltp(
     mut sce: *mut SingleChannelElement,
     mut _common_window: c_int,
 ) {
-    let mut w: c_int = 0;
     let mut g: c_int = 0;
     let mut w2: c_int = 0;
     let mut i: c_int = 0;
@@ -345,8 +344,7 @@ pub(crate) unsafe fn search_for_ltp(
     if (*sce).ics.ltp.lag == 0 || (*s).lambda > 120. {
         return;
     }
-    w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         start = 0;
         g = 0;
         while g < (*sce).ics.num_swb {
@@ -358,7 +356,7 @@ pub(crate) unsafe fn search_for_ltp(
                 start += (*sce).ics.swb_sizes[g as usize] as c_int;
             } else {
                 w2 = 0;
-                while w2 < (*sce).ics.group_len[w as usize] as c_int {
+                while w2 < group_len as c_int {
                     let mut bits_tmp1: c_int = 0;
                     let mut bits_tmp2: c_int = 0;
                     let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize]
@@ -413,7 +411,7 @@ pub(crate) unsafe fn search_for_ltp(
                 }
                 if dist2 < dist1 && bits2 < bits1 {
                     w2 = 0;
-                    while w2 < (*sce).ics.group_len[w as usize] as c_int {
+                    while w2 < group_len as c_int {
                         i = 0;
                         while i < (*sce).ics.swb_sizes[g as usize] as c_int {
                             (*sce).coeffs[(start + (w + w2) * 128 + i) as usize] -=
@@ -434,19 +432,17 @@ pub(crate) unsafe fn search_for_ltp(
             g += 1;
             g;
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
     (*sce).ics.ltp.present = (count != 0 && saved_bits >= 0) as c_int as c_schar;
     (*sce).ics.predictor_present = ((*sce).ics.ltp.present != 0) as c_int;
     if (*sce).ics.ltp.present == 0 && count != 0 {
-        w = 0;
-        while w < (*sce).ics.num_windows {
+        for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
             start = 0;
             g = 0;
             while g < (*sce).ics.num_swb {
                 if (*sce).ics.ltp.used[(w * 16 + g) as usize] != 0 {
                     w2 = 0;
-                    while w2 < (*sce).ics.group_len[w as usize] as c_int {
+                    while w2 < group_len as c_int {
                         i = 0;
                         while i < (*sce).ics.swb_sizes[g as usize] as c_int {
                             (*sce).coeffs[(start + (w + w2) * 128 + i) as usize] +=
@@ -462,7 +458,6 @@ pub(crate) unsafe fn search_for_ltp(
                 g += 1;
                 g;
             }
-            w += (*sce).ics.group_len[w as usize] as c_int;
         }
     }
 }

@@ -16,6 +16,7 @@ use crate::{
         coder::quantize_and_encode_band::quantize_and_encode_band_cost,
         encoder::{abs_pow34_v, ctx::AACEncContext},
         tables::POW_SF_TABLES,
+        WindowedIteration,
     },
     common::*,
     types::*,
@@ -51,7 +52,6 @@ fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
 #[inline]
 unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut c_uchar) {
     let mut prevband: c_uchar = 0;
-    let mut w: c_int = 0;
     let mut g: c_int = 0;
     g = 0;
     while g < 128 {
@@ -59,8 +59,7 @@ unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextban
         g += 1;
         g;
     }
-    w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
         g = 0;
         while g < (*sce).ics.num_swb {
             if !(*sce).zeroes[(w * 16 + g) as usize]
@@ -74,7 +73,6 @@ unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextban
             g += 1;
             g;
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
     *nextband.offset(prevband as isize) = prevband;
 }

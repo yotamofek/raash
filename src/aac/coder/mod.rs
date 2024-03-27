@@ -25,7 +25,7 @@ use self::{
 use super::{
     encoder::{abs_pow34_v, ctx::AACEncContext},
     tables::*,
-    SCALE_MAX_DIFF,
+    WindowedIteration, SCALE_MAX_DIFF,
 };
 use crate::{common::*, types::*};
 
@@ -219,7 +219,6 @@ unsafe fn sfdelta_can_remove_band(
 #[inline]
 unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextband: *mut c_uchar) {
     let mut prevband: c_uchar = 0;
-    let mut w: c_int = 0;
     let mut g: c_int = 0;
     g = 0;
     while g < 128 {
@@ -227,8 +226,7 @@ unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextban
         g += 1;
         g;
     }
-    w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
         g = 0;
         while g < (*sce).ics.num_swb {
             if !(*sce).zeroes[(w * 16 + g) as usize]
@@ -242,7 +240,6 @@ unsafe fn ff_init_nextband_map(mut sce: *const SingleChannelElement, mut nextban
             g += 1;
             g;
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
     *nextband.offset(prevband as isize) = prevband;
 }
@@ -542,13 +539,11 @@ pub(crate) unsafe fn set_special_band_scalefactors(
     mut _s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
-    let mut w: c_int = 0;
     let mut g: c_int = 0;
     let mut prevscaler_n: c_int = -255;
     let mut prevscaler_i: c_int = 0;
     let mut bands: c_int = 0;
-    w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
         g = 0;
         while g < (*sce).ics.num_swb {
             if !(*sce).zeroes[(w * 16 + g) as usize] {
@@ -582,13 +577,11 @@ pub(crate) unsafe fn set_special_band_scalefactors(
             g += 1;
             g;
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
     if bands == 0 {
         return;
     }
-    w = 0;
-    while w < (*sce).ics.num_windows {
+    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
         g = 0;
         while g < (*sce).ics.num_swb {
             if !(*sce).zeroes[(w * 16 + g) as usize] {
@@ -617,6 +610,5 @@ pub(crate) unsafe fn set_special_band_scalefactors(
             g += 1;
             g;
         }
-        w += (*sce).ics.group_len[w as usize] as c_int;
     }
 }
