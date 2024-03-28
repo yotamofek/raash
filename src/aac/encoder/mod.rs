@@ -66,9 +66,9 @@ use super::{
 use crate::{
     aac::{
         coder::{
-            encode_window_bands_info, mid_side as ms, perceptual_noise_substitution as pns,
+            mid_side as ms, perceptual_noise_substitution as pns,
             quantize_and_encode_band::quantize_and_encode_band, quantizers,
-            set_special_band_scalefactors,
+            set_special_band_scalefactors, trellis,
         },
         tables::{
             ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits,
@@ -411,7 +411,7 @@ unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
 unsafe fn encode_band_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     set_special_band_scalefactors(s, sce);
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-        encode_window_bands_info(s, sce, w, group_len.into(), (*s).lambda);
+        trellis::codebook_rate(s, sce, w, group_len.into(), (*s).lambda);
     }
 }
 
