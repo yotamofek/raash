@@ -3,7 +3,7 @@ use std::{iter::zip, ptr};
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::izip;
-use libc::{c_char, c_double, c_float, c_int, c_long, c_uint};
+use libc::{c_char, c_double, c_float, c_int, c_long, c_uint, c_ushort};
 
 use crate::{
     aac::{
@@ -943,16 +943,15 @@ fn find_min_scaler(
     uplims: &[c_float; 128],
     sfoffs: c_float,
 ) -> c_int {
-    let mut minscaler = 65535;
-    let mut w = 0;
+    let mut minscaler = c_int::from(c_ushort::MAX);
 
     let swb_sizes = &sce.ics.swb_sizes[..sce.ics.num_swb as usize];
 
-    while w < sce.ics.num_windows as usize {
+    for WindowedIteration { w, .. } in sce.ics.iter_windows() {
         for (&zero, sf_idx, &uplim, &swb_size) in izip!(
-            &sce.zeroes[w * 16..],
-            &mut sce.sf_idx[w * 16..],
-            &uplims[w * 16..],
+            &sce.zeroes[w as usize * 16..],
+            &mut sce.sf_idx[w as usize * 16..],
+            &uplims[w as usize * 16..],
             // (yotam): this one actually limits the rest to num_swb
             swb_sizes
         ) {
@@ -960,13 +959,12 @@ fn find_min_scaler(
                 *sf_idx = SCALE_ONE_POS.into();
             } else {
                 *sf_idx = ((c_double::from(SCALE_ONE_POS)
-                    + 1.75 * (uplim.max(0.00125) / swb_size as c_float).log2() as c_double
+                    + 1.75 * (uplim.max(0.00125) / c_float::from(swb_size)).log2() as c_double
                     + sfoffs as c_double) as c_int)
                     .clamp(60, SCALE_MAX_POS.into());
                 minscaler = minscaler.min(*sf_idx as c_int);
             }
         }
-        w += sce.ics.group_len[w] as usize;
     }
 
     minscaler
