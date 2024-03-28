@@ -956,7 +956,7 @@ fn find_min_scaler(
             // (yotam): this one actually limits the rest to num_swb
             swb_sizes
         ) {
-            if !zero {
+            if zero {
                 *sf_idx = SCALE_ONE_POS.into();
             } else {
                 *sf_idx = ((c_double::from(SCALE_ONE_POS)
