@@ -1,9 +1,8 @@
 //! [Linear predictive coding](https://en.wikipedia.org/wiki/Linear_predictive_coding)
 
-use std::{f64::consts::PI, iter::zip};
+use std::f64::consts::PI;
 
 use ffmpeg_src_macro::ffmpeg_src;
-use itertools::izip;
 use libc::{c_double, c_float, c_int, c_long};
 
 /// LPC analysis type
@@ -143,21 +142,12 @@ impl LPCContext {
 
         let padding_size = Self::padding_size(self.max_order);
 
-        let weights = (0..=samples.len() / 2)
-            .map(|i| a - b * (2. * PI * i as c_double / (samples.len() - 1) as c_double).cos());
-
-        let windowed = &mut self.windowed_samples[padding_size..];
-
-        let (windowed_front, windowed_back) = windowed.split_at_mut(samples.len() / 2);
-        let (samples_front, samples_back) = samples.split_at(samples.len() / 2);
-
-        for (weight, (windowed_front, windowed_back), (&sample_front, &sample_back)) in izip!(
-            weights,
-            zip(windowed_front, windowed_back.iter_mut().rev()),
-            zip(samples_front, samples_back.iter().rev())
-        ) {
-            *windowed_front = weight * sample_front as c_double;
-            *windowed_back = weight * sample_back as c_double;
+        for i in 0..=samples.len() / 2 {
+            let weight: c_double =
+                a - b * (2. * PI * i as c_double / (samples.len() as c_int - 1) as c_double).cos();
+            (self.windowed_samples)[padding_size + i] = weight * samples[i] as c_double;
+            (self.windowed_samples)[padding_size + samples.len() - 1 - i] =
+                weight * samples[samples.len() - 1 - i] as c_double;
         }
 
         self.compute_autocorr_c(samples.len(), order, &mut autoc);
