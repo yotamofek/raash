@@ -6,10 +6,11 @@
     unused_mut
 )]
 
-use std::{iter, ops::Mul, ptr, slice};
+use std::{iter::zip, ops::Mul, ptr};
 
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
+use itertools::izip;
 use libc::{c_double, c_float, c_int, c_uint};
 
 use super::pow::Pow34;
@@ -27,21 +28,6 @@ use crate::{
 #[inline]
 fn pos_pow34(mut a: c_float) -> c_float {
     sqrtf(a * sqrtf(a))
-}
-
-#[inline]
-unsafe fn find_max_val(
-    mut group_len: c_int,
-    mut swb_size: c_int,
-    mut scaled: *const c_float,
-) -> c_float {
-    let scaled = slice::from_raw_parts::<c_float>(scaled, 128 * group_len as usize);
-    scaled
-        .array_chunks::<128>()
-        .flat_map(|row| &row[..swb_size as usize])
-        .copied()
-        .max_by(f32::total_cmp)
-        .unwrap()
 }
 
 #[inline]
@@ -108,7 +94,7 @@ struct AACISError {
 unsafe fn encoding_err(
     mut s: *mut AACEncContext,
     mut cpe: *mut ChannelElement,
-    mut start: c_int,
+    start: c_int,
     mut w: c_int,
     mut g: c_int,
     mut ener0: c_float,
@@ -149,37 +135,31 @@ unsafe fn encoding_err(
         let mut is_band_type: c_int = 0;
         let mut is_sf_idx: c_int = 1.max(sce0.sf_idx[(w * 16 + g) as usize] - 4);
         let mut e01_34: c_float = phase * pos_pow34(ener1 / ener0);
-        let mut maxval: c_float = 0.;
-        let mut dist_spec_err: c_float = 0.;
-        let mut minthr: c_float = f32::min(band0.threshold, band1.threshold);
-        for i in 0..usize::from(sce0.ics.swb_sizes[g as usize]) {
-            IS[i] = ((L[(start + (w + w2) * 128) as usize + i]
-                + phase * R[(start + (w + w2) * 128) as usize + i])
-                as c_double
-                * sqrt((ener0 / ener01) as c_double)) as c_float;
-        }
-        for (L34, L) in iter::zip(
-            &mut L34[..swb_size],
-            &L[(start + (w + w2) * 128) as usize..][..swb_size],
+        let mut minthr = c_float::min(band0.threshold, band1.threshold);
+        let wstart = (start + (w + w2) * 128) as usize;
+        for (IS, &L, &R) in izip!(
+            &mut IS[..swb_size],
+            &L[wstart..][..swb_size],
+            &R[wstart..][..swb_size],
         ) {
-            *L34 = L.abs_pow34();
+            *IS = ((L + phase * R) as c_double * sqrt((ener0 / ener01) as c_double)) as c_float;
         }
-        for (R34, R) in iter::zip(
-            &mut R34[..swb_size],
-            &R[(start + (w + w2) * 128) as usize..][..swb_size],
-        ) {
-            *R34 = R.abs_pow34();
+        for (C34, C) in [(&mut *L34, &L[wstart..]), (R34, &R[wstart..]), (I34, IS)] {
+            for (C34, C) in zip(&mut C34[..swb_size], &C[..swb_size]) {
+                *C34 = C.abs_pow34();
+            }
         }
-        for (I34, IS) in iter::zip(&mut I34[..swb_size], &IS[..swb_size]) {
-            *I34 = IS.abs_pow34();
-        }
-        maxval = find_max_val(1, sce0.ics.swb_sizes[g as usize] as c_int, I34.as_ptr());
+        let maxval = I34[..swb_size]
+            .iter()
+            .copied()
+            .max_by(c_float::total_cmp)
+            .unwrap();
         is_band_type = find_min_book(maxval, is_sf_idx);
         dist1 += quantize_band_cost(
             s,
-            L[(start + (w + w2) * 128) as usize..].as_ptr(),
+            L[wstart..].as_ptr(),
             L34.as_ptr(),
-            sce0.ics.swb_sizes[g as usize] as c_int,
+            swb_size as c_int,
             sce0.sf_idx[(w * 16 + g) as usize],
             sce0.band_type[(w * 16 + g) as usize] as c_int,
             (*s).lambda / band0.threshold,
@@ -189,7 +169,7 @@ unsafe fn encoding_err(
         );
         dist1 += quantize_band_cost(
             s,
-            R[(start + (w + w2) * 128) as usize..].as_ptr(),
+            R[wstart..].as_ptr(),
             R34.as_ptr(),
             sce1.ics.swb_sizes[g as usize] as c_int,
             sce1.sf_idx[(w * 16 + g) as usize],
@@ -203,7 +183,7 @@ unsafe fn encoding_err(
             s,
             IS.as_ptr(),
             I34.as_ptr(),
-            sce0.ics.swb_sizes[g as usize] as c_int,
+            swb_size as c_int,
             is_sf_idx,
             is_band_type,
             (*s).lambda / minthr,
@@ -211,12 +191,14 @@ unsafe fn encoding_err(
             ptr::null_mut(),
             ptr::null_mut(),
         );
-        for i in 0..usize::from(sce0.ics.swb_sizes[g as usize]) {
-            dist_spec_err += (L34[i] - I34[i]) * (L34[i] - I34[i]);
-            dist_spec_err += (R34[i] - I34[i] * e01_34) * (R34[i] - I34[i] * e01_34);
-        }
-        dist_spec_err *= (*s).lambda / minthr;
-        dist2 += dist_spec_err;
+
+        let dist_spec_err = izip!(&L34[..swb_size], &R34[..swb_size], &I34[..swb_size])
+            .map(|(&L34, &R34, &I34)| {
+                (L34 - I34) * (L34 - I34) + (R34 - I34 * e01_34) * (R34 - I34 * e01_34)
+            })
+            .sum::<c_float>();
+
+        dist2 += dist_spec_err * ((*s).lambda / minthr);
     }
 
     (dist2 <= dist1).then_some(AACISError {
