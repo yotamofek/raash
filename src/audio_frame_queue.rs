@@ -101,8 +101,7 @@ impl AudioFrameQueue {
             av_log(
                 self.avctx as *mut c_void,
                 24,
-                b"Trying to remove %d samples, but the queue is empty\n\0" as *const u8
-                    as *const c_char,
+                c"Trying to remove %d samples, but the queue is empty\n".as_ptr(),
                 nb_samples,
             );
         }
@@ -177,7 +176,7 @@ impl Drop for AudioFrameQueue {
                 av_log(
                     self.avctx as *mut c_void,
                     24,
-                    b"%d frames left in the queue on closing\n\0" as *const u8 as *const c_char,
+                    c"%d frames left in the queue on closing\n".as_ptr(),
                     self.frames.len() as c_uint,
                 )
             };

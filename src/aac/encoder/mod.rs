@@ -644,7 +644,6 @@ unsafe fn aac_encode_frame(
     mut frame: *const AVFrame,
     mut packet_builder: PacketBuilder,
 ) -> c_int {
-    // let mut samples: *mut *mut c_float = ((*s).planar_samples).as_mut_ptr();
     let mut samples2: *mut c_float = ptr::null_mut::<c_float>();
     let mut la: *mut c_float = ptr::null_mut::<c_float>();
     let mut overlap: *mut c_float = ptr::null_mut::<c_float>();
@@ -817,7 +816,7 @@ unsafe fn aac_encode_frame(
                 av_log(
                     avctx as *mut c_void,
                     16,
-                    b"Input contains (near) NaN/+-Inf\n\0" as *const u8 as *const c_char,
+                    c"Input contains (near) NaN/+-Inf\n".as_ptr(),
                 );
                 return -22;
             }
@@ -1230,8 +1229,7 @@ impl Encoder for AACEncoder {
                 av_log(
                     avctx.cast(),
                     32,
-                    b"Using a PCE to encode channel layout \"%s\"\n\0" as *const u8
-                        as *const c_char,
+                    c"Using a PCE to encode channel layout \"%s\"\n".as_ptr(),
                     buf.as_mut_ptr(),
                 );
 
@@ -1313,8 +1311,7 @@ impl Encoder for AACEncoder {
                 av_log(
                     avctx.cast(),
                     24,
-                    b"Too many bits %f > %d per frame requested, clamping to max\n\0" as *const u8
-                        as *const c_char,
+                    c"Too many bits %f > %d per frame requested, clamping to max\n".as_ptr(),
                     1024. * (*avctx).bit_rate as c_double / (*avctx).sample_rate as c_double,
                     6144 * ctx.channels,
                 );
@@ -1343,8 +1340,7 @@ impl Encoder for AACEncoder {
                     av_log(
                         avctx.cast(),
                         24,
-                        b"PNS unavailable in the \"mpeg2_aac_low\" profile, turning off\n\0"
-                            as *const u8 as *const c_char,
+                        c"PNS unavailable in the \"mpeg2_aac_low\" profile, turning off\n".as_ptr(),
                     );
                 }
                 ctx.options.pns = 0;
@@ -1365,7 +1361,7 @@ impl Encoder for AACEncoder {
                 av_log(
                     avctx.cast(),
                     24,
-                    b"Chainging profile to \"aac_ltp\"\n\0" as *const u8 as *const c_char,
+                    c"Chainging profile to \"aac_ltp\"\n".as_ptr(),
                 );
                 assert_eq!(
                     ctx.options.pred, 0,
