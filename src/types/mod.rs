@@ -272,17 +272,6 @@ pub(crate) type LPC_TYPE = c_float;
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub(crate) struct AACISError {
-    pub(crate) pass: c_int,
-    pub(crate) phase: c_int,
-    pub(crate) error: c_float,
-    pub(crate) dist1: c_float,
-    pub(crate) dist2: c_float,
-    pub(crate) ener01: c_float,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct AVTXContext {
     pub(crate) len: c_int,
     pub(crate) inv: c_int,

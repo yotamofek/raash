@@ -6,15 +6,17 @@
     unused_mut
 )]
 
-use std::{ptr, slice};
+use std::{iter, ops::Mul, ptr, slice};
 
 use ffi::codec::AVCodecContext;
-use libc::{c_double, c_float, c_int, c_uchar, c_uint};
+use ffmpeg_src_macro::ffmpeg_src;
+use libc::{c_double, c_float, c_int, c_uint};
 
+use super::pow::Pow34;
 use crate::{
     aac::{
         coder::{quantize_and_encode_band::quantize_and_encode_band_cost, sfdelta_can_remove_band},
-        encoder::{abs_pow34_v, ctx::AACEncContext},
+        encoder::ctx::AACEncContext,
         tables::POW_SF_TABLES,
         WindowedIteration,
     },
@@ -64,9 +66,9 @@ unsafe fn quantize_band_cost(
 ) -> c_float {
     quantize_and_encode_band_cost(
         s,
-        std::ptr::null_mut::<PutBitContext>(),
+        ptr::null_mut::<PutBitContext>(),
         in_0,
-        std::ptr::null_mut::<c_float>(),
+        ptr::null_mut::<c_float>(),
         scaled,
         size,
         scale_idx,
@@ -78,7 +80,32 @@ unsafe fn quantize_band_cost(
     )
 }
 
-pub(crate) unsafe fn ff_aac_is_encoding_err(
+#[derive(Clone, Copy)]
+enum Phase {
+    Positive,
+    Negative,
+}
+
+impl Mul<c_float> for Phase {
+    type Output = c_float;
+
+    fn mul(self, rhs: c_float) -> Self::Output {
+        rhs * match self {
+            Phase::Positive => 1.,
+            Phase::Negative => -1.,
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+struct AACISError {
+    phase: Phase,
+    error: c_float,
+    ener01: c_float,
+}
+
+#[ffmpeg_src(file = "libavcodec/aacenc_is.c", lines = 33..=96, name = "ff_aac_is_encoding_err")]
+unsafe fn encoding_err(
     mut s: *mut AACEncContext,
     mut cpe: *mut ChannelElement,
     mut start: c_int,
@@ -87,145 +114,116 @@ pub(crate) unsafe fn ff_aac_is_encoding_err(
     mut ener0: c_float,
     mut ener1: c_float,
     mut ener01: c_float,
-    mut use_pcoeffs: c_int,
-    mut phase: c_int,
-) -> AACISError {
-    let mut i: c_int = 0;
-    let mut w2: c_int = 0;
-
+    use_pcoeffs: bool,
+    mut phase: Phase,
+) -> Option<AACISError> {
     let [sce0, sce1] = &mut ((*cpe).ch);
+    let swb_size = usize::from(sce0.ics.swb_sizes[g as usize]);
 
-    let mut L: *mut c_float = if use_pcoeffs != 0 {
-        (sce0.pcoeffs).as_mut_ptr()
+    let mut L = if use_pcoeffs {
+        &*sce0.pcoeffs
     } else {
-        (sce0.coeffs).as_mut_ptr()
+        &sce0.coeffs
     };
-    let mut R: *mut c_float = if use_pcoeffs != 0 {
-        (sce1.pcoeffs).as_mut_ptr()
+    let mut R = if use_pcoeffs {
+        &*sce1.pcoeffs
     } else {
-        (sce1.coeffs).as_mut_ptr()
+        &sce1.coeffs
     };
 
-    let [L34, R34, IS, I34] = [0, 1, 2, 3].map(|i| (*s).scoefs[256 * i..].as_mut_ptr());
+    let ([L34, R34, IS, I34, ..], _) = (*s).scoefs.as_chunks_mut::<256>() else {
+        unreachable!();
+    };
 
     let mut dist1: c_float = 0.;
     let mut dist2: c_float = 0.;
-    let mut is_error: AACISError = {
-        AACISError {
-            pass: 0,
-            phase: 0,
-            error: 0.,
-            dist1: 0.,
-            dist2: 0.,
-            ener01: 0.,
-        }
-    };
+
     if ener01 <= 0. || ener0 <= 0. {
-        is_error.pass = 0;
-        return is_error;
+        return None;
     }
-    w2 = 0;
-    while w2 < sce0.ics.group_len[w as usize] as c_int {
-        let mut band0: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
-            [((w + w2) * 16 + g) as usize]
-            as *mut FFPsyBand;
-        let mut band1: *mut FFPsyBand = &mut (*s).psy.ch[((*s).cur_channel + 1) as usize].psy_bands
-            [((w + w2) * 16 + g) as usize]
-            as *mut FFPsyBand;
+
+    for w2 in 0..c_int::from(sce0.ics.group_len[w as usize]) {
+        let band0 = &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[((w + w2) * 16 + g) as usize];
+        let band1 =
+            &(*s).psy.ch[((*s).cur_channel + 1) as usize].psy_bands[((w + w2) * 16 + g) as usize];
         let mut is_band_type: c_int = 0;
-        let mut is_sf_idx: c_int = if 1 > sce0.sf_idx[(w * 16 + g) as usize] - 4 {
-            1
-        } else {
-            sce0.sf_idx[(w * 16 + g) as usize] - 4
-        };
-        let mut e01_34: c_float = phase as c_float * pos_pow34(ener1 / ener0);
+        let mut is_sf_idx: c_int = 1.max(sce0.sf_idx[(w * 16 + g) as usize] - 4);
+        let mut e01_34: c_float = phase * pos_pow34(ener1 / ener0);
         let mut maxval: c_float = 0.;
         let mut dist_spec_err: c_float = 0.;
-        let mut minthr: c_float = if (*band0).threshold > (*band1).threshold {
-            (*band1).threshold
-        } else {
-            (*band0).threshold
-        };
-        i = 0;
-        while i < sce0.ics.swb_sizes[g as usize] as c_int {
-            *IS.offset(i as isize) = ((*L.offset((start + (w + w2) * 128 + i) as isize)
-                + phase as c_float * *R.offset((start + (w + w2) * 128 + i) as isize))
+        let mut minthr: c_float = f32::min(band0.threshold, band1.threshold);
+        for i in 0..usize::from(sce0.ics.swb_sizes[g as usize]) {
+            IS[i] = ((L[(start + (w + w2) * 128) as usize + i]
+                + phase * R[(start + (w + w2) * 128) as usize + i])
                 as c_double
-                * sqrt((ener0 / ener01) as c_double))
-                as c_float;
-            i += 1;
-            i;
+                * sqrt((ener0 / ener01) as c_double)) as c_float;
         }
-        abs_pow34_v(
-            L34,
-            &mut *L.offset((start + (w + w2) * 128) as isize),
-            sce0.ics.swb_sizes[g as usize] as c_int,
-        );
-        abs_pow34_v(
-            R34,
-            &mut *R.offset((start + (w + w2) * 128) as isize),
-            sce0.ics.swb_sizes[g as usize] as c_int,
-        );
-        abs_pow34_v(I34, IS, sce0.ics.swb_sizes[g as usize] as c_int);
-        maxval = find_max_val(1, sce0.ics.swb_sizes[g as usize] as c_int, I34);
+        for (L34, L) in iter::zip(
+            &mut L34[..swb_size],
+            &L[(start + (w + w2) * 128) as usize..][..swb_size],
+        ) {
+            *L34 = L.abs_pow34();
+        }
+        for (R34, R) in iter::zip(
+            &mut R34[..swb_size],
+            &R[(start + (w + w2) * 128) as usize..][..swb_size],
+        ) {
+            *R34 = R.abs_pow34();
+        }
+        for (I34, IS) in iter::zip(&mut I34[..swb_size], &IS[..swb_size]) {
+            *I34 = IS.abs_pow34();
+        }
+        maxval = find_max_val(1, sce0.ics.swb_sizes[g as usize] as c_int, I34.as_ptr());
         is_band_type = find_min_book(maxval, is_sf_idx);
         dist1 += quantize_band_cost(
             s,
-            &mut *L.offset((start + (w + w2) * 128) as isize),
-            L34,
+            L[(start + (w + w2) * 128) as usize..].as_ptr(),
+            L34.as_ptr(),
             sce0.ics.swb_sizes[g as usize] as c_int,
             sce0.sf_idx[(w * 16 + g) as usize],
             sce0.band_type[(w * 16 + g) as usize] as c_int,
-            (*s).lambda / (*band0).threshold,
-            ::core::f32::INFINITY,
-            std::ptr::null_mut::<c_int>(),
-            std::ptr::null_mut::<c_float>(),
+            (*s).lambda / band0.threshold,
+            f32::INFINITY,
+            ptr::null_mut(),
+            ptr::null_mut(),
         );
         dist1 += quantize_band_cost(
             s,
-            &mut *R.offset((start + (w + w2) * 128) as isize),
-            R34,
+            R[(start + (w + w2) * 128) as usize..].as_ptr(),
+            R34.as_ptr(),
             sce1.ics.swb_sizes[g as usize] as c_int,
             sce1.sf_idx[(w * 16 + g) as usize],
             sce1.band_type[(w * 16 + g) as usize] as c_int,
-            (*s).lambda / (*band1).threshold,
-            ::core::f32::INFINITY,
-            std::ptr::null_mut::<c_int>(),
-            std::ptr::null_mut::<c_float>(),
+            (*s).lambda / band1.threshold,
+            f32::INFINITY,
+            ptr::null_mut(),
+            ptr::null_mut(),
         );
         dist2 += quantize_band_cost(
             s,
-            IS,
-            I34,
+            IS.as_ptr(),
+            I34.as_ptr(),
             sce0.ics.swb_sizes[g as usize] as c_int,
             is_sf_idx,
             is_band_type,
             (*s).lambda / minthr,
-            ::core::f32::INFINITY,
-            std::ptr::null_mut::<c_int>(),
-            std::ptr::null_mut::<c_float>(),
+            f32::INFINITY,
+            ptr::null_mut(),
+            ptr::null_mut(),
         );
-        i = 0;
-        while i < sce0.ics.swb_sizes[g as usize] as c_int {
-            dist_spec_err += (*L34.offset(i as isize) - *I34.offset(i as isize))
-                * (*L34.offset(i as isize) - *I34.offset(i as isize));
-            dist_spec_err += (*R34.offset(i as isize) - *I34.offset(i as isize) * e01_34)
-                * (*R34.offset(i as isize) - *I34.offset(i as isize) * e01_34);
-            i += 1;
-            i;
+        for i in 0..usize::from(sce0.ics.swb_sizes[g as usize]) {
+            dist_spec_err += (L34[i] - I34[i]) * (L34[i] - I34[i]);
+            dist_spec_err += (R34[i] - I34[i] * e01_34) * (R34[i] - I34[i] * e01_34);
         }
         dist_spec_err *= (*s).lambda / minthr;
         dist2 += dist_spec_err;
-        w2 += 1;
-        w2;
     }
-    is_error.pass = (dist2 <= dist1) as c_int;
-    is_error.phase = phase;
-    is_error.error = dist2 - dist1;
-    is_error.dist1 = dist1;
-    is_error.dist2 = dist2;
-    is_error.ener01 = ener01;
-    is_error
+
+    (dist2 <= dist1).then_some(AACISError {
+        phase,
+        error: dist2 - dist1,
+        ener01,
+    })
 }
 
 pub(crate) unsafe fn search_for_is(
@@ -266,23 +264,6 @@ pub(crate) unsafe fn search_for_is(
                 let mut ener1: c_float = 0.;
                 let mut ener01: c_float = 0.;
                 let mut ener01p: c_float = 0.;
-                let mut ph_err1: AACISError = AACISError {
-                    pass: 0,
-                    phase: 0,
-                    error: 0.,
-                    dist1: 0.,
-                    dist2: 0.,
-                    ener01: 0.,
-                };
-                let mut ph_err2: AACISError = AACISError {
-                    pass: 0,
-                    phase: 0,
-                    error: 0.,
-                    dist1: 0.,
-                    dist2: 0.,
-                    ener01: 0.,
-                };
-                let mut best: *mut AACISError = std::ptr::null_mut::<AACISError>();
                 w2 = 0;
                 while w2 < c_int::from(group_len) {
                     i = 0;
@@ -299,40 +280,63 @@ pub(crate) unsafe fn search_for_is(
                     w2 += 1;
                     w2;
                 }
-                ph_err1 = ff_aac_is_encoding_err(s, cpe, start, w, g, ener0, ener1, ener01p, 0, -1);
-                ph_err2 = ff_aac_is_encoding_err(s, cpe, start, w, g, ener0, ener1, ener01, 0, 1);
-                best = if ph_err1.pass != 0 && ph_err1.error < ph_err2.error {
-                    &mut ph_err1
-                } else {
-                    &mut ph_err2
+                let ph_err1 = encoding_err(
+                    s,
+                    cpe,
+                    start,
+                    w,
+                    g,
+                    ener0,
+                    ener1,
+                    ener01p,
+                    false,
+                    Phase::Negative,
+                );
+                let ph_err2 = encoding_err(
+                    s,
+                    cpe,
+                    start,
+                    w,
+                    g,
+                    ener0,
+                    ener1,
+                    ener01,
+                    false,
+                    Phase::Positive,
+                );
+                let best = match (&ph_err1, &ph_err2) {
+                    (None, None) => None,
+                    (None, Some(err)) => Some(err),
+                    (Some(err), None) => Some(err),
+                    (Some(err1), Some(err2)) if err1.error < err2.error => Some(err1),
+                    (Some(_), Some(err2)) => Some(err2),
                 };
-                if (*best).pass != 0 {
+                if let Some(best) = best {
                     (*cpe).is_mask[(w * 16 + g) as usize] = true;
                     (*cpe).ms_mask[(w * 16 + g) as usize] = false;
                     (*cpe).ch[0].is_ener[(w * 16 + g) as usize] =
-                        sqrt((ener0 / (*best).ener01) as c_double) as c_float;
+                        sqrt((ener0 / best.ener01) as c_double) as c_float;
                     (*cpe).ch[1].is_ener[(w * 16 + g) as usize] = ener0 / ener1;
-                    (*cpe).ch[1].band_type[(w * 16 + g) as usize] = (if (*best).phase > 0 {
-                        INTENSITY_BT as c_int
-                    } else {
-                        INTENSITY_BT2 as c_int
-                    })
-                        as BandType;
+                    (*cpe).ch[1].band_type[(w * 16 + g) as usize] =
+                        if let Phase::Positive = best.phase {
+                            INTENSITY_BT
+                        } else {
+                            INTENSITY_BT2
+                        };
                     if prev_is != 0
                         && prev_bt as c_uint
                             != (*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_uint
                     {
                         (*cpe).ms_mask[(w * 16 + g) as usize] = true;
-                        (*cpe).ch[1].band_type[(w * 16 + g) as usize] = (if (*best).phase > 0 {
-                            INTENSITY_BT2 as c_int
-                        } else {
-                            INTENSITY_BT as c_int
-                        })
-                            as BandType;
+                        (*cpe).ch[1].band_type[(w * 16 + g) as usize] =
+                            if let Phase::Positive = best.phase {
+                                INTENSITY_BT2
+                            } else {
+                                INTENSITY_BT
+                            };
                     }
                     prev_bt = (*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_int;
                     count += 1;
-                    count;
                 }
             }
             if !sce1.zeroes[(w * 16 + g) as usize]
