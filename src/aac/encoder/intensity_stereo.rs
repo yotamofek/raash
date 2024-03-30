@@ -242,19 +242,18 @@ pub(crate) unsafe fn search(
                 let [coeffs0, coeffs1] = [&sce0.coeffs, &sce1.coeffs].map(|coeffs| {
                     coeffs[(start + w * 128) as usize..][..usize::from(group_len) * 128]
                         .array_chunks::<128>()
-                        .map(|chunk| &chunk[..sce0.ics.swb_sizes[g as usize].into()])
+                        .flat_map(|chunk| &chunk[..sce0.ics.swb_sizes[g as usize].into()])
                 });
-                let (Sum(ener0), Sum(ener1), Sum(ener01), Sum(ener01p)) =
-                    zip(coeffs0.flatten(), coeffs1.flatten())
-                        .map(|(&coef0, &coef1)| {
-                            (
-                                coef0.powi(2),
-                                coef1.powi(2),
-                                (coef0 + coef1).powi(2),
-                                (coef0 - coef1).powi(2),
-                            )
-                        })
-                        .reduce_with();
+                let (Sum(ener0), Sum(ener1), Sum(ener01), Sum(ener01p)) = zip(coeffs0, coeffs1)
+                    .map(|(&coef0, &coef1)| {
+                        (
+                            coef0.powi(2),
+                            coef1.powi(2),
+                            (coef0 + coef1).powi(2),
+                            (coef0 - coef1).powi(2),
+                        )
+                    })
+                    .reduce_with();
 
                 let ph_err1 = encoding_err(
                     s,

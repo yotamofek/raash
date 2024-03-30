@@ -16,7 +16,7 @@ use crate::{
 pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut start: c_int = 0;
 
-    let ([M, S, L34, R34, M34, S34, ..], _) = (*s).scoefs.as_chunks_mut::<128>() else {
+    let ([M, S, L34, R34, M34, S34, ..], []) = (*s).scoefs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 

@@ -148,7 +148,7 @@ pub(crate) unsafe fn search(
 
     let AVCodecContext { sample_rate, .. } = *avctx;
 
-    let ([PNS, PNS34, _, NOR34, ..], _) = (*s).scoefs.as_chunks_mut::<128>() else {
+    let ([PNS, PNS34, _, NOR34, ..], []) = (*s).scoefs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
