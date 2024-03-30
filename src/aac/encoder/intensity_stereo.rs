@@ -208,7 +208,8 @@ unsafe fn encoding_err(
     })
 }
 
-pub(crate) unsafe fn search_for_is(
+#[ffmpeg_src(file = "libavcodec/aacenc_is.c", lines = 98..=158, name = "ff_aac_search_for_is")]
+pub(crate) unsafe fn search(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut cpe: *mut ChannelElement,
@@ -218,12 +219,11 @@ pub(crate) unsafe fn search_for_is(
     let mut start: c_int = 0;
     let mut count: c_int = 0;
     let mut w2: c_int = 0;
-    let mut g: c_int = 0;
     let mut i: c_int = 0;
     let mut prev_sf1: c_int = -1;
     let mut prev_bt: c_int = -1;
-    let mut prev_is: c_int = 0;
-    let freq_mult: c_float =
+    let mut prev_is = false;
+    let freq_mult =
         (*avctx).sample_rate as c_float / (1024. / sce0.ics.num_windows as c_float) / 2.;
     if (*cpe).common_window == 0 {
         return;
@@ -231,8 +231,7 @@ pub(crate) unsafe fn search_for_is(
     let mut nextband1 = ptr::from_mut(sce1).init_nextband_map();
     for WindowedIteration { w, group_len } in sce0.ics.iter_windows() {
         start = 0;
-        g = 0;
-        while g < sce0.ics.num_swb {
+        for g in 0..sce0.ics.num_swb {
             if start as c_float * freq_mult > 6100. * ((*s).lambda / 170.)
                 && (*cpe).ch[0].band_type[(w * 16 + g) as usize] as c_uint
                     != NOISE_BT as c_int as c_uint
@@ -287,11 +286,10 @@ pub(crate) unsafe fn search_for_is(
                     Phase::Positive,
                 );
                 let best = match (&ph_err1, &ph_err2) {
-                    (None, None) => None,
-                    (None, Some(err)) => Some(err),
-                    (Some(err), None) => Some(err),
                     (Some(err1), Some(err2)) if err1.error < err2.error => Some(err1),
-                    (Some(_), Some(err2)) => Some(err2),
+                    (_, Some(err2)) => Some(err2),
+                    (Some(err), None) => Some(err),
+                    (None, None) => None,
                 };
                 if let Some(best) = best {
                     (*cpe).is_mask[(w * 16 + g) as usize] = true;
@@ -305,10 +303,11 @@ pub(crate) unsafe fn search_for_is(
                         } else {
                             INTENSITY_BT2
                         };
-                    if prev_is != 0
+                    if prev_is
                         && prev_bt as c_uint
                             != (*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_uint
                     {
+                        // Flip M/S mask and pick the other CB, since it encodes more efficiently
                         (*cpe).ms_mask[(w * 16 + g) as usize] = true;
                         (*cpe).ch[1].band_type[(w * 16 + g) as usize] =
                             if let Phase::Positive = best.phase {
@@ -327,10 +326,8 @@ pub(crate) unsafe fn search_for_is(
             {
                 prev_sf1 = sce1.sf_idx[(w * 16 + g) as usize];
             }
-            prev_is = (*cpe).is_mask[(w * 16 + g) as usize] as c_int;
+            prev_is = (*cpe).is_mask[(w * 16 + g) as usize];
             start += sce0.ics.swb_sizes[g as usize] as c_int;
-            g += 1;
-            g;
         }
     }
     (*cpe).is_mode = count != 0;

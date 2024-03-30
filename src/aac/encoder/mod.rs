@@ -45,7 +45,6 @@ use lpc::LPCContext;
 use self::{
     channel_layout::pce,
     ctx::AACEncContext,
-    intensity_stereo::search_for_is,
     long_term_prediction::{
         adjust_common_ltp, encode_ltp_info, ltp_insert_new_frame, search_for_ltp, update_ltp,
     },
@@ -965,7 +964,7 @@ unsafe fn aac_encode_frame(
             }
             (*ctx).cur_channel = start_ch;
             if (*ctx).options.intensity_stereo != 0 {
-                search_for_is(ctx, avctx, cpe);
+                intensity_stereo::search(ctx, avctx, cpe);
                 if (*cpe).is_mode {
                     is_mode = 1;
                 }

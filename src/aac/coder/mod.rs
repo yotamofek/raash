@@ -24,9 +24,8 @@ use self::{
     quantize_and_encode_band::quantize_and_encode_band_cost,
 };
 use super::{
-    encoder::{abs_pow34_v, ctx::AACEncContext},
-    tables::*,
-    IndividualChannelStream, WindowedIteration, SCALE_MAX_DIFF,
+    encoder::ctx::AACEncContext, tables::*, IndividualChannelStream, WindowedIteration,
+    SCALE_MAX_DIFF,
 };
 use crate::{common::*, types::*};
 
