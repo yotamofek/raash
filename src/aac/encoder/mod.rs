@@ -410,7 +410,7 @@ unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
 unsafe fn encode_band_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     set_special_band_scalefactors(s, sce);
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-        trellis::codebook_rate(s, sce, w, group_len.into(), (*s).lambda);
+        trellis::codebook_rate(s, sce, w, group_len.into());
     }
 }
 

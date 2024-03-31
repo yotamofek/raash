@@ -75,14 +75,19 @@ unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: c_int, mut value:
     (*s).bit_buf = bit_buf;
     (*s).bit_left = bit_left;
 }
-static mut run_value_bits_long: [c_uchar; 64] = [
+static run_value_bits_long: [c_uchar; 64] = [
     5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
     10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
     10, 10, 10, 10, 10, 10, 10, 10, 15,
 ];
-static mut run_value_bits_short: [c_uchar; 16] = [3, 3, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 9];
-static mut run_value_bits: [*const c_uchar; 2] =
-    unsafe { [run_value_bits_long.as_ptr(), run_value_bits_short.as_ptr()] };
+static run_value_bits_short: [c_uchar; 16] = [3, 3, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 9];
+fn run_value_bits(num_windows: c_int) -> &'static [c_uchar] {
+    if num_windows == 8 {
+        &run_value_bits_short
+    } else {
+        &run_value_bits_long
+    }
+}
 static aac_cb_out_map: [c_uchar; 15] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15];
 static aac_cb_in_map: [c_uchar; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14];
 static aac_cb_range: [c_uchar; 12] = [0, 3, 3, 3, 3, 9, 9, 8, 8, 13, 13, 17];
@@ -90,7 +95,7 @@ static aac_cb_maxval: [c_uchar; 12] = [0, 1, 1, 2, 2, 4, 4, 7, 7, 12, 12, 16];
 
 static aac_maxval_cb: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
 #[inline]
-unsafe fn quant(mut coef: c_float, Q: c_float, rounding: c_float) -> c_int {
+fn quant(mut coef: c_float, Q: c_float, rounding: c_float) -> c_int {
     let mut a = coef * Q;
     (sqrtf(a * sqrtf(a)) + rounding) as c_int
 }
@@ -350,10 +355,7 @@ unsafe fn quantize_band_cost_bits(
     mut size: c_int,
     mut scale_idx: c_int,
     mut cb: c_int,
-    _lambda: c_float,
     uplim: c_float,
-    mut bits: *mut c_int,
-    mut energy: *mut c_float,
 ) -> c_int {
     let mut auxbits: c_int = 0;
     quantize_and_encode_band_cost(
@@ -365,14 +367,11 @@ unsafe fn quantize_band_cost_bits(
         size,
         scale_idx,
         cb,
-        0.0f32,
+        0.,
         uplim,
         &mut auxbits,
-        energy,
+        ptr::null_mut(),
     );
-    if !bits.is_null() {
-        *bits = auxbits;
-    }
     auxbits
 }
 
