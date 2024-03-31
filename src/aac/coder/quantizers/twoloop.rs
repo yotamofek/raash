@@ -183,12 +183,12 @@ pub(crate) unsafe fn search(
                 let mut cleanup_factor: c_float =
                     ((start as c_float / (cutoff as c_float * 0.75)).clamp(1., 2.)).powi(2);
                 let mut energy2uplim: c_float = find_form_factor(
-                    c_int::from(group_len),
-                    sce.ics.swb_sizes[g as usize] as c_int,
+                    group_len,
+                    sce.ics.swb_sizes[g as usize],
                     uplims[(w * 16 + g) as usize]
                         / (nzs[g as usize] as c_int * sce.ics.swb_sizes[w as usize] as c_int)
                             as c_float,
-                    (sce.coeffs).as_mut_ptr().offset(start as isize),
+                    &sce.coeffs[start as usize..],
                     nzslope * cleanup_factor,
                 );
                 energy2uplim *= de_psy_factor;
@@ -199,12 +199,12 @@ pub(crate) unsafe fn search(
                 uplims[(w * 16 + g) as usize] *=
                     (rdlambda * energy2uplim).clamp(rdmin, rdmax) * c_float::from(group_len);
                 energy2uplim = find_form_factor(
-                    c_int::from(group_len),
-                    sce.ics.swb_sizes[g as usize] as c_int,
+                    group_len,
+                    sce.ics.swb_sizes[g as usize],
                     uplims[(w * 16 + g) as usize]
                         / (nzs[g as usize] as c_int * sce.ics.swb_sizes[w as usize] as c_int)
                             as c_float,
-                    (sce.coeffs).as_mut_ptr().offset(start as isize),
+                    &sce.coeffs[start as usize..],
                     2.,
                 );
                 energy2uplim *= de_psy_factor;

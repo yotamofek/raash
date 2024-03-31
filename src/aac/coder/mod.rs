@@ -129,68 +129,60 @@ fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
     aac_maxval_cb.get(qmaxval as usize).copied().unwrap_or(11) as c_int
 }
 
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 104..=154)]
 #[inline]
-unsafe fn find_form_factor(
-    mut group_len: c_int,
-    mut swb_size: c_int,
-    mut thresh: c_float,
-    mut scaled: *const c_float,
-    mut nzslope: c_float,
+fn find_form_factor(
+    group_len: u8,
+    swb_size: u8,
+    thresh: c_float,
+    scaled: &[c_float],
+    nzslope: c_float,
 ) -> c_float {
+    #[cfg(debug_assertions)]
+    let _ = scaled[..128 * usize::from(group_len - 1)];
+
     let iswb_size: c_float = 1. / swb_size as c_float;
     let iswb_sizem1: c_float = 1. / (swb_size - 1) as c_float;
     let ethresh: c_float = thresh;
     let mut form: c_float = 0.;
     let mut weight: c_float = 0.;
-    let mut w2: c_int = 0;
-    let mut i: c_int = 0;
-    w2 = 0;
-    while w2 < group_len {
-        let mut e: c_float = 0.;
-        let mut e2: c_float = 0.;
-        let mut var: c_float = 0.;
-        let mut maxval: c_float = 0.;
-        let mut nzl: c_float = 0.;
-        i = 0;
-        while i < swb_size {
-            let mut s: c_float = fabsf(*scaled.offset((w2 * 128 + i) as isize));
-            maxval = if maxval > s { maxval } else { s };
+    for scaled_window in scaled.chunks(128).take(group_len.into()) {
+        let mut e = 0.;
+        let mut e2 = 0.;
+        let mut maxval = 0.;
+        let mut nzl = 0.;
+        for s in &scaled_window[..swb_size.into()] {
+            let mut s = s.abs();
+            maxval = c_float::max(maxval, s);
             e += s;
             s *= s;
             e2 += s;
+            // We really don't want a hard non-zero-line count, since
+            // even below-threshold lines do add up towards band spectral power.
+            // So, fall steeply towards zero, but smoothly
             if s >= ethresh {
                 nzl += 1.;
             } else if nzslope == 2. {
-                nzl += s / ethresh * (s / ethresh);
+                nzl += (s / ethresh).powi(2);
             } else {
                 nzl += ff_fast_powf(s / ethresh, nzslope);
             }
-            i += 1;
-            i;
         }
         if e2 > thresh {
-            let mut frm: c_float = 0.;
             e *= iswb_size;
-            i = 0;
-            while i < swb_size {
-                let mut d: c_float = fabsf(*scaled.offset((w2 * 128 + i) as isize)) - e;
-                var += d * d;
-                i += 1;
-                i;
-            }
-            var = sqrtf(var * iswb_sizem1);
+
+            // compute variance
+            let var = scaled_window[..swb_size.into()]
+                .iter()
+                .map(|s| (s.abs() - e).powi(2))
+                .sum::<c_float>();
+            let var = (var * iswb_sizem1).sqrt();
+
             e2 *= iswb_size;
-            frm = e
-                / (if e + 4. * var > maxval {
-                    maxval
-                } else {
-                    e + 4. * var
-                });
-            form += e2 * sqrtf(frm) / (if 0.5 > nzl { 0.5 } else { nzl });
+            let frm = e / c_float::min(e + 4. * var, maxval);
+            form += e2 * frm.sqrt() / c_float::max(0.5, nzl);
             weight += e2;
         }
-        w2 += 1;
-        w2;
     }
     if weight > 0. {
         form / weight
