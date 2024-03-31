@@ -11,7 +11,7 @@ use std::{iter::zip, ops::Mul, ptr};
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::izip;
-use libc::{c_double, c_float, c_int, c_uint};
+use libc::{c_double, c_float, c_int};
 use reductor::{Reduce, Sum};
 
 use super::pow::Pow34;
@@ -220,7 +220,7 @@ pub(crate) unsafe fn search(
     let mut start: c_int = 0;
     let mut count: c_int = 0;
     let mut prev_sf1: c_int = -1;
-    let mut prev_bt: c_int = -1;
+    let mut prev_bt = None;
     let mut prev_is = false;
     let freq_mult =
         (*avctx).sample_rate as c_float / (1024. / sce0.ics.num_windows as c_float) / 2.;
@@ -295,7 +295,7 @@ pub(crate) unsafe fn search(
                     } else {
                         INTENSITY_BT2
                     };
-                    if prev_is && prev_bt as c_uint != (*cpe).ch[1].band_type[wstart] as c_uint {
+                    if prev_is && prev_bt != Some((*cpe).ch[1].band_type[wstart]) {
                         // Flip M/S mask and pick the other CB, since it encodes more efficiently
                         (*cpe).ms_mask[wstart] = true;
                         (*cpe).ch[1].band_type[wstart] = if let Phase::Positive = best.phase {
@@ -304,11 +304,11 @@ pub(crate) unsafe fn search(
                             INTENSITY_BT
                         };
                     }
-                    prev_bt = (*cpe).ch[1].band_type[wstart] as c_int;
+                    prev_bt = Some((*cpe).ch[1].band_type[wstart]);
                     count += 1;
                 }
             }
-            if !sce1.zeroes[wstart] && (sce1.band_type[wstart]) < RESERVED_BT {
+            if !sce1.zeroes[wstart] && sce1.band_type[wstart] < RESERVED_BT {
                 prev_sf1 = sce1.sf_idx[wstart];
             }
             prev_is = (*cpe).is_mask[wstart];
