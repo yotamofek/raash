@@ -14,7 +14,7 @@ use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
 
 use crate::{
     aac::{
-        coder::quantize_and_encode_band::quantize_and_encode_band_cost,
+        coder::{quantize_and_encode_band::quantize_and_encode_band_cost, quantize_band_cost},
         encoder::{abs_pow34_v, ctx::AACEncContext},
         IndividualChannelStream, SyntaxElementType, WindowedIteration, EIGHT_SHORT_SEQUENCE,
     },
@@ -76,34 +76,7 @@ unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: c_int, mut value:
 unsafe fn put_bits(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
     put_bits_no_assert(s, n, value);
 }
-#[inline]
-unsafe fn quantize_band_cost(
-    mut s: *mut AACEncContext,
-    mut in_0: *const c_float,
-    mut scaled: *const c_float,
-    mut size: c_int,
-    mut scale_idx: c_int,
-    mut cb: c_int,
-    lambda: c_float,
-    uplim: c_float,
-    mut bits: *mut c_int,
-    mut energy: *mut c_float,
-) -> c_float {
-    quantize_and_encode_band_cost(
-        s,
-        std::ptr::null_mut::<PutBitContext>(),
-        in_0,
-        std::ptr::null_mut::<c_float>(),
-        scaled,
-        size,
-        scale_idx,
-        cb,
-        lambda,
-        uplim,
-        bits,
-        energy,
-    )
-}
+
 #[inline]
 unsafe fn quant_array_idx(val: c_float, mut arr: *const c_float, num: c_int) -> c_int {
     let mut i: c_int = 0;
@@ -327,7 +300,9 @@ pub(crate) unsafe fn search_for_ltp(
             (*sce).ics.max_sfb as c_int
         }));
 
-    let [C34, PCD, PCD34] = [0, 1, 2].map(|i| (*s).scoefs[128 * i..].as_mut_ptr());
+    let ([C34, PCD, PCD34, ..], []) = (*s).scoefs.as_chunks_mut::<128>() else {
+        unreachable!();
+    };
 
     let max_ltp: c_int = if (*sce).ics.max_sfb as c_int > 40 {
         40
@@ -364,45 +339,45 @@ pub(crate) unsafe fn search_for_ltp(
                         as *mut FFPsyBand;
                     i = 0;
                     while i < (*sce).ics.swb_sizes[g as usize] as c_int {
-                        *PCD.offset(i as isize) = (*sce).coeffs
-                            [(start + (w + w2) * 128 + i) as usize]
+                        PCD[i as usize] = (*sce).coeffs[(start + (w + w2) * 128 + i) as usize]
                             - (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                         i += 1;
                         i;
                     }
                     abs_pow34_v(
-                        C34,
+                        C34.as_mut_ptr(),
                         &mut *((*sce).coeffs)
                             .as_mut_ptr()
                             .offset((start + (w + w2) * 128) as isize),
                         (*sce).ics.swb_sizes[g as usize] as c_int,
                     );
-                    abs_pow34_v(PCD34, PCD, (*sce).ics.swb_sizes[g as usize] as c_int);
+                    abs_pow34_v(
+                        PCD34.as_mut_ptr(),
+                        PCD.as_ptr(),
+                        (*sce).ics.swb_sizes[g as usize] as c_int,
+                    );
                     dist1 += quantize_band_cost(
                         s,
-                        &mut *((*sce).coeffs)
-                            .as_mut_ptr()
-                            .offset((start + (w + w2) * 128) as isize),
-                        C34,
-                        (*sce).ics.swb_sizes[g as usize] as c_int,
+                        &(*sce).coeffs[(start + (w + w2) * 128) as usize..]
+                            [..(*sce).ics.swb_sizes[g as usize].into()],
+                        Some(&C34[..(*sce).ics.swb_sizes[g as usize].into()]),
                         (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                         (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
                         ::core::f32::INFINITY,
-                        &mut bits_tmp1,
-                        std::ptr::null_mut::<c_float>(),
+                        Some(&mut bits_tmp1),
+                        None,
                     );
                     dist2 += quantize_band_cost(
                         s,
-                        PCD,
-                        PCD34,
-                        (*sce).ics.swb_sizes[g as usize] as c_int,
+                        &PCD[..(*sce).ics.swb_sizes[g as usize].into()],
+                        Some(&PCD34[..(*sce).ics.swb_sizes[g as usize].into()]),
                         (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                         (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
                         ::core::f32::INFINITY,
-                        &mut bits_tmp2,
-                        std::ptr::null_mut::<c_float>(),
+                        Some(&mut bits_tmp2),
+                        None,
                     );
                     bits1 += bits_tmp1;
                     bits2 += bits_tmp2;

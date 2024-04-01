@@ -1,4 +1,4 @@
-use std::{iter, ptr};
+use std::iter;
 
 use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
 use ffmpeg_src_macro::ffmpeg_src;
@@ -232,7 +232,7 @@ pub(crate) unsafe fn search(
 
             let pns_tgt_energy = sfb_energy * c_float::min(1., spread * spread);
             let noise_sfi = av_clip_c(roundf(log2f(pns_tgt_energy) * 2.) as c_int, -100, 155);
-            let noise_amp = -POW_SF_TABLES.pow2[(noise_sfi + 200) as usize];
+            let noise_amp = -POW_SF_TABLES.pow2()[(noise_sfi + 200) as usize];
             if prev != -1000 {
                 let mut noise_sfdiff: c_int = noise_sfi - prev + 60;
                 if !(0..=2 * 60).contains(&noise_sfdiff) {
@@ -282,15 +282,14 @@ pub(crate) unsafe fn search(
 
                 dist1 += quantize_band_cost(
                     s,
-                    &mut *((*sce).coeffs).as_mut_ptr().offset(start_c as isize),
-                    NOR34.as_mut_ptr(),
-                    swb_size.into(),
+                    &((*sce).coeffs)[(start_c as usize)..][..swb_size.into()],
+                    Some(&NOR34[..swb_size.into()]),
                     (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                     (*sce).band_alt[((w + w2) * 16 + g) as usize] as c_int,
                     lambda / band.threshold,
                     f32::INFINITY,
-                    ptr::null_mut(),
-                    ptr::null_mut(),
+                    None,
+                    None,
                 );
                 // Estimate rd on average as 5 bits for SF, 4 for the CB, plus spread energy *
                 // lambda/thr

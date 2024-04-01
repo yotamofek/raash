@@ -17,7 +17,7 @@ use reductor::{Reduce, Sum};
 use super::pow::Pow34;
 use crate::{
     aac::{
-        coder::{quantize_and_encode_band::quantize_and_encode_band_cost, sfdelta_can_remove_band},
+        coder::{quantize_band_cost, sfdelta_can_remove_band},
         encoder::ctx::AACEncContext,
         tables::POW_SF_TABLES,
         WindowedIteration,
@@ -33,38 +33,9 @@ fn pos_pow34(mut a: c_float) -> c_float {
 
 #[inline]
 fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
-    let mut Q34: c_float = POW_SF_TABLES.pow34[(200 - sf + 140 - 36) as usize];
+    let mut Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
     let qmaxval = (maxval * Q34 + 0.405_4_f32) as usize;
     aac_maxval_cb.get(qmaxval).copied().unwrap_or(11) as c_int
-}
-
-#[inline]
-unsafe fn quantize_band_cost(
-    mut s: *mut AACEncContext,
-    mut in_0: *const c_float,
-    mut scaled: *const c_float,
-    mut size: c_int,
-    mut scale_idx: c_int,
-    mut cb: c_int,
-    lambda: c_float,
-    uplim: c_float,
-    mut bits: *mut c_int,
-    mut energy: *mut c_float,
-) -> c_float {
-    quantize_and_encode_band_cost(
-        s,
-        ptr::null_mut::<PutBitContext>(),
-        in_0,
-        ptr::null_mut::<c_float>(),
-        scaled,
-        size,
-        scale_idx,
-        cb,
-        lambda,
-        uplim,
-        bits,
-        energy,
-    )
 }
 
 #[derive(Clone, Copy)]
@@ -158,39 +129,36 @@ unsafe fn encoding_err(
         is_band_type = find_min_book(maxval, is_sf_idx);
         dist1 += quantize_band_cost(
             s,
-            L[wstart..].as_ptr(),
-            L34.as_ptr(),
-            swb_size as c_int,
+            &L[wstart..][..swb_size],
+            Some(&L34[..swb_size]),
             sce0.sf_idx[(w * 16 + g) as usize],
             sce0.band_type[(w * 16 + g) as usize] as c_int,
             (*s).lambda / band0.threshold,
             f32::INFINITY,
-            ptr::null_mut(),
-            ptr::null_mut(),
+            None,
+            None,
         );
         dist1 += quantize_band_cost(
             s,
-            R[wstart..].as_ptr(),
-            R34.as_ptr(),
-            sce1.ics.swb_sizes[g as usize] as c_int,
+            &R[wstart..][..sce1.ics.swb_sizes[g as usize].into()],
+            Some(&R34[..sce1.ics.swb_sizes[g as usize].into()]),
             sce1.sf_idx[(w * 16 + g) as usize],
             sce1.band_type[(w * 16 + g) as usize] as c_int,
             (*s).lambda / band1.threshold,
             f32::INFINITY,
-            ptr::null_mut(),
-            ptr::null_mut(),
+            None,
+            None,
         );
         dist2 += quantize_band_cost(
             s,
-            IS.as_ptr(),
-            I34.as_ptr(),
-            swb_size as c_int,
+            &IS[..swb_size],
+            Some(&I34[..swb_size]),
             is_sf_idx,
             is_band_type,
             (*s).lambda / minthr,
             f32::INFINITY,
-            ptr::null_mut(),
-            ptr::null_mut(),
+            None,
+            None,
         );
 
         let dist_spec_err = izip!(&L34[..swb_size], &R34[..swb_size], &I34[..swb_size])

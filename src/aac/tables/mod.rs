@@ -11,6 +11,7 @@ mod codes;
 
 use std::{f32::consts::SQRT_2, f64::consts::PI, iter::zip};
 
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int};
 use once_cell::sync::Lazy;
 
@@ -18,8 +19,20 @@ pub(crate) use self::codes::*;
 use crate::bessel;
 
 pub(crate) struct PowSfTables {
-    pub pow2: [c_float; 428],
-    pub pow34: [c_float; 428],
+    pow2: [c_float; 428],
+    pow34: [c_float; 428],
+}
+
+impl PowSfTables {
+    #[ffmpeg_src(file = "libavcodec/aactab.c", lines = 43, name = "ff_aac_pow2sf_tab")]
+    pub(crate) fn pow2(&self) -> &[c_float; 428] {
+        &self.pow2
+    }
+
+    #[ffmpeg_src(file = "libavcodec/aactab.c", lines = 44, name = "ff_aac_pow34sf_tab")]
+    pub(crate) fn pow34(&self) -> &[c_float; 428] {
+        &self.pow34
+    }
 }
 
 pub(crate) static POW_SF_TABLES: Lazy<PowSfTables> = Lazy::new(|| {

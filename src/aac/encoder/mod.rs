@@ -26,7 +26,6 @@ use std::{
     iter::zip,
     mem::size_of,
     ptr::{self, addr_of, null_mut},
-    slice,
 };
 
 use encoder::{encoder, Class, Encoder, PacketBuilder};
@@ -108,19 +107,18 @@ pub(crate) unsafe fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float
     }
 }
 
-pub(crate) unsafe fn quantize_bands(
-    mut out: *mut c_int,
-    mut in_0: *const c_float,
-    mut scaled: *const c_float,
-    mut size: c_int,
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 65..=78)]
+pub(crate) fn quantize_bands(
+    mut out: &mut [c_int],
+    mut in_0: &[c_float],
+    mut scaled: &[c_float],
     mut is_signed: bool,
     mut maxval: c_int,
     Q34: c_float,
     rounding: c_float,
 ) {
-    let out = slice::from_raw_parts_mut::<c_int>(out, size as usize);
-    let in_0 = slice::from_raw_parts::<c_float>(in_0, size as usize);
-    let scaled = slice::from_raw_parts::<c_float>(scaled, size as usize);
+    debug_assert_eq!(out.len(), in_0.len());
+    debug_assert_eq!(out.len(), scaled.len());
     zip(in_0, scaled)
         .map(|(&in_0, &scaled)| {
             let qc = scaled * Q34;
@@ -513,11 +511,9 @@ unsafe extern "C" fn encode_spectral_coeffs(
                     quantize_and_encode_band(
                         s,
                         &mut (*s).pb,
-                        &mut *((*sce).coeffs)
-                            .as_mut_ptr()
-                            .offset((start + w2 * 128) as isize),
-                        ptr::null_mut::<c_float>(),
-                        (*sce).ics.swb_sizes[i as usize] as c_int,
+                        &(*sce).coeffs[(start + w2 * 128) as usize..]
+                            [..(*sce).ics.swb_sizes[i as usize].into()],
+                        None,
                         (*sce).sf_idx[(w * 16 + i) as usize],
                         (*sce).band_type[(w * 16 + i) as usize] as c_int,
                         (*s).lambda,

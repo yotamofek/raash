@@ -90,7 +90,9 @@ fn run_value_bits(num_windows: c_int) -> &'static [c_uchar] {
 }
 static aac_cb_out_map: [c_uchar; 15] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15];
 static aac_cb_in_map: [c_uchar; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14];
-static aac_cb_range: [c_uchar; 12] = [0, 3, 3, 3, 3, 9, 9, 8, 8, 13, 13, 17];
+
+#[ffmpeg_src(file = "libavcodec/aacenctab.h", lines = 119, name = "aac_cb_range")]
+static CB_RANGE: [c_uchar; 12] = [0, 3, 3, 3, 3, 9, 9, 8, 8, 13, 13, 17];
 static aac_cb_maxval: [c_uchar; 12] = [0, 1, 1, 2, 2, 4, 4, 7, 7, 12, 12, 16];
 
 static aac_maxval_cb: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
@@ -129,7 +131,7 @@ unsafe fn find_max_val(
 
 #[inline]
 fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
-    let Q34: c_float = POW_SF_TABLES.pow34[(200 - sf + 140 - 36) as usize];
+    let Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
     let qmaxval = (maxval * Q34 + 0.4054) as c_int;
     aac_maxval_cb.get(qmaxval as usize).copied().unwrap_or(11) as c_int
 }
@@ -273,9 +275,8 @@ unsafe fn quantize_band_cost_cached(
     mut s: *mut AACEncContext,
     mut w: c_int,
     mut g: c_int,
-    mut in_0: *const c_float,
-    mut scaled: *const c_float,
-    mut size: c_int,
+    mut in_0: &[c_float],
+    mut scaled: Option<&[c_float]>,
     mut scale_idx: c_int,
     mut cb: c_int,
     lambda: c_float,
@@ -299,13 +300,12 @@ unsafe fn quantize_band_cost_cached(
             s,
             in_0,
             scaled,
-            size,
             scale_idx,
             cb,
             lambda,
             uplim,
-            &mut (*entry).bits,
-            &mut (*entry).energy,
+            Some(&mut (*entry).bits),
+            Some(&mut (*entry).energy),
         );
         (*entry).cb = cb as c_char;
         (*entry).rtz = rtz as c_char;
@@ -320,25 +320,23 @@ unsafe fn quantize_band_cost_cached(
     (*entry).rd
 }
 #[inline]
-unsafe fn quantize_band_cost(
+pub(super) unsafe fn quantize_band_cost(
     mut s: *mut AACEncContext,
-    mut in_0: *const c_float,
-    mut scaled: *const c_float,
-    mut size: c_int,
+    mut in_0: &[c_float],
+    mut scaled: Option<&[c_float]>,
     mut scale_idx: c_int,
     mut cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    mut bits: *mut c_int,
-    mut energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     quantize_and_encode_band_cost(
         s,
         ptr::null_mut(),
         in_0,
-        ptr::null_mut(),
+        None,
         scaled,
-        size,
         scale_idx,
         cb,
         lambda,
@@ -350,9 +348,8 @@ unsafe fn quantize_band_cost(
 #[inline]
 unsafe fn quantize_band_cost_bits(
     mut s: *mut AACEncContext,
-    mut in_0: *const c_float,
-    mut scaled: *const c_float,
-    mut size: c_int,
+    mut in_0: &[c_float],
+    mut scaled: Option<&[c_float]>,
     mut scale_idx: c_int,
     mut cb: c_int,
     uplim: c_float,
@@ -362,15 +359,14 @@ unsafe fn quantize_band_cost_bits(
         s,
         ptr::null_mut(),
         in_0,
-        ptr::null_mut(),
+        None,
         scaled,
-        size,
         scale_idx,
         cb,
         0.,
         uplim,
-        &mut auxbits,
-        ptr::null_mut(),
+        Some(&mut auxbits),
+        None,
     );
     auxbits
 }

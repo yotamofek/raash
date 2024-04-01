@@ -46,18 +46,26 @@ impl TryFrom<u32> for SyntaxElementType {
 /// scalefactor difference that corresponds to scale difference in 512 times
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 146)]
 const SCALE_DIV_512: c_uchar = 36;
+
 /// scalefactor index that corresponds to scale=1.0
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 147)]
 const SCALE_ONE_POS: c_uchar = 140;
+
 /// scalefactor index maximum value
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 148)]
 const SCALE_MAX_POS: c_uchar = 255;
+
 /// maximum scalefactor difference allowed by standard
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 149)]
 const SCALE_MAX_DIFF: c_uchar = 60;
+
 /// codebook index corresponding to zero scalefactor indices difference
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 150)]
 const SCALE_DIFF_ZERO: c_uchar = 60;
+
+/// [`pow2`](tables::PowSfTables::pow2) index corresponding to `pow(2, 0);`
+#[ffmpeg_src(file = "libavcodec/aac.h", lines = 152)]
+const POW_SF2_ZERO: c_uchar = 200;
 
 type WindowSequence = c_uint;
 const LONG_STOP_SEQUENCE: WindowSequence = 3;

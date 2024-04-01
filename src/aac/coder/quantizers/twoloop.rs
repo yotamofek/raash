@@ -1,4 +1,4 @@
-use std::{iter::zip, ptr};
+use std::iter::zip;
 
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
@@ -28,22 +28,17 @@ pub(crate) unsafe fn search(
     mut sce: *mut SingleChannelElement,
     lambda: c_float,
 ) {
-    // TODO: is this safe?
-    let mut s = &mut *s;
-    let mut avctx = &mut *avctx;
-    let mut sce = &mut *sce;
-
     let mut start: c_int = 0;
     let mut i: c_int = 0;
     let mut w2: c_int = 0;
     let mut g: c_int = 0;
     let mut recomprd: c_int = 0;
-    let mut dest_bits: c_int = (avctx.bit_rate as c_double * 1024.
-        / avctx.sample_rate as c_double
-        / (if avctx.flags.qscale() {
+    let mut dest_bits: c_int = ((*avctx).bit_rate as c_double * 1024.
+        / (*avctx).sample_rate as c_double
+        / (if (*avctx).flags.qscale() {
             2.
         } else {
-            avctx.ch_layout.nb_channels as c_float
+            (*avctx).ch_layout.nb_channels as c_float
         }) as c_double
         * (lambda / 120.) as c_double) as c_int;
     let mut refbits: c_int = dest_bits;
@@ -70,23 +65,23 @@ pub(crate) unsafe fn search(
     let mut pns_start_pos: c_int = 0;
     let mut prev: c_int = 0;
     let zeroscale = zeroscale(lambda);
-    if s.psy.bitres.alloc >= 0 {
-        dest_bits = (s.psy.bitres.alloc as c_float
+    if (*s).psy.bitres.alloc >= 0 {
+        dest_bits = ((*s).psy.bitres.alloc as c_float
             * (lambda
-                / (if avctx.global_quality != 0 {
-                    avctx.global_quality
+                / (if (*avctx).global_quality != 0 {
+                    (*avctx).global_quality
                 } else {
                     120
                 }) as c_float)) as c_int;
     }
 
-    if avctx.flags.qscale() {
-        if s.options.mid_side != 0 && s.cur_type == SyntaxElementType::ChannelPairElement {
+    if (*avctx).flags.qscale() {
+        if (*s).options.mid_side != 0 && (*s).cur_type == SyntaxElementType::ChannelPairElement {
             dest_bits *= 2;
         }
         too_many_bits = 5800;
         too_few_bits = dest_bits / 16;
-        sfoffs = (sce.ics.num_windows - 1) as c_float;
+        sfoffs = ((*sce).ics.num_windows - 1) as c_float;
         rdlambda = sqrtf(rdlambda);
         maxits *= 2;
     } else {
@@ -95,18 +90,18 @@ pub(crate) unsafe fn search(
         sfoffs = 0.;
         rdlambda = sqrtf(rdlambda);
     }
-    let wlen: c_int = 1024 / sce.ics.num_windows;
+    let wlen: c_int = 1024 / (*sce).ics.num_windows;
 
-    let frame_bit_rate = frame_bit_rate(avctx, s, refbits, 1.5);
-    let bandwidth = if avctx.cutoff > 0 {
-        avctx.cutoff
+    let frame_bit_rate = frame_bit_rate(&*avctx, &*s, refbits, 1.5);
+    let bandwidth = if (*avctx).cutoff > 0 {
+        (*avctx).cutoff
     } else {
-        s.psy.cutoff = cutoff_from_bitrate(frame_bit_rate, 1, avctx.sample_rate).max(3000);
-        s.psy.cutoff
+        (*s).psy.cutoff = cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate).max(3000);
+        (*s).psy.cutoff
     };
-    s.psy.cutoff = bandwidth;
-    cutoff = bandwidth * 2 * wlen / avctx.sample_rate;
-    pns_start_pos = 4000 * 2 * wlen / avctx.sample_rate;
+    (*s).psy.cutoff = bandwidth;
+    cutoff = bandwidth * 2 * wlen / (*avctx).sample_rate;
+    pns_start_pos = 4000 * 2 * wlen / (*avctx).sample_rate;
 
     // for values above this the decoder might end up in an endless loop
     // due to always having more bits than what can be encoded.
@@ -122,30 +117,30 @@ pub(crate) unsafe fn search(
         min_spread_thr_r,
         max_spread_thr_r,
         allz,
-    } = loop1(sce, s, cutoff, zeroscale);
+    } = loop1(&mut *sce, &*s, cutoff, zeroscale);
 
-    let minscaler = find_min_scaler(sce, &uplims, sfoffs);
+    let minscaler = find_min_scaler(&mut *sce, &uplims, sfoffs);
 
-    clip_non_zeros(sce, minscaler);
+    clip_non_zeros(&mut *sce, minscaler);
 
     if let AllZ::False = allz {
         return;
     }
 
-    s.scoefs = sce.coeffs.map(Pow34::abs_pow34);
+    (*s).scoefs = (*sce).coeffs.map(Pow34::abs_pow34);
 
     ff_quantize_band_cost_cache_init(s);
     minsf.fill(0);
 
-    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
+    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         start = w * 128;
         g = 0;
-        while g < sce.ics.num_swb {
-            let mut scaled = s.scoefs[start as usize..].as_ptr();
+        while g < (*sce).ics.num_swb {
+            let mut scaled = (*s).scoefs[start as usize..].as_ptr();
 
             maxvals[(w * 16 + g) as usize] = find_max_val(
                 c_int::from(group_len),
-                sce.ics.swb_sizes[g as usize] as c_int,
+                (*sce).ics.swb_sizes[g as usize] as c_int,
                 scaled,
             );
 
@@ -158,7 +153,7 @@ pub(crate) unsafe fn search(
                     w2;
                 }
             }
-            start += sce.ics.swb_sizes[g as usize] as c_int;
+            start += (*sce).ics.swb_sizes[g as usize] as c_int;
             g += 1;
             g;
         }
@@ -170,29 +165,29 @@ pub(crate) unsafe fn search(
     // If maxval^2 ~ energy, then that band is mostly noise, and we can
     // relax rate distortion requirements.
     euplims = uplims;
-    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
-        let mut de_psy_factor: c_float = if sce.ics.num_windows > 1 {
+    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
+        let mut de_psy_factor: c_float = if (*sce).ics.num_windows > 1 {
             8. / c_float::from(group_len)
         } else {
             1.
         };
         start = w * 128;
         g = 0;
-        while g < sce.ics.num_swb {
+        while g < (*sce).ics.num_swb {
             if nzs[g as usize] as c_int > 0 {
                 let mut cleanup_factor: c_float =
                     ((start as c_float / (cutoff as c_float * 0.75)).clamp(1., 2.)).powi(2);
                 let mut energy2uplim: c_float = find_form_factor(
                     group_len,
-                    sce.ics.swb_sizes[g as usize],
+                    (*sce).ics.swb_sizes[g as usize],
                     uplims[(w * 16 + g) as usize]
-                        / (nzs[g as usize] as c_int * sce.ics.swb_sizes[w as usize] as c_int)
+                        / (nzs[g as usize] as c_int * (*sce).ics.swb_sizes[w as usize] as c_int)
                             as c_float,
-                    &sce.coeffs[start as usize..],
+                    &(*sce).coeffs[start as usize..],
                     nzslope * cleanup_factor,
                 );
                 energy2uplim *= de_psy_factor;
-                if !avctx.flags.qscale() {
+                if !(*avctx).flags.qscale() {
                     energy2uplim = sqrtf(energy2uplim);
                 }
                 energy2uplim = energy2uplim.clamp(0.015625, 1.);
@@ -200,23 +195,24 @@ pub(crate) unsafe fn search(
                     (rdlambda * energy2uplim).clamp(rdmin, rdmax) * c_float::from(group_len);
                 energy2uplim = find_form_factor(
                     group_len,
-                    sce.ics.swb_sizes[g as usize],
+                    (*sce).ics.swb_sizes[g as usize],
                     uplims[(w * 16 + g) as usize]
-                        / (nzs[g as usize] as c_int * sce.ics.swb_sizes[w as usize] as c_int)
+                        / (nzs[g as usize] as c_int * (*sce).ics.swb_sizes[w as usize] as c_int)
                             as c_float,
-                    &sce.coeffs[start as usize..],
+                    &(*sce).coeffs[start as usize..],
                     2.,
                 );
                 energy2uplim *= de_psy_factor;
-                if !avctx.flags.qscale() {
+                if !(*avctx).flags.qscale() {
                     energy2uplim = energy2uplim.sqrt();
                 }
                 energy2uplim = energy2uplim.clamp(0.015625, 1.);
-                euplims[(w * 16 + g) as usize] *=
-                    (rdlambda * energy2uplim * sce.ics.group_len[w as usize] as c_int as c_float)
-                        .clamp(0.5, 1.);
+                euplims[(w * 16 + g) as usize] *= (rdlambda
+                    * energy2uplim
+                    * (*sce).ics.group_len[w as usize] as c_int as c_float)
+                    .clamp(0.5, 1.);
             }
-            start += sce.ics.swb_sizes[g as usize] as c_int;
+            start += (*sce).ics.swb_sizes[g as usize] as c_int;
             g += 1;
             g;
         }
@@ -235,30 +231,28 @@ pub(crate) unsafe fn search(
             prev = -1;
             recomprd = 0;
             tbits = 0;
-            for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
+            for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
                 start = w * 128;
                 g = 0;
-                while g < sce.ics.num_swb {
-                    let mut coefs: *const c_float =
-                        &mut *(sce.coeffs).as_mut_ptr().offset(start as isize) as *mut c_float;
-                    let mut scaled_0: *const c_float =
-                        &mut *(s.scoefs).as_mut_ptr().offset(start as isize) as *mut c_float;
+                while g < (*sce).ics.num_swb {
+                    let mut coefs = &(*sce).coeffs[start as usize..];
+                    let mut scaled_0 = &(*s).scoefs[start as usize..];
                     let mut bits: c_int = 0;
                     let mut cb: c_int = 0;
                     let mut dist: c_float = 0.;
                     let mut qenergy: c_float = 0.;
-                    if sce.zeroes[(w * 16 + g) as usize] as c_int != 0
-                        || sce.sf_idx[(w * 16 + g) as usize] >= 218
+                    if (*sce).zeroes[(w * 16 + g) as usize] as c_int != 0
+                        || (*sce).sf_idx[(w * 16 + g) as usize] >= 218
                     {
-                        start += sce.ics.swb_sizes[g as usize] as c_int;
-                        if sce.can_pns[(w * 16 + g) as usize] {
+                        start += (*sce).ics.swb_sizes[g as usize] as c_int;
+                        if (*sce).can_pns[(w * 16 + g) as usize] {
                             // PNS isn't free
                             tbits += ff_pns_bits(sce, w, g);
                         }
                     } else {
                         cb = find_min_book(
                             maxvals[(w * 16 + g) as usize],
-                            sce.sf_idx[(w * 16 + g) as usize],
+                            (*sce).sf_idx[(w * 16 + g) as usize],
                         );
                         w2 = 0;
                         while w2 < c_int::from(group_len) {
@@ -268,10 +262,13 @@ pub(crate) unsafe fn search(
                                 s,
                                 w + w2,
                                 g,
-                                coefs.offset((w2 * 128) as isize),
-                                scaled_0.offset((w2 * 128) as isize),
-                                sce.ics.swb_sizes[g as usize] as c_int,
-                                sce.sf_idx[(w * 16 + g) as usize],
+                                &coefs[(w2 * 128) as usize..]
+                                    [..(*sce).ics.swb_sizes[g as usize].into()],
+                                Some(
+                                    &scaled_0[((w2 * 128) as usize)..]
+                                        [..(*sce).ics.swb_sizes[g as usize].into()],
+                                ),
+                                (*sce).sf_idx[(w * 16 + g) as usize],
                                 cb,
                                 1.,
                                 ::core::f32::INFINITY,
@@ -287,14 +284,14 @@ pub(crate) unsafe fn search(
                         dists[(w * 16 + g) as usize] = dist - bits as c_float;
                         qenergies[(w * 16 + g) as usize] = qenergy;
                         if prev != -1 {
-                            let mut sfdiff = (sce.sf_idx[(w * 16 + g) as usize] - prev
+                            let mut sfdiff = ((*sce).sf_idx[(w * 16 + g) as usize] - prev
                                 + c_int::from(SCALE_DIFF_ZERO))
                             .clamp(0, 2 * c_int::from(SCALE_MAX_DIFF));
                             bits += ff_aac_scalefactor_bits[sfdiff as usize] as c_int;
                         }
                         tbits += bits;
-                        start += sce.ics.swb_sizes[g as usize] as c_int;
-                        prev = sce.sf_idx[(w * 16 + g) as usize];
+                        start += (*sce).ics.swb_sizes[g as usize] as c_int;
+                        prev = (*sce).sf_idx[(w * 16 + g) as usize];
                     }
                     g += 1;
                     g;
@@ -304,15 +301,15 @@ pub(crate) unsafe fn search(
                 recomprd = 1;
                 i = 0;
                 while i < 128 {
-                    if sce.sf_idx[i as usize] < 255 - 36 {
+                    if (*sce).sf_idx[i as usize] < 255 - 36 {
                         let mut maxsf_i: c_int = if tbits > 5800 { 255 } else { maxsf[i as usize] };
-                        let mut new_sf: c_int = if maxsf_i > sce.sf_idx[i as usize] + qstep {
-                            sce.sf_idx[i as usize] + qstep
+                        let mut new_sf: c_int = if maxsf_i > (*sce).sf_idx[i as usize] + qstep {
+                            (*sce).sf_idx[i as usize] + qstep
                         } else {
                             maxsf_i
                         };
-                        if new_sf != sce.sf_idx[i as usize] {
-                            sce.sf_idx[i as usize] = new_sf;
+                        if new_sf != (*sce).sf_idx[i as usize] {
+                            (*sce).sf_idx[i as usize] = new_sf;
                             changed = 1;
                         }
                     }
@@ -323,12 +320,12 @@ pub(crate) unsafe fn search(
                 recomprd = 1;
                 i = 0;
                 while i < 128 {
-                    if sce.sf_idx[i as usize] > 140 {
+                    if (*sce).sf_idx[i as usize] > 140 {
                         let mut new_sf_0: c_int = if (if minsf[i as usize] > 140 {
                             minsf[i as usize]
                         } else {
                             140
-                        }) > sce.sf_idx[i as usize] - qstep
+                        }) > (*sce).sf_idx[i as usize] - qstep
                         {
                             if minsf[i as usize] > 140 {
                                 minsf[i as usize]
@@ -336,10 +333,10 @@ pub(crate) unsafe fn search(
                                 140
                             }
                         } else {
-                            sce.sf_idx[i as usize] - qstep
+                            (*sce).sf_idx[i as usize] - qstep
                         };
-                        if new_sf_0 != sce.sf_idx[i as usize] {
-                            sce.sf_idx[i as usize] = new_sf_0;
+                        if new_sf_0 != (*sce).sf_idx[i as usize] {
+                            (*sce).sf_idx[i as usize] = new_sf_0;
                             changed = 1;
                         }
                     }
@@ -348,7 +345,7 @@ pub(crate) unsafe fn search(
                 }
             }
             qstep >>= 1;
-            if qstep == 0 && tbits > too_many_bits && sce.sf_idx[0] < 217 && changed != 0 {
+            if qstep == 0 && tbits > too_many_bits && (*sce).sf_idx[0] < 217 && changed != 0 {
                 qstep = 1;
             }
             if qstep == 0 {
@@ -362,29 +359,27 @@ pub(crate) unsafe fn search(
             if recomprd != 0 {
                 prev = -1;
                 tbits = 0;
-                for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
+                for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
                     start = w * 128;
                     g = 0;
-                    while g < sce.ics.num_swb {
-                        let mut coefs_0: *const c_float =
-                            (sce.coeffs).as_mut_ptr().offset(start as isize);
-                        let mut scaled_1: *const c_float =
-                            (s.scoefs).as_mut_ptr().offset(start as isize);
+                    while g < (*sce).ics.num_swb {
+                        let coefs_0 = &(*sce).coeffs[start as usize..];
+                        let scaled_1 = &(*s).scoefs[start as usize..];
                         let mut bits_0: c_int = 0;
                         let mut cb_0: c_int = 0;
                         let mut dist_0: c_float = 0.;
                         let mut qenergy_0: c_float = 0.;
-                        if sce.zeroes[(w * 16 + g) as usize] as c_int != 0
-                            || sce.sf_idx[(w * 16 + g) as usize] >= 218
+                        if (*sce).zeroes[(w * 16 + g) as usize] as c_int != 0
+                            || (*sce).sf_idx[(w * 16 + g) as usize] >= 218
                         {
-                            start += sce.ics.swb_sizes[g as usize] as c_int;
-                            if sce.can_pns[(w * 16 + g) as usize] {
+                            start += (*sce).ics.swb_sizes[g as usize] as c_int;
+                            if (*sce).can_pns[(w * 16 + g) as usize] {
                                 tbits += ff_pns_bits(sce, w, g);
                             }
                         } else {
                             cb_0 = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
-                                sce.sf_idx[(w * 16 + g) as usize],
+                                (*sce).sf_idx[(w * 16 + g) as usize],
                             );
                             w2 = 0;
                             while w2 < c_int::from(group_len) {
@@ -394,10 +389,13 @@ pub(crate) unsafe fn search(
                                     s,
                                     w + w2,
                                     g,
-                                    coefs_0.offset((w2 * 128) as isize),
-                                    scaled_1.offset((w2 * 128) as isize),
-                                    sce.ics.swb_sizes[g as usize] as c_int,
-                                    sce.sf_idx[(w * 16 + g) as usize],
+                                    &coefs_0[((w2 * 128) as usize)..]
+                                        [..(*sce).ics.swb_sizes[g as usize].into()],
+                                    Some(
+                                        &scaled_1[((w2 * 128) as usize)..]
+                                            [..(*sce).ics.swb_sizes[g as usize].into()],
+                                    ),
+                                    (*sce).sf_idx[(w * 16 + g) as usize],
                                     cb_0,
                                     1.,
                                     ::core::f32::INFINITY,
@@ -414,33 +412,33 @@ pub(crate) unsafe fn search(
                             qenergies[(w * 16 + g) as usize] = qenergy_0;
                             if prev != -1 {
                                 let mut sfdiff_0: c_int = av_clip_c(
-                                    sce.sf_idx[(w * 16 + g) as usize] - prev + 60,
+                                    (*sce).sf_idx[(w * 16 + g) as usize] - prev + 60,
                                     0,
                                     2 * 60,
                                 );
                                 bits_0 += ff_aac_scalefactor_bits[sfdiff_0 as usize] as c_int;
                             }
                             tbits += bits_0;
-                            start += sce.ics.swb_sizes[g as usize] as c_int;
-                            prev = sce.sf_idx[(w * 16 + g) as usize];
+                            start += (*sce).ics.swb_sizes[g as usize] as c_int;
+                            prev = (*sce).sf_idx[(w * 16 + g) as usize];
                         }
                         g += 1;
                         g;
                     }
                 }
             }
-            if i == 0 && s.options.pns != 0 && its > maxits / 2 && tbits > too_few_bits {
+            if i == 0 && (*s).options.pns != 0 && its > maxits / 2 && tbits > too_few_bits {
                 let mut maxoverdist: c_float = 0.;
                 let mut ovrfactor: c_float =
                     1. + (maxits - its) as c_float * 16. / maxits as c_float;
                 recomprd = 0;
                 overdist = recomprd;
-                for WindowedIteration { w, .. } in sce.ics.iter_windows() {
+                for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
                     start = 0;
                     g = start;
-                    while g < sce.ics.num_swb {
-                        if !sce.zeroes[(w * 16 + g) as usize]
-                            && sce.sf_idx[(w * 16 + g) as usize] > 140
+                    while g < (*sce).ics.num_swb {
+                        if !(*sce).zeroes[(w * 16 + g) as usize]
+                            && (*sce).sf_idx[(w * 16 + g) as usize] > 140
                             && dists[(w * 16 + g) as usize]
                                 > uplims[(w * 16 + g) as usize] * ovrfactor
                         {
@@ -461,7 +459,7 @@ pub(crate) unsafe fn search(
                         }
                         let fresh2 = g;
                         g += 1;
-                        start += sce.ics.swb_sizes[fresh2 as usize] as c_int;
+                        start += (*sce).ics.swb_sizes[fresh2 as usize] as c_int;
                     }
                 }
                 if overdist != 0 {
@@ -472,13 +470,13 @@ pub(crate) unsafe fn search(
                     let mut zeroed: c_int = 0;
                     let mut maxzeroed: c_int = 0;
                     let mut zloop: c_int = 0;
-                    for WindowedIteration { w, .. } in sce.ics.iter_windows() {
+                    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
                         start = 0;
                         g = start;
-                        while g < sce.ics.num_swb {
+                        while g < (*sce).ics.num_swb {
                             if start >= pns_start_pos
-                                && !sce.zeroes[(w * 16 + g) as usize]
-                                && sce.can_pns[(w * 16 + g) as usize] as c_int != 0
+                                && !(*sce).zeroes[(w * 16 + g) as usize]
+                                && (*sce).can_pns[(w * 16 + g) as usize] as c_int != 0
                             {
                                 minspread = if minspread > spread_thr_r[(w * 16 + g) as usize] {
                                     spread_thr_r[(w * 16 + g) as usize]
@@ -495,7 +493,7 @@ pub(crate) unsafe fn search(
                             }
                             let fresh3 = g;
                             g += 1;
-                            start += sce.ics.swb_sizes[fresh3 as usize] as c_int;
+                            start += (*sce).ics.swb_sizes[fresh3 as usize] as c_int;
                         }
                     }
                     zspread = (maxspread - minspread) * 0.0125 + minspread;
@@ -534,20 +532,20 @@ pub(crate) unsafe fn search(
                         let mut loopovrfactor: c_float = if zloop != 0 { 1. } else { ovrfactor };
                         let mut loopminsf: c_int = if zloop != 0 { 140 - 36 } else { 140 };
                         let mut mcb: c_int = 0;
-                        g = sce.ics.num_swb - 1;
+                        g = (*sce).ics.num_swb - 1;
                         while g > 0 && zeroed < maxzeroed {
-                            if (sce.ics.swb_offset[g as usize] as c_int) >= pns_start_pos {
-                                for WindowedIteration { w, .. } in sce.ics.iter_windows() {
-                                    if !sce.zeroes[(w * 16 + g) as usize]
-                                        && sce.can_pns[(w * 16 + g) as usize] as c_int != 0
+                            if ((*sce).ics.swb_offset[g as usize] as c_int) >= pns_start_pos {
+                                for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
+                                    if !(*sce).zeroes[(w * 16 + g) as usize]
+                                        && (*sce).can_pns[(w * 16 + g) as usize] as c_int != 0
                                         && spread_thr_r[(w * 16 + g) as usize] <= zspread
-                                        && sce.sf_idx[(w * 16 + g) as usize] > loopminsf
+                                        && (*sce).sf_idx[(w * 16 + g) as usize] > loopminsf
                                         && (dists[(w * 16 + g) as usize]
                                             > loopovrfactor * uplims[(w * 16 + g) as usize]
                                             || {
                                                 mcb = find_min_book(
                                                     maxvals[(w * 16 + g) as usize],
-                                                    sce.sf_idx[(w * 16 + g) as usize],
+                                                    (*sce).sf_idx[(w * 16 + g) as usize],
                                                 );
                                                 mcb == 0
                                             }
@@ -561,8 +559,8 @@ pub(crate) unsafe fn search(
                                                         uplims[(w * 16 + g) as usize]
                                                     }))
                                     {
-                                        sce.zeroes[(w * 16 + g) as usize] = true;
-                                        sce.band_type[(w * 16 + g) as usize] = ZERO_BT;
+                                        (*sce).zeroes[(w * 16 + g) as usize] = true;
+                                        (*sce).band_type[(w * 16 + g) as usize] = ZERO_BT;
                                         zeroed += 1;
                                         zeroed;
                                     }
@@ -587,19 +585,19 @@ pub(crate) unsafe fn search(
         }
         let mut minscaler = 255;
         maxscaler = 0;
-        for WindowedIteration { w, .. } in sce.ics.iter_windows() {
+        for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
             g = 0;
-            while g < sce.ics.num_swb {
-                if !sce.zeroes[(w * 16 + g) as usize] {
-                    minscaler = if minscaler > sce.sf_idx[(w * 16 + g) as usize] {
-                        sce.sf_idx[(w * 16 + g) as usize]
+            while g < (*sce).ics.num_swb {
+                if !(*sce).zeroes[(w * 16 + g) as usize] {
+                    minscaler = if minscaler > (*sce).sf_idx[(w * 16 + g) as usize] {
+                        (*sce).sf_idx[(w * 16 + g) as usize]
                     } else {
                         minscaler
                     };
-                    maxscaler = if maxscaler > sce.sf_idx[(w * 16 + g) as usize] {
+                    maxscaler = if maxscaler > (*sce).sf_idx[(w * 16 + g) as usize] {
                         maxscaler
                     } else {
-                        sce.sf_idx[(w * 16 + g) as usize]
+                        (*sce).sf_idx[(w * 16 + g) as usize]
                     };
                 }
                 g += 1;
@@ -609,7 +607,7 @@ pub(crate) unsafe fn search(
         nminscaler = av_clip_c(minscaler, 140 - 36, 255 - 36);
         minscaler = nminscaler;
         prev = -1;
-        for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
+        for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
             let mut depth: c_int = if its > maxits / 2 {
                 if its > maxits * 2 / 3 {
                     1
@@ -632,19 +630,17 @@ pub(crate) unsafe fn search(
             };
             start = w * 128;
             g = 0;
-            while g < sce.ics.num_swb {
-                let mut prevsc: c_int = sce.sf_idx[(w * 16 + g) as usize];
-                if prev < 0 && !sce.zeroes[(w * 16 + g) as usize] {
-                    prev = sce.sf_idx[0];
+            while g < (*sce).ics.num_swb {
+                let mut prevsc: c_int = (*sce).sf_idx[(w * 16 + g) as usize];
+                if prev < 0 && !(*sce).zeroes[(w * 16 + g) as usize] {
+                    prev = (*sce).sf_idx[0];
                 }
-                if !sce.zeroes[(w * 16 + g) as usize] {
-                    let mut coefs_1: *const c_float =
-                        (sce.coeffs).as_mut_ptr().offset(start as isize);
-                    let mut scaled_2: *const c_float =
-                        (s.scoefs).as_mut_ptr().offset(start as isize);
+                if !(*sce).zeroes[(w * 16 + g) as usize] {
+                    let coefs_1 = &(*sce).coeffs[start as usize..];
+                    let scaled_2 = &(*s).scoefs[start as usize..];
                     let mut cmb: c_int = find_min_book(
                         maxvals[(w * 16 + g) as usize],
-                        sce.sf_idx[(w * 16 + g) as usize],
+                        (*sce).sf_idx[(w * 16 + g) as usize],
                     );
                     let mut mindeltasf: c_int = if 0 > prev - 60 { 0 } else { prev - 60 };
                     let mut maxdeltasf: c_int = if 255 - 36 > prev + 60 {
@@ -653,7 +649,7 @@ pub(crate) unsafe fn search(
                         255 - 36
                     };
                     if (cmb == 0 || dists[(w * 16 + g) as usize] > uplims[(w * 16 + g) as usize])
-                        && sce.sf_idx[(w * 16 + g) as usize]
+                        && (*sce).sf_idx[(w * 16 + g) as usize]
                             > (if mindeltasf > minsf[(w * 16 + g) as usize] {
                                 mindeltasf
                             } else {
@@ -661,46 +657,47 @@ pub(crate) unsafe fn search(
                             })
                     {
                         i = 0;
-                        while i < edepth && sce.sf_idx[(w * 16 + g) as usize] > mindeltasf {
+                        while i < edepth && (*sce).sf_idx[(w * 16 + g) as usize] > mindeltasf {
                             let mut cb_1: c_int = 0;
                             let mut bits_1: c_int = 0;
                             let mut dist_1: c_float = 0.;
                             let mut qenergy_1: c_float = 0.;
                             let mut mb: c_int = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
-                                sce.sf_idx[(w * 16 + g) as usize] - 1,
+                                (*sce).sf_idx[(w * 16 + g) as usize] - 1,
                             );
                             cb_1 = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
-                                sce.sf_idx[(w * 16 + g) as usize],
+                                (*sce).sf_idx[(w * 16 + g) as usize],
                             );
                             qenergy_1 = 0.;
                             dist_1 = qenergy_1;
                             bits_1 = 0;
                             if cb_1 == 0 {
-                                maxsf[(w * 16 + g) as usize] = if sce.sf_idx[(w * 16 + g) as usize]
-                                    - 1
-                                    > maxsf[(w * 16 + g) as usize]
-                                {
-                                    maxsf[(w * 16 + g) as usize]
-                                } else {
-                                    sce.sf_idx[(w * 16 + g) as usize] - 1
-                                };
+                                maxsf[(w * 16 + g) as usize] =
+                                    if (*sce).sf_idx[(w * 16 + g) as usize] - 1
+                                        > maxsf[(w * 16 + g) as usize]
+                                    {
+                                        maxsf[(w * 16 + g) as usize]
+                                    } else {
+                                        (*sce).sf_idx[(w * 16 + g) as usize] - 1
+                                    };
                             } else if i >= depth
                                 && dists[(w * 16 + g) as usize] < euplims[(w * 16 + g) as usize]
                             {
                                 break;
                             }
                             if g == 0
-                                && sce.ics.num_windows > 1
+                                && (*sce).ics.num_windows > 1
                                 && dists[(w * 16 + g) as usize] >= euplims[(w * 16 + g) as usize]
                             {
-                                maxsf[(w * 16 + g) as usize] = if sce.sf_idx[(w * 16 + g) as usize]
+                                maxsf[(w * 16 + g) as usize] = if (*sce).sf_idx
+                                    [(w * 16 + g) as usize]
                                     > maxsf[(w * 16 + g) as usize]
                                 {
                                     maxsf[(w * 16 + g) as usize]
                                 } else {
-                                    sce.sf_idx[(w * 16 + g) as usize]
+                                    (*sce).sf_idx[(w * 16 + g) as usize]
                                 };
                             }
                             w2 = 0;
@@ -711,10 +708,13 @@ pub(crate) unsafe fn search(
                                     s,
                                     w + w2,
                                     g,
-                                    coefs_1.offset((w2 * 128) as isize),
-                                    scaled_2.offset((w2 * 128) as isize),
-                                    sce.ics.swb_sizes[g as usize] as c_int,
-                                    sce.sf_idx[(w * 16 + g) as usize] - 1,
+                                    &coefs_1[((w2 * 128) as usize)..]
+                                        [..(*sce).ics.swb_sizes[g as usize].into()],
+                                    Some(
+                                        &scaled_2[((w2 * 128) as usize)..]
+                                            [..(*sce).ics.swb_sizes[g as usize].into()],
+                                    ),
+                                    (*sce).sf_idx[(w * 16 + g) as usize] - 1,
                                     cb_1,
                                     1.,
                                     ::core::f32::INFINITY,
@@ -727,12 +727,12 @@ pub(crate) unsafe fn search(
                                 w2 += 1;
                                 w2;
                             }
-                            sce.sf_idx[(w * 16 + g) as usize] -= 1;
-                            sce.sf_idx[(w * 16 + g) as usize];
+                            (*sce).sf_idx[(w * 16 + g) as usize] -= 1;
+                            (*sce).sf_idx[(w * 16 + g) as usize];
                             dists[(w * 16 + g) as usize] = dist_1 - bits_1 as c_float;
                             qenergies[(w * 16 + g) as usize] = qenergy_1;
                             if mb != 0
-                                && (sce.sf_idx[(w * 16 + g) as usize] < mindeltasf
+                                && ((*sce).sf_idx[(w * 16 + g) as usize] < mindeltasf
                                     || dists[(w * 16 + g) as usize]
                                         < (if uplmax * uplims[(w * 16 + g) as usize]
                                             > euplims[(w * 16 + g) as usize]
@@ -752,7 +752,7 @@ pub(crate) unsafe fn search(
                             i;
                         }
                     } else if tbits > too_few_bits
-                        && sce.sf_idx[(w * 16 + g) as usize]
+                        && (*sce).sf_idx[(w * 16 + g) as usize]
                             < (if maxdeltasf > maxsf[(w * 16 + g) as usize] {
                                 maxsf[(w * 16 + g) as usize]
                             } else {
@@ -769,14 +769,14 @@ pub(crate) unsafe fn search(
                             < euplims[(w * 16 + g) as usize]
                     {
                         i = 0;
-                        while i < depth && sce.sf_idx[(w * 16 + g) as usize] < maxdeltasf {
+                        while i < depth && (*sce).sf_idx[(w * 16 + g) as usize] < maxdeltasf {
                             let mut cb_2: c_int = 0;
                             let mut bits_2: c_int = 0;
                             let mut dist_2: c_float = 0.;
                             let mut qenergy_2: c_float = 0.;
                             cb_2 = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
-                                sce.sf_idx[(w * 16 + g) as usize] + 1,
+                                (*sce).sf_idx[(w * 16 + g) as usize] + 1,
                             );
                             if cb_2 > 0 {
                                 qenergy_2 = 0.;
@@ -790,10 +790,13 @@ pub(crate) unsafe fn search(
                                         s,
                                         w + w2,
                                         g,
-                                        coefs_1.offset((w2 * 128) as isize),
-                                        scaled_2.offset((w2 * 128) as isize),
-                                        sce.ics.swb_sizes[g as usize] as c_int,
-                                        sce.sf_idx[(w * 16 + g) as usize] + 1,
+                                        &coefs_1[((w2 * 128) as usize)..]
+                                            [..(*sce).ics.swb_sizes[g as usize].into()],
+                                        Some(
+                                            &scaled_2[((w2 * 128) as usize)..]
+                                                [..(*sce).ics.swb_sizes[g as usize].into()],
+                                        ),
+                                        (*sce).sf_idx[(w * 16 + g) as usize] + 1,
                                         cb_2,
                                         1.,
                                         ::core::f32::INFINITY,
@@ -813,57 +816,57 @@ pub(crate) unsafe fn search(
                                 {
                                     break;
                                 }
-                                sce.sf_idx[(w * 16 + g) as usize] += 1;
-                                sce.sf_idx[(w * 16 + g) as usize];
+                                (*sce).sf_idx[(w * 16 + g) as usize] += 1;
+                                (*sce).sf_idx[(w * 16 + g) as usize];
                                 dists[(w * 16 + g) as usize] = dist_2;
                                 qenergies[(w * 16 + g) as usize] = qenergy_2;
                                 i += 1;
                                 i;
                             } else {
-                                maxsf[(w * 16 + g) as usize] = sce.sf_idx[(w * 16 + g) as usize]
+                                maxsf[(w * 16 + g) as usize] = (*sce).sf_idx[(w * 16 + g) as usize]
                                     .min(maxsf[(w * 16 + g) as usize]);
                                 break;
                             }
                         }
                     }
-                    sce.sf_idx[(w * 16 + g) as usize] =
-                        av_clip_c(sce.sf_idx[(w * 16 + g) as usize], mindeltasf, maxdeltasf);
-                    prev = sce.sf_idx[(w * 16 + g) as usize];
-                    if sce.sf_idx[(w * 16 + g) as usize] != prevsc {
+                    (*sce).sf_idx[(w * 16 + g) as usize] =
+                        av_clip_c((*sce).sf_idx[(w * 16 + g) as usize], mindeltasf, maxdeltasf);
+                    prev = (*sce).sf_idx[(w * 16 + g) as usize];
+                    if (*sce).sf_idx[(w * 16 + g) as usize] != prevsc {
                         fflag = 1;
                     }
-                    nminscaler = if nminscaler > sce.sf_idx[(w * 16 + g) as usize] {
-                        sce.sf_idx[(w * 16 + g) as usize]
+                    nminscaler = if nminscaler > (*sce).sf_idx[(w * 16 + g) as usize] {
+                        (*sce).sf_idx[(w * 16 + g) as usize]
                     } else {
                         nminscaler
                     };
-                    sce.band_type[(w * 16 + g) as usize] = find_min_book(
+                    (*sce).band_type[(w * 16 + g) as usize] = find_min_book(
                         maxvals[(w * 16 + g) as usize],
-                        sce.sf_idx[(w * 16 + g) as usize],
+                        (*sce).sf_idx[(w * 16 + g) as usize],
                     ) as BandType;
                 }
-                start += sce.ics.swb_sizes[g as usize] as c_int;
+                start += (*sce).ics.swb_sizes[g as usize] as c_int;
                 g += 1;
                 g;
             }
         }
         prev = -1;
-        for WindowedIteration { w, .. } in sce.ics.iter_windows() {
+        for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
             g = 0;
-            while g < sce.ics.num_swb {
-                if !sce.zeroes[(w * 16 + g) as usize] {
-                    let mut prevsf: c_int = sce.sf_idx[(w * 16 + g) as usize];
+            while g < (*sce).ics.num_swb {
+                if !(*sce).zeroes[(w * 16 + g) as usize] {
+                    let mut prevsf: c_int = (*sce).sf_idx[(w * 16 + g) as usize];
                     if prev < 0 {
                         prev = prevsf;
                     }
-                    sce.sf_idx[(w * 16 + g) as usize] =
-                        av_clip_c(sce.sf_idx[(w * 16 + g) as usize], prev - 60, prev + 60);
-                    sce.band_type[(w * 16 + g) as usize] = find_min_book(
+                    (*sce).sf_idx[(w * 16 + g) as usize] =
+                        av_clip_c((*sce).sf_idx[(w * 16 + g) as usize], prev - 60, prev + 60);
+                    (*sce).band_type[(w * 16 + g) as usize] = find_min_book(
                         maxvals[(w * 16 + g) as usize],
-                        sce.sf_idx[(w * 16 + g) as usize],
+                        (*sce).sf_idx[(w * 16 + g) as usize],
                     ) as BandType;
-                    prev = sce.sf_idx[(w * 16 + g) as usize];
-                    if fflag == 0 && prevsf != sce.sf_idx[(w * 16 + g) as usize] {
+                    prev = (*sce).sf_idx[(w * 16 + g) as usize];
+                    if fflag == 0 && prevsf != (*sce).sf_idx[(w * 16 + g) as usize] {
                         fflag = 1;
                     }
                 }
@@ -877,34 +880,34 @@ pub(crate) unsafe fn search(
             break;
         }
     }
-    let mut nextband = ptr::from_mut(sce).init_nextband_map();
+    let mut nextband = sce.init_nextband_map();
     prev = -1;
-    for WindowedIteration { w, .. } in sce.ics.iter_windows() {
+    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
         g = 0;
-        while g < sce.ics.num_swb {
-            if !sce.zeroes[(w * 16 + g) as usize] {
-                sce.band_type[(w * 16 + g) as usize] = find_min_book(
+        while g < (*sce).ics.num_swb {
+            if !(*sce).zeroes[(w * 16 + g) as usize] {
+                (*sce).band_type[(w * 16 + g) as usize] = find_min_book(
                     maxvals[(w * 16 + g) as usize],
-                    sce.sf_idx[(w * 16 + g) as usize],
+                    (*sce).sf_idx[(w * 16 + g) as usize],
                 ) as BandType;
-                if sce.band_type[(w * 16 + g) as usize] as c_uint <= 0 as c_uint {
+                if (*sce).band_type[(w * 16 + g) as usize] as c_uint <= 0 as c_uint {
                     if !sfdelta_can_remove_band(sce, &nextband, prev, w * 16 + g) {
-                        sce.band_type[(w * 16 + g) as usize] = 1 as BandType;
+                        (*sce).band_type[(w * 16 + g) as usize] = 1 as BandType;
                     } else {
-                        sce.zeroes[(w * 16 + g) as usize] = true;
-                        sce.band_type[(w * 16 + g) as usize] = ZERO_BT;
+                        (*sce).zeroes[(w * 16 + g) as usize] = true;
+                        (*sce).band_type[(w * 16 + g) as usize] = ZERO_BT;
                     }
                 }
             } else {
-                sce.band_type[(w * 16 + g) as usize] = ZERO_BT;
+                (*sce).band_type[(w * 16 + g) as usize] = ZERO_BT;
             }
-            if !sce.zeroes[(w * 16 + g) as usize] {
+            if !(*sce).zeroes[(w * 16 + g) as usize] {
                 if prev != -1 {
-                    let mut _sfdiff_1: c_int = sce.sf_idx[(w * 16 + g) as usize] - prev + 60;
-                } else if sce.zeroes[0] {
-                    sce.sf_idx[0] = sce.sf_idx[(w * 16 + g) as usize];
+                    let mut _sfdiff_1: c_int = (*sce).sf_idx[(w * 16 + g) as usize] - prev + 60;
+                } else if (*sce).zeroes[0] {
+                    (*sce).sf_idx[0] = (*sce).sf_idx[(w * 16 + g) as usize];
                 }
-                prev = sce.sf_idx[(w * 16 + g) as usize];
+                prev = (*sce).sf_idx[(w * 16 + g) as usize];
             }
             g += 1;
             g;

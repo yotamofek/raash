@@ -153,54 +153,48 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                         }
                         dist1 += quantize_band_cost(
                             s,
-                            sce0.coeffs[(start + (w + w2) * 128) as usize..][..swb_size.into()]
-                                .as_ptr(),
-                            L34.as_ptr(),
-                            c_int::from(swb_size),
+                            &sce0.coeffs[(start + (w + w2) * 128) as usize..][..swb_size.into()],
+                            Some(&L34[..swb_size.into()]),
                             sce0.sf_idx[(w * 16 + g) as usize],
                             sce0.band_type[(w * 16 + g) as usize] as c_int,
                             lambda / (band0.threshold + 1.175_494_4e-38),
                             f32::INFINITY,
-                            &mut b1,
-                            ptr::null_mut(),
+                            Some(&mut b1),
+                            None,
                         );
                         dist1 += quantize_band_cost(
                             s,
-                            sce1.coeffs[(start + (w + w2) * 128) as usize..]
-                                [..sce1.ics.swb_sizes[g as usize].into()]
-                                .as_ptr(),
-                            R34.as_ptr(),
-                            sce1.ics.swb_sizes[g as usize] as c_int,
+                            &sce1.coeffs[(start + (w + w2) * 128) as usize..]
+                                [..sce1.ics.swb_sizes[g as usize].into()],
+                            Some(&R34[..sce1.ics.swb_sizes[g as usize].into()]),
                             sce1.sf_idx[(w * 16 + g) as usize],
                             sce1.band_type[(w * 16 + g) as usize] as c_int,
                             lambda / (band1.threshold + 1.175_494_4e-38),
                             f32::INFINITY,
-                            &mut b2,
-                            ptr::null_mut(),
+                            Some(&mut b2),
+                            None,
                         );
                         dist2 += quantize_band_cost(
                             s,
-                            M.as_ptr(),
-                            M34.as_ptr(),
-                            c_int::from(swb_size),
+                            &M[..swb_size.into()],
+                            Some(&M34[..swb_size.into()]),
                             mididx,
                             midcb,
                             lambda / (minthr + 1.175_494_4e-38),
                             f32::INFINITY,
-                            &mut b3,
-                            ptr::null_mut(),
+                            Some(&mut b3),
+                            None,
                         );
                         dist2 += quantize_band_cost(
                             s,
-                            S.as_ptr(),
-                            S34.as_ptr(),
-                            sce1.ics.swb_sizes[g as usize] as c_int,
+                            &S[..sce1.ics.swb_sizes[g as usize].into()],
+                            Some(&S34[..sce1.ics.swb_sizes[g as usize].into()]),
                             sididx,
                             sidcb,
                             mslambda / (minthr * bmax + 1.175_494_4e-38),
                             f32::INFINITY,
-                            &mut b4,
-                            ptr::null_mut(),
+                            Some(&mut b4),
+                            None,
                         );
                         B0 += b1 + b2;
                         B1 += b3 + b4;

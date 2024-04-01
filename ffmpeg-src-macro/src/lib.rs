@@ -11,7 +11,7 @@ use syn::{
     meta,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote, Expr, ExprLit, ExprRange, Item, ItemConst, ItemEnum, ItemFn,
-    ItemStruct, ItemType, ItemUnion, Lit, LitInt, LitStr, RangeLimits,
+    ItemStatic, ItemStruct, ItemType, ItemUnion, Lit, LitInt, LitStr, RangeLimits,
 };
 
 struct LinesRange(RangeInclusive<u16>);
@@ -105,6 +105,7 @@ pub fn ffmpeg_src(attr: TokenStream, item: TokenStream) -> TokenStream {
         Item::Const(ItemConst { attrs, .. })
         | Item::Enum(ItemEnum { attrs, .. })
         | Item::Fn(ItemFn { attrs, .. })
+        | Item::Static(ItemStatic { attrs, .. })
         | Item::Struct(ItemStruct { attrs, .. })
         | Item::Type(ItemType { attrs, .. })
         | Item::Union(ItemUnion { attrs, .. }) => attrs,

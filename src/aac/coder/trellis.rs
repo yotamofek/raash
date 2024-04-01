@@ -105,9 +105,8 @@ pub(crate) unsafe fn codebook_rate(
                         .map(|w| {
                             quantize_band_cost_bits(
                                 s,
-                                (*sce).coeffs[(start + w * 128) as usize..].as_ptr(),
-                                (*s).scoefs[(start + w * 128) as usize..].as_ptr(),
-                                size,
+                                &(*sce).coeffs[(start + w * 128) as usize..][..size as usize],
+                                Some(&(*s).scoefs[(start + w * 128) as usize..][..size as usize]),
                                 (*sce).sf_idx[(win * 16 + swb) as usize],
                                 aac_cb_out_map[cb as usize] as c_int,
                                 f32::INFINITY,

@@ -1,52 +1,56 @@
-use std::ptr;
+use std::{iter::zip, ptr};
 
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uint};
 
 use super::{
-    aac_cb_maxval, aac_cb_range,
+    aac_cb_maxval,
     math::{clip_uintp2_c, ff_log2_c},
-    put_bits, put_sbits, quant,
+    put_bits, put_sbits, quant, CB_RANGE,
 };
 use crate::{
     aac::{
-        encoder::{abs_pow34_v, ctx::AACEncContext, quantize_bands},
+        encoder::{ctx::AACEncContext, pow::Pow34, quantize_bands},
         tables::{
             ff_aac_codebook_vectors, ff_aac_spectral_bits, ff_aac_spectral_codes, POW_SF_TABLES,
         },
+        POW_SF2_ZERO, SCALE_DIV_512, SCALE_ONE_POS,
     },
     common::*,
     types::*,
 };
 
-type quantize_and_encode_band_func = unsafe fn(
+type QuantizeAndEncodeBandFunc = unsafe fn(
     *mut AACEncContext,
     *mut PutBitContext,
-    *const c_float,
-    *mut c_float,
-    *const c_float,
-    c_int,
+    &[c_float],
+    Option<&mut [c_float]>,
+    Option<&[c_float]>,
     c_int,
     c_int,
     c_float,
     c_float,
-    *mut c_int,
-    *mut c_float,
+    Option<&mut c_int>,
+    Option<&mut c_float>,
 ) -> c_float;
 
+/// Calculate rate distortion cost for quantizing with given codebook
+///
+/// Returns quantization distortion
+#[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 71..=194, name = "quantize_and_encode_band_cost_template")]
 #[inline(always)]
 unsafe fn cost_template(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
-    mut in_0: *const c_float,
-    mut out: *mut c_float,
-    mut scaled: *const c_float,
-    mut size: c_int,
+    mut in_: &[c_float],
+    mut out: Option<&mut [c_float]>,
+    mut scaled: Option<&[c_float]>,
     mut scale_idx: c_int,
     mut cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
     mut BT_ZERO: c_int,
     mut BT_UNSIGNED: c_int,
     mut BT_PAIR: c_int,
@@ -55,127 +59,98 @@ unsafe fn cost_template(
     mut BT_STEREO: c_int,
     ROUNDING: c_float,
 ) -> c_float {
-    let q_idx: c_int = 200 - scale_idx + 140 - 36;
-    let Q: c_float = POW_SF_TABLES.pow2[q_idx as usize];
-    let Q34: c_float = POW_SF_TABLES.pow34[q_idx as usize];
-    let IQ: c_float = POW_SF_TABLES.pow2[(200 + scale_idx - 140 + 36) as usize];
+    let q_idx = c_int::from(POW_SF2_ZERO) - scale_idx + c_int::from(SCALE_ONE_POS)
+        - c_int::from(SCALE_DIV_512);
+    let Q: c_float = POW_SF_TABLES.pow2()[q_idx as usize];
+    let Q34: c_float = POW_SF_TABLES.pow34()[q_idx as usize];
+    let IQ: c_float = POW_SF_TABLES.pow2()[(c_int::from(POW_SF2_ZERO) + scale_idx
+        - c_int::from(SCALE_ONE_POS)
+        + c_int::from(SCALE_DIV_512)) as usize];
     let CLIPPED_ESCAPE: c_float = 165140. * IQ;
+    let dim = if BT_PAIR != 0 { 2 } else { 4 };
     let mut cost: c_float = 0.;
     let mut qenergy: c_float = 0.;
-    let dim: c_int = if BT_PAIR != 0 { 2 } else { 4 };
     let mut resbits: c_int = 0;
-    let mut off: c_int = 0;
     if BT_ZERO != 0 || BT_NOISE != 0 || BT_STEREO != 0 {
-        let mut i: c_int = 0;
-        while i < size {
-            cost += *in_0.offset(i as isize) * *in_0.offset(i as isize);
-            i += 1;
-            i;
-        }
-        if !bits.is_null() {
+        let cost = in_.iter().map(|in_| in_.powi(2)).sum::<c_float>();
+        if let Some(bits) = bits {
             *bits = 0;
         }
-        if !energy.is_null() {
+        if let Some(energy) = energy {
             *energy = qenergy;
         }
-        if !out.is_null() {
-            let mut i_0: c_int = 0;
-            while i_0 < size {
-                let mut j: c_int = 0;
-                while j < dim {
-                    *out.offset((i_0 + j) as isize) = 0.;
-                    j += 1;
-                    j;
-                }
-                i_0 += dim;
-            }
+        if let Some(out) = out {
+            out.chunks_mut(dim as usize).for_each(|out| out.fill(0.));
         }
         return cost * lambda;
     }
-    if scaled.is_null() {
-        abs_pow34_v(((*s).scoefs).as_mut_ptr(), in_0, size);
-        scaled = ((*s).scoefs).as_mut_ptr();
-    }
+    let scaled = scaled.get_or_insert_with(|| {
+        let scoefs = &mut (*s).scoefs[..in_.len()];
+        for (scoef, in_) in zip(&mut *scoefs, in_) {
+            *scoef = in_.abs_pow34();
+        }
+        &*scoefs
+    });
     quantize_bands(
-        ((*s).qcoefs).as_mut_ptr(),
-        in_0,
+        &mut ((*s).qcoefs)[..in_.len()],
+        in_,
         scaled,
-        size,
         BT_UNSIGNED == 0,
         aac_cb_maxval[cb as usize] as c_int,
         Q34,
         ROUNDING,
     );
-    if BT_UNSIGNED != 0 {
-        off = 0;
+    let off = if BT_UNSIGNED != 0 {
+        0
     } else {
-        off = aac_cb_maxval[cb as usize] as c_int;
-    }
-    let mut i_1: c_int = 0;
-    while i_1 < size {
-        let mut vec: *const c_float = ptr::null::<c_float>();
-        let mut quants: *mut c_int = ((*s).qcoefs).as_mut_ptr().offset(i_1 as isize);
-        let mut curidx: c_int = 0;
-        let mut curbits: c_int = 0;
-        let mut quantized: c_float = 0.;
+        aac_cb_maxval[cb as usize] as c_int
+    };
+    for i in (0..in_.len() as c_int).step_by(dim as usize) {
+        let curidx = (*s).qcoefs[i as usize..][..dim as usize]
+            .iter()
+            .fold(0, |acc, quant| {
+                acc * CB_RANGE[cb as usize] as c_int + quant + off
+            });
         let mut rd: c_float = 0.;
-        let mut j_0: c_int = 0;
-        while j_0 < dim {
-            curidx *= aac_cb_range[cb as usize] as c_int;
-            curidx += *quants.offset(j_0 as isize) + off;
-            j_0 += 1;
-            j_0;
-        }
-        curbits = ff_aac_spectral_bits[(cb - 1) as usize][curidx as usize] as c_int;
-        vec = &(*ff_aac_codebook_vectors[(cb - 1) as usize])[(curidx * dim) as usize]
-            as *const c_float;
+        let mut curbits = ff_aac_spectral_bits[(cb - 1) as usize][curidx as usize] as c_int;
+        let vec = &ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * dim) as usize..];
         if BT_UNSIGNED != 0 {
-            let mut j_1: c_int = 0;
-            while j_1 < dim {
-                let mut t: c_float = fabsf(*in_0.offset((i_1 + j_1) as isize));
-                let mut di: c_float = 0.;
-                if BT_ESC != 0 && *vec.offset(j_1 as isize) == 64. {
+            for j in 0..dim {
+                let t = in_[(i + j) as usize].abs();
+                let quantized = if BT_ESC != 0 && vec[j as usize] == 64. {
                     if t >= CLIPPED_ESCAPE {
-                        quantized = CLIPPED_ESCAPE;
                         curbits += 21;
+                        CLIPPED_ESCAPE
                     } else {
-                        let mut c: c_int = clip_uintp2_c(quant(t, Q, ROUNDING), 13) as c_int;
-                        quantized = c as c_float * cbrtf(c as c_float) * IQ;
+                        let c = clip_uintp2_c(quant(t, Q, ROUNDING), 13) as c_int;
                         curbits += ff_log2_c(c as c_uint) * 2 - 4 + 1;
+                        c as c_float * cbrtf(c as c_float) * IQ
                     }
                 } else {
-                    quantized = *vec.offset(j_1 as isize) * IQ;
-                }
-                di = t - quantized;
-                if !out.is_null() {
-                    *out.offset((i_1 + j_1) as isize) = if *in_0.offset((i_1 + j_1) as isize) >= 0.
-                    {
+                    vec[j as usize] * IQ
+                };
+                let di = t - quantized;
+                if let Some(out) = &mut out {
+                    out[(i + j) as usize] = if in_[(i + j) as usize] >= 0. {
                         quantized
                     } else {
                         -quantized
                     };
                 }
-                if *vec.offset(j_1 as isize) != 0. {
+                if vec[j as usize] != 0. {
                     curbits += 1;
-                    curbits;
                 }
-                qenergy += quantized * quantized;
-                rd += di * di;
-                j_1 += 1;
-                j_1;
+                qenergy += quantized.powi(2);
+                rd += di.powi(2);
             }
         } else {
-            let mut j_2: c_int = 0;
-            while j_2 < dim {
-                quantized = *vec.offset(j_2 as isize) * IQ;
-                qenergy += quantized * quantized;
-                if !out.is_null() {
-                    *out.offset((i_1 + j_2) as isize) = quantized;
+            for j in 0..dim {
+                let quantized = vec[j as usize] * IQ;
+                qenergy += quantized.powi(2);
+                if let Some(out) = &mut out {
+                    out[(i + j) as usize] = quantized;
                 }
-                rd += (*in_0.offset((i_1 + j_2) as isize) - quantized)
-                    * (*in_0.offset((i_1 + j_2) as isize) - quantized);
-                j_2 += 1;
-                j_2;
+                rd += (in_[(i + j) as usize] - quantized).powi(2);
             }
         }
         cost += rd * lambda + curbits as c_float;
@@ -190,46 +165,32 @@ unsafe fn cost_template(
                 ff_aac_spectral_codes[(cb - 1) as usize][curidx as usize] as BitBuf,
             );
             if BT_UNSIGNED != 0 {
-                let mut j_3: c_int = 0;
-                while j_3 < dim {
-                    if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * dim + j_3) as usize]
-                        != 0.
+                for j in 0..dim {
+                    if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * dim + j) as usize] != 0.
                     {
-                        put_bits(
-                            pb,
-                            1,
-                            (*in_0.offset((i_1 + j_3) as isize) < 0.) as c_int as BitBuf,
-                        );
+                        put_bits(pb, 1, (in_[(i + j) as usize] < 0.) as c_int as BitBuf);
                     }
-                    j_3 += 1;
-                    j_3;
                 }
             }
             if BT_ESC != 0 {
-                let mut j_4: c_int = 0;
-                while j_4 < 2 {
-                    if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * 2 + j_4) as usize]
-                        == 64.
+                for j in 0..2 {
+                    if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * 2 + j) as usize] == 64.
                     {
-                        let mut coef: c_int = clip_uintp2_c(
-                            quant(fabsf(*in_0.offset((i_1 + j_4) as isize)), Q, ROUNDING),
-                            13,
-                        ) as c_int;
-                        let mut len: c_int = ff_log2_c(coef as c_uint);
-                        put_bits(pb, len - 4 + 1, (((1) << len - 4 + 1) - 2) as BitBuf);
+                        let coef =
+                            clip_uintp2_c(quant(fabsf(in_[(i + j) as usize]), Q, ROUNDING), 13)
+                                as c_int;
+                        let len: c_int = ff_log2_c(coef as c_uint);
+                        put_bits(pb, len - 4 + 1, ((1 << (len - 4 + 1)) - 2) as BitBuf);
                         put_sbits(pb, len, coef);
                     }
-                    j_4 += 1;
-                    j_4;
                 }
             }
         }
-        i_1 += dim;
     }
-    if !bits.is_null() {
+    if let Some(bits) = bits {
         *bits = resbits;
     }
-    if !energy.is_null() {
+    if let Some(energy) = energy {
         *energy = qenergy;
     }
     cost
@@ -239,132 +200,125 @@ unsafe fn cost_template(
 unsafe fn cost_NONE(
     mut _s: *mut AACEncContext,
     mut _pb: *mut PutBitContext,
-    mut _in_0: *const c_float,
-    mut _quant_0: *mut c_float,
-    mut _scaled: *const c_float,
-    mut _size: c_int,
+    mut _in_0: &[c_float],
+    mut _quant_0: Option<&mut [c_float]>,
+    mut _scaled: Option<&[c_float]>,
     mut _scale_idx: c_int,
     mut _cb: c_int,
     _lambda: c_float,
     _uplim: c_float,
-    mut _bits: *mut c_int,
-    mut _energy: *mut c_float,
+    _bits: Option<&mut c_int>,
+    _energy: Option<&mut c_float>,
 ) -> c_float {
     0.
 }
 unsafe fn cost_ZERO(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 1, 0, 0, 0,
-        0, 0, 0.4054,
+        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 1, 0, 0, 0, 0, 0,
+        0.4054,
     )
 }
 
 unsafe fn cost_SQUAD(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0,
-        0, 0, 0.4054,
+        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 0, 0,
+        0.4054,
     )
 }
 
 unsafe fn cost_UQUAD(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 0, 0,
-        0, 0, 0.4054,
+        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 0, 0, 0, 0,
+        0.4054,
     )
 }
 
 unsafe fn cost_SPAIR(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 1, 0,
-        0, 0, 0.4054,
+        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 1, 0, 0, 0,
+        0.4054,
     )
 }
 
 unsafe fn cost_UPAIR(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 1, 0,
-        0, 0, 0.4054,
+        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 1, 0, 0, 0,
+        0.4054,
     )
 }
 
 unsafe fn cost_ESC(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     _cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
         s,
@@ -372,7 +326,6 @@ unsafe fn cost_ESC(
         in_0,
         quant_0,
         scaled,
-        size,
         scale_idx,
         ESC_BT as c_int,
         lambda,
@@ -392,16 +345,15 @@ unsafe fn cost_ESC(
 unsafe fn cost_ESC_RTZ(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     _cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
         s,
@@ -409,7 +361,6 @@ unsafe fn cost_ESC_RTZ(
         in_0,
         quant_0,
         scaled,
-        size,
         scale_idx,
         ESC_BT as c_int,
         lambda,
@@ -429,44 +380,42 @@ unsafe fn cost_ESC_RTZ(
 unsafe fn cost_NOISE(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0,
-        1, 0, 0.4054,
+        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 1, 0,
+        0.4054,
     )
 }
 
 unsafe fn cost_STEREO(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0,
-        0, 1, 0.4054,
+        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 0, 1,
+        0.4054,
     )
 }
 
-const quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16] = [
+const quantize_and_encode_band_cost_arr: [QuantizeAndEncodeBandFunc; 16] = [
     cost_ZERO,
     cost_SQUAD,
     cost_SQUAD,
@@ -485,7 +434,7 @@ const quantize_and_encode_band_cost_arr: [quantize_and_encode_band_func; 16] = [
     cost_STEREO,
 ];
 
-const quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func; 16] = [
+const quantize_and_encode_band_cost_rtz_arr: [QuantizeAndEncodeBandFunc; 16] = [
     cost_ZERO,
     cost_SQUAD,
     cost_SQUAD,
@@ -507,19 +456,18 @@ const quantize_and_encode_band_cost_rtz_arr: [quantize_and_encode_band_func; 16]
 pub(crate) unsafe fn quantize_and_encode_band_cost(
     s: *mut AACEncContext,
     pb: *mut PutBitContext,
-    in_0: *const c_float,
-    quant_0: *mut c_float,
-    scaled: *const c_float,
-    size: c_int,
+    in_0: &[c_float],
+    quant_0: Option<&mut [c_float]>,
+    scaled: Option<&[c_float]>,
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: *mut c_int,
-    energy: *mut c_float,
+    bits: Option<&mut c_int>,
+    energy: Option<&mut c_float>,
 ) -> c_float {
     (quantize_and_encode_band_cost_arr[cb as usize])(
-        s, pb, in_0, quant_0, scaled, size, scale_idx, cb, lambda, uplim, bits, energy,
+        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy,
     )
 }
 
@@ -527,9 +475,8 @@ pub(crate) unsafe fn quantize_and_encode_band_cost(
 pub(crate) unsafe fn quantize_and_encode_band(
     mut s: *mut AACEncContext,
     mut pb: *mut PutBitContext,
-    mut in_0: *const c_float,
-    mut out: *mut c_float,
-    mut size: c_int,
+    mut in_0: &[c_float],
+    mut out: Option<&mut [c_float]>,
     mut scale_idx: c_int,
     mut cb: c_int,
     lambda: c_float,
@@ -545,13 +492,12 @@ pub(crate) unsafe fn quantize_and_encode_band(
         pb,
         in_0,
         out,
-        ptr::null(),
-        size,
+        None,
         scale_idx,
         cb,
         lambda,
         f32::INFINITY,
-        ptr::null_mut(),
-        ptr::null_mut(),
+        None,
+        None,
     );
 }
