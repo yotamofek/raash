@@ -24,7 +24,7 @@ use self::{
     quantize_and_encode_band::quantize_and_encode_band_cost,
 };
 use super::{
-    encoder::ctx::AACEncContext, tables::*, IndividualChannelStream, WindowedIteration,
+    encoder::ctx::QuantizeBandCostCache, tables::*, IndividualChannelStream, WindowedIteration,
     SCALE_MAX_DIFF,
 };
 use crate::{common::*, types::*};
@@ -272,11 +272,11 @@ impl SingleChannelElement {
 
 #[inline]
 unsafe fn quantize_band_cost_cached(
-    mut s: *mut AACEncContext,
+    cache: &mut QuantizeBandCostCache,
     mut w: c_int,
     mut g: c_int,
     mut in_0: &[c_float],
-    mut scaled: Option<&[c_float]>,
+    mut scaled: &[c_float],
     mut scale_idx: c_int,
     mut cb: c_int,
     lambda: c_float,
@@ -287,17 +287,14 @@ unsafe fn quantize_band_cost_cached(
 ) -> c_float {
     let mut entry: *mut AACQuantizeBandCostCacheEntry =
         ptr::null_mut::<AACQuantizeBandCostCacheEntry>();
-    entry = &mut *(*((*s).quantize_band_cost_cache)
+    entry = &mut *(*cache.cache.as_mut_ptr().offset(scale_idx as isize))
         .as_mut_ptr()
-        .offset(scale_idx as isize))
-    .as_mut_ptr()
-    .offset((w * 16 + g) as isize) as *mut AACQuantizeBandCostCacheEntry;
-    if (*entry).generation as c_int != (*s).quantize_band_cost_cache_generation as c_int
+        .offset((w * 16 + g) as isize) as *mut AACQuantizeBandCostCacheEntry;
+    if (*entry).generation as c_int != cache.cache_generation as c_int
         || (*entry).cb as c_int != cb
         || (*entry).rtz as c_int != rtz
     {
         (*entry).rd = quantize_band_cost(
-            s,
             in_0,
             scaled,
             scale_idx,
@@ -309,7 +306,7 @@ unsafe fn quantize_band_cost_cached(
         );
         (*entry).cb = cb as c_char;
         (*entry).rtz = rtz as c_char;
-        (*entry).generation = (*s).quantize_band_cost_cache_generation;
+        (*entry).generation = cache.cache_generation;
     }
     if !bits.is_null() {
         *bits = (*entry).bits;
@@ -319,11 +316,11 @@ unsafe fn quantize_band_cost_cached(
     }
     (*entry).rd
 }
+
 #[inline]
 pub(super) unsafe fn quantize_band_cost(
-    mut s: *mut AACEncContext,
-    mut in_0: &[c_float],
-    mut scaled: Option<&[c_float]>,
+    mut in_: &[c_float],
+    mut scaled: &[c_float],
     mut scale_idx: c_int,
     mut cb: c_int,
     lambda: c_float,
@@ -332,33 +329,21 @@ pub(super) unsafe fn quantize_band_cost(
     energy: Option<&mut c_float>,
 ) -> c_float {
     quantize_and_encode_band_cost(
-        s,
-        ptr::null_mut(),
-        in_0,
-        None,
-        scaled,
-        scale_idx,
-        cb,
-        lambda,
-        uplim,
-        bits,
-        energy,
+        in_, None, scaled, scale_idx, cb, lambda, uplim, bits, energy,
     )
 }
+
 #[inline]
 unsafe fn quantize_band_cost_bits(
-    mut s: *mut AACEncContext,
-    mut in_0: &[c_float],
-    mut scaled: Option<&[c_float]>,
+    mut in_: &[c_float],
+    mut scaled: &[c_float],
     mut scale_idx: c_int,
     mut cb: c_int,
     uplim: c_float,
 ) -> c_int {
     let mut auxbits: c_int = 0;
     quantize_and_encode_band_cost(
-        s,
-        ptr::null_mut(),
-        in_0,
+        in_,
         None,
         scaled,
         scale_idx,
@@ -383,10 +368,7 @@ unsafe fn ff_pns_bits(mut sce: *mut SingleChannelElement, mut w: c_int, mut g: c
     }
 }
 
-pub(crate) unsafe fn set_special_band_scalefactors(
-    mut _s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-) {
+pub(crate) unsafe fn set_special_band_scalefactors(mut sce: *mut SingleChannelElement) {
     let mut g: c_int = 0;
     let mut prevscaler_n: c_int = -255;
     let mut prevscaler_i: c_int = 0;

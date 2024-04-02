@@ -14,7 +14,7 @@ use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
 
 use crate::{
     aac::{
-        coder::{quantize_and_encode_band::quantize_and_encode_band_cost, quantize_band_cost},
+        coder::quantize_band_cost,
         encoder::{abs_pow34_v, ctx::AACEncContext},
         IndividualChannelStream, SyntaxElementType, WindowedIteration, EIGHT_SHORT_SEQUENCE,
     },
@@ -300,7 +300,7 @@ pub(crate) unsafe fn search_for_ltp(
             (*sce).ics.max_sfb as c_int
         }));
 
-    let ([C34, PCD, PCD34, ..], []) = (*s).scoefs.as_chunks_mut::<128>() else {
+    let ([C34, PCD, PCD34, ..], []) = (*s).scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
@@ -357,10 +357,9 @@ pub(crate) unsafe fn search_for_ltp(
                         (*sce).ics.swb_sizes[g as usize] as c_int,
                     );
                     dist1 += quantize_band_cost(
-                        s,
                         &(*sce).coeffs[(start + (w + w2) * 128) as usize..]
                             [..(*sce).ics.swb_sizes[g as usize].into()],
-                        Some(&C34[..(*sce).ics.swb_sizes[g as usize].into()]),
+                        &C34[..(*sce).ics.swb_sizes[g as usize].into()],
                         (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                         (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
@@ -369,9 +368,8 @@ pub(crate) unsafe fn search_for_ltp(
                         None,
                     );
                     dist2 += quantize_band_cost(
-                        s,
                         &PCD[..(*sce).ics.swb_sizes[g as usize].into()],
-                        Some(&PCD34[..(*sce).ics.swb_sizes[g as usize].into()]),
+                        &PCD34[..(*sce).ics.swb_sizes[g as usize].into()],
                         (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                         (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,

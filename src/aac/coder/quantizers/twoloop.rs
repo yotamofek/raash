@@ -11,7 +11,7 @@ use crate::{
             ff_pns_bits, find_form_factor, find_max_val, find_min_book, math::coef2minsf,
             quantize_band_cost_cached, sfdelta_can_remove_band,
         },
-        encoder::{ctx::AACEncContext, ff_quantize_band_cost_cache_init, pow::Pow34},
+        encoder::{ctx::AACEncContext, pow::Pow34},
         psy_model::cutoff_from_bitrate,
         tables::ff_aac_scalefactor_bits,
         SyntaxElementType, WindowedIteration, SCALE_DIFF_ZERO, SCALE_DIV_512, SCALE_MAX_DIFF,
@@ -127,16 +127,16 @@ pub(crate) unsafe fn search(
         return;
     }
 
-    (*s).scoefs = (*sce).coeffs.map(Pow34::abs_pow34);
+    *(*s).scaled_coeffs = (*sce).coeffs.map(Pow34::abs_pow34);
 
-    ff_quantize_band_cost_cache_init(s);
+    (*s).quantize_band_cost_cache.init();
     minsf.fill(0);
 
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         start = w * 128;
         g = 0;
         while g < (*sce).ics.num_swb {
-            let mut scaled = (*s).scoefs[start as usize..].as_ptr();
+            let mut scaled = (*s).scaled_coeffs[start as usize..].as_ptr();
 
             maxvals[(w * 16 + g) as usize] = find_max_val(
                 c_int::from(group_len),
@@ -236,7 +236,7 @@ pub(crate) unsafe fn search(
                 g = 0;
                 while g < (*sce).ics.num_swb {
                     let mut coefs = &(*sce).coeffs[start as usize..];
-                    let mut scaled_0 = &(*s).scoefs[start as usize..];
+                    let mut scaled_0 = &(*s).scaled_coeffs[start as usize..];
                     let mut bits: c_int = 0;
                     let mut cb: c_int = 0;
                     let mut dist: c_float = 0.;
@@ -259,15 +259,13 @@ pub(crate) unsafe fn search(
                             let mut b: c_int = 0;
                             let mut sqenergy: c_float = 0.;
                             dist += quantize_band_cost_cached(
-                                s,
+                                &mut (*s).quantize_band_cost_cache,
                                 w + w2,
                                 g,
                                 &coefs[(w2 * 128) as usize..]
                                     [..(*sce).ics.swb_sizes[g as usize].into()],
-                                Some(
-                                    &scaled_0[((w2 * 128) as usize)..]
-                                        [..(*sce).ics.swb_sizes[g as usize].into()],
-                                ),
+                                &scaled_0[((w2 * 128) as usize)..]
+                                    [..(*sce).ics.swb_sizes[g as usize].into()],
                                 (*sce).sf_idx[(w * 16 + g) as usize],
                                 cb,
                                 1.,
@@ -364,7 +362,7 @@ pub(crate) unsafe fn search(
                     g = 0;
                     while g < (*sce).ics.num_swb {
                         let coefs_0 = &(*sce).coeffs[start as usize..];
-                        let scaled_1 = &(*s).scoefs[start as usize..];
+                        let scaled_1 = &(*s).scaled_coeffs[start as usize..];
                         let mut bits_0: c_int = 0;
                         let mut cb_0: c_int = 0;
                         let mut dist_0: c_float = 0.;
@@ -386,15 +384,13 @@ pub(crate) unsafe fn search(
                                 let mut b_0: c_int = 0;
                                 let mut sqenergy_0: c_float = 0.;
                                 dist_0 += quantize_band_cost_cached(
-                                    s,
+                                    &mut (*s).quantize_band_cost_cache,
                                     w + w2,
                                     g,
                                     &coefs_0[((w2 * 128) as usize)..]
                                         [..(*sce).ics.swb_sizes[g as usize].into()],
-                                    Some(
-                                        &scaled_1[((w2 * 128) as usize)..]
-                                            [..(*sce).ics.swb_sizes[g as usize].into()],
-                                    ),
+                                    &scaled_1[((w2 * 128) as usize)..]
+                                        [..(*sce).ics.swb_sizes[g as usize].into()],
                                     (*sce).sf_idx[(w * 16 + g) as usize],
                                     cb_0,
                                     1.,
@@ -637,7 +633,7 @@ pub(crate) unsafe fn search(
                 }
                 if !(*sce).zeroes[(w * 16 + g) as usize] {
                     let coefs_1 = &(*sce).coeffs[start as usize..];
-                    let scaled_2 = &(*s).scoefs[start as usize..];
+                    let scaled_2 = &(*s).scaled_coeffs[start as usize..];
                     let mut cmb: c_int = find_min_book(
                         maxvals[(w * 16 + g) as usize],
                         (*sce).sf_idx[(w * 16 + g) as usize],
@@ -705,19 +701,17 @@ pub(crate) unsafe fn search(
                                 let mut b_1: c_int = 0;
                                 let mut sqenergy_1: c_float = 0.;
                                 dist_1 += quantize_band_cost_cached(
-                                    s,
+                                    &mut (*s).quantize_band_cost_cache,
                                     w + w2,
                                     g,
                                     &coefs_1[((w2 * 128) as usize)..]
                                         [..(*sce).ics.swb_sizes[g as usize].into()],
-                                    Some(
-                                        &scaled_2[((w2 * 128) as usize)..]
-                                            [..(*sce).ics.swb_sizes[g as usize].into()],
-                                    ),
+                                    &scaled_2[((w2 * 128) as usize)..]
+                                        [..(*sce).ics.swb_sizes[g as usize].into()],
                                     (*sce).sf_idx[(w * 16 + g) as usize] - 1,
                                     cb_1,
                                     1.,
-                                    ::core::f32::INFINITY,
+                                    f32::INFINITY,
                                     &mut b_1,
                                     &mut sqenergy_1,
                                     0,
@@ -787,15 +781,13 @@ pub(crate) unsafe fn search(
                                     let mut b_2: c_int = 0;
                                     let mut sqenergy_2: c_float = 0.;
                                     dist_2 += quantize_band_cost_cached(
-                                        s,
+                                        &mut (*s).quantize_band_cost_cache,
                                         w + w2,
                                         g,
                                         &coefs_1[((w2 * 128) as usize)..]
                                             [..(*sce).ics.swb_sizes[g as usize].into()],
-                                        Some(
-                                            &scaled_2[((w2 * 128) as usize)..]
-                                                [..(*sce).ics.swb_sizes[g as usize].into()],
-                                        ),
+                                        &scaled_2[((w2 * 128) as usize)..]
+                                            [..(*sce).ics.swb_sizes[g as usize].into()],
                                         (*sce).sf_idx[(w * 16 + g) as usize] + 1,
                                         cb_2,
                                         1.,

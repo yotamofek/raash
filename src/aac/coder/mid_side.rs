@@ -16,7 +16,7 @@ use crate::{
 pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
     let mut start: c_int = 0;
 
-    let ([M, S, L34, R34, M34, S34, ..], []) = (*s).scoefs.as_chunks_mut::<128>() else {
+    let ([M, S, L34, R34, M34, S34, ..], []) = (*s).scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
@@ -152,9 +152,8 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             *S34 = S.abs_pow34();
                         }
                         dist1 += quantize_band_cost(
-                            s,
                             &sce0.coeffs[(start + (w + w2) * 128) as usize..][..swb_size.into()],
-                            Some(&L34[..swb_size.into()]),
+                            &L34[..swb_size.into()],
                             sce0.sf_idx[(w * 16 + g) as usize],
                             sce0.band_type[(w * 16 + g) as usize] as c_int,
                             lambda / (band0.threshold + 1.175_494_4e-38),
@@ -163,10 +162,9 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             None,
                         );
                         dist1 += quantize_band_cost(
-                            s,
                             &sce1.coeffs[(start + (w + w2) * 128) as usize..]
                                 [..sce1.ics.swb_sizes[g as usize].into()],
-                            Some(&R34[..sce1.ics.swb_sizes[g as usize].into()]),
+                            &R34[..sce1.ics.swb_sizes[g as usize].into()],
                             sce1.sf_idx[(w * 16 + g) as usize],
                             sce1.band_type[(w * 16 + g) as usize] as c_int,
                             lambda / (band1.threshold + 1.175_494_4e-38),
@@ -175,9 +173,8 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             None,
                         );
                         dist2 += quantize_band_cost(
-                            s,
                             &M[..swb_size.into()],
-                            Some(&M34[..swb_size.into()]),
+                            &M34[..swb_size.into()],
                             mididx,
                             midcb,
                             lambda / (minthr + 1.175_494_4e-38),
@@ -186,9 +183,8 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             None,
                         );
                         dist2 += quantize_band_cost(
-                            s,
                             &S[..sce1.ics.swb_sizes[g as usize].into()],
-                            Some(&S34[..sce1.ics.swb_sizes[g as usize].into()]),
+                            &S34[..sce1.ics.swb_sizes[g as usize].into()],
                             sididx,
                             sidcb,
                             mslambda / (minthr * bmax + 1.175_494_4e-38),

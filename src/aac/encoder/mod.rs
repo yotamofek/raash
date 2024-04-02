@@ -25,9 +25,10 @@ use std::{
     ffi::CStr,
     iter::zip,
     mem::size_of,
-    ptr::{self, addr_of, null_mut},
+    ptr::{self, addr_of, addr_of_mut, null_mut, NonNull},
 };
 
+use arrayvec::ArrayVec;
 use encoder::{encoder, Class, Encoder, PacketBuilder};
 use ffi::{
     class::option::AVOption,
@@ -38,7 +39,7 @@ use ffi::{
 };
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::Itertools;
-use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
+use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_void};
 use lpc::LPCContext;
 
 use self::{
@@ -109,17 +110,16 @@ pub(crate) unsafe fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float
 
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 65..=78)]
 pub(crate) fn quantize_bands(
-    mut out: &mut [c_int],
-    mut in_0: &[c_float],
-    mut scaled: &[c_float],
-    mut is_signed: bool,
-    mut maxval: c_int,
+    in_: &[c_float],
+    scaled: &[c_float],
+    is_signed: bool,
+    maxval: c_int,
     Q34: c_float,
     rounding: c_float,
-) {
-    debug_assert_eq!(out.len(), in_0.len());
-    debug_assert_eq!(out.len(), scaled.len());
-    zip(in_0, scaled)
+) -> ArrayVec<c_int, 96> {
+    debug_assert_eq!(in_.len(), scaled.len());
+
+    zip(in_, scaled)
         .map(|(&in_0, &scaled)| {
             let qc = scaled * Q34;
             let mut out = (qc + rounding).min(maxval as c_float) as c_int;
@@ -128,8 +128,7 @@ pub(crate) fn quantize_bands(
             }
             out
         })
-        .zip(out)
-        .for_each(|(val, out)| *out = val);
+        .collect()
 }
 
 unsafe extern "C" fn put_pce(
@@ -213,16 +212,6 @@ unsafe fn put_audio_specific_config(
     flush_put_bits(&mut pb);
     (*avctx).extradata_size = put_bytes_output(&mut pb);
     0
-}
-
-pub(crate) unsafe fn ff_quantize_band_cost_cache_init(mut s: *mut AACEncContext) {
-    (*s).quantize_band_cost_cache_generation =
-        ((*s).quantize_band_cost_cache_generation).wrapping_add(1);
-    (*s).quantize_band_cost_cache_generation;
-    if (*s).quantize_band_cost_cache_generation as c_int == 0 {
-        (*s).quantize_band_cost_cache = [[AACQuantizeBandCostCacheEntry::default(); 128]; 256];
-        (*s).quantize_band_cost_cache_generation = 1 as c_ushort;
-    }
 }
 
 unsafe extern "C" fn put_ics_info(
@@ -406,7 +395,7 @@ unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
 }
 
 unsafe fn encode_band_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
-    set_special_band_scalefactors(s, sce);
+    set_special_band_scalefactors(sce);
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         trellis::codebook_rate(s, sce, w, group_len.into());
     }
@@ -509,11 +498,9 @@ unsafe extern "C" fn encode_spectral_coeffs(
                 w2 = w;
                 while w2 < w + group_len as c_int {
                     quantize_and_encode_band(
-                        s,
-                        &mut (*s).pb,
+                        NonNull::new(addr_of_mut!((*s).pb)).unwrap(),
                         &(*sce).coeffs[(start + w2 * 128) as usize..]
                             [..(*sce).ics.swb_sizes[i as usize].into()],
-                        None,
                         (*sce).sf_idx[(w * 16 + i) as usize],
                         (*sce).band_type[(w * 16 + i) as usize] as c_int,
                         (*s).lambda,
@@ -1276,10 +1263,8 @@ impl Encoder for AACEncoder {
                 lambda_count: 0,
                 cur_type: SyntaxElementType::SingleChannelElement,
                 afq: AudioFrameQueue::new(avctx),
-                qcoefs: [0; _],
-                scoefs: [0.; _],
-                quantize_band_cost_cache_generation: 0,
-                quantize_band_cost_cache: [[AACQuantizeBandCostCacheEntry::default(); _]; _],
+                scaled_coeffs: Default::default(),
+                quantize_band_cost_cache: Default::default(),
             });
 
             let mut i: c_int = 0;

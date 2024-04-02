@@ -89,7 +89,7 @@ unsafe fn encoding_err(
         &sce1.coeffs
     };
 
-    let ([L34, R34, IS, I34, ..], []) = (*s).scoefs.as_chunks_mut::<256>() else {
+    let ([L34, R34, IS, I34, ..], []) = (*s).scaled_coeffs.as_chunks_mut::<256>() else {
         unreachable!();
     };
 
@@ -128,9 +128,8 @@ unsafe fn encoding_err(
             .unwrap();
         is_band_type = find_min_book(maxval, is_sf_idx);
         dist1 += quantize_band_cost(
-            s,
             &L[wstart..][..swb_size],
-            Some(&L34[..swb_size]),
+            &L34[..swb_size],
             sce0.sf_idx[(w * 16 + g) as usize],
             sce0.band_type[(w * 16 + g) as usize] as c_int,
             (*s).lambda / band0.threshold,
@@ -139,9 +138,8 @@ unsafe fn encoding_err(
             None,
         );
         dist1 += quantize_band_cost(
-            s,
             &R[wstart..][..sce1.ics.swb_sizes[g as usize].into()],
-            Some(&R34[..sce1.ics.swb_sizes[g as usize].into()]),
+            &R34[..sce1.ics.swb_sizes[g as usize].into()],
             sce1.sf_idx[(w * 16 + g) as usize],
             sce1.band_type[(w * 16 + g) as usize] as c_int,
             (*s).lambda / band1.threshold,
@@ -150,9 +148,8 @@ unsafe fn encoding_err(
             None,
         );
         dist2 += quantize_band_cost(
-            s,
             &IS[..swb_size],
-            Some(&I34[..swb_size]),
+            &I34[..swb_size],
             is_sf_idx,
             is_band_type,
             (*s).lambda / minthr,

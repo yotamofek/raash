@@ -38,7 +38,7 @@ pub(crate) unsafe fn codebook_rate(
     let mut ppos: c_int = 0;
     let mut next_minbits = c_float::INFINITY;
     let mut next_mincb: c_int = 0;
-    for (scoef, coef) in zip(&mut (*s).scoefs, &(*sce).coeffs) {
+    for (scoef, coef) in zip(&mut (*s).scaled_coeffs, &(*sce).coeffs) {
         *scoef = coef.abs_pow34();
     }
     let mut start = win * 128;
@@ -104,9 +104,8 @@ pub(crate) unsafe fn codebook_rate(
                     let bits = (0..group_len)
                         .map(|w| {
                             quantize_band_cost_bits(
-                                s,
                                 &(*sce).coeffs[(start + w * 128) as usize..][..size as usize],
-                                Some(&(*s).scoefs[(start + w * 128) as usize..][..size as usize]),
+                                &(*s).scaled_coeffs[(start + w * 128) as usize..][..size as usize],
                                 (*sce).sf_idx[(win * 16 + swb) as usize],
                                 aac_cb_out_map[cb as usize] as c_int,
                                 f32::INFINITY,

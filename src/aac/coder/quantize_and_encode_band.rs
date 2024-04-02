@@ -1,5 +1,6 @@
-use std::{iter::zip, ptr};
+use std::ptr::NonNull;
 
+use arrayvec::ArrayVec;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uint};
 
@@ -10,7 +11,7 @@ use super::{
 };
 use crate::{
     aac::{
-        encoder::{ctx::AACEncContext, pow::Pow34, quantize_bands},
+        encoder::{pow::Pow34, quantize_bands},
         tables::{
             ff_aac_codebook_vectors, ff_aac_spectral_bits, ff_aac_spectral_codes, POW_SF_TABLES,
         },
@@ -21,11 +22,10 @@ use crate::{
 };
 
 type QuantizeAndEncodeBandFunc = unsafe fn(
-    *mut AACEncContext,
-    *mut PutBitContext,
+    Option<NonNull<PutBitContext>>,
     &[c_float],
     Option<&mut [c_float]>,
-    Option<&[c_float]>,
+    &[c_float],
     c_int,
     c_int,
     c_float,
@@ -40,23 +40,22 @@ type QuantizeAndEncodeBandFunc = unsafe fn(
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 71..=194, name = "quantize_and_encode_band_cost_template")]
 #[inline(always)]
 unsafe fn cost_template(
-    mut s: *mut AACEncContext,
-    mut pb: *mut PutBitContext,
-    mut in_: &[c_float],
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
     mut out: Option<&mut [c_float]>,
-    mut scaled: Option<&[c_float]>,
-    mut scale_idx: c_int,
-    mut cb: c_int,
+    scaled: &[c_float],
+    scale_idx: c_int,
+    cb: c_int,
     lambda: c_float,
     uplim: c_float,
     bits: Option<&mut c_int>,
     energy: Option<&mut c_float>,
-    mut BT_ZERO: c_int,
-    mut BT_UNSIGNED: c_int,
-    mut BT_PAIR: c_int,
-    mut BT_ESC: c_int,
-    mut BT_NOISE: c_int,
-    mut BT_STEREO: c_int,
+    BT_ZERO: c_int,
+    BT_UNSIGNED: c_int,
+    BT_PAIR: c_int,
+    BT_ESC: c_int,
+    BT_NOISE: c_int,
+    BT_STEREO: c_int,
     ROUNDING: c_float,
 ) -> c_float {
     let q_idx = c_int::from(POW_SF2_ZERO) - scale_idx + c_int::from(SCALE_ONE_POS)
@@ -84,15 +83,7 @@ unsafe fn cost_template(
         }
         return cost * lambda;
     }
-    let scaled = scaled.get_or_insert_with(|| {
-        let scoefs = &mut (*s).scoefs[..in_.len()];
-        for (scoef, in_) in zip(&mut *scoefs, in_) {
-            *scoef = in_.abs_pow34();
-        }
-        &*scoefs
-    });
-    quantize_bands(
-        &mut ((*s).qcoefs)[..in_.len()],
+    let quantized = quantize_bands(
         in_,
         scaled,
         BT_UNSIGNED == 0,
@@ -106,7 +97,7 @@ unsafe fn cost_template(
         aac_cb_maxval[cb as usize] as c_int
     };
     for i in (0..in_.len() as c_int).step_by(dim as usize) {
-        let curidx = (*s).qcoefs[i as usize..][..dim as usize]
+        let curidx = quantized[i as usize..][..dim as usize]
             .iter()
             .fold(0, |acc, quant| {
                 acc * CB_RANGE[cb as usize] as c_int + quant + off
@@ -158,7 +149,7 @@ unsafe fn cost_template(
         if cost >= uplim {
             return uplim;
         }
-        if !pb.is_null() {
+        if let Some(pb) = pb.map(NonNull::as_ptr) {
             put_bits(
                 pb,
                 ff_aac_spectral_bits[(cb - 1) as usize][curidx as usize] as c_int,
@@ -198,13 +189,12 @@ unsafe fn cost_template(
 
 #[inline]
 unsafe fn cost_NONE(
-    mut _s: *mut AACEncContext,
-    mut _pb: *mut PutBitContext,
-    mut _in_0: &[c_float],
-    mut _quant_0: Option<&mut [c_float]>,
-    mut _scaled: Option<&[c_float]>,
-    mut _scale_idx: c_int,
-    mut _cb: c_int,
+    _pb: Option<NonNull<PutBitContext>>,
+    _in_: &[c_float],
+    _quant: Option<&mut [c_float]>,
+    _scaled: &[c_float],
+    _scale_idx: c_int,
+    _cb: c_int,
     _lambda: c_float,
     _uplim: c_float,
     _bits: Option<&mut c_int>,
@@ -213,11 +203,10 @@ unsafe fn cost_NONE(
     0.
 }
 unsafe fn cost_ZERO(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
@@ -226,17 +215,16 @@ unsafe fn cost_ZERO(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 1, 0, 0, 0, 0, 0,
+        pb, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy, 1, 0, 0, 0, 0, 0,
         0.4054,
     )
 }
 
 unsafe fn cost_SQUAD(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
@@ -245,17 +233,16 @@ unsafe fn cost_SQUAD(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 0, 0,
+        pb, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 0, 0,
         0.4054,
     )
 }
 
 unsafe fn cost_UQUAD(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
@@ -264,17 +251,16 @@ unsafe fn cost_UQUAD(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 0, 0, 0, 0,
+        pb, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 0, 0, 0, 0,
         0.4054,
     )
 }
 
 unsafe fn cost_SPAIR(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
@@ -283,17 +269,16 @@ unsafe fn cost_SPAIR(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 1, 0, 0, 0,
+        pb, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 1, 0, 0, 0,
         0.4054,
     )
 }
 
 unsafe fn cost_UPAIR(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
@@ -302,17 +287,16 @@ unsafe fn cost_UPAIR(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 1, 0, 0, 0,
+        pb, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 1, 1, 0, 0, 0,
         0.4054,
     )
 }
 
 unsafe fn cost_ESC(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     _cb: c_int,
     lambda: c_float,
@@ -321,10 +305,9 @@ unsafe fn cost_ESC(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s,
         pb,
-        in_0,
-        quant_0,
+        in_,
+        quant,
         scaled,
         scale_idx,
         ESC_BT as c_int,
@@ -343,11 +326,10 @@ unsafe fn cost_ESC(
 }
 
 unsafe fn cost_ESC_RTZ(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     _cb: c_int,
     lambda: c_float,
@@ -356,10 +338,9 @@ unsafe fn cost_ESC_RTZ(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s,
         pb,
-        in_0,
-        quant_0,
+        in_,
+        quant,
         scaled,
         scale_idx,
         ESC_BT as c_int,
@@ -378,11 +359,10 @@ unsafe fn cost_ESC_RTZ(
 }
 
 unsafe fn cost_NOISE(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
@@ -391,17 +371,16 @@ unsafe fn cost_NOISE(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 1, 0,
+        pb, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 1, 0,
         0.4054,
     )
 }
 
 unsafe fn cost_STEREO(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    pb: Option<NonNull<PutBitContext>>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
@@ -410,12 +389,12 @@ unsafe fn cost_STEREO(
     energy: Option<&mut c_float>,
 ) -> c_float {
     cost_template(
-        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 0, 1,
+        pb, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy, 0, 0, 0, 0, 0, 1,
         0.4054,
     )
 }
 
-const quantize_and_encode_band_cost_arr: [QuantizeAndEncodeBandFunc; 16] = [
+const fn_arr: [QuantizeAndEncodeBandFunc; 16] = [
     cost_ZERO,
     cost_SQUAD,
     cost_SQUAD,
@@ -434,7 +413,7 @@ const quantize_and_encode_band_cost_arr: [QuantizeAndEncodeBandFunc; 16] = [
     cost_STEREO,
 ];
 
-const quantize_and_encode_band_cost_rtz_arr: [QuantizeAndEncodeBandFunc; 16] = [
+const fn_rtz_arr: [QuantizeAndEncodeBandFunc; 16] = [
     cost_ZERO,
     cost_SQUAD,
     cost_SQUAD,
@@ -454,11 +433,9 @@ const quantize_and_encode_band_cost_rtz_arr: [QuantizeAndEncodeBandFunc; 16] = [
 ];
 
 pub(crate) unsafe fn quantize_and_encode_band_cost(
-    s: *mut AACEncContext,
-    pb: *mut PutBitContext,
-    in_0: &[c_float],
-    quant_0: Option<&mut [c_float]>,
-    scaled: Option<&[c_float]>,
+    in_: &[c_float],
+    quant: Option<&mut [c_float]>,
+    scaled: &[c_float],
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
@@ -466,33 +443,27 @@ pub(crate) unsafe fn quantize_and_encode_band_cost(
     bits: Option<&mut c_int>,
     energy: Option<&mut c_float>,
 ) -> c_float {
-    (quantize_and_encode_band_cost_arr[cb as usize])(
-        s, pb, in_0, quant_0, scaled, scale_idx, cb, lambda, uplim, bits, energy,
+    fn_arr[cb as usize](
+        None, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy,
     )
 }
 
 #[inline]
 pub(crate) unsafe fn quantize_and_encode_band(
-    mut s: *mut AACEncContext,
-    mut pb: *mut PutBitContext,
-    mut in_0: &[c_float],
-    mut out: Option<&mut [c_float]>,
-    mut scale_idx: c_int,
-    mut cb: c_int,
+    pb: NonNull<PutBitContext>,
+    in_: &[c_float],
+    scale_idx: c_int,
+    cb: c_int,
     lambda: c_float,
-    mut rtz: c_int,
+    rtz: c_int,
 ) {
-    let arr = if rtz != 0 {
-        &quantize_and_encode_band_cost_rtz_arr
-    } else {
-        &quantize_and_encode_band_cost_arr
-    };
+    let arr = if rtz != 0 { &fn_rtz_arr } else { &fn_arr };
+    let scaled = ArrayVec::<_, 1024>::from_iter(in_.iter().copied().map(Pow34::abs_pow34));
     arr[cb as usize](
-        s,
-        pb,
-        in_0,
-        out,
+        Some(pb),
+        in_,
         None,
+        &scaled,
         scale_idx,
         cb,
         lambda,

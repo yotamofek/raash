@@ -148,7 +148,7 @@ pub(crate) unsafe fn search(
 
     let AVCodecContext { sample_rate, .. } = *avctx;
 
-    let ([PNS, PNS34, _, NOR34, ..], []) = (*s).scoefs.as_chunks_mut::<128>() else {
+    let ([PNS, PNS34, _, NOR34, ..], []) = (*s).scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
@@ -281,9 +281,8 @@ pub(crate) unsafe fn search(
                 }
 
                 dist1 += quantize_band_cost(
-                    s,
                     &((*sce).coeffs)[(start_c as usize)..][..swb_size.into()],
-                    Some(&NOR34[..swb_size.into()]),
+                    &NOR34[..swb_size.into()],
                     (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                     (*sce).band_alt[((w + w2) * 16 + g) as usize] as c_int,
                     lambda / band.threshold,

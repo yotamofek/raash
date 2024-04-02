@@ -1,8 +1,26 @@
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uchar, c_ushort};
 use lpc::LPCContext;
 
 use super::channel_layout::pce;
-use crate::{aac::SyntaxElementType, audio_frame_queue::AudioFrameQueue, types::*};
+use crate::{aac::SyntaxElementType, array::Array, audio_frame_queue::AudioFrameQueue, types::*};
+
+#[derive(Default, Clone)]
+pub(crate) struct QuantizeBandCostCache {
+    pub cache_generation: c_ushort,
+    pub cache: Array<Array<AACQuantizeBandCostCacheEntry, 128>, 256>,
+}
+
+impl QuantizeBandCostCache {
+    #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 400..=407, name = "ff_quantize_band_cost_cache_init")]
+    pub(crate) fn init(&mut self) {
+        self.cache_generation = self.cache_generation.wrapping_add(1);
+        if self.cache_generation == 0 {
+            self.cache = Default::default();
+            self.cache_generation = 1;
+        }
+    }
+}
 
 pub(crate) struct AACEncContext {
     pub options: AACEncOptions,
@@ -31,8 +49,6 @@ pub(crate) struct AACEncContext {
     pub lambda_count: c_int,
     pub cur_type: SyntaxElementType,
     pub afq: AudioFrameQueue,
-    pub qcoefs: [c_int; 96],
-    pub scoefs: [c_float; 1024],
-    pub quantize_band_cost_cache_generation: c_ushort,
-    pub quantize_band_cost_cache: [[AACQuantizeBandCostCacheEntry; 128]; 256],
+    pub scaled_coeffs: Array<c_float, 1024>,
+    pub quantize_band_cost_cache: QuantizeBandCostCache,
 }

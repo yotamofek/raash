@@ -9,6 +9,7 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
+arrayvec = "0.7.4"
 encoder = { version = "0.1.0", path = "encoder" }
 ffi = { version = "0.1.0", path = "ffi" }
 ffmpeg-src-macro = { version = "0.1.0", path = "ffmpeg-src-macro" }
