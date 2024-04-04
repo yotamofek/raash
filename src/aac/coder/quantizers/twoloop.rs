@@ -930,17 +930,18 @@ fn loop1(
         start = 0;
         g = start;
         while g < sce.ics.num_swb {
-            let mut nz: c_int = 0;
+            let wstart = (w * 16 + g) as usize;
+            let mut nz = 0;
             let mut uplim: c_float = 0.;
             let mut energy: c_float = 0.;
             let mut spread: c_float = 0.;
-            for w2 in 0..c_int::from(group_len) {
-                let band = ch.psy_bands[((w + w2) * 16 + g) as usize];
+            for w2 in 0..usize::from(group_len) {
+                let band = ch.psy_bands[wstart + w2 * 16];
                 if start >= cutoff
                     || band.energy <= band.threshold * zeroscale
                     || band.threshold == 0.
                 {
-                    sce.zeroes[((w + w2) * 16 + g) as usize] = true;
+                    sce.zeroes[wstart + w2 * 16] = true;
                 } else {
                     nz = 1;
                 }
@@ -948,7 +949,7 @@ fn loop1(
             if nz == 0 {
                 uplim = 0.;
             } else {
-                nz = ch.psy_bands[(w * 16 + g) as usize..]
+                nz = ch.psy_bands[wstart..]
                     .iter()
                     .step_by(16)
                     .take(sce.ics.group_len[w as usize] as usize)
@@ -960,23 +961,25 @@ fn loop1(
                         energy += band.energy;
                         spread += band.spread;
                     })
-                    .count() as i32;
+                    .count();
             }
-            uplims[(w * 16 + g) as usize] = uplim;
-            energies[(w * 16 + g) as usize] = energy;
-            nzs[(w * 16 + g) as usize] = nz as c_char;
-            sce.zeroes[(w * 16 + g) as usize] = nz == 0;
+            uplims[wstart] = uplim;
+            energies[wstart] = energy;
+            nzs[wstart] = nz as c_char;
+            sce.zeroes[wstart] = nz == 0;
             if nz > 0 {
                 *allz = AllZ::True
             }
-            if nz != 0 && sce.can_pns[(w * 16 + g) as usize] as c_int != 0 {
-                spread_thr_r[(w * 16 + g) as usize] = energy * nz as c_float / (uplim * spread);
-                if *min_spread_thr_r < 0. {
-                    *max_spread_thr_r = spread_thr_r[(w * 16 + g) as usize];
-                    *min_spread_thr_r = *max_spread_thr_r;
+            if nz > 0 && sce.can_pns[wstart] {
+                let spread_thr_r = &mut spread_thr_r[wstart];
+                *spread_thr_r = energy * nz as c_float / (uplim * spread);
+                (*min_spread_thr_r, *max_spread_thr_r) = if *min_spread_thr_r < 0. {
+                    (*spread_thr_r, *spread_thr_r)
                 } else {
-                    *min_spread_thr_r = min_spread_thr_r.min(spread_thr_r[(w * 16 + g) as usize]);
-                    *max_spread_thr_r = max_spread_thr_r.max(spread_thr_r[(w * 16 + g) as usize]);
+                    (
+                        min_spread_thr_r.min(*spread_thr_r),
+                        max_spread_thr_r.max(*spread_thr_r),
+                    )
                 }
             }
             let fresh1 = g;
