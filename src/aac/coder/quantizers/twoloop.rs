@@ -1,4 +1,4 @@
-use std::iter::zip;
+use std::{cell::Cell, iter::zip};
 
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
@@ -836,38 +836,37 @@ fn find_min_scaler(
     uplims: &[c_float; 128],
     sfoffs: c_float,
 ) -> c_int {
-    let mut minscaler = c_int::from(c_ushort::MAX);
-
     let swb_sizes = &sce.ics.swb_sizes[..sce.ics.num_swb as usize];
 
-    for WindowedIteration { w, .. } in sce.ics.iter_windows() {
-        for (&zero, sf_idx, &uplim, &swb_size) in izip!(
-            &sce.zeroes[w as usize * 16..],
-            &mut sce.sf_idx[w as usize * 16..],
-            &uplims[w as usize * 16..],
-            // (yotam): this one actually limits the rest to num_swb
-            swb_sizes
-        ) {
+    let sf_idx = Cell::as_array_of_cells(Cell::from_mut(&mut *sce.sf_idx));
+
+    sce.ics
+        .iter_windows()
+        .map(|WindowedIteration { w, .. }| w as usize * 16)
+        .flat_map(|w| izip!(&sf_idx[w..], &sce.zeroes[w..], &uplims[w..], swb_sizes))
+        .filter_map(|(sf_idx, &zero, &uplim, &swb_size)| {
             if zero {
-                *sf_idx = SCALE_ONE_POS.into();
-                continue;
+                sf_idx.set(SCALE_ONE_POS.into());
+                return None;
             }
 
-            // log2f-to-distortion ratio is, technically, 2 (1.5db = 4, but
-            // it's power vs level so it's 2). But, as offsets
-            // are applied, low-frequency signals are too sensitive to the
-            // induced distortion, so we make scaling more
-            // conservative by choosing a lower log2f-to-distortion ratio,
-            // and thus more robust.
-            *sf_idx = ((c_double::from(SCALE_ONE_POS)
-                + 1.75 * (uplim.max(0.00125) / c_float::from(swb_size)).log2() as c_double
-                + sfoffs as c_double) as c_int)
-                .clamp(60, SCALE_MAX_POS.into());
-            minscaler = minscaler.min(*sf_idx as c_int);
-        }
-    }
-
-    minscaler
+            sf_idx.set(
+                // log2f-to-distortion ratio is, technically, 2 (1.5db = 4, but it's power vs
+                // level so it's 2). But, as offsets are applied, low-frequency signals are too
+                // sensitive to the induced distortion, so we make scaling more conservative by
+                // choosing a lower log2f-to-distortion ratio, and thus more robust.
+                c_double::clamp(
+                    1.75 * c_double::from((uplim.max(0.00125) / c_float::from(swb_size)).log2())
+                        + c_double::from(SCALE_ONE_POS)
+                        + c_double::from(sfoffs),
+                    60.,
+                    SCALE_MAX_POS.into(),
+                ) as c_int,
+            );
+            Some(sf_idx.get())
+        })
+        .min()
+        .unwrap_or(c_int::from(c_ushort::MAX))
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -1004,12 +1003,12 @@ fn zeroscale(lambda: f32) -> f32 {
     }
 }
 
-#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 187..=193)]
 /// Scale, psy gives us constant quality, this LP only scales
 /// bitrate by lambda, so we save bits on subjectively unimportant HF
 /// rather than increase quantization noise. Adjust nominal bitrate
 /// to effective bitrate according to encoding parameters,
 /// AAC_CUTOFF_FROM_BITRATE is calibrated for effective bitrate.
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 187..=193)]
 fn frame_bit_rate(
     avctx: &AVCodecContext,
     s: &AACEncContext,

@@ -1,6 +1,7 @@
 #![feature(
     arbitrary_self_types,
     array_chunks,
+    as_array_of_cells,
     generic_arg_infer,
     generic_const_exprs,
     inline_const,
