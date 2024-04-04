@@ -1,4 +1,4 @@
-use std::{cell::Cell, iter::zip};
+use std::{cell::Cell, iter::zip, ops::BitOrAssign};
 
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
@@ -14,8 +14,8 @@ use crate::{
         encoder::{ctx::AACEncContext, pow::Pow34},
         psy_model::cutoff_from_bitrate,
         tables::ff_aac_scalefactor_bits,
-        SyntaxElementType, WindowedIteration, SCALE_DIFF_ZERO, SCALE_DIV_512, SCALE_MAX_DIFF,
-        SCALE_MAX_POS, SCALE_ONE_POS,
+        IndividualChannelStream, SyntaxElementType, WindowedIteration, SCALE_DIFF_ZERO,
+        SCALE_DIV_512, SCALE_MAX_DIFF, SCALE_MAX_POS, SCALE_ONE_POS,
     },
     common::*,
     types::*,
@@ -876,6 +876,14 @@ enum AllZ {
     True,
 }
 
+impl BitOrAssign<bool> for AllZ {
+    fn bitor_assign(&mut self, rhs: bool) {
+        if rhs {
+            *self = Self::True;
+        }
+    }
+}
+
 struct Loop1Result {
     uplims: [f32; 128],
     energies: [f32; 128],
@@ -920,57 +928,54 @@ fn loop1(
         allz,
     } = &mut res;
 
-    // TODO: is this safe?
-    let swb_sizes = &sce.ics.swb_sizes[..sce.ics.num_swb as usize];
-    let ch = &s.psy.ch[s.cur_channel as usize];
+    let SingleChannelElement {
+        ics:
+            ref ics @ IndividualChannelStream {
+                mut num_swb,
+                mut swb_sizes,
+                ..
+            },
+        ref can_pns,
+        zeroes,
+        ..
+    } = sce;
 
-    let mut start;
-    let mut g;
-    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
-        start = 0;
-        g = start;
-        while g < sce.ics.num_swb {
+    let swb_sizes = &swb_sizes[..num_swb as usize];
+    let FFPsyChannel { psy_bands, .. } = &s.psy.ch[s.cur_channel as usize];
+    let zeroes = Cell::from_mut(&mut **zeroes).as_array_of_cells();
+
+    for WindowedIteration { w, group_len } in ics.iter_windows() {
+        let mut start = 0;
+        let mut g = start;
+        while g < ics.num_swb {
             let wstart = (w * 16 + g) as usize;
-            let mut nz = 0;
             let mut uplim: c_float = 0.;
             let mut energy: c_float = 0.;
             let mut spread: c_float = 0.;
-            for w2 in 0..usize::from(group_len) {
-                let band = ch.psy_bands[wstart + w2 * 16];
-                if start >= cutoff
-                    || band.energy <= band.threshold * zeroscale
-                    || band.threshold == 0.
-                {
-                    sce.zeroes[wstart + w2 * 16] = true;
-                } else {
-                    nz = 1;
-                }
-            }
-            if nz == 0 {
-                uplim = 0.;
-            } else {
-                nz = ch.psy_bands[wstart..]
-                    .iter()
-                    .step_by(16)
-                    .take(sce.ics.group_len[w as usize] as usize)
-                    .filter(|band| {
-                        !(band.energy <= band.threshold * zeroscale || band.threshold == 0.)
-                    })
-                    .inspect(|band| {
+            let nz = zip(&psy_bands[wstart..], &zeroes[wstart..])
+                .step_by(16)
+                .take(group_len.into())
+                .filter(|(band, zero)| {
+                    if start >= cutoff
+                        || band.energy <= band.threshold * zeroscale
+                        || band.threshold == 0.
+                    {
+                        zero.set(true);
+                        false
+                    } else {
                         uplim += band.threshold;
                         energy += band.energy;
                         spread += band.spread;
-                    })
-                    .count();
-            }
+                        true
+                    }
+                })
+                .count();
             uplims[wstart] = uplim;
             energies[wstart] = energy;
             nzs[wstart] = nz as c_char;
-            sce.zeroes[wstart] = nz == 0;
-            if nz > 0 {
-                *allz = AllZ::True
-            }
-            if nz > 0 && sce.can_pns[wstart] {
+            zeroes[wstart].set(nz == 0);
+            *allz |= nz > 0;
+            if nz > 0 && can_pns[wstart] {
                 let spread_thr_r = &mut spread_thr_r[wstart];
                 *spread_thr_r = energy * nz as c_float / (uplim * spread);
                 (*min_spread_thr_r, *max_spread_thr_r) = if *min_spread_thr_r < 0. {
@@ -982,9 +987,8 @@ fn loop1(
                     )
                 }
             }
-            let fresh1 = g;
+            start += swb_sizes[g as usize] as c_int;
             g += 1;
-            start += swb_sizes[fresh1 as usize] as c_int;
         }
     }
 
