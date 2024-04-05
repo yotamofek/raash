@@ -103,30 +103,12 @@ fn quant(mut coef: c_float, Q: c_float, rounding: c_float) -> c_int {
 }
 
 #[inline]
-unsafe fn find_max_val(
-    mut group_len: c_int,
-    mut swb_size: c_int,
-    mut scaled: *const c_float,
-) -> c_float {
-    let mut maxval: c_float = 0.;
-    let mut w2: c_int = 0;
-    let mut i: c_int = 0;
-    w2 = 0;
-    while w2 < group_len {
-        i = 0;
-        while i < swb_size {
-            maxval = if maxval > *scaled.offset((w2 * 128 + i) as isize) {
-                maxval
-            } else {
-                *scaled.offset((w2 * 128 + i) as isize)
-            };
-            i += 1;
-            i;
-        }
-        w2 += 1;
-        w2;
-    }
-    maxval
+fn find_max_val(mut group_len: c_int, mut swb_size: c_int, mut scaled: &[c_float]) -> c_float {
+    (0..group_len)
+        .flat_map(|w2| &scaled[(w2 * 128) as usize..][..swb_size as usize])
+        .copied()
+        .max_by(c_float::total_cmp)
+        .unwrap_or_default()
 }
 
 #[inline]

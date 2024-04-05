@@ -152,22 +152,27 @@ pub(crate) unsafe fn search(
 
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         start = w * 128;
-        for g in 0..(*sce).ics.num_swb {
-            let mut scaled = (*s).scaled_coeffs[start as usize..].as_ptr();
+        for (g, &swb_size) in (*sce).ics.swb_sizes[..(*sce).ics.num_swb as usize]
+            .iter()
+            .enumerate()
+        {
+            let wstart = (w * 16) as usize + g;
+            let maxval = &mut maxvals[wstart];
+            let scaled = &(*s).scaled_coeffs[start as usize..];
 
-            maxvals[(w * 16 + g) as usize] = find_max_val(
-                c_int::from(group_len),
-                (*sce).ics.swb_sizes[g as usize] as c_int,
-                scaled,
-            );
+            *maxval = find_max_val(group_len.into(), swb_size.into(), scaled);
 
-            if maxvals[(w * 16 + g) as usize] > 0. {
-                let minsfidx = coef2minsf(maxvals[(w * 16 + g) as usize]) as c_int;
-                for w2 in 0..c_int::from(group_len) {
-                    minsf[((w + w2) * 16 + g) as usize] = minsfidx;
-                }
+            if *maxval > 0. {
+                let minsfidx = coef2minsf(*maxval) as c_int;
+                minsf[wstart..]
+                    .iter_mut()
+                    .step_by(16)
+                    .take(group_len.into())
+                    .for_each(|minsf| {
+                        *minsf = minsfidx;
+                    });
             }
-            start += (*sce).ics.swb_sizes[g as usize] as c_int;
+            start += c_int::from(swb_size);
         }
     }
 
@@ -426,9 +431,8 @@ pub(crate) unsafe fn search(
                             maxoverdist = c_float::max(maxoverdist, ovrdist);
                             overdist += 1;
                         }
-                        let fresh2 = g;
+                        start += (*sce).ics.swb_sizes[g as usize] as c_int;
                         g += 1;
-                        start += (*sce).ics.swb_sizes[fresh2 as usize] as c_int;
                     }
                 }
                 if overdist != 0 {
@@ -450,9 +454,8 @@ pub(crate) unsafe fn search(
                                 maxspread = maxspread.max(spread_thr_r[(w * 16 + g) as usize]);
                                 zeroable += 1;
                             }
-                            let fresh3 = g;
+                            start += (*sce).ics.swb_sizes[g as usize] as c_int;
                             g += 1;
-                            start += (*sce).ics.swb_sizes[fresh3 as usize] as c_int;
                         }
                     }
                     zspread = (maxspread - minspread) * 0.0125 + minspread;
