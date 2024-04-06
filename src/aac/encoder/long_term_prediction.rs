@@ -81,7 +81,7 @@ unsafe fn put_bits(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
 unsafe fn quant_array_idx(val: c_float, mut arr: *const c_float, num: c_int) -> c_int {
     let mut i: c_int = 0;
     let mut index: c_int = 0;
-    let mut quant_min_err: c_float = ::core::f32::INFINITY;
+    let mut quant_min_err: c_float = f32::INFINITY;
     i = 0;
     while i < num {
         let mut error: c_float = (val - *arr.offset(i as isize)) * (val - *arr.offset(i as isize));
@@ -363,7 +363,7 @@ pub(crate) unsafe fn search_for_ltp(
                         (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                         (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
-                        ::core::f32::INFINITY,
+                        f32::INFINITY,
                         Some(&mut bits_tmp1),
                         None,
                     );
@@ -373,7 +373,7 @@ pub(crate) unsafe fn search_for_ltp(
                         (*sce).sf_idx[((w + w2) * 16 + g) as usize],
                         (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
                         (*s).lambda / (*band).threshold,
-                        ::core::f32::INFINITY,
+                        f32::INFINITY,
                         Some(&mut bits_tmp2),
                         None,
                     );

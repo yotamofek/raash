@@ -32,12 +32,11 @@ pub(crate) unsafe fn codebook_rate(
     group_len: c_int,
 ) {
     let mut path = [[BandCodingPath::default(); 15]; 120];
-    let max_sfb: c_int = (*sce).ics.max_sfb as c_int;
-    let run_bits: c_int = if (*sce).ics.num_windows == 1 { 5 } else { 3 };
-    let run_esc: c_int = (1 << run_bits) - 1;
-    let mut ppos: c_int = 0;
+    let max_sfb = c_int::from((*sce).ics.max_sfb);
+    let run_bits = if (*sce).ics.num_windows == 1 { 5 } else { 3 };
+    let run_esc = (1 << run_bits) - 1;
     let mut next_minbits = c_float::INFINITY;
-    let mut next_mincb: c_int = 0;
+    let mut next_mincb = 0;
     for (scoef, coef) in zip(&mut (*s).scaled_coeffs, &(*sce).coeffs) {
         *scoef = coef.abs_pow34();
     }
@@ -50,8 +49,8 @@ pub(crate) unsafe fn codebook_rate(
     for swb in 0..max_sfb {
         let size = ((*sce).ics.swb_sizes)[swb as usize] as c_int;
         if (*sce).zeroes[(win * 16 + swb) as usize] {
-            let mut cost_stay_here: c_float = path[swb as usize][0].cost;
-            let cost_get_here: c_float = next_minbits + run_bits as c_float + 4 as c_float;
+            let mut cost_stay_here = path[swb as usize][0].cost;
+            let cost_get_here = next_minbits + run_bits as c_float + 4.;
             let run_value_bits = run_value_bits((*sce).ics.num_windows);
             if run_value_bits[path[swb as usize][0].run as usize]
                 != run_value_bits[(path[swb as usize][0].run + 1) as usize]
@@ -83,7 +82,7 @@ pub(crate) unsafe fn codebook_rate(
             let mincb: c_int = next_mincb;
             let startcb =
                 aac_cb_in_map[(*sce).band_type[(win * 16 + swb) as usize] as usize] as c_int;
-            next_minbits = ::core::f32::INFINITY;
+            next_minbits = f32::INFINITY;
             next_mincb = 0;
             path[(swb + 1) as usize].fill(BandCodingPath {
                 prev_idx: -1,
@@ -153,7 +152,7 @@ pub(crate) unsafe fn codebook_rate(
     let mut stackrun: [c_int; 120] = [0; 120];
     let mut stackcb: [c_int; 120] = [0; 120];
 
-    ppos = max_sfb;
+    let mut ppos = max_sfb;
     while ppos > 0 {
         let cb = idx;
         stackrun[stack_len as usize] = path[ppos as usize][cb as usize].run;

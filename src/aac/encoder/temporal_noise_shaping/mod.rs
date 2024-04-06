@@ -148,7 +148,7 @@ unsafe fn compute_lpc_coefs(
 fn quant_array_idx(val: c_float, mut arr: &[c_float], num: c_int) -> c_int {
     let mut i: c_int = 0;
     let mut index: c_int = 0;
-    let mut quant_min_err: c_float = ::core::f32::INFINITY;
+    let mut quant_min_err: c_float = f32::INFINITY;
     i = 0;
     while i < num {
         let mut error: c_float = (val - arr[i as usize]) * (val - arr[i as usize]);

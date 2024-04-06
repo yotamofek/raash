@@ -667,7 +667,7 @@ unsafe fn psy_3gpp_analyze_channel(
     let mut desired_bits: c_float = 0.;
     let mut desired_pe: c_float = 0.;
     let mut delta_pe: c_float = 0.;
-    let mut reduction: c_float = ::core::f32::NAN;
+    let mut reduction: c_float = f32::NAN;
     let mut spread_en: [c_float; 128] = [0.; 128];
     let mut a: c_float = 0.;
     let mut active_lines: c_float = 0.;
