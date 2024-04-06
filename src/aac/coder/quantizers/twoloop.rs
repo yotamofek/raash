@@ -3,7 +3,7 @@ use std::{cell::Cell, iter::zip, ops::BitOrAssign};
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::izip;
-use libc::{c_char, c_double, c_float, c_int, c_long, c_uint, c_ushort};
+use libc::{c_char, c_double, c_float, c_int, c_long, c_ushort};
 
 use crate::{
     aac::{
@@ -695,36 +695,8 @@ pub(crate) unsafe fn search(
             break;
         }
     }
-    let mut nextband = sce.init_nextband_map();
-    prev = -1;
-    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
-        for g in 0..(*sce).ics.num_swb {
-            if !(*sce).zeroes[(w * 16 + g) as usize] {
-                (*sce).band_type[(w * 16 + g) as usize] = find_min_book(
-                    maxvals[(w * 16 + g) as usize],
-                    (*sce).sf_idx[(w * 16 + g) as usize],
-                ) as BandType;
-                if (*sce).band_type[(w * 16 + g) as usize] as c_uint <= 0 as c_uint {
-                    if !sfdelta_can_remove_band(sce, &nextband, prev, w * 16 + g) {
-                        (*sce).band_type[(w * 16 + g) as usize] = 1 as BandType;
-                    } else {
-                        (*sce).zeroes[(w * 16 + g) as usize] = true;
-                        (*sce).band_type[(w * 16 + g) as usize] = ZERO_BT;
-                    }
-                }
-            } else {
-                (*sce).band_type[(w * 16 + g) as usize] = ZERO_BT;
-            }
-            if !(*sce).zeroes[(w * 16 + g) as usize] {
-                if prev != -1 {
-                    let mut _sfdiff_1: c_int = (*sce).sf_idx[(w * 16 + g) as usize] - prev + 60;
-                } else if (*sce).zeroes[0] {
-                    (*sce).sf_idx[0] = (*sce).sf_idx[(w * 16 + g) as usize];
-                }
-                prev = (*sce).sf_idx[(w * 16 + g) as usize];
-            }
-        }
-    }
+
+    find_next_bands(sce, maxvals);
 }
 
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 297..=312)]
@@ -1065,4 +1037,62 @@ fn frame_bit_rate(
     }
 
     frame_bit_rate as c_int
+}
+
+/// Scout out next nonzero bands
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 727..=760)]
+unsafe fn find_next_bands(sce: *mut SingleChannelElement, maxvals: [c_float; 128]) {
+    // Scout out next nonzero bands
+    let mut nextband = sce.init_nextband_map();
+
+    let SingleChannelElement {
+        ics: ref ics @ IndividualChannelStream { mut num_swb, .. },
+        zeroes,
+        band_type,
+        sf_idx: sf_indices,
+        ..
+    } = &mut (*sce);
+    let zeroes = Cell::from_mut(&mut **zeroes).as_array_of_cells();
+    let sf_indices = Cell::from_mut(&mut **sf_indices).as_array_of_cells();
+
+    let mut prev = None;
+    for w in ics
+        .iter_windows()
+        .map(|WindowedIteration { w, .. }| (w * 16) as usize)
+    {
+        // Make sure proper codebooks are set
+        for (zero, band_type, maxval, sf_idx, g) in izip!(
+            &zeroes[w..],
+            &mut band_type[w..],
+            &maxvals[w..],
+            &sf_indices[w..],
+            0..num_swb,
+        ) {
+            if !zero.get() {
+                *band_type = find_min_book(*maxval, sf_idx.get()) as BandType;
+                if *band_type == 0 {
+                    if !prev.is_some_and(|prev| {
+                        sfdelta_can_remove_band(sce, &nextband, prev, w as i32 + g)
+                    }) {
+                        // Cannot zero out, make sure it's not attempted
+                        *band_type = 1 as BandType;
+                    } else {
+                        zero.set(true);
+                        *band_type = ZERO_BT;
+                    }
+                }
+            } else {
+                *band_type = ZERO_BT;
+            }
+            if !zero.get() {
+                if let Some(prev) = prev {
+                    let sfdiff: c_int = sf_idx.get() - prev + c_int::from(SCALE_DIFF_ZERO);
+                    assert!((0..=2 * c_int::from(SCALE_MAX_DIFF)).contains(&sfdiff));
+                } else if zeroes[0].get() {
+                    sf_indices[0].set(sf_idx.get());
+                }
+                prev = Some(sf_idx.get());
+            }
+        }
+    }
 }
