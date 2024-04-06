@@ -126,4 +126,14 @@ impl IndividualChannelStream {
             Some(iter)
         })
     }
+
+    fn iter_swb_sizes_sum(&self) -> impl Iterator<Item = (c_uchar, c_ushort)> {
+        self.swb_sizes[..self.num_swb.try_into().unwrap()]
+            .iter()
+            .scan(0, |sum, &swb_size| {
+                let next = *sum;
+                *sum += c_ushort::from(swb_size);
+                Some((swb_size, next))
+            })
+    }
 }

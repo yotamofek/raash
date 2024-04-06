@@ -89,13 +89,13 @@ pub struct Flags(c_int);
 impl Flags {
     /// Use fixed qscale.
     #[ffmpeg_src(file = "libavcodec/avcodec.h", lines = 217..=220, name = "AV_CODEC_FLAG_QSCALE")]
-    pub fn qscale(&self) -> bool {
+    pub const fn qscale(&self) -> bool {
         self.0 & (1 << 1) != 0
     }
 
     /// Use only bitexact stuff (except (I)DCT).
     #[ffmpeg_src(file = "libavcodec/avcodec.h", lines = 335..=338, name = "AV_CODEC_FLAG_QSCALE")]
-    pub fn bit_exact(&self) -> bool {
+    pub const fn bit_exact(&self) -> bool {
         self.0 & (1 << 23) != 0
     }
 }

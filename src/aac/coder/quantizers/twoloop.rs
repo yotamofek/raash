@@ -8,7 +8,7 @@ use libc::{c_char, c_double, c_float, c_int, c_long, c_uint, c_ushort};
 use crate::{
     aac::{
         coder::{
-            ff_pns_bits, find_form_factor, find_max_val, find_min_book, math::coef2minsf,
+            ff_pns_bits, find_form_factor, find_min_book, math::coef2minsf,
             quantize_band_cost_cached, sfdelta_can_remove_band,
         },
         encoder::{ctx::AACEncContext, pow::Pow34},
@@ -44,11 +44,9 @@ pub(crate) unsafe fn search(
     let mut too_many_bits: c_int = 0;
     let mut too_few_bits: c_int = 0;
     let mut maxsf: [c_int; 128] = [0; 128];
-    let mut minsf: [c_int; 128] = [0; 128];
     let mut dists: [c_float; 128] = [0.; 128];
     let mut qenergies: [c_float; 128] = [0.; 128];
     let mut euplims: [c_float; 128] = [0.; 128];
-    let mut maxvals: [c_float; 128] = [0.; 128];
     let mut rdlambda: c_float = (2. * 120. / lambda).clamp(0.0625, 16.);
     let nzslope: c_float = 1.5;
     let mut rdmin: c_float = 0.03125;
@@ -148,33 +146,8 @@ pub(crate) unsafe fn search(
     *(*s).scaled_coeffs = (*sce).coeffs.map(Pow34::abs_pow34);
 
     (*s).quantize_band_cost_cache.init();
-    minsf.fill(0);
 
-    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-        start = w * 128;
-        for (g, &swb_size) in (*sce).ics.swb_sizes[..(*sce).ics.num_swb as usize]
-            .iter()
-            .enumerate()
-        {
-            let wstart = (w * 16) as usize + g;
-            let maxval = &mut maxvals[wstart];
-            let scaled = &(*s).scaled_coeffs[start as usize..];
-
-            *maxval = find_max_val(group_len.into(), swb_size.into(), scaled);
-
-            if *maxval > 0. {
-                let minsfidx = coef2minsf(*maxval) as c_int;
-                minsf[wstart..]
-                    .iter_mut()
-                    .step_by(16)
-                    .take(group_len.into())
-                    .for_each(|minsf| {
-                        *minsf = minsfidx;
-                    });
-            }
-            start += c_int::from(swb_size);
-        }
-    }
+    let (minsf, maxvals) = calc_minsf_maxvals(&(*sce).ics, &(*s).scaled_coeffs);
 
     // Scale uplims to match rate distortion to quality
     // bu applying noisy band depriorization and tonal band priorization.
@@ -809,6 +782,42 @@ pub(crate) unsafe fn search(
             }
         }
     }
+}
+
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 297..=312)]
+fn calc_minsf_maxvals(
+    ics: &IndividualChannelStream,
+    scaled_coeffs: &[c_float; 1024],
+) -> ([c_int; 128], [c_float; 128]) {
+    let mut minsf = [0; 128];
+    let mut maxvals = [0.; 128];
+    for WindowedIteration { w, group_len } in ics.iter_windows() {
+        let start = w * 128;
+        for (g, (swb_size, offset)) in ics.iter_swb_sizes_sum().enumerate() {
+            let wstart = (w * 16) as usize + g;
+            let maxval = &mut maxvals[wstart];
+            let scaled = &scaled_coeffs[(start + c_int::from(offset)) as usize..];
+
+            *maxval = (0..usize::from(group_len))
+                .flat_map(|w2| &scaled[(w2 * 128)..][..swb_size.into()])
+                .copied()
+                .max_by(c_float::total_cmp)
+                .unwrap_or_default();
+            if *maxval <= 0. {
+                continue;
+            }
+
+            let minsfidx = coef2minsf(*maxval) as c_int;
+            for minsf in minsf[wstart..]
+                .iter_mut()
+                .step_by(16)
+                .take(group_len.into())
+            {
+                *minsf = minsfidx;
+            }
+        }
+    }
+    (minsf, maxvals)
 }
 
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 285..=290)]

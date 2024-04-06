@@ -103,15 +103,6 @@ fn quant(mut coef: c_float, Q: c_float, rounding: c_float) -> c_int {
 }
 
 #[inline]
-fn find_max_val(mut group_len: c_int, mut swb_size: c_int, mut scaled: &[c_float]) -> c_float {
-    (0..group_len)
-        .flat_map(|w2| &scaled[(w2 * 128) as usize..][..swb_size as usize])
-        .copied()
-        .max_by(c_float::total_cmp)
-        .unwrap_or_default()
-}
-
-#[inline]
 fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
     let Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
     let qmaxval = (maxval * Q34 + 0.4054) as c_int;
