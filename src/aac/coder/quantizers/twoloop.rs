@@ -43,14 +43,9 @@ pub(crate) unsafe fn search(
     let mut refbits: c_int = dest_bits;
     let mut too_many_bits: c_int = 0;
     let mut too_few_bits: c_int = 0;
-    let mut maxsf: [c_int; 128] = [0; 128];
     let mut dists: [c_float; 128] = [0.; 128];
     let mut qenergies: [c_float; 128] = [0.; 128];
-    let mut euplims: [c_float; 128] = [0.; 128];
     let mut rdlambda: c_float = (2. * 120. / lambda).clamp(0.0625, 16.);
-    let nzslope: c_float = 1.5;
-    let mut rdmin: c_float = 0.03125;
-    let mut rdmax: c_float = 1.;
     let mut sfoffs: c_float = ((120. / lambda).log2() * 4.).clamp(-5., 10.);
     let mut fflag: c_int = 0;
     let mut maxscaler: c_int = 0;
@@ -58,8 +53,6 @@ pub(crate) unsafe fn search(
     let mut its: c_int = 0;
     let mut maxits: c_int = 30;
     let mut tbits: c_int = 0;
-    let mut cutoff: c_int = 1024;
-    let mut pns_start_pos: c_int = 0;
     let mut prev: c_int = 0;
     let zeroscale = zeroscale(lambda);
 
@@ -90,7 +83,7 @@ pub(crate) unsafe fn search(
 
         // Don't offset scalers, just RD
         sfoffs = ((*sce).ics.num_windows - 1) as c_float;
-        rdlambda = sqrtf(rdlambda);
+        rdlambda = rdlambda.sqrt();
 
         // search further
         maxits *= 2;
@@ -103,7 +96,7 @@ pub(crate) unsafe fn search(
         too_few_bits = dest_bits - dest_bits / 8;
 
         sfoffs = 0.;
-        rdlambda = sqrtf(rdlambda);
+        rdlambda = rdlambda.sqrt();
     }
     let wlen: c_int = 1024 / (*sce).ics.num_windows;
 
@@ -111,13 +104,12 @@ pub(crate) unsafe fn search(
     let bandwidth = if (*avctx).cutoff > 0 {
         (*avctx).cutoff
     } else {
-        (*s).psy.cutoff = cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate).max(3000);
-        (*s).psy.cutoff
+        cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate).max(3000)
     };
     (*s).psy.cutoff = bandwidth;
 
-    cutoff = bandwidth * 2 * wlen / (*avctx).sample_rate;
-    pns_start_pos = 4000 * 2 * wlen / (*avctx).sample_rate;
+    let cutoff = bandwidth * 2 * wlen / (*avctx).sample_rate;
+    let pns_start_pos = 4000 * 2 * wlen / (*avctx).sample_rate;
 
     // for values above this the decoder might end up in an endless loop
     // due to always having more bits than what can be encoded.
@@ -148,67 +140,18 @@ pub(crate) unsafe fn search(
     (*s).quantize_band_cost_cache.init();
 
     let (minsf, maxvals) = calc_minsf_maxvals(&(*sce).ics, &(*s).scaled_coeffs);
+    let euplims = scale_uplims(
+        &(*sce).ics,
+        &mut uplims,
+        &(*sce).coeffs,
+        &nzs,
+        cutoff,
+        rdlambda,
+        (*avctx).flags.qscale(),
+    );
+    let uplims = uplims;
 
-    // Scale uplims to match rate distortion to quality
-    // bu applying noisy band depriorization and tonal band priorization.
-    // Maxval-energy ratio gives us an idea of how noisy/tonal the band is.
-    // If maxval^2 ~ energy, then that band is mostly noise, and we can
-    // relax rate distortion requirements.
-    euplims = uplims;
-    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-        // psy already priorizes transients to some extent
-        let mut de_psy_factor: c_float = if (*sce).ics.num_windows > 1 {
-            8. / c_float::from(group_len)
-        } else {
-            1.
-        };
-        start = w * 128;
-        for g in 0..(*sce).ics.num_swb {
-            if nzs[g as usize] as c_int > 0 {
-                let mut cleanup_factor: c_float =
-                    ((start as c_float / (cutoff as c_float * 0.75)).clamp(1., 2.)).powi(2);
-                let mut energy2uplim: c_float = find_form_factor(
-                    group_len,
-                    (*sce).ics.swb_sizes[g as usize],
-                    uplims[(w * 16 + g) as usize]
-                        / (nzs[g as usize] as c_int * (*sce).ics.swb_sizes[w as usize] as c_int)
-                            as c_float,
-                    &(*sce).coeffs[start as usize..],
-                    nzslope * cleanup_factor,
-                );
-                energy2uplim *= de_psy_factor;
-                if !(*avctx).flags.qscale() {
-                    // In ABR, we need to priorize less and let rate control do its thing
-                    energy2uplim = sqrtf(energy2uplim);
-                }
-                energy2uplim = energy2uplim.clamp(0.015625, 1.);
-                uplims[(w * 16 + g) as usize] *=
-                    (rdlambda * energy2uplim).clamp(rdmin, rdmax) * c_float::from(group_len);
-
-                energy2uplim = find_form_factor(
-                    group_len,
-                    (*sce).ics.swb_sizes[g as usize],
-                    uplims[(w * 16 + g) as usize]
-                        / (nzs[g as usize] as c_int * (*sce).ics.swb_sizes[w as usize] as c_int)
-                            as c_float,
-                    &(*sce).coeffs[start as usize..],
-                    2.,
-                );
-                energy2uplim *= de_psy_factor;
-                if !(*avctx).flags.qscale() {
-                    // In ABR, we need to priorize less and let rate control do its thing
-                    energy2uplim = energy2uplim.sqrt();
-                }
-                energy2uplim = energy2uplim.clamp(0.015625, 1.);
-                euplims[(w * 16 + g) as usize] *=
-                    (rdlambda * energy2uplim * c_float::from((*sce).ics.group_len[w as usize]))
-                        .clamp(0.5, 1.);
-            }
-            start += (*sce).ics.swb_sizes[g as usize] as c_int;
-        }
-    }
-
-    maxsf.fill(SCALE_MAX_POS.into());
+    let mut maxsf = [c_int::from(SCALE_MAX_POS); 128];
 
     // perform two-loop search
     // outer loop - improve quality
@@ -879,6 +822,82 @@ fn find_min_scaler(
         })
         .min()
         .unwrap_or(c_int::from(c_ushort::MAX))
+}
+
+/// Scale uplims to match rate distortion to quality
+/// bu applying noisy band depriorization and tonal band priorization.
+/// Maxval-energy ratio gives us an idea of how noisy/tonal the band is.
+/// If maxval^2 ~ energy, then that band is mostly noise, and we can
+/// relax rate distortion requirements.
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 314..=359)]
+fn scale_uplims(
+    ics: &IndividualChannelStream,
+    uplims: &mut [c_float; 128],
+    coeffs: &[c_float; 1024],
+    nzs: &[c_char; 128],
+    cutoff: c_int,
+    rdlambda: c_float,
+    qscale: bool,
+) -> [c_float; 128] {
+    const NZ_SLOPE: c_float = 1.5;
+    const RDMIN: c_float = 0.03125;
+    const RDMAX: c_float = 1.;
+
+    let mut euplims = *uplims;
+    for WindowedIteration { w, group_len } in ics.iter_windows() {
+        // psy already priorizes transients to some extent
+        let de_psy_factor = if ics.num_windows > 1 {
+            8. / c_float::from(group_len)
+        } else {
+            1.
+        };
+
+        for ((swb_size, offset), &nz, uplim, euplim) in izip!(
+            ics.iter_swb_sizes_sum(),
+            nzs,
+            &mut uplims[(w * 16) as usize..],
+            &mut euplims[(w * 16) as usize..],
+        )
+        .filter(|(_, &nz, ..)| nz > 0)
+        {
+            let start = w * 128 + c_int::from(offset);
+            let coeffs = &coeffs[start as usize..];
+            let cleanup_factor = (start as c_float / (cutoff as c_float * 0.75))
+                .clamp(1., 2.)
+                .powi(2);
+            let mut energy2uplim = find_form_factor(
+                group_len,
+                swb_size,
+                *uplim / (nz as c_int * ics.swb_sizes[w as usize] as c_int) as c_float,
+                coeffs,
+                NZ_SLOPE * cleanup_factor,
+            );
+            energy2uplim *= de_psy_factor;
+            if !qscale {
+                // In ABR, we need to priorize less and let rate control do its thing
+                energy2uplim = energy2uplim.sqrt();
+            }
+            energy2uplim = energy2uplim.clamp(0.015625, 1.);
+            *uplim *= (rdlambda * energy2uplim).clamp(RDMIN, RDMAX) * c_float::from(group_len);
+
+            let mut energy2uplim = find_form_factor(
+                group_len,
+                swb_size,
+                *uplim / (nz as c_int * ics.swb_sizes[w as usize] as c_int) as c_float,
+                coeffs,
+                2.,
+            );
+            energy2uplim *= de_psy_factor;
+            if !qscale {
+                // In ABR, we need to priorize less and let rate control do its thing
+                energy2uplim = energy2uplim.sqrt();
+            }
+            energy2uplim = energy2uplim.clamp(0.015625, 1.);
+            *euplim *=
+                (rdlambda * energy2uplim * c_float::from(ics.group_len[w as usize])).clamp(0.5, 1.);
+        }
+    }
+    euplims
 }
 
 #[derive(Default, PartialEq, Eq)]

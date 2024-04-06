@@ -123,7 +123,6 @@ fn find_form_factor(
 
     let iswb_size: c_float = 1. / swb_size as c_float;
     let iswb_sizem1: c_float = 1. / (swb_size - 1) as c_float;
-    let ethresh: c_float = thresh;
     let mut form: c_float = 0.;
     let mut weight: c_float = 0.;
     for scaled_window in scaled.chunks(128).take(group_len.into()) {
@@ -140,13 +139,13 @@ fn find_form_factor(
             // We really don't want a hard non-zero-line count, since
             // even below-threshold lines do add up towards band spectral power.
             // So, fall steeply towards zero, but smoothly
-            if s >= ethresh {
-                nzl += 1.;
+            nzl += if s >= thresh {
+                1.
             } else if nzslope == 2. {
-                nzl += (s / ethresh).powi(2);
+                (s / thresh).powi(2)
             } else {
-                nzl += ff_fast_powf(s / ethresh, nzslope);
-            }
+                ff_fast_powf(s / thresh, nzslope)
+            };
         }
         if e2 > thresh {
             e *= iswb_size;
