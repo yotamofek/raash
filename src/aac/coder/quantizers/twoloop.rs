@@ -31,7 +31,6 @@ pub(crate) unsafe fn search(
     let mut start: c_int = 0;
     let mut i: c_int = 0;
     let mut g: c_int = 0;
-    let mut recomprd: c_int = 0;
     let mut dest_bits: c_int = ((*avctx).bit_rate as c_double * 1024.
         / (*avctx).sample_rate as c_double
         / (if (*avctx).flags.qscale() {
@@ -47,12 +46,11 @@ pub(crate) unsafe fn search(
     let mut qenergies: [c_float; 128] = [0.; 128];
     let mut rdlambda: c_float = (2. * 120. / lambda).clamp(0.0625, 16.);
     let mut sfoffs: c_float = ((120. / lambda).log2() * 4.).clamp(-5., 10.);
-    let mut fflag: c_int = 0;
+    let mut fflag = false;
     let mut maxscaler: c_int = 0;
     let mut nminscaler: c_int = 0;
     let mut its: c_int = 0;
     let mut maxits: c_int = 30;
-    let mut tbits: c_int = 0;
     let mut prev: c_int = 0;
     let zeroscale = zeroscale(lambda);
 
@@ -113,9 +111,9 @@ pub(crate) unsafe fn search(
 
     // for values above this the decoder might end up in an endless loop
     // due to always having more bits than what can be encoded.
-    dest_bits = dest_bits.min(5800);
-    too_many_bits = too_many_bits.min(5800);
-    too_few_bits = too_few_bits.min(5800);
+    let dest_bits = dest_bits.min(5800);
+    let too_many_bits = too_many_bits.min(5800);
+    let too_few_bits = too_few_bits.min(5800);
 
     let Loop1Result {
         mut uplims,
@@ -156,125 +154,27 @@ pub(crate) unsafe fn search(
     // perform two-loop search
     // outer loop - improve quality
     loop {
-        // inner loop - quantize spectrum to fit into given number of bits
-        let mut overdist: c_int = 0;
-        let mut qstep: c_int = if its != 0 { 1 } else { 32 };
-        loop {
-            let mut changed: c_int = 0;
-            prev = -1;
-            recomprd = 0;
-            tbits = 0;
-            for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-                let [coeffs, scaled] =
-                    [&(*sce).coeffs, &(*s).scaled_coeffs].map(|coeffs| &coeffs[w as usize * 128..]);
-                let wstart = w as usize * 16;
-                for (g, (&zero, &sf_idx, &can_pns, &maxval, dist, qenergy, (swb_size, offset))) in
-                    izip!(
-                        &(*sce).zeroes[wstart..],
-                        &(*sce).sf_idx[wstart..],
-                        &(*sce).can_pns[wstart..],
-                        &maxvals[wstart..],
-                        &mut dists[wstart..],
-                        &mut qenergies[wstart..],
-                        (*sce).ics.iter_swb_sizes_sum(),
-                    )
-                    .enumerate()
-                {
-                    let [coeffs, scaled] =
-                        [coeffs, scaled].map(|coeffs| &coeffs[usize::from(offset)..]);
-                    if zero || sf_idx >= 218 {
-                        if can_pns {
-                            // PNS isn't free
-                            tbits += if let Some(g) = g.checked_sub(1)
-                                && (*sce).zeroes[wstart + g]
-                                && (*sce).can_pns[wstart + g]
-                            {
-                                5
-                            } else {
-                                9
-                            };
-                        }
-                    } else {
-                        let cb = find_min_book(maxval, sf_idx);
-                        let (
-                            Sum::<c_float>(dist_),
-                            Sum::<c_int>(mut bits),
-                            Sum::<c_float>(qenergy_),
-                        ) = (0..group_len)
-                            .map(|w2| {
-                                let wstart = usize::from(w2) * 128;
-                                let mut bits: c_int = 0;
-                                let mut qenergy: c_float = 0.;
-                                let dist = (*s).quantize_band_cost_cache.quantize_band_cost_cached(
-                                    w + c_int::from(w2),
-                                    g as c_int,
-                                    &coeffs[wstart..][..swb_size.into()],
-                                    &scaled[wstart..][..swb_size.into()],
-                                    sf_idx,
-                                    cb,
-                                    1.,
-                                    f32::INFINITY,
-                                    &mut bits,
-                                    &mut qenergy,
-                                    0,
-                                );
-                                (dist, bits, qenergy)
-                            })
-                            .reduce_with();
-                        *dist = dist_ - bits as c_float;
-                        *qenergy = qenergy_;
-                        if prev != -1 {
-                            let sfdiff = (sf_idx - prev + c_int::from(SCALE_DIFF_ZERO))
-                                .clamp(0, 2 * c_int::from(SCALE_MAX_DIFF));
-                            bits += ff_aac_scalefactor_bits[sfdiff as usize] as c_int;
-                        }
-                        tbits += bits;
-                        prev = sf_idx;
-                    }
-                }
-            }
-            if tbits > too_many_bits {
-                recomprd = 1;
-                for (sf_idx, &maxsf) in zip(&mut (*sce).sf_idx, &maxsf)
-                    .filter(|(&mut sf_idx, _)| sf_idx < c_int::from(SCALE_MAX_POS - SCALE_DIV_512))
-                {
-                    let maxsf = if tbits <= 5800 {
-                        maxsf
-                    } else {
-                        SCALE_MAX_POS.into()
-                    };
-                    let new_sf = maxsf.min(*sf_idx + qstep);
-                    if new_sf != *sf_idx {
-                        *sf_idx = new_sf;
-                        changed = 1;
-                    }
-                }
-            } else if tbits < too_few_bits {
-                recomprd = 1;
-                for (sf_idx, &minsf) in zip(&mut (*sce).sf_idx, &minsf)
-                    .filter(|(&mut sf_idx, _)| sf_idx > c_int::from(SCALE_ONE_POS))
-                {
-                    let new_sf = minsf.max(SCALE_ONE_POS.into()).max(*sf_idx - qstep);
-                    if new_sf != *sf_idx {
-                        *sf_idx = new_sf;
-                        changed = 1;
-                    }
-                }
-            }
-            qstep >>= 1;
-            if qstep == 0 && tbits > too_many_bits && (*sce).sf_idx[0] < 217 && changed != 0 {
-                qstep = 1;
-            }
-            if qstep == 0 {
-                break;
-            }
-        }
+        let InnerLoopResult {
+            mut tbits,
+            mut recomprd,
+        } = quantize_spectrum(
+            sce,
+            s,
+            its,
+            &maxvals,
+            &maxsf,
+            &minsf,
+            too_many_bits,
+            too_few_bits,
+            &mut dists,
+            &mut qenergies,
+        );
 
-        overdist = 1;
-        fflag = (tbits < too_few_bits) as c_int;
+        let mut overdist = true;
+        fflag = tbits < too_few_bits;
         i = 0;
-        while i < 2 && (overdist != 0 || recomprd != 0) {
-            if recomprd != 0 {
+        while i < 2 && (overdist || recomprd) {
+            if recomprd {
                 prev = -1;
                 tbits = 0;
                 for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
@@ -339,8 +239,8 @@ pub(crate) unsafe fn search(
                 let mut maxoverdist: c_float = 0.;
                 let mut ovrfactor: c_float =
                     1. + (maxits - its) as c_float * 16. / maxits as c_float;
-                recomprd = 0;
-                overdist = recomprd;
+                recomprd = false;
+                overdist = false;
                 for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
                     start = 0;
                     g = start;
@@ -356,13 +256,13 @@ pub(crate) unsafe fn search(
                                     euplims[(w * 16 + g) as usize],
                                 );
                             maxoverdist = c_float::max(maxoverdist, ovrdist);
-                            overdist += 1;
+                            overdist = true;
                         }
                         start += (*sce).ics.swb_sizes[g as usize] as c_int;
                         g += 1;
                     }
                 }
-                if overdist != 0 {
+                if overdist {
                     let mut minspread: c_float = max_spread_thr_r;
                     let mut maxspread: c_float = min_spread_thr_r;
                     let mut zspread: c_float = 0.;
@@ -445,11 +345,11 @@ pub(crate) unsafe fn search(
                         }
                     }
                     if zeroed != 0 {
-                        fflag = 1;
-                        recomprd = fflag;
+                        fflag = true;
+                        recomprd = true;
                     }
                 } else {
-                    overdist = 0;
+                    overdist = false;
                 }
             }
             i += 1;
@@ -663,7 +563,7 @@ pub(crate) unsafe fn search(
                         av_clip_c((*sce).sf_idx[(w * 16 + g) as usize], mindeltasf, maxdeltasf);
                     prev = (*sce).sf_idx[(w * 16 + g) as usize];
                     if (*sce).sf_idx[(w * 16 + g) as usize] != prevsc {
-                        fflag = 1;
+                        fflag = true;
                     }
                     nminscaler = if nminscaler > (*sce).sf_idx[(w * 16 + g) as usize] {
                         (*sce).sf_idx[(w * 16 + g) as usize]
@@ -693,15 +593,14 @@ pub(crate) unsafe fn search(
                         (*sce).sf_idx[(w * 16 + g) as usize],
                     ) as BandType;
                     prev = (*sce).sf_idx[(w * 16 + g) as usize];
-                    if fflag == 0 && prevsf != (*sce).sf_idx[(w * 16 + g) as usize] {
-                        fflag = 1;
+                    if !fflag && prevsf != (*sce).sf_idx[(w * 16 + g) as usize] {
+                        fflag = true;
                     }
                 }
             }
         }
         its += 1;
-        its;
-        if !(fflag != 0 && its < maxits) {
+        if !(fflag && its < maxits) {
             break;
         }
     }
@@ -1052,7 +951,6 @@ fn frame_bit_rate(
 /// Scout out next nonzero bands
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 727..=760)]
 unsafe fn find_next_bands(sce: *mut SingleChannelElement, maxvals: [c_float; 128]) {
-    // Scout out next nonzero bands
     let mut nextband = sce.init_nextband_map();
 
     let SingleChannelElement {
@@ -1104,5 +1002,134 @@ unsafe fn find_next_bands(sce: *mut SingleChannelElement, maxvals: [c_float; 128
                 prev = Some(sf_idx.get());
             }
         }
+    }
+}
+
+struct InnerLoopResult {
+    tbits: c_int,
+    recomprd: bool,
+}
+
+/// inner loop - quantize spectrum to fit into given number of bits
+#[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 367..=447)]
+unsafe fn quantize_spectrum(
+    sce: *mut SingleChannelElement,
+    s: *mut AACEncContext,
+    its: c_int,
+    maxvals: &[c_float; 128],
+    maxsf: &[c_int; 128],
+    minsf: &[c_int; 128],
+    too_many_bits: c_int,
+    too_few_bits: c_int,
+    dists: &mut [c_float; 128],
+    qenergies: &mut [c_float; 128],
+) -> InnerLoopResult {
+    let mut qstep: c_int = if its != 0 { 1 } else { 32 };
+    loop {
+        let mut prev: Option<c_int> = None;
+        let mut tbits = 0;
+        for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
+            let [coeffs, scaled] =
+                [&(*sce).coeffs, &(*s).scaled_coeffs].map(|c| &c[w as usize * 128..]);
+            let wstart = w as usize * 16;
+            for (g, (&zero, &sf_idx, &can_pns, &maxval, dist, qenergy, (swb_size, offset))) in
+                izip!(
+                    &(*sce).zeroes[wstart..],
+                    &(*sce).sf_idx[wstart..],
+                    &(*sce).can_pns[wstart..],
+                    &maxvals[wstart..],
+                    &mut dists[wstart..],
+                    &mut qenergies[wstart..],
+                    (*sce).ics.iter_swb_sizes_sum(),
+                )
+                .enumerate()
+            {
+                let [coeffs, scaled] =
+                    [coeffs, scaled].map(|coeffs| &coeffs[usize::from(offset)..]);
+                if zero || sf_idx >= 218 {
+                    if can_pns {
+                        // PNS isn't free
+                        tbits += if let Some(g) = g.checked_sub(1)
+                            && (*sce).zeroes[wstart + g]
+                            && (*sce).can_pns[wstart + g]
+                        {
+                            5
+                        } else {
+                            9
+                        };
+                    }
+                } else {
+                    let cb = find_min_book(maxval, sf_idx);
+                    let (Sum::<c_float>(dist_), Sum::<c_int>(mut bits), Sum::<c_float>(qenergy_)) =
+                        (0..group_len)
+                            .map(|w2| {
+                                let wstart = usize::from(w2) * 128;
+                                let mut bits: c_int = 0;
+                                let mut qenergy: c_float = 0.;
+                                let dist = (*s).quantize_band_cost_cache.quantize_band_cost_cached(
+                                    w + c_int::from(w2),
+                                    g as c_int,
+                                    &coeffs[wstart..][..swb_size.into()],
+                                    &scaled[wstart..][..swb_size.into()],
+                                    sf_idx,
+                                    cb,
+                                    1.,
+                                    f32::INFINITY,
+                                    &mut bits,
+                                    &mut qenergy,
+                                    0,
+                                );
+                                (dist, bits, qenergy)
+                            })
+                            .reduce_with();
+                    *dist = dist_ - bits as c_float;
+                    *qenergy = qenergy_;
+                    if let Some(prev) = prev {
+                        let sfdiff = (sf_idx - prev + c_int::from(SCALE_DIFF_ZERO))
+                            .clamp(0, 2 * c_int::from(SCALE_MAX_DIFF));
+                        bits += c_int::from(ff_aac_scalefactor_bits[sfdiff as usize]);
+                    }
+                    tbits += bits;
+                    prev = Some(sf_idx);
+                }
+            }
+        }
+        let mut changed = false;
+        let mut recomprd = false;
+        if tbits > too_many_bits {
+            recomprd = true;
+            for (sf_idx, &maxsf) in zip(&mut (*sce).sf_idx, maxsf)
+                .filter(|(&mut sf_idx, _)| sf_idx < c_int::from(SCALE_MAX_POS - SCALE_DIV_512))
+            {
+                let maxsf = if tbits <= 5800 {
+                    maxsf
+                } else {
+                    SCALE_MAX_POS.into()
+                };
+                let new_sf = maxsf.min(*sf_idx + qstep);
+                if new_sf != *sf_idx {
+                    *sf_idx = new_sf;
+                    changed = true;
+                }
+            }
+        } else if tbits < too_few_bits {
+            recomprd = true;
+            for (sf_idx, &minsf) in zip(&mut (*sce).sf_idx, minsf)
+                .filter(|(&mut sf_idx, _)| sf_idx > c_int::from(SCALE_ONE_POS))
+            {
+                let new_sf = minsf.max(SCALE_ONE_POS.into()).max(*sf_idx - qstep);
+                if new_sf != *sf_idx {
+                    *sf_idx = new_sf;
+                    changed = true;
+                }
+            }
+        }
+        qstep = match qstep >> 1 {
+            0 if tbits > too_many_bits && (*sce).sf_idx[0] < 217 && changed => 1,
+            0 => {
+                break InnerLoopResult { tbits, recomprd };
+            }
+            qstep => qstep,
+        };
     }
 }
