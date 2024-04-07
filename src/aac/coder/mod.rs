@@ -103,7 +103,7 @@ fn quant(mut coef: c_float, Q: c_float, rounding: c_float) -> c_int {
 }
 
 #[inline]
-fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
+fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
     let Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
     let qmaxval = (maxval * Q34 + 0.4054) as c_int;
     aac_maxval_cb.get(qmaxval as usize).copied().unwrap_or(11) as c_int
