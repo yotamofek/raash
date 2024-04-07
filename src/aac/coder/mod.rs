@@ -242,51 +242,45 @@ impl SingleChannelElement {
     }
 }
 
-#[inline]
-unsafe fn quantize_band_cost_cached(
-    cache: &mut QuantizeBandCostCache,
-    mut w: c_int,
-    mut g: c_int,
-    mut in_0: &[c_float],
-    mut scaled: &[c_float],
-    mut scale_idx: c_int,
-    mut cb: c_int,
-    lambda: c_float,
-    uplim: c_float,
-    mut bits: *mut c_int,
-    mut energy: *mut c_float,
-    mut rtz: c_int,
-) -> c_float {
-    let mut entry: *mut AACQuantizeBandCostCacheEntry =
-        ptr::null_mut::<AACQuantizeBandCostCacheEntry>();
-    entry = &mut *(*cache.cache.as_mut_ptr().offset(scale_idx as isize))
-        .as_mut_ptr()
-        .offset((w * 16 + g) as isize) as *mut AACQuantizeBandCostCacheEntry;
-    if (*entry).generation as c_int != cache.cache_generation as c_int
-        || (*entry).cb as c_int != cb
-        || (*entry).rtz as c_int != rtz
-    {
-        (*entry).rd = quantize_band_cost(
-            in_0,
-            scaled,
-            scale_idx,
-            cb,
-            lambda,
-            uplim,
-            Some(&mut (*entry).bits),
-            Some(&mut (*entry).energy),
-        );
-        (*entry).cb = cb as c_char;
-        (*entry).rtz = rtz as c_char;
-        (*entry).generation = cache.cache_generation;
+impl QuantizeBandCostCache {
+    #[inline]
+    unsafe fn quantize_band_cost_cached(
+        &mut self,
+        w: c_int,
+        g: c_int,
+        in_: &[c_float],
+        scaled: &[c_float],
+        scale_idx: c_int,
+        cb: c_int,
+        lambda: c_float,
+        uplim: c_float,
+        bits: &mut c_int,
+        energy: &mut c_float,
+        rtz: c_int,
+    ) -> c_float {
+        let entry = &mut self.cache[scale_idx as usize][(w * 16 + g) as usize];
+        if entry.generation != self.cache_generation
+            || c_int::from(entry.cb) != cb
+            || c_int::from(entry.rtz) != rtz
+        {
+            entry.rd = quantize_band_cost(
+                in_,
+                scaled,
+                scale_idx,
+                cb,
+                lambda,
+                uplim,
+                Some(&mut entry.bits),
+                Some(&mut entry.energy),
+            );
+            entry.cb = cb as c_char;
+            entry.rtz = rtz as c_char;
+            entry.generation = self.cache_generation;
+        }
+        *bits = entry.bits;
+        *energy = entry.energy;
+        entry.rd
     }
-    if !bits.is_null() {
-        *bits = (*entry).bits;
-    }
-    if !energy.is_null() {
-        *energy = (*entry).energy;
-    }
-    (*entry).rd
 }
 
 #[inline]

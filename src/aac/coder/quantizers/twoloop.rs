@@ -9,8 +9,7 @@ use reductor::{Reduce as _, Sum};
 use crate::{
     aac::{
         coder::{
-            ff_pns_bits, find_form_factor, find_min_book, math::coef2minsf,
-            quantize_band_cost_cached, sfdelta_can_remove_band,
+            ff_pns_bits, find_form_factor, find_min_book, math::coef2minsf, sfdelta_can_remove_band,
         },
         encoder::{ctx::AACEncContext, pow::Pow34},
         psy_model::cutoff_from_bitrate,
@@ -206,8 +205,7 @@ pub(crate) unsafe fn search(
                                 let wstart = usize::from(w2) * 128;
                                 let mut bits: c_int = 0;
                                 let mut qenergy: c_float = 0.;
-                                let dist = quantize_band_cost_cached(
-                                    &mut (*s).quantize_band_cost_cache,
+                                let dist = (*s).quantize_band_cost_cache.quantize_band_cost_cached(
                                     w + c_int::from(w2),
                                     g as c_int,
                                     &coeffs[wstart..][..swb_size.into()],
@@ -304,8 +302,7 @@ pub(crate) unsafe fn search(
                                 let wstart = usize::from(w2) * 128;
                                 let mut b = 0;
                                 let mut sqenergy = 0.;
-                                dist_0 += quantize_band_cost_cached(
-                                    &mut (*s).quantize_band_cost_cache,
+                                dist_0 += (*s).quantize_band_cost_cache.quantize_band_cost_cached(
                                     w + c_int::from(w2),
                                     g,
                                     &coefs_0[wstart..][..(*sce).ics.swb_sizes[g as usize].into()],
@@ -554,8 +551,7 @@ pub(crate) unsafe fn search(
                                 let wstart = usize::from(w2) * 128;
                                 let mut b = 0;
                                 let mut sqenergy = 0.;
-                                dist_1 += quantize_band_cost_cached(
-                                    &mut (*s).quantize_band_cost_cache,
+                                dist_1 += (*s).quantize_band_cost_cache.quantize_band_cost_cached(
                                     w + c_int::from(w2),
                                     g,
                                     &coefs_1[wstart..][..swb_size.into()],
@@ -627,20 +623,20 @@ pub(crate) unsafe fn search(
                                     let wstart = usize::from(w2) * 128;
                                     let mut b = 0;
                                     let mut sqenergy = 0.;
-                                    dist_2 += quantize_band_cost_cached(
-                                        &mut (*s).quantize_band_cost_cache,
-                                        w + c_int::from(w2),
-                                        g,
-                                        &coefs_1[wstart..][..swb_size.into()],
-                                        &scaled_2[wstart..][..swb_size.into()],
-                                        (*sce).sf_idx[(w * 16 + g) as usize] + 1,
-                                        cb_2,
-                                        1.,
-                                        f32::INFINITY,
-                                        &mut b,
-                                        &mut sqenergy,
-                                        0,
-                                    );
+                                    dist_2 +=
+                                        (*s).quantize_band_cost_cache.quantize_band_cost_cached(
+                                            w + c_int::from(w2),
+                                            g,
+                                            &coefs_1[wstart..][..swb_size.into()],
+                                            &scaled_2[wstart..][..swb_size.into()],
+                                            (*sce).sf_idx[(w * 16 + g) as usize] + 1,
+                                            cb_2,
+                                            1.,
+                                            f32::INFINITY,
+                                            &mut b,
+                                            &mut sqenergy,
+                                            0,
+                                        );
                                     bits_2 += b;
                                     qenergy_2 += sqenergy;
                                 }
