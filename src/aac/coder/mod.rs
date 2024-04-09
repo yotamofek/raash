@@ -322,18 +322,6 @@ unsafe fn quantize_band_cost_bits(
     auxbits
 }
 
-#[inline]
-unsafe fn ff_pns_bits(mut sce: *mut SingleChannelElement, mut w: c_int, mut g: c_int) -> c_int {
-    if g == 0
-        || !(*sce).zeroes[(w * 16 + g - 1) as usize]
-        || !(*sce).can_pns[(w * 16 + g - 1) as usize]
-    {
-        9
-    } else {
-        5
-    }
-}
-
 pub(crate) unsafe fn set_special_band_scalefactors(mut sce: *mut SingleChannelElement) {
     let mut g: c_int = 0;
     let mut prevscaler_n: c_int = -255;
