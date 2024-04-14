@@ -136,7 +136,7 @@ pub(crate) struct FFPsyBand {
 
 #[derive(Default, Copy, Clone)]
 pub(crate) struct FFPsyChannel {
-    pub(crate) psy_bands: Array<FFPsyBand, 128>,
+    pub(crate) psy_bands: WindowedArray<Array<FFPsyBand, 128>, 16>,
     pub(crate) entropy: c_float,
 }
 

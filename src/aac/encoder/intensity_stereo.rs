@@ -102,9 +102,8 @@ unsafe fn encoding_err(
     }
 
     for w2 in 0..c_int::from(sce0.ics.group_len[w as usize]) {
-        let band0 = &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[((w + w2) * 16 + g) as usize];
-        let band1 =
-            &(*s).psy.ch[((*s).cur_channel + 1) as usize].psy_bands[((w + w2) * 16 + g) as usize];
+        let band0 = &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w + w2)][g as usize];
+        let band1 = &(*s).psy.ch[((*s).cur_channel + 1) as usize].psy_bands[W(w + w2)][g as usize];
         let mut is_band_type: c_int = 0;
         let mut is_sf_idx: c_int = 1.max(sce0.sf_idx[W(w)][g as usize] - 4);
         let mut e01_34: c_float = phase * pos_pow34(ener1 / ener0);

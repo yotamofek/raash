@@ -107,10 +107,10 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                     let sidcb = sidcb.max(1);
 
                     for w2 in 0..c_int::from(group_len) {
-                        let band0 = &(*s).psy.ch[((*s).cur_channel) as usize].psy_bands
-                            [((w + w2) * 16 + g) as usize];
+                        let band0 = &(*s).psy.ch[((*s).cur_channel) as usize].psy_bands[W(w + w2)]
+                            [g as usize];
                         let band1 = &(*s).psy.ch[((*s).cur_channel + 1) as usize].psy_bands
-                            [((w + w2) * 16 + g) as usize];
+                            [W(w + w2)][g as usize];
                         let minthr = c_float::min(band0.threshold, band1.threshold);
                         let mut b1: c_int = 0;
                         let mut b2: c_int = 0;

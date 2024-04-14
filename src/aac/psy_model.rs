@@ -9,6 +9,7 @@
 
 use std::alloc::{alloc_zeroed, Layout};
 
+use array_util::{WindowedArray, W};
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
@@ -46,7 +47,7 @@ pub(crate) struct AacPsyBand {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub(crate) struct AacPsyChannel {
-    band: [AacPsyBand; 128],
+    band: WindowedArray<[AacPsyBand; 128], 16>,
     prev_band: [AacPsyBand; 128],
     win_energy: c_float,
     iir_state: [c_float; 2],
@@ -968,24 +969,21 @@ unsafe fn psy_3gpp_analyze_channel(
         }
     }
     w = 0;
-    while w < (*wi).num_windows * 16 {
+    while w < (*wi).num_windows {
         g = 0;
         while g < num_bands {
-            let mut band_5: *mut AacPsyBand =
-                &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize) as *mut AacPsyBand;
-            let mut psy_band: *mut FFPsyBand =
-                &mut (*ctx).ch[channel as usize].psy_bands[(w + g) as usize] as *mut FFPsyBand;
-            (*psy_band).threshold = (*band_5).thr;
-            (*psy_band).energy = (*band_5).energy;
-            (*psy_band).spread =
-                (*band_5).active_lines * 2. / band_sizes[g as usize] as c_int as c_float;
-            (*psy_band).bits = ((*band_5).pe / 1.18) as c_int;
+            let band_5 = &(*pch).band[W(w)][g as usize];
+            let psy_band = &mut (*ctx).ch[channel as usize].psy_bands[W(w)][g as usize];
+            psy_band.threshold = band_5.thr;
+            psy_band.energy = band_5.energy;
+            psy_band.spread = band_5.active_lines * 2. / band_sizes[g as usize] as c_int as c_float;
+            psy_band.bits = (band_5.pe / 1.18) as c_int;
             g += 1;
             g;
         }
-        w += 16;
+        w += 1;
     }
-    (*pch).prev_band = (*pch).band;
+    (*pch).prev_band = *(*pch).band;
 }
 
 unsafe extern "C" fn psy_3gpp_analyze(

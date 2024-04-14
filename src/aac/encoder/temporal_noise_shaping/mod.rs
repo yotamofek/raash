@@ -11,6 +11,7 @@ mod tables;
 
 use std::{mem::size_of, ops::RangeInclusive};
 
+use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uint, c_ulong};
 
@@ -401,13 +402,11 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChann
         let mut coef_start: c_int = (*sce).ics.swb_offset[sfb_start as usize] as c_int;
         g = sfb_start;
         while g < (*sce).ics.num_swb && g <= sfb_end {
-            let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
-                [(w * 16 + g) as usize]
-                as *mut FFPsyBand;
+            let band = &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w)][g as usize];
             if g > sfb_start + sfb_len / 2 {
-                en[1] += (*band).energy;
+                en[1] += band.energy;
             } else {
-                en[0] += (*band).energy;
+                en[0] += band.energy;
             }
             g += 1;
             g;

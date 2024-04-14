@@ -197,7 +197,7 @@ pub(crate) unsafe fn search(
                         max: max_energy,
                     },
             } = reduce_bands(
-                &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[(w * 16 + g) as usize..],
+                &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w)][g as usize..],
                 group_len,
             );
 
@@ -246,8 +246,8 @@ pub(crate) unsafe fn search(
 
             for w2 in 0..c_int::from(group_len) {
                 let start_c: c_int = (w + w2) * 128 + swb_offset as c_int;
-                let band = &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands
-                    [((w + w2) * 16 + g) as usize];
+                let band =
+                    &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w + w2)][g as usize];
 
                 let [PNS, PNS34, NOR34] =
                     [&mut *PNS, PNS34, NOR34].map(|arr| &mut arr[..usize::from(swb_size)]);
@@ -355,7 +355,7 @@ pub(crate) unsafe fn mark(
                         max: max_energy,
                     },
             } = reduce_bands(
-                &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[(w * 16 + g) as usize..],
+                &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w)][g as usize..],
                 group_len,
             );
 

@@ -333,9 +333,8 @@ pub(crate) unsafe fn search_for_ltp(
                 while w2 < group_len as c_int {
                     let mut bits_tmp1: c_int = 0;
                     let mut bits_tmp2: c_int = 0;
-                    let mut band: *mut FFPsyBand = &mut (*s).psy.ch[(*s).cur_channel as usize]
-                        .psy_bands[((w + w2) * 16 + g) as usize]
-                        as *mut FFPsyBand;
+                    let mut band =
+                        &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w + w2)][g as usize];
                     i = 0;
                     while i < (*sce).ics.swb_sizes[g as usize] as c_int {
                         PCD[i as usize] = (*sce).coeffs[(start + (w + w2) * 128 + i) as usize]
@@ -361,7 +360,7 @@ pub(crate) unsafe fn search_for_ltp(
                         &C34[..(*sce).ics.swb_sizes[g as usize].into()],
                         (*sce).sf_idx[W(w + w2)][g as usize],
                         (*sce).band_type[W(w + w2)][g as usize] as c_int,
-                        (*s).lambda / (*band).threshold,
+                        (*s).lambda / band.threshold,
                         f32::INFINITY,
                         Some(&mut bits_tmp1),
                         None,
@@ -371,7 +370,7 @@ pub(crate) unsafe fn search_for_ltp(
                         &PCD34[..(*sce).ics.swb_sizes[g as usize].into()],
                         (*sce).sf_idx[W(w + w2)][g as usize],
                         (*sce).band_type[W(w + w2)][g as usize] as c_int,
-                        (*s).lambda / (*band).threshold,
+                        (*s).lambda / band.threshold,
                         f32::INFINITY,
                         Some(&mut bits_tmp2),
                         None,

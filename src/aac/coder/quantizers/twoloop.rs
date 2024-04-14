@@ -886,7 +886,7 @@ fn loop1(
             let mut uplim: c_float = 0.;
             let mut energy: c_float = 0.;
             let mut spread: c_float = 0.;
-            let nz = zip(&psy_bands[wstart..], &zeroes[wstart..])
+            let nz = zip(&psy_bands[W(w)][g as usize..], &zeroes[wstart..])
                 .step_by(16)
                 .take(group_len.into())
                 .filter(|(band, zero)| {
