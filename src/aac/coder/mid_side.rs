@@ -1,5 +1,6 @@
 use std::{iter, ptr};
 
+use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int};
 
@@ -33,19 +34,19 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
     let mut nextband0 = ptr::from_mut(sce0).init_nextband_map();
     let mut nextband1 = ptr::from_mut(sce1).init_nextband_map();
 
-    let mut prev_mid = sce0.sf_idx[0];
-    let mut prev_side = sce1.sf_idx[0];
+    let mut prev_mid = sce0.sf_idx[W(0)][0];
+    let mut prev_side = sce1.sf_idx[W(0)][0];
     for WindowedIteration { w, group_len } in sce0.ics.iter_windows() {
         start = 0;
         for g in 0..sce0.ics.num_swb {
             let swb_size = sce0.ics.swb_sizes[g as usize];
             let bmax = bval2bmax(g as c_float * 17. / sce0.ics.num_swb as c_float) / 0.0045;
-            if !(*cpe).is_mask[(w * 16 + g) as usize] {
-                (*cpe).ms_mask[(w * 16 + g) as usize] = false;
+            if !(*cpe).is_mask[W(w)][g as usize] {
+                (*cpe).ms_mask[W(w)][g as usize] = false;
             }
-            if !sce0.zeroes[(w * 16 + g) as usize]
-                && !sce1.zeroes[(w * 16 + g) as usize]
-                && !(*cpe).is_mask[(w * 16 + g) as usize]
+            if !sce0.zeroes[W(w)][g as usize]
+                && !sce1.zeroes[W(w)][g as usize]
+                && !(*cpe).is_mask[W(w)][g as usize]
             {
                 let mut Mmax: c_float = 0.;
                 let mut Smax: c_float = 0.;
@@ -80,15 +81,13 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                     let mut dist2: c_float = 0.;
                     let mut B0: c_int = 0;
                     let mut B1: c_int = 0;
-                    let minidx = c_int::min(
-                        sce0.sf_idx[(w * 16 + g) as usize],
-                        sce1.sf_idx[(w * 16 + g) as usize],
-                    );
+                    let minidx =
+                        c_int::min(sce0.sf_idx[W(w)][g as usize], sce1.sf_idx[W(w)][g as usize]);
                     let mididx = minidx.clamp(0, (SCALE_MAX_POS - SCALE_DIV_512).into());
                     let sididx = (minidx - sid_sf_boost * 3)
                         .clamp(0, (SCALE_MAX_POS - SCALE_DIV_512).into());
-                    if sce0.band_type[(w * 16 + g) as usize] != NOISE_BT
-                        && sce1.band_type[(w * 16 + g) as usize] != NOISE_BT
+                    if sce0.band_type[W(w)][g as usize] != NOISE_BT
+                        && sce1.band_type[W(w)][g as usize] != NOISE_BT
                         && (!sfdelta_can_replace(sce0, &nextband0, prev_mid, mididx, w * 16 + g)
                             || !sfdelta_can_replace(
                                 sce1,
@@ -154,8 +153,8 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                         dist1 += quantize_band_cost(
                             &sce0.coeffs[(start + (w + w2) * 128) as usize..][..swb_size.into()],
                             &L34[..swb_size.into()],
-                            sce0.sf_idx[(w * 16 + g) as usize],
-                            sce0.band_type[(w * 16 + g) as usize] as c_int,
+                            sce0.sf_idx[W(w)][g as usize],
+                            sce0.band_type[W(w)][g as usize] as c_int,
                             lambda / (band0.threshold + 1.175_494_4e-38),
                             f32::INFINITY,
                             Some(&mut b1),
@@ -165,8 +164,8 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             &sce1.coeffs[(start + (w + w2) * 128) as usize..]
                                 [..sce1.ics.swb_sizes[g as usize].into()],
                             &R34[..sce1.ics.swb_sizes[g as usize].into()],
-                            sce1.sf_idx[(w * 16 + g) as usize],
-                            sce1.band_type[(w * 16 + g) as usize] as c_int,
+                            sce1.sf_idx[W(w)][g as usize],
+                            sce1.band_type[W(w)][g as usize] as c_int,
                             lambda / (band1.threshold + 1.175_494_4e-38),
                             f32::INFINITY,
                             Some(&mut b2),
@@ -197,20 +196,20 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                         dist1 -= (b1 + b2) as c_float;
                         dist2 -= (b3 + b4) as c_float;
                     }
-                    (*cpe).ms_mask[(w * 16 + g) as usize] = dist2 <= dist1 && B1 < B0;
-                    if (*cpe).ms_mask[(w * 16 + g) as usize] {
-                        if sce0.band_type[(w * 16 + g) as usize] != NOISE_BT
-                            && sce1.band_type[(w * 16 + g) as usize] != NOISE_BT
+                    (*cpe).ms_mask[W(w)][g as usize] = dist2 <= dist1 && B1 < B0;
+                    if (*cpe).ms_mask[W(w)][g as usize] {
+                        if sce0.band_type[W(w)][g as usize] != NOISE_BT
+                            && sce1.band_type[W(w)][g as usize] != NOISE_BT
                         {
-                            sce0.sf_idx[(w * 16 + g) as usize] = mididx;
-                            sce1.sf_idx[(w * 16 + g) as usize] = sididx;
-                            sce0.band_type[(w * 16 + g) as usize] = midcb as BandType;
-                            sce1.band_type[(w * 16 + g) as usize] = sidcb as BandType;
-                        } else if (sce0.band_type[(w * 16 + g) as usize] != NOISE_BT)
-                            ^ (sce1.band_type[(w * 16 + g) as usize] != NOISE_BT)
+                            sce0.sf_idx[W(w)][g as usize] = mididx;
+                            sce1.sf_idx[W(w)][g as usize] = sididx;
+                            sce0.band_type[W(w)][g as usize] = midcb as BandType;
+                            sce1.band_type[W(w)][g as usize] = sidcb as BandType;
+                        } else if (sce0.band_type[W(w)][g as usize] != NOISE_BT)
+                            ^ (sce1.band_type[W(w)][g as usize] != NOISE_BT)
                         {
                             // ms_mask unneeded, and it confuses some decoders
-                            (*cpe).ms_mask[(w * 16 + g) as usize] = false;
+                            (*cpe).ms_mask[W(w)][g as usize] = false;
                         }
                         break;
                     } else if B1 > B0 {
@@ -219,16 +218,14 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                     }
                 }
             }
-            if !sce0.zeroes[(w * 16 + g) as usize]
-                && sce0.band_type[(w * 16 + g) as usize] < RESERVED_BT
-            {
-                prev_mid = sce0.sf_idx[(w * 16 + g) as usize];
+            if !sce0.zeroes[W(w)][g as usize] && sce0.band_type[W(w)][g as usize] < RESERVED_BT {
+                prev_mid = sce0.sf_idx[W(w)][g as usize];
             }
-            if !sce1.zeroes[(w * 16 + g) as usize]
-                && !(*cpe).is_mask[(w * 16 + g) as usize]
-                && sce1.band_type[(w * 16 + g) as usize] < RESERVED_BT
+            if !sce1.zeroes[W(w)][g as usize]
+                && !(*cpe).is_mask[W(w)][g as usize]
+                && sce1.band_type[W(w)][g as usize] < RESERVED_BT
             {
-                prev_side = sce1.sf_idx[(w * 16 + g) as usize];
+                prev_side = sce1.sf_idx[W(w)][g as usize];
             }
             start += c_int::from(swb_size);
         }
@@ -252,12 +249,11 @@ pub(crate) unsafe fn apply(mut cpe: *mut ChannelElement) {
                 // ms_mask can be used for other purposes in PNS and I/S,
                 // so must not apply M/S if any band uses either, even if
                 // ms_mask is set.
-                let w_index = (w * 16 + g) as usize;
                 let swb_size = swb_sizes[g as usize];
-                if !(*cpe).ms_mask[w_index]
-                    || (*cpe).is_mask[w_index]
-                    || (*cpe).ch[0].band_type[w_index] >= NOISE_BT
-                    || (*cpe).ch[1].band_type[w_index] >= NOISE_BT
+                if !(*cpe).ms_mask[W(w)][g as usize]
+                    || (*cpe).is_mask[W(w)][g as usize]
+                    || (*cpe).ch[0].band_type[W(w)][g as usize] >= NOISE_BT
+                    || (*cpe).ch[1].band_type[W(w)][g as usize] >= NOISE_BT
                 {
                     start += c_int::from(swb_size);
                     continue;

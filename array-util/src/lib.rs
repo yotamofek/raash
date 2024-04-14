@@ -1,12 +1,16 @@
+mod windowed;
+
 use std::{
     array,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Index, IndexMut},
     slice,
 };
 
+pub use self::windowed::{window_idx as W, WindowIdx, WindowedArray};
+
 /// Array that provides a [`Default`] impl for any `N`.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
 pub struct Array<T, const N: usize>(pub [T; N]);
 
 impl<T: Default, const N: usize> Default for Array<T, N> {
@@ -46,5 +50,25 @@ impl<'a, T, const N: usize> IntoIterator for &'a mut Array<T, N> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
+    }
+}
+
+impl<T, Idx, A: ?Sized, const N: usize> Index<Idx> for Array<T, N>
+where
+    [T; N]: Index<Idx, Output = A>,
+{
+    type Output = A;
+
+    fn index(&self, index: Idx) -> &Self::Output {
+        self.0.index(index)
+    }
+}
+
+impl<T, Idx, A: ?Sized, const N: usize> IndexMut<Idx> for Array<T, N>
+where
+    [T; N]: IndexMut<Idx, Output = A>,
+{
+    fn index_mut(&mut self, index: Idx) -> &mut Self::Output {
+        self.0.index_mut(index)
     }
 }

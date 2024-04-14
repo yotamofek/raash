@@ -1,9 +1,10 @@
+use array_util::Array;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uchar, c_ushort};
 use lpc::LPCContext;
 
 use super::channel_layout::pce;
-use crate::{aac::SyntaxElementType, array::Array, audio_frame_queue::AudioFrameQueue, types::*};
+use crate::{aac::SyntaxElementType, audio_frame_queue::AudioFrameQueue, types::*};
 
 #[derive(Default, Clone)]
 pub(crate) struct QuantizeBandCostCache {

@@ -28,6 +28,7 @@ use std::{
     ptr::{self, addr_of, addr_of_mut, null_mut, NonNull},
 };
 
+use array_util::W;
 use arrayvec::ArrayVec;
 use encoder::{encoder, Class, Encoder, PacketBuilder};
 use ffi::{
@@ -251,7 +252,7 @@ unsafe extern "C" fn encode_ms_info(mut pb: *mut PutBitContext, mut cpe: *mut Ch
         for WindowedIteration { w, .. } in (*cpe).ch[0].ics.iter_windows() {
             i = 0;
             while i < (*cpe).ch[0].ics.max_sfb as c_int {
-                put_bits(pb, 1, (*cpe).ms_mask[(w * 16 + i) as usize] as BitBuf);
+                put_bits(pb, 1, (*cpe).ms_mask[W(w)][i as usize] as BitBuf);
                 i += 1;
                 i;
             }
@@ -277,9 +278,7 @@ unsafe fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_in
             w2 = 0;
             while w2 < group_len as c_int {
                 cmaxsfb = (*ics).num_swb;
-                while cmaxsfb > 0
-                    && (*cpe).ch[ch as usize].zeroes[(w * 16 + cmaxsfb - 1) as usize] as c_int != 0
-                {
+                while cmaxsfb > 0 && (*cpe).ch[ch as usize].zeroes[W(w)][(cmaxsfb - 1) as usize] {
                     cmaxsfb -= 1;
                     cmaxsfb;
                 }
@@ -295,7 +294,7 @@ unsafe fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_in
                 let mut i = true;
                 w2 = w;
                 while w2 < w + group_len as c_int {
-                    if !(*cpe).ch[ch as usize].zeroes[(w2 * 16 + g) as usize] {
+                    if !(*cpe).ch[ch as usize].zeroes[W(w2)][g as usize] {
                         i = false;
                         break;
                     } else {
@@ -303,7 +302,7 @@ unsafe fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_in
                         w2;
                     }
                 }
-                (*cpe).ch[ch as usize].zeroes[(w * 16 + g) as usize] = i;
+                (*cpe).ch[ch as usize].zeroes[W(w)][g as usize] = i;
                 g += 1;
                 g;
             }
@@ -322,17 +321,17 @@ unsafe fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_in
         }) as c_uchar;
         (*ics1).max_sfb = (*ics0).max_sfb;
         w = 0;
-        while w < (*ics0).num_windows * 16 {
+        while w < (*ics0).num_windows {
             i = 0;
             while i < (*ics0).max_sfb as c_int {
-                if (*cpe).ms_mask[(w + i) as usize] {
+                if (*cpe).ms_mask[W(w)][i as usize] {
                     msc += 1;
                     msc;
                 }
                 i += 1;
                 i;
             }
-            w += 16;
+            w += 1;
         }
         if msc == 0 || (*ics0).max_sfb as c_int == 0 {
             (*cpe).ms_mode = 0;
@@ -360,17 +359,14 @@ unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
             let mut start: c_int = (w + w2) * 128;
             g = 0;
             while g < (*ics).num_swb {
-                let mut p: c_int = c_uint::MAX.wrapping_add(
-                    (2 as c_uint).wrapping_mul(
-                        ((*cpe).ch[1].band_type[(w * 16 + g) as usize] as c_uint)
-                            .wrapping_sub(14 as c_uint),
-                    ),
-                ) as c_int;
-                let mut scale: c_float = (*cpe).ch[0].is_ener[(w * 16 + g) as usize];
-                if !(*cpe).is_mask[(w * 16 + g) as usize] {
+                let mut p: c_int = c_uint::MAX.wrapping_add((2 as c_uint).wrapping_mul(
+                    ((*cpe).ch[1].band_type[W(w)][g as usize] as c_uint).wrapping_sub(14 as c_uint),
+                )) as c_int;
+                let mut scale: c_float = (*cpe).ch[0].is_ener[W(w)][g as usize];
+                if !(*cpe).is_mask[W(w)][g as usize] {
                     start += (*ics).swb_sizes[g as usize] as c_int;
                 } else {
-                    if (*cpe).ms_mask[(w * 16 + g) as usize] {
+                    if (*cpe).ms_mask[W(w)][g as usize] {
                         p *= -1;
                     }
                     i = 0;
@@ -407,8 +403,8 @@ unsafe fn encode_scale_factors(
     mut sce: *mut SingleChannelElement,
 ) {
     let mut diff: c_int = 0;
-    let mut off_sf: c_int = (*sce).sf_idx[0];
-    let mut off_pns: c_int = (*sce).sf_idx[0] - 90;
+    let mut off_sf: c_int = (*sce).sf_idx[W(0)][0];
+    let mut off_pns: c_int = (*sce).sf_idx[W(0)][0] - 90;
     let mut off_is: c_int = 0;
     let mut noise_flag: c_int = 1;
     let mut i: c_int = 0;
@@ -416,11 +412,10 @@ unsafe fn encode_scale_factors(
         let mut current_block_19: u64;
         i = 0;
         while i < (*sce).ics.max_sfb as c_int {
-            if !(*sce).zeroes[(w * 16 + i) as usize] {
-                if (*sce).band_type[(w * 16 + i) as usize] as c_uint == NOISE_BT as c_int as c_uint
-                {
-                    diff = (*sce).sf_idx[(w * 16 + i) as usize] - off_pns;
-                    off_pns = (*sce).sf_idx[(w * 16 + i) as usize];
+            if !(*sce).zeroes[W(w)][i as usize] {
+                if (*sce).band_type[W(w)][i as usize] as c_uint == NOISE_BT as c_int as c_uint {
+                    diff = (*sce).sf_idx[W(w)][i as usize] - off_pns;
+                    off_pns = (*sce).sf_idx[W(w)][i as usize];
                     let fresh1 = noise_flag;
                     noise_flag -= 1;
                     if fresh1 > 0 {
@@ -430,16 +425,16 @@ unsafe fn encode_scale_factors(
                         current_block_19 = 7976072742316086414;
                     }
                 } else {
-                    if (*sce).band_type[(w * 16 + i) as usize] as c_uint
+                    if (*sce).band_type[W(w)][i as usize] as c_uint
                         == INTENSITY_BT as c_int as c_uint
-                        || (*sce).band_type[(w * 16 + i) as usize] as c_uint
+                        || (*sce).band_type[W(w)][i as usize] as c_uint
                             == INTENSITY_BT2 as c_int as c_uint
                     {
-                        diff = (*sce).sf_idx[(w * 16 + i) as usize] - off_is;
-                        off_is = (*sce).sf_idx[(w * 16 + i) as usize];
+                        diff = (*sce).sf_idx[W(w)][i as usize] - off_is;
+                        off_is = (*sce).sf_idx[W(w)][i as usize];
                     } else {
-                        diff = (*sce).sf_idx[(w * 16 + i) as usize] - off_sf;
-                        off_sf = (*sce).sf_idx[(w * 16 + i) as usize];
+                        diff = (*sce).sf_idx[W(w)][i as usize] - off_sf;
+                        off_sf = (*sce).sf_idx[W(w)][i as usize];
                     }
                     current_block_19 = 7976072742316086414;
                 }
@@ -492,7 +487,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
         start = 0;
         i = 0;
         while i < (*sce).ics.max_sfb as c_int {
-            if (*sce).zeroes[(w * 16 + i) as usize] {
+            if (*sce).zeroes[W(w)][i as usize] {
                 start += (*sce).ics.swb_sizes[i as usize] as c_int;
             } else {
                 w2 = w;
@@ -501,8 +496,8 @@ unsafe extern "C" fn encode_spectral_coeffs(
                         NonNull::new(addr_of_mut!((*s).pb)).unwrap(),
                         &(*sce).coeffs[(start + w2 * 128) as usize..]
                             [..(*sce).ics.swb_sizes[i as usize].into()],
-                        (*sce).sf_idx[(w * 16 + i) as usize],
-                        (*sce).band_type[(w * 16 + i) as usize] as c_int,
+                        (*sce).sf_idx[W(w)][i as usize],
+                        (*sce).band_type[W(w)][i as usize] as c_int,
                         (*s).lambda,
                         (*sce).ics.window_clipping[w as usize] as c_int,
                     );
@@ -544,7 +539,7 @@ unsafe extern "C" fn encode_individual_channel(
     mut sce: *mut SingleChannelElement,
     mut common_window: c_int,
 ) -> c_int {
-    put_bits(&mut (*s).pb, 8, (*sce).sf_idx[0] as BitBuf);
+    put_bits(&mut (*s).pb, 8, (*sce).sf_idx[W(0)][0] as BitBuf);
     if common_window == 0 {
         put_ics_info(s, &mut (*sce).ics);
         encode_ltp_info(s, sce, 0);
@@ -780,7 +775,7 @@ unsafe fn aac_encode_frame(
                 update_ltp(ctx, sce);
                 APPLY_WINDOW[sce.ics.window_sequence[0] as usize](
                     sce,
-                    &mut *sce.ltp_state.as_mut_ptr().offset(0),
+                    sce.ltp_state.as_mut_ptr().cast::<c_float>(),
                 );
                 ((*ctx).mdct1024_fn).expect("non-null function pointer")(
                     (*ctx).mdct1024,
@@ -859,8 +854,9 @@ unsafe fn aac_encode_frame(
                 (*sce).tns = TemporalNoiseShaping::default();
                 w = 0;
                 while w < 128 {
-                    if (*sce).band_type[w as usize] as c_uint > RESERVED_BT as c_int as c_uint {
-                        (*sce).band_type[w as usize] = ZERO_BT;
+                    if (*sce).band_type[W(0)][w as usize] as c_uint > RESERVED_BT as c_int as c_uint
+                    {
+                        (*sce).band_type[W(0)][w as usize] = ZERO_BT;
                     }
                     w += 1;
                     w;

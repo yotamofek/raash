@@ -8,6 +8,7 @@
 
 use std::{iter::zip, ops::Mul, ptr};
 
+use array_util::W;
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::izip;
@@ -105,7 +106,7 @@ unsafe fn encoding_err(
         let band1 =
             &(*s).psy.ch[((*s).cur_channel + 1) as usize].psy_bands[((w + w2) * 16 + g) as usize];
         let mut is_band_type: c_int = 0;
-        let mut is_sf_idx: c_int = 1.max(sce0.sf_idx[(w * 16 + g) as usize] - 4);
+        let mut is_sf_idx: c_int = 1.max(sce0.sf_idx[W(w)][g as usize] - 4);
         let mut e01_34: c_float = phase * pos_pow34(ener1 / ener0);
         let mut minthr = c_float::min(band0.threshold, band1.threshold);
         let wstart = (start + (w + w2) * 128) as usize;
@@ -130,8 +131,8 @@ unsafe fn encoding_err(
         dist1 += quantize_band_cost(
             &L[wstart..][..swb_size],
             &L34[..swb_size],
-            sce0.sf_idx[(w * 16 + g) as usize],
-            sce0.band_type[(w * 16 + g) as usize] as c_int,
+            sce0.sf_idx[W(w)][g as usize],
+            sce0.band_type[W(w)][g as usize] as c_int,
             (*s).lambda / band0.threshold,
             f32::INFINITY,
             None,
@@ -140,8 +141,8 @@ unsafe fn encoding_err(
         dist1 += quantize_band_cost(
             &R[wstart..][..sce1.ics.swb_sizes[g as usize].into()],
             &R34[..sce1.ics.swb_sizes[g as usize].into()],
-            sce1.sf_idx[(w * 16 + g) as usize],
-            sce1.band_type[(w * 16 + g) as usize] as c_int,
+            sce1.sf_idx[W(w)][g as usize],
+            sce1.band_type[W(w)][g as usize] as c_int,
             (*s).lambda / band1.threshold,
             f32::INFINITY,
             None,
@@ -198,10 +199,9 @@ pub(crate) unsafe fn search(
         for g in 0..sce0.ics.num_swb {
             let wstart = (w * 16 + g) as usize;
             if start as c_float * freq_mult > 6100. * ((*s).lambda / 170.)
-                && (*cpe)
-                    .ch
-                    .iter()
-                    .all(|ch| ch.band_type[wstart] != NOISE_BT && !ch.zeroes[wstart])
+                && (*cpe).ch.iter().all(|ch| {
+                    ch.band_type[W(w)][g as usize] != NOISE_BT && !ch.zeroes[W(w)][g as usize]
+                })
                 && sfdelta_can_remove_band(sce1, &nextband1, prev_sf1, wstart as c_int)
             {
                 let [coeffs0, coeffs1] = [&sce0.coeffs, &sce1.coeffs].map(|coeffs| {
@@ -251,32 +251,33 @@ pub(crate) unsafe fn search(
                     (None, None) => None,
                 };
                 if let Some(best) = best {
-                    (*cpe).is_mask[wstart] = true;
-                    (*cpe).ms_mask[wstart] = false;
-                    (*cpe).ch[0].is_ener[wstart] = (ener0 / best.ener01).sqrt();
-                    (*cpe).ch[1].is_ener[wstart] = ener0 / ener1;
-                    (*cpe).ch[1].band_type[wstart] = if let Phase::Positive = best.phase {
+                    (*cpe).is_mask[W(w)][g as usize] = true;
+                    (*cpe).ms_mask[W(w)][g as usize] = false;
+                    (*cpe).ch[0].is_ener[W(w)][g as usize] = (ener0 / best.ener01).sqrt();
+                    (*cpe).ch[1].is_ener[W(w)][g as usize] = ener0 / ener1;
+                    (*cpe).ch[1].band_type[W(w)][g as usize] = if let Phase::Positive = best.phase {
                         INTENSITY_BT
                     } else {
                         INTENSITY_BT2
                     };
-                    if prev_is && prev_bt != Some((*cpe).ch[1].band_type[wstart]) {
+                    if prev_is && prev_bt != Some((*cpe).ch[1].band_type[W(w)][g as usize]) {
                         // Flip M/S mask and pick the other CB, since it encodes more efficiently
-                        (*cpe).ms_mask[wstart] = true;
-                        (*cpe).ch[1].band_type[wstart] = if let Phase::Positive = best.phase {
-                            INTENSITY_BT2
-                        } else {
-                            INTENSITY_BT
-                        };
+                        (*cpe).ms_mask[W(w)][g as usize] = true;
+                        (*cpe).ch[1].band_type[W(w)][g as usize] =
+                            if let Phase::Positive = best.phase {
+                                INTENSITY_BT2
+                            } else {
+                                INTENSITY_BT
+                            };
                     }
-                    prev_bt = Some((*cpe).ch[1].band_type[wstart]);
+                    prev_bt = Some((*cpe).ch[1].band_type[W(w)][g as usize]);
                     count += 1;
                 }
             }
-            if !sce1.zeroes[wstart] && sce1.band_type[wstart] < RESERVED_BT {
-                prev_sf1 = sce1.sf_idx[wstart];
+            if !sce1.zeroes[W(w)][g as usize] && sce1.band_type[W(w)][g as usize] < RESERVED_BT {
+                prev_sf1 = sce1.sf_idx[W(w)][g as usize];
             }
-            prev_is = (*cpe).is_mask[wstart];
+            prev_is = (*cpe).is_mask[W(w)][g as usize];
             start += sce0.ics.swb_sizes[g as usize] as c_int;
         }
     }

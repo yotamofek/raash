@@ -2,6 +2,7 @@
 
 use std::ptr::{null, null_mut};
 
+use array_util::{Array, WindowedArray};
 use ffi::{
     class::option::AVOptionType,
     codec::{AVCodecContext, AVCodecID},
@@ -9,10 +10,7 @@ use ffi::{
 };
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
-use crate::{
-    aac::{encoder::TemporalNoiseShaping, IndividualChannelStream},
-    array::Array,
-};
+use crate::aac::{encoder::TemporalNoiseShaping, IndividualChannelStream};
 
 // pub(crate) const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
 
@@ -88,17 +86,17 @@ pub(crate) struct SingleChannelElement {
     pub(crate) ics: IndividualChannelStream,
     pub(crate) tns: TemporalNoiseShaping,
     pub(crate) pulse: Pulse,
-    pub(crate) band_type: Array<BandType, 128>,
-    pub(crate) band_alt: Array<BandType, 128>,
-    pub(crate) sf_idx: Array<c_int, 128>,
-    pub(crate) zeroes: Array<bool, 128>,
-    pub(crate) can_pns: Array<bool, 128>,
-    pub(crate) is_ener: Array<c_float, 128>,
-    pub(crate) pns_ener: Array<c_float, 128>,
+    pub(crate) band_type: WindowedArray<Array<BandType, 128>, 16>,
+    pub(crate) band_alt: WindowedArray<Array<BandType, 128>, 16>,
+    pub(crate) sf_idx: WindowedArray<Array<c_int, 128>, 16>,
+    pub(crate) zeroes: WindowedArray<Array<bool, 128>, 16>,
+    pub(crate) can_pns: WindowedArray<Array<bool, 128>, 16>,
+    pub(crate) is_ener: WindowedArray<Array<c_float, 128>, 16>,
+    pub(crate) pns_ener: WindowedArray<Array<c_float, 128>, 16>,
     pub(crate) pcoeffs: Array<c_float, 1024>,
     pub(crate) coeffs: Array<c_float, 1024>,
     pub(crate) ret_buf: Array<c_float, 2048>,
-    pub(crate) ltp_state: Array<c_float, 3072>,
+    pub(crate) ltp_state: [Array<c_float, 1024>; 3],
     pub(crate) lcoeffs: Array<c_float, 1024>,
 }
 
@@ -123,8 +121,8 @@ pub(crate) struct ChannelElement {
     pub(crate) common_window: c_int,
     pub(crate) ms_mode: c_int,
     pub(crate) is_mode: bool,
-    pub(crate) ms_mask: Array<bool, 128>,
-    pub(crate) is_mask: Array<bool, 128>,
+    pub(crate) ms_mask: WindowedArray<Array<bool, 128>, 16>,
+    pub(crate) is_mask: WindowedArray<Array<bool, 128>, 16>,
     pub(crate) ch: [SingleChannelElement; 2],
 }
 

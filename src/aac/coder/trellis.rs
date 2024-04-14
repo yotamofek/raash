@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, iter::zip};
 
+use array_util::W;
 use itertools::Itertools as _;
 use libc::{c_float, c_int, c_uint};
 
@@ -48,7 +49,7 @@ pub(crate) unsafe fn codebook_rate(
     });
     for swb in 0..max_sfb {
         let size = ((*sce).ics.swb_sizes)[swb as usize] as c_int;
-        if (*sce).zeroes[(win * 16 + swb) as usize] {
+        if (*sce).zeroes[W(win)][swb as usize] {
             let mut cost_stay_here = path[swb as usize][0].cost;
             let cost_get_here = next_minbits + run_bits as c_float + 4.;
             let run_value_bits = run_value_bits((*sce).ics.num_windows);
@@ -80,8 +81,7 @@ pub(crate) unsafe fn codebook_rate(
         } else {
             let minbits: c_float = next_minbits;
             let mincb: c_int = next_mincb;
-            let startcb =
-                aac_cb_in_map[(*sce).band_type[(win * 16 + swb) as usize] as usize] as c_int;
+            let startcb = aac_cb_in_map[(*sce).band_type[W(win)][swb as usize] as usize] as c_int;
             next_minbits = f32::INFINITY;
             next_mincb = 0;
             path[(swb + 1) as usize].fill(BandCodingPath {
@@ -91,7 +91,7 @@ pub(crate) unsafe fn codebook_rate(
             });
             for cb in startcb..15 {
                 if cb >= 12
-                    && (*sce).band_type[(win * 16 + swb) as usize]
+                    && (*sce).band_type[W(win)][swb as usize]
                         != c_uint::from(aac_cb_out_map[cb as usize])
                 {
                     path[(swb + 1) as usize][cb as usize] = BandCodingPath {
@@ -105,7 +105,7 @@ pub(crate) unsafe fn codebook_rate(
                             quantize_band_cost_bits(
                                 &(*sce).coeffs[(start + w * 128) as usize..][..size as usize],
                                 &(*s).scaled_coeffs[(start + w * 128) as usize..][..size as usize],
-                                (*sce).sf_idx[(win * 16 + swb) as usize],
+                                (*sce).sf_idx[W(win)][swb as usize],
                                 aac_cb_out_map[cb as usize] as c_int,
                                 f32::INFINITY,
                             ) as c_float
@@ -167,8 +167,8 @@ pub(crate) unsafe fn codebook_rate(
         let cb = aac_cb_out_map[stackcb[i as usize] as usize] as c_int;
         put_bits(&mut (*s).pb, 4, cb as BitBuf);
         let mut count = stackrun[i as usize];
-        (*sce).zeroes[(win * 16 + start) as usize..][..count as usize].fill(cb == 0);
-        (*sce).band_type[(win * 16 + start) as usize..][..count as usize].fill(cb as BandType);
+        (*sce).zeroes[W(win)][start as usize..][..count as usize].fill(cb == 0);
+        (*sce).band_type[W(win)][start as usize..][..count as usize].fill(cb as BandType);
         start += count;
         while count >= run_esc {
             put_bits(&mut (*s).pb, run_bits, run_esc as BitBuf);

@@ -14,8 +14,9 @@ pub(super) mod quantize_and_encode_band;
 pub(super) mod quantizers;
 pub(super) mod trellis;
 
-use std::{array, iter, mem::size_of, ops::RangeInclusive, ptr};
+use std::{array, iter, mem::size_of, ops::RangeInclusive};
 
+use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
 
@@ -225,9 +226,8 @@ impl SingleChannelElement {
         let mut prevband: c_uchar = 0;
         let mut nextband = array::from_fn(|g| g as c_uchar);
         for WindowedIteration { w, .. } in ics.iter_windows() {
-            let start = w as usize * 16;
-            let zeroes = &zeroes[start..][..num_swb as usize];
-            let band_type = &band_type[start..][..num_swb as usize];
+            let zeroes = &zeroes[W(w)][..num_swb as usize];
+            let band_type = &band_type[W(w)][..num_swb as usize];
             for (g, _) in iter::zip(zeroes, band_type)
                 .enumerate()
                 .filter(|(_, (&zero, &band_type))| !zero && band_type < RESERVED_BT)
@@ -330,29 +330,28 @@ pub(crate) unsafe fn set_special_band_scalefactors(mut sce: *mut SingleChannelEl
     for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
         g = 0;
         while g < (*sce).ics.num_swb {
-            if !(*sce).zeroes[(w * 16 + g) as usize] {
-                if (*sce).band_type[(w * 16 + g) as usize] as c_uint
-                    == INTENSITY_BT as c_int as c_uint
-                    || (*sce).band_type[(w * 16 + g) as usize] as c_uint
+            if !(*sce).zeroes[W(w)][g as usize] {
+                if (*sce).band_type[W(w)][g as usize] as c_uint == INTENSITY_BT as c_int as c_uint
+                    || (*sce).band_type[W(w)][g as usize] as c_uint
                         == INTENSITY_BT2 as c_int as c_uint
                 {
-                    (*sce).sf_idx[(w * 16 + g) as usize] = av_clip_c(
-                        roundf(log2f((*sce).is_ener[(w * 16 + g) as usize]) * 2.) as c_int,
+                    (*sce).sf_idx[W(w)][g as usize] = av_clip_c(
+                        roundf(log2f((*sce).is_ener[W(w)][g as usize]) * 2.) as c_int,
                         -155,
                         100,
                     );
                     bands += 1;
                     bands;
-                } else if (*sce).band_type[(w * 16 + g) as usize] as c_uint
+                } else if (*sce).band_type[W(w)][g as usize] as c_uint
                     == NOISE_BT as c_int as c_uint
                 {
-                    (*sce).sf_idx[(w * 16 + g) as usize] = av_clip_c(
-                        (3. + ceilf(log2f((*sce).pns_ener[(w * 16 + g) as usize]) * 2.)) as c_int,
+                    (*sce).sf_idx[W(w)][g as usize] = av_clip_c(
+                        (3. + ceilf(log2f((*sce).pns_ener[W(w)][g as usize]) * 2.)) as c_int,
                         -100,
                         155,
                     );
                     if prevscaler_n == -255 {
-                        prevscaler_n = (*sce).sf_idx[(w * 16 + g) as usize];
+                        prevscaler_n = (*sce).sf_idx[W(w)][g as usize];
                     }
                     bands += 1;
                     bands;
@@ -368,27 +367,26 @@ pub(crate) unsafe fn set_special_band_scalefactors(mut sce: *mut SingleChannelEl
     for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
         g = 0;
         while g < (*sce).ics.num_swb {
-            if !(*sce).zeroes[(w * 16 + g) as usize] {
-                if (*sce).band_type[(w * 16 + g) as usize] as c_uint
-                    == INTENSITY_BT as c_int as c_uint
-                    || (*sce).band_type[(w * 16 + g) as usize] as c_uint
+            if !(*sce).zeroes[W(w)][g as usize] {
+                if (*sce).band_type[W(w)][g as usize] as c_uint == INTENSITY_BT as c_int as c_uint
+                    || (*sce).band_type[W(w)][g as usize] as c_uint
                         == INTENSITY_BT2 as c_int as c_uint
                 {
                     prevscaler_i = av_clip_c(
-                        (*sce).sf_idx[(w * 16 + g) as usize],
+                        (*sce).sf_idx[W(w)][g as usize],
                         prevscaler_i - 60,
                         prevscaler_i + 60,
                     );
-                    (*sce).sf_idx[(w * 16 + g) as usize] = prevscaler_i;
-                } else if (*sce).band_type[(w * 16 + g) as usize] as c_uint
+                    (*sce).sf_idx[W(w)][g as usize] = prevscaler_i;
+                } else if (*sce).band_type[W(w)][g as usize] as c_uint
                     == NOISE_BT as c_int as c_uint
                 {
                     prevscaler_n = av_clip_c(
-                        (*sce).sf_idx[(w * 16 + g) as usize],
+                        (*sce).sf_idx[W(w)][g as usize],
                         prevscaler_n - 60,
                         prevscaler_n + 60,
                     );
-                    (*sce).sf_idx[(w * 16 + g) as usize] = prevscaler_n;
+                    (*sce).sf_idx[W(w)][g as usize] = prevscaler_n;
                 }
             }
             g += 1;

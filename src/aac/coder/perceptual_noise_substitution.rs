@@ -1,5 +1,6 @@
 use std::iter;
 
+use array_util::W;
 use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uint};
@@ -180,8 +181,8 @@ pub(crate) unsafe fn search(
             let freq: c_float = (start - wstart) as c_float * freq_mult;
             let freq_boost = freq_boost(freq);
             if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
-                if !(*sce).zeroes[(w * 16 + g) as usize] {
-                    prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
+                if !(*sce).zeroes[W(w)][g as usize] {
+                    prev_sf = (*sce).sf_idx[W(w)][g as usize];
                 }
                 continue;
             }
@@ -212,20 +213,20 @@ pub(crate) unsafe fn search(
             //
             // At this stage, point 2 is relaxed for zeroed bands near
             // the noise threshold (hole avoidance is more important)
-            if (!(*sce).zeroes[(w * 16 + g) as usize]
+            if (!(*sce).zeroes[W(w)][g as usize]
                 && !sfdelta_can_remove_band(sce, &nextband, prev_sf, w * 16 + g))
-                || (((*sce).zeroes[(w * 16 + g) as usize]
-                    || (*sce).band_alt[(w * 16 + g) as usize] as u64 == 0)
+                || (((*sce).zeroes[W(w)][g as usize]
+                    || (*sce).band_alt[W(w)][g as usize] as u64 == 0)
                     && sfb_energy < threshold * sqrtf(1. / freq_boost))
                 || spread < spread_threshold
-                || (!(*sce).zeroes[(w * 16 + g) as usize]
-                    && (*sce).band_alt[(w * 16 + g) as usize] as c_uint != 0
+                || (!(*sce).zeroes[W(w)][g as usize]
+                    && (*sce).band_alt[W(w)][g as usize] as c_uint != 0
                     && sfb_energy > threshold * thr_mult * freq_boost)
                 || min_energy < pns_transient_energy_r * max_energy
             {
-                (*sce).pns_ener[(w * 16 + g) as usize] = sfb_energy;
-                if !(*sce).zeroes[(w * 16 + g) as usize] {
-                    prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
+                (*sce).pns_ener[W(w)][g as usize] = sfb_energy;
+                if !(*sce).zeroes[W(w)][g as usize] {
+                    prev_sf = (*sce).sf_idx[W(w)][g as usize];
                 }
                 continue;
             }
@@ -236,8 +237,8 @@ pub(crate) unsafe fn search(
             if prev != -1000 {
                 let mut noise_sfdiff: c_int = noise_sfi - prev + 60;
                 if !(0..=2 * 60).contains(&noise_sfdiff) {
-                    if !(*sce).zeroes[(w * 16 + g) as usize] {
-                        prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
+                    if !(*sce).zeroes[W(w)][g as usize] {
+                        prev_sf = (*sce).sf_idx[W(w)][g as usize];
                     }
                     continue;
                 }
@@ -283,8 +284,8 @@ pub(crate) unsafe fn search(
                 dist1 += quantize_band_cost(
                     &((*sce).coeffs)[(start_c as usize)..][..swb_size.into()],
                     &NOR34[..swb_size.into()],
-                    (*sce).sf_idx[((w + w2) * 16 + g) as usize],
-                    (*sce).band_alt[((w + w2) * 16 + g) as usize] as c_int,
+                    (*sce).sf_idx[W(w + w2)][g as usize],
+                    (*sce).band_alt[W(w + w2)][g as usize] as c_int,
                     lambda / band.threshold,
                     f32::INFINITY,
                     None,
@@ -295,22 +296,22 @@ pub(crate) unsafe fn search(
                 dist2 += band.energy / (band.spread * band.spread) * lambda * dist_thresh
                     / band.threshold;
             }
-            dist2 += if g != 0 && (*sce).band_type[(w * 16 + g - 1) as usize] == NOISE_BT {
+            dist2 += if g != 0 && (*sce).band_type[W(w)][g as usize - 1] == NOISE_BT {
                 5.
             } else {
                 9.
             };
             let energy_ratio = pns_tgt_energy / pns_energy; // Compensates for quantization error
-            (*sce).pns_ener[(w * 16 + g) as usize] = energy_ratio * pns_tgt_energy;
-            if (*sce).zeroes[(w * 16 + g) as usize]
-                || (*sce).band_alt[(w * 16 + g) as usize] as u64 == 0
+            (*sce).pns_ener[W(w)][g as usize] = energy_ratio * pns_tgt_energy;
+            if (*sce).zeroes[W(w)][g as usize]
+                || (*sce).band_alt[W(w)][g as usize] as u64 == 0
                 || energy_ratio > 0.85 && energy_ratio < 1.25 && dist2 < dist1
             {
-                (*sce).band_type[(w * 16 + g) as usize] = NOISE_BT;
-                (*sce).zeroes[(w * 16 + g) as usize] = false;
+                (*sce).band_type[W(w)][g as usize] = NOISE_BT;
+                (*sce).zeroes[W(w)][g as usize] = false;
                 prev = noise_sfi;
-            } else if !(*sce).zeroes[(w * 16 + g) as usize] {
-                prev_sf = (*sce).sf_idx[(w * 16 + g) as usize];
+            } else if !(*sce).zeroes[W(w)][g as usize] {
+                prev_sf = (*sce).sf_idx[W(w)][g as usize];
             }
         }
     }
@@ -340,7 +341,7 @@ pub(crate) unsafe fn mark(
             let freq_boost = freq_boost(freq);
 
             if freq < NOISE_LOW_LIMIT || start >= cutoff {
-                (*sce).can_pns[(w * 16 + g) as usize] = false;
+                (*sce).can_pns[W(w)][g as usize] = false;
                 continue;
             }
 
@@ -364,9 +365,8 @@ pub(crate) unsafe fn mark(
             //    be noticed)
             // 3. on short window groups, all windows have similar energy (variations in
             //    energy would be destroyed by PNS)
-            (*sce).pns_ener[(w * 16 + g) as usize] = sfb_energy;
-            (*sce).can_pns[(w * 16 + g) as usize] = !(sfb_energy
-                < threshold * sqrtf(1.5 / freq_boost)
+            (*sce).pns_ener[W(w)][g as usize] = sfb_energy;
+            (*sce).can_pns[W(w)][g as usize] = !(sfb_energy < threshold * sqrtf(1.5 / freq_boost)
                 || spread < spread_threshold
                 || min_energy < pns_transient_energy_r * max_energy);
         }

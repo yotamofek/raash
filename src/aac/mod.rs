@@ -1,10 +1,10 @@
 use std::iter;
 
+use array_util::Array;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
 
 use self::encoder::LongTermPrediction;
-use crate::array::Array;
 
 pub mod coder;
 pub mod encoder;

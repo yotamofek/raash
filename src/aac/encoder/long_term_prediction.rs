@@ -9,6 +9,7 @@
 
 use std::{mem::size_of, ptr};
 
+use array_util::{Array, W};
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
 
@@ -18,7 +19,6 @@ use crate::{
         encoder::{abs_pow34_v, ctx::AACEncContext},
         IndividualChannelStream, SyntaxElementType, WindowedIteration, EIGHT_SHORT_SEQUENCE,
     },
-    array::Array,
     common::*,
     types::*,
 };
@@ -153,10 +153,10 @@ pub(crate) unsafe fn ltp_insert_new_frame(mut s: *mut AACEncContext) {
         while ch < chans {
             sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
             cur_channel = start_ch + ch;
-            (*sce).ltp_state.copy_within(1024..2048, 0);
+            (*sce).ltp_state[0] = (*sce).ltp_state[1];
             (*s).planar_samples[cur_channel as usize][2048..][..1024]
-                .copy_from_slice(&(*sce).ltp_state[1024..][..1024]);
-            (*sce).ltp_state[2048..][..1024].copy_from_slice(&(*sce).ret_buf[..1024]);
+                .copy_from_slice(&*(*sce).ltp_state[1]);
+            (*sce).ltp_state[2].copy_from_slice(&(*sce).ret_buf[..1024]);
             (*sce).ics.ltp.lag = 0 as c_short;
             ch += 1;
             ch;
@@ -235,8 +235,7 @@ unsafe fn generate_samples(mut buf: *mut c_float, mut ltp: *mut LongTermPredicti
 }
 
 pub(crate) unsafe fn update_ltp(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
-    let mut pred_signal: *mut c_float =
-        &mut *((*sce).ltp_state).as_mut_ptr().offset(0) as *mut c_float;
+    let mut pred_signal = ((*sce).ltp_state).as_mut_ptr().cast::<c_float>();
     let mut samples: *const c_float =
         ((*s).planar_samples)[(*s).cur_channel as usize][1024..].as_mut_ptr();
     if (*s).profile != 3 {
@@ -311,7 +310,7 @@ pub(crate) unsafe fn search_for_ltp(
     };
     if (*sce).ics.window_sequence[0] as c_uint == EIGHT_SHORT_SEQUENCE as c_int as c_uint {
         if (*sce).ics.ltp.lag != 0 {
-            (*sce).ltp_state.fill(0.);
+            (*sce).ltp_state = Default::default();
             (*sce).ics.ltp = LongTermPrediction::default();
         }
         return;
@@ -360,8 +359,8 @@ pub(crate) unsafe fn search_for_ltp(
                         &(*sce).coeffs[(start + (w + w2) * 128) as usize..]
                             [..(*sce).ics.swb_sizes[g as usize].into()],
                         &C34[..(*sce).ics.swb_sizes[g as usize].into()],
-                        (*sce).sf_idx[((w + w2) * 16 + g) as usize],
-                        (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
+                        (*sce).sf_idx[W(w + w2)][g as usize],
+                        (*sce).band_type[W(w + w2)][g as usize] as c_int,
                         (*s).lambda / (*band).threshold,
                         f32::INFINITY,
                         Some(&mut bits_tmp1),
@@ -370,8 +369,8 @@ pub(crate) unsafe fn search_for_ltp(
                     dist2 += quantize_band_cost(
                         &PCD[..(*sce).ics.swb_sizes[g as usize].into()],
                         &PCD34[..(*sce).ics.swb_sizes[g as usize].into()],
-                        (*sce).sf_idx[((w + w2) * 16 + g) as usize],
-                        (*sce).band_type[((w + w2) * 16 + g) as usize] as c_int,
+                        (*sce).sf_idx[W(w + w2)][g as usize],
+                        (*sce).band_type[W(w + w2)][g as usize] as c_int,
                         (*s).lambda / (*band).threshold,
                         f32::INFINITY,
                         Some(&mut bits_tmp2),
