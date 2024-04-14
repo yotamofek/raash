@@ -69,6 +69,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "izip"
+version = "0.1.0"
+
+[[package]]
 name = "libc"
 version = "0.2.153"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -147,6 +151,7 @@ dependencies = [
  "ffmpeg-src-macro",
  "ilog",
  "itertools",
+ "izip",
  "libc",
  "lpc",
  "once_cell",

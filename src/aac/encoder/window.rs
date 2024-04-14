@@ -1,6 +1,6 @@
 use std::{mem::size_of, ptr, slice};
 
-use itertools::izip;
+use izip::izip;
 use libc::{c_float, c_int, c_uint, c_ulong, c_void};
 
 use super::ctx::AACEncContext;

@@ -11,7 +11,7 @@ use std::{iter::zip, ops::Mul, ptr};
 use array_util::W;
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
-use itertools::izip;
+use izip::izip;
 use libc::{c_double, c_float, c_int};
 use reductor::{Reduce, Sum};
 

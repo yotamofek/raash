@@ -3,7 +3,7 @@ use std::{cell::Cell, iter::zip, ops::BitOrAssign};
 use array_util::W;
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
-use itertools::izip;
+use izip::izip;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_ushort};
 use reductor::{Reduce as _, Sum};
 
