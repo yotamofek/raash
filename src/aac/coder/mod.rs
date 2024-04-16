@@ -189,7 +189,7 @@ pub(super) unsafe fn sfdelta_can_remove_band(
 ) -> bool {
     prev_sf >= 0
         && sfdelta_encoding_range(prev_sf)
-            .contains(&(*sce).sf_idx[usize::from(nextband[band as usize])])
+            .contains(&(*(*sce).sf_idx)[usize::from(nextband[band as usize])])
 }
 
 /// Checks whether the specified band's scalefactor could be replaced
@@ -207,7 +207,7 @@ unsafe fn sfdelta_can_replace(
 ) -> bool {
     sfdelta_encoding_range(prev_sf).contains(&new_sf)
         && sfdelta_encoding_range(new_sf)
-            .contains(&(*sce).sf_idx[usize::from(nextband[band as usize])])
+            .contains(&(*(*sce).sf_idx)[usize::from(nextband[band as usize])])
 }
 
 impl SingleChannelElement {

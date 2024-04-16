@@ -65,46 +65,6 @@ where
     }
 }
 
-impl<A, T, const W_SIZE: usize> Index<usize> for WindowedArray<A, W_SIZE>
-where
-    A: Index<usize, Output = T>,
-{
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.0.index(index)
-    }
-}
-
-impl<A, T, const W_SIZE: usize> IndexMut<usize> for WindowedArray<A, W_SIZE>
-where
-    A: IndexMut<usize, Output = T>,
-{
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.0.index_mut(index)
-    }
-}
-
-impl<A, T: ?Sized, const W_SIZE: usize> Index<RangeFrom<usize>> for WindowedArray<A, W_SIZE>
-where
-    A: Index<RangeFrom<usize>, Output = T>,
-{
-    type Output = T;
-
-    fn index(&self, index: RangeFrom<usize>) -> &Self::Output {
-        self.0.index(index)
-    }
-}
-
-impl<A, T: ?Sized, const W_SIZE: usize> IndexMut<RangeFrom<usize>> for WindowedArray<A, W_SIZE>
-where
-    A: IndexMut<RangeFrom<usize>, Output = T>,
-{
-    fn index_mut(&mut self, index: RangeFrom<usize>) -> &mut Self::Output {
-        self.0.index_mut(index)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

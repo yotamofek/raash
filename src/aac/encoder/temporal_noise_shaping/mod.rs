@@ -311,8 +311,8 @@ pub(crate) unsafe fn apply(mut sce: *mut SingleChannelElement) {
                     while m < size {
                         i = 1;
                         while i <= m.min(order) {
-                            (*sce).coeffs[start as usize] +=
-                                lpc[(i - 1) as usize] * (*sce).pcoeffs[(start - i * inc) as usize];
+                            (*(*sce).coeffs)[start as usize] += lpc[(i - 1) as usize]
+                                * (*(*sce).pcoeffs)[(start - i * inc) as usize];
                             i += 1;
                             i;
                         }
@@ -413,7 +413,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChann
         }
 
         gain = (*s).lpc.calc_ref_coefs_f(
-            &(*sce).coeffs[(w * 128 + coef_start) as usize..][..coef_len as usize],
+            &(*sce).coeffs[W(w)][coef_start as usize..][..coef_len as usize],
             order,
             &mut coefs,
         );

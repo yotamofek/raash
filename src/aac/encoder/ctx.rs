@@ -1,4 +1,4 @@
-use array_util::Array;
+use array_util::{Array, WindowedArray};
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uchar, c_ushort};
 use lpc::LPCContext;
@@ -50,6 +50,6 @@ pub(crate) struct AACEncContext {
     pub lambda_count: c_int,
     pub cur_type: SyntaxElementType,
     pub afq: AudioFrameQueue,
-    pub scaled_coeffs: Array<c_float, 1024>,
+    pub scaled_coeffs: WindowedArray<Array<c_float, 1024>, 128>,
     pub quantize_band_cost_cache: QuantizeBandCostCache,
 }

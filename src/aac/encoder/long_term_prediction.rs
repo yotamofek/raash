@@ -337,7 +337,7 @@ pub(crate) unsafe fn search_for_ltp(
                         &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w + w2)][g as usize];
                     i = 0;
                     while i < (*sce).ics.swb_sizes[g as usize] as c_int {
-                        PCD[i as usize] = (*sce).coeffs[(start + (w + w2) * 128 + i) as usize]
+                        PCD[i as usize] = (*sce).coeffs[W(w + w2)][(start + i) as usize]
                             - (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                         i += 1;
                         i;
@@ -355,7 +355,7 @@ pub(crate) unsafe fn search_for_ltp(
                         (*sce).ics.swb_sizes[g as usize] as c_int,
                     );
                     dist1 += quantize_band_cost(
-                        &(*sce).coeffs[(start + (w + w2) * 128) as usize..]
+                        &(*sce).coeffs[W(w + w2)][start as usize..]
                             [..(*sce).ics.swb_sizes[g as usize].into()],
                         &C34[..(*sce).ics.swb_sizes[g as usize].into()],
                         (*sce).sf_idx[W(w + w2)][g as usize],
@@ -385,7 +385,7 @@ pub(crate) unsafe fn search_for_ltp(
                     while w2 < group_len as c_int {
                         i = 0;
                         while i < (*sce).ics.swb_sizes[g as usize] as c_int {
-                            (*sce).coeffs[(start + (w + w2) * 128 + i) as usize] -=
+                            (*sce).coeffs[W(w + w2)][(start + i) as usize] -=
                                 (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                             i += 1;
                             i;
@@ -416,7 +416,7 @@ pub(crate) unsafe fn search_for_ltp(
                     while w2 < group_len as c_int {
                         i = 0;
                         while i < (*sce).ics.swb_sizes[g as usize] as c_int {
-                            (*sce).coeffs[(start + (w + w2) * 128 + i) as usize] +=
+                            (*sce).coeffs[W(w + w2)][(start + i) as usize] +=
                                 (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
                             i += 1;
                             i;

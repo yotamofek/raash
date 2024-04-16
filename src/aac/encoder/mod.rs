@@ -356,7 +356,7 @@ unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
     for WindowedIteration { w, group_len } in (*ics).iter_windows() {
         w2 = 0;
         while w2 < group_len as c_int {
-            let mut start: c_int = (w + w2) * 128;
+            let mut start: c_int = 0;
             g = 0;
             while g < (*ics).num_swb {
                 let mut p: c_int = c_uint::MAX.wrapping_add((2 as c_uint).wrapping_mul(
@@ -371,11 +371,12 @@ unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
                     }
                     i = 0;
                     while i < (*ics).swb_sizes[g as usize] as c_int {
-                        let mut sum: c_float = ((*cpe).ch[0].coeffs[(start + i) as usize]
-                            + p as c_float * (*cpe).ch[1].coeffs[(start + i) as usize])
+                        let mut sum: c_float = ((*cpe).ch[0].coeffs[W(w + w2)]
+                            [(start + i) as usize]
+                            + p as c_float * (*cpe).ch[1].coeffs[W(w + w2)][(start + i) as usize])
                             * scale;
-                        (*cpe).ch[0].coeffs[(start + i) as usize] = sum;
-                        (*cpe).ch[1].coeffs[(start + i) as usize] = 0.;
+                        (*cpe).ch[0].coeffs[W(w + w2)][(start + i) as usize] = sum;
+                        (*cpe).ch[1].coeffs[W(w + w2)][(start + i) as usize] = 0.;
                         i += 1;
                         i;
                     }
@@ -494,7 +495,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
                 while w2 < w + group_len as c_int {
                     quantize_and_encode_band(
                         NonNull::new(addr_of_mut!((*s).pb)).unwrap(),
-                        &(*sce).coeffs[(start + w2 * 128) as usize..]
+                        &(*sce).coeffs[W(w2)][start as usize..]
                             [..(*sce).ics.swb_sizes[i as usize].into()],
                         (*sce).sf_idx[W(w)][i as usize],
                         (*sce).band_type[W(w)][i as usize] as c_int,
@@ -520,7 +521,7 @@ fn avoid_clipping(mut sce: &mut SingleChannelElement) {
             let mut start = 0;
 
             for i in 0..sce.ics.max_sfb {
-                sce.coeffs[(start + w * 128).try_into().unwrap()..]
+                sce.coeffs[W(w)][start.try_into().unwrap()..]
                     [..sce.ics.swb_sizes[usize::from(i)].into()]
                     .iter_mut()
                     .for_each(|swb_coeff| {

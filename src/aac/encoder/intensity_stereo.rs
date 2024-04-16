@@ -204,7 +204,7 @@ pub(crate) unsafe fn search(
                 && sfdelta_can_remove_band(sce1, &nextband1, prev_sf1, wstart as c_int)
             {
                 let [coeffs0, coeffs1] = [&sce0.coeffs, &sce1.coeffs].map(|coeffs| {
-                    coeffs[(start + w * 128) as usize..][..usize::from(group_len) * 128]
+                    coeffs[W(w)][start as usize..][..usize::from(group_len) * 128]
                         .array_chunks::<128>()
                         .flat_map(|chunk| &chunk[..sce0.ics.swb_sizes[g as usize].into()])
                 });

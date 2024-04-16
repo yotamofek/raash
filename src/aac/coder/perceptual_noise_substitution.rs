@@ -1,4 +1,4 @@
-use std::iter;
+use std::iter::zip;
 
 use array_util::W;
 use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
@@ -167,7 +167,7 @@ pub(crate) unsafe fn search(
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
         let mut wstart: c_int = w * 128;
         let num_swb = (*sce).ics.num_swb as usize;
-        for (g, (&swb_offset, &swb_size)) in iter::zip(
+        for (g, (&swb_offset, &swb_size)) in zip(
             &(*sce).ics.swb_offset[..num_swb],
             &(*sce).ics.swb_sizes[..num_swb],
         )
@@ -245,7 +245,6 @@ pub(crate) unsafe fn search(
             }
 
             for w2 in 0..c_int::from(group_len) {
-                let start_c: c_int = (w + w2) * 128 + swb_offset as c_int;
                 let band =
                     &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w + w2)][g as usize];
 
@@ -271,18 +270,18 @@ pub(crate) unsafe fn search(
 
                 pns_energy += pns_senergy;
 
-                for (NOR34, coeff) in NOR34
-                    .iter_mut()
-                    .zip(&(*sce).coeffs[start_c as usize..][..usize::from(swb_size)])
-                {
+                for (NOR34, coeff) in zip(
+                    &mut *NOR34,
+                    &(*sce).coeffs[W(w + w2)][swb_offset as usize..][..swb_size.into()],
+                ) {
                     *NOR34 = coeff.abs_pow34();
                 }
-                for (PNS34, PNS) in PNS34.iter_mut().zip(&*PNS) {
+                for (PNS34, PNS) in zip(PNS34, &*PNS) {
                     *PNS34 = PNS.abs_pow34();
                 }
 
                 dist1 += quantize_band_cost(
-                    &((*sce).coeffs)[(start_c as usize)..][..swb_size.into()],
+                    &((*sce).coeffs)[W(w + w2)][swb_offset as usize..][..swb_size.into()],
                     &NOR34[..swb_size.into()],
                     (*sce).sf_idx[W(w + w2)][g as usize],
                     (*sce).band_alt[W(w + w2)][g as usize] as c_int,

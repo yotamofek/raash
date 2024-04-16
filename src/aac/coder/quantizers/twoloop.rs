@@ -130,7 +130,7 @@ pub(crate) unsafe fn search(
         return;
     }
 
-    *(*s).scaled_coeffs = (*sce).coeffs.map(Pow34::abs_pow34);
+    **(*s).scaled_coeffs = (*sce).coeffs.map(Pow34::abs_pow34);
 
     (*s).quantize_band_cost_cache.init();
 
@@ -178,8 +178,7 @@ pub(crate) unsafe fn search(
                 prev = -1;
                 tbits = 0;
                 for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-                    let coeffs =
-                        [&(*sce).coeffs, &(*s).scaled_coeffs].map(|arr| &arr[w as usize * 128..]);
+                    let coeffs = [&(*sce).coeffs, &(*s).scaled_coeffs].map(|arr| &arr[W(w)]);
                     let wstart = w as usize * 16;
                     for (
                         g,
@@ -400,7 +399,7 @@ pub(crate) unsafe fn search(
             if tbits > dest_bits {
                 uplmax *= c_float::min(2., tbits as c_float / dest_bits.max(1) as c_float);
             };
-            start = w * 128;
+            start = 0;
             for g in 0..(*sce).ics.num_swb {
                 let swb_size = (*sce).ics.swb_sizes[g as usize];
                 let mut prevsc: c_int = (*sce).sf_idx[W(w)][g as usize];
@@ -408,8 +407,8 @@ pub(crate) unsafe fn search(
                     prev = (*sce).sf_idx[W(0)][0];
                 }
                 if !(*sce).zeroes[W(w)][g as usize] {
-                    let coefs_1 = &(*sce).coeffs[start as usize..];
-                    let scaled_2 = &(*s).scaled_coeffs[start as usize..];
+                    let coefs_1 = &(*sce).coeffs[W(w)][start as usize..];
+                    let scaled_2 = &(*s).scaled_coeffs[W(w)][start as usize..];
                     let mut cmb: c_int = find_min_book(
                         maxvals[(w * 16 + g) as usize],
                         (*sce).sf_idx[W(w)][g as usize],
@@ -627,7 +626,7 @@ pub(crate) unsafe fn search(
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 297..=312)]
 fn calc_minsf_maxvals(
     ics: &IndividualChannelStream,
-    scaled_coeffs: &[c_float; 1024],
+    scaled_coeffs: &[c_float; 1024], // TODO(yotam): make windowed
 ) -> ([c_int; 128], [c_float; 128]) {
     let mut minsf = [0; 128];
     let mut maxvals = [0.; 128];
@@ -1049,8 +1048,7 @@ unsafe fn quantize_spectrum(
         let mut prev: Option<c_int> = None;
         let mut tbits = 0;
         for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-            let [coeffs, scaled] =
-                [&(*sce).coeffs, &(*s).scaled_coeffs].map(|c| &c[w as usize * 128..]);
+            let [coeffs, scaled] = [&(*sce).coeffs, &(*s).scaled_coeffs].map(|c| &c[W(w)]);
             let wstart = w as usize * 16;
             for (g, (&zero, &sf_idx, &can_pns, &maxval, dist, qenergy, (swb_size, offset))) in
                 izip!(

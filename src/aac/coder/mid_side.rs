@@ -52,12 +52,12 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                 let mut Smax: c_float = 0.;
                 for w2 in 0..c_int::from(group_len) {
                     for i in 0..c_int::from(swb_size) {
-                        M[i as usize] = ((sce0.coeffs[(start + (w + w2) * 128 + i) as usize]
-                            + sce1.coeffs[(start + (w + w2) * 128 + i) as usize])
+                        M[i as usize] = ((sce0.coeffs[W(w + w2)][(start + i) as usize]
+                            + sce1.coeffs[W(w + w2)][(start + i) as usize])
                             as c_double
                             * 0.5) as c_float;
                         S[i as usize] =
-                            M[i as usize] - sce1.coeffs[(start + (w + w2) * 128 + i) as usize];
+                            M[i as usize] - sce1.coeffs[W(w + w2)][(start + i) as usize];
                     }
                     for (M34, M) in iter::zip(
                         &mut M34[..usize::from(swb_size)],
@@ -117,24 +117,22 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                         let mut b3: c_int = 0;
                         let mut b4: c_int = 0;
                         for i in 0..c_int::from(swb_size) {
-                            M[i as usize] = ((sce0.coeffs[(start + (w + w2) * 128 + i) as usize]
-                                + sce1.coeffs[(start + (w + w2) * 128 + i) as usize])
+                            M[i as usize] = ((sce0.coeffs[W(w + w2)][(start + i) as usize]
+                                + sce1.coeffs[W(w + w2)][(start + i) as usize])
                                 as c_double
                                 * 0.5) as c_float;
                             S[i as usize] =
-                                M[i as usize] - sce1.coeffs[(start + (w + w2) * 128 + i) as usize];
+                                M[i as usize] - sce1.coeffs[W(w + w2)][(start + i) as usize];
                         }
                         for (L34, coeff) in iter::zip(
                             &mut L34[..usize::from(swb_size)],
-                            &sce0.coeffs[(start + (w + w2) * 128) as usize..]
-                                [..usize::from(swb_size)],
+                            &sce0.coeffs[W(w + w2)][start as usize..][..usize::from(swb_size)],
                         ) {
                             *L34 = coeff.abs_pow34();
                         }
                         for (R34, coeff) in iter::zip(
                             &mut R34[..usize::from(swb_size)],
-                            &sce1.coeffs[(start + (w + w2) * 128) as usize..]
-                                [..usize::from(swb_size)],
+                            &sce1.coeffs[W(w + w2)][start as usize..][..usize::from(swb_size)],
                         ) {
                             *R34 = coeff.abs_pow34();
                         }
@@ -151,7 +149,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             *S34 = S.abs_pow34();
                         }
                         dist1 += quantize_band_cost(
-                            &sce0.coeffs[(start + (w + w2) * 128) as usize..][..swb_size.into()],
+                            &sce0.coeffs[W(w + w2)][start as usize..][..swb_size.into()],
                             &L34[..swb_size.into()],
                             sce0.sf_idx[W(w)][g as usize],
                             sce0.band_type[W(w)][g as usize] as c_int,
@@ -161,7 +159,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             None,
                         );
                         dist1 += quantize_band_cost(
-                            &sce1.coeffs[(start + (w + w2) * 128) as usize..]
+                            &sce1.coeffs[W(w + w2)][start as usize..]
                                 [..sce1.ics.swb_sizes[g as usize].into()],
                             &R34[..sce1.ics.swb_sizes[g as usize].into()],
                             sce1.sf_idx[W(w)][g as usize],
@@ -244,7 +242,7 @@ pub(crate) unsafe fn apply(mut cpe: *mut ChannelElement) {
 
     for WindowedIteration { w, group_len } in ics.iter_windows() {
         for w2 in 0..c_int::from(group_len) {
-            let mut start: c_int = (w + w2) * 128;
+            let mut start: c_int = 0;
             for g in 0..num_swb {
                 // ms_mask can be used for other purposes in PNS and I/S,
                 // so must not apply M/S if any band uses either, even if
@@ -262,7 +260,7 @@ pub(crate) unsafe fn apply(mut cpe: *mut ChannelElement) {
                 let [L_coeffs, R_coeffs] = (*cpe)
                     .ch
                     .each_mut()
-                    .map(|ch| &mut ch.coeffs[start as usize..][..swb_size.into()]);
+                    .map(|ch| &mut ch.coeffs[W(w + w2)][start as usize..][..swb_size.into()]);
                 for (L, R) in iter::zip(L_coeffs, R_coeffs) {
                     *L = (*L + *R) * 0.5;
                     *R = *L - *R;

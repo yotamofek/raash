@@ -38,10 +38,10 @@ pub(crate) unsafe fn codebook_rate(
     let run_esc = (1 << run_bits) - 1;
     let mut next_minbits = c_float::INFINITY;
     let mut next_mincb = 0;
-    for (scoef, coef) in zip(&mut (*s).scaled_coeffs, &(*sce).coeffs) {
+    for (scoef, coef) in zip(&mut *(*s).scaled_coeffs, &*(*sce).coeffs) {
         *scoef = coef.abs_pow34();
     }
-    let mut start = win * 128;
+    let mut start = 0;
     path[0].fill(BandCodingPath {
         prev_idx: -1,
         cost: (run_bits + 4) as c_float,
@@ -103,8 +103,8 @@ pub(crate) unsafe fn codebook_rate(
                     let bits = (0..group_len)
                         .map(|w| {
                             quantize_band_cost_bits(
-                                &(*sce).coeffs[(start + w * 128) as usize..][..size as usize],
-                                &(*s).scaled_coeffs[(start + w * 128) as usize..][..size as usize],
+                                &(*sce).coeffs[W(win + w)][start as usize..][..size as usize],
+                                &(*s).scaled_coeffs[W(win + w)][start as usize..][..size as usize],
                                 (*sce).sf_idx[W(win)][swb as usize],
                                 aac_cb_out_map[cb as usize] as c_int,
                                 f32::INFINITY,
