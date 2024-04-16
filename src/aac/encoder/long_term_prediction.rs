@@ -24,7 +24,7 @@ use crate::{
 };
 
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 50, name = "MAX_LTP_LONG_SFB")]
-const MAX_LONG_SFB: u8 = 40;
+const MAX_LONG_SFB: usize = 40;
 
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 158..=167)]
 #[derive(Default, Copy, Clone)]
@@ -33,7 +33,7 @@ pub(crate) struct LongTermPrediction {
     pub(super) lag: c_short,
     pub(super) coef_idx: c_int,
     pub(super) coef: c_float,
-    pub(super) used: Array<c_schar, { MAX_LONG_SFB as usize }>,
+    pub(super) used: Array<c_schar, MAX_LONG_SFB>,
 }
 
 #[inline(always)]

@@ -26,7 +26,7 @@ use crate::{
 };
 
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 49, name = "TNS_MAX_ORDER")]
-const MAX_ORDER: u8 = 20;
+const MAX_ORDER: usize = 20;
 
 /// Could be set to 3 to save an additional bit at the cost of little quality
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 35, name = "TNS_Q_BITS")]
@@ -53,8 +53,8 @@ pub(crate) struct TemporalNoiseShaping {
     pub(super) length: [[c_int; 4]; 8],
     pub(super) direction: [[c_int; 4]; 8],
     pub(super) order: [[c_int; 4]; 8],
-    pub(super) coef_idx: [[[c_int; MAX_ORDER as usize]; 4]; 8],
-    pub(super) coef: [[[c_float; MAX_ORDER as usize]; 4]; 8],
+    pub(super) coef_idx: [[[c_int; MAX_ORDER]; 4]; 8],
+    pub(super) coef: [[[c_float; MAX_ORDER]; 4]; 8],
 }
 
 static mut BUF_BITS: c_int = 0;
@@ -371,12 +371,12 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChann
         mmm,
     );
     let sfb_end: c_int = av_clip_c((*sce).ics.num_swb, 0, mmm);
-    let order: c_int = if is8 {
+    let order = if is8 {
         7
     } else if (*s).profile == 1 {
         12
     } else {
-        MAX_ORDER.into()
+        MAX_ORDER as c_int
     };
     let slant: c_int = if (*sce).ics.window_sequence[0] as c_uint
         == LONG_STOP_SEQUENCE as c_int as c_uint
@@ -421,7 +421,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChann
         if !(order == 0 || !gain.is_finite() || !GAIN_THRESHOLD.contains(&gain)) {
             (*tns).n_filt[w as usize] = if is8 {
                 1
-            } else if order != MAX_ORDER.into() {
+            } else if order != MAX_ORDER as c_int {
                 2
             } else {
                 3

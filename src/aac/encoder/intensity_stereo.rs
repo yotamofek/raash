@@ -282,3 +282,60 @@ pub(crate) unsafe fn search(
     }
     (*cpe).is_mode = count != 0;
 }
+
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 580..=607, name = "apply_intensity_stereo")]
+pub(super) unsafe fn apply(mut cpe: *mut ChannelElement) {
+    let ChannelElement {
+        mut common_window,
+        ref ms_mask,
+        ref is_mask,
+        ch:
+            [SingleChannelElement {
+                ref ics,
+                ref is_ener,
+                coeffs: l_coeffs,
+                ..
+            }, SingleChannelElement {
+                ref band_type,
+                coeffs: r_coeffs,
+                ..
+            }],
+        ..
+    } = &mut *cpe;
+
+    if common_window == 0 {
+        return;
+    }
+
+    for WindowedIteration { w, group_len } in ics.iter_windows() {
+        for w2 in 0..c_int::from(group_len) {
+            for ((swb_size, offset), &band_type, &scale, _, &ms_mask) in izip!(
+                ics.iter_swb_sizes_sum(),
+                &band_type[W(w)],
+                &is_ener[W(w)],
+                &is_mask[W(w)],
+                &ms_mask[W(w)],
+            )
+            .filter(|(_, _, _, &is_mask, _)| is_mask)
+            {
+                let p = {
+                    let p = -1 + 2 * (band_type as c_int - 14);
+
+                    if ms_mask {
+                        -p
+                    } else {
+                        p
+                    }
+                } as c_float;
+
+                let [l_coeffs, r_coeffs] = [&mut *l_coeffs, &mut *r_coeffs]
+                    .map(|coeffs| &mut coeffs[W(w + w2)][offset as usize..][..swb_size.into()]);
+
+                for (l_coeff, r_coeff) in zip(l_coeffs, r_coeffs) {
+                    let sum = (*l_coeff + *r_coeff * p) * scale;
+                    (*l_coeff, *r_coeff) = (sum, 0.);
+                }
+            }
+        }
+    }
+}

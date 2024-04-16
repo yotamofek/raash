@@ -345,52 +345,6 @@ unsafe fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_in
     }
 }
 
-unsafe fn apply_intensity_stereo(mut cpe: *mut ChannelElement) {
-    let mut w2: c_int = 0;
-    let mut g: c_int = 0;
-    let mut i: c_int = 0;
-    let mut ics: *mut IndividualChannelStream = &mut (*((*cpe).ch).as_mut_ptr().offset(0)).ics;
-    if (*cpe).common_window == 0 {
-        return;
-    }
-    for WindowedIteration { w, group_len } in (*ics).iter_windows() {
-        w2 = 0;
-        while w2 < group_len as c_int {
-            let mut start: c_int = 0;
-            g = 0;
-            while g < (*ics).num_swb {
-                let mut p: c_int = c_uint::MAX.wrapping_add((2 as c_uint).wrapping_mul(
-                    ((*cpe).ch[1].band_type[W(w)][g as usize] as c_uint).wrapping_sub(14 as c_uint),
-                )) as c_int;
-                let mut scale: c_float = (*cpe).ch[0].is_ener[W(w)][g as usize];
-                if !(*cpe).is_mask[W(w)][g as usize] {
-                    start += (*ics).swb_sizes[g as usize] as c_int;
-                } else {
-                    if (*cpe).ms_mask[W(w)][g as usize] {
-                        p *= -1;
-                    }
-                    i = 0;
-                    while i < (*ics).swb_sizes[g as usize] as c_int {
-                        let mut sum: c_float = ((*cpe).ch[0].coeffs[W(w + w2)]
-                            [(start + i) as usize]
-                            + p as c_float * (*cpe).ch[1].coeffs[W(w + w2)][(start + i) as usize])
-                            * scale;
-                        (*cpe).ch[0].coeffs[W(w + w2)][(start + i) as usize] = sum;
-                        (*cpe).ch[1].coeffs[W(w + w2)][(start + i) as usize] = 0.;
-                        i += 1;
-                        i;
-                    }
-                    start += (*ics).swb_sizes[g as usize] as c_int;
-                }
-                g += 1;
-                g;
-            }
-            w2 += 1;
-            w2;
-        }
-    }
-}
-
 unsafe fn encode_band_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     set_special_band_scalefactors(sce);
     for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
@@ -948,7 +902,7 @@ unsafe fn aac_encode_frame(
                 if (*cpe).is_mode {
                     is_mode = 1;
                 }
-                apply_intensity_stereo(cpe);
+                intensity_stereo::apply(cpe);
             }
             if (*ctx).options.pred != 0 {
                 ch = 0;
