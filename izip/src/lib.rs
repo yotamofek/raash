@@ -85,4 +85,20 @@ macro_rules! izip {
                 |(((((((a, b), c), d), e), f), g), h)| (a, b, c, d, e, f, g, h),
             )
     };
+
+    ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr, $i:expr $(,)?) => {
+        ::std::iter::IntoIterator::into_iter($a)
+            .zip($b)
+            .zip($c)
+            .zip($d)
+            .zip($e)
+            .zip($f)
+            .zip($g)
+            .zip($h)
+            .zip($i)
+            .map(
+                #[inline(always)]
+                |((((((((a, b), c), d), e), f), g), h), i)| (a, b, c, d, e, f, g, h, i),
+            )
+    };
 }

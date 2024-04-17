@@ -182,9 +182,7 @@ pub(crate) unsafe fn search(
 ) {
     let [sce0, sce1] = &mut (*cpe).ch;
 
-    let mut start: c_int = 0;
-    let mut count: c_int = 0;
-    let mut prev_sf1: c_int = -1;
+    let mut prev_sf1 = None;
     let mut prev_bt = None;
     let mut prev_is = false;
     let freq_mult =
@@ -192,21 +190,36 @@ pub(crate) unsafe fn search(
     if (*cpe).common_window == 0 {
         return;
     }
-    let mut nextband1 = ptr::from_mut(sce1).init_nextband_map();
+    let nextband1 = ptr::from_mut(sce1).init_nextband_map();
     for WindowedIteration { w, group_len } in sce0.ics.iter_windows() {
-        start = 0;
-        for g in 0..sce0.ics.num_swb {
-            let wstart = (w * 16 + g) as usize;
+        for (g, (swb_size, start), band_types, zeroes, is_mask, ms_mask, is_ener, &sf_idx) in izip!(
+            0..,
+            sce0.ics.iter_swb_sizes_sum(),
+            zip(
+                &mut (*cpe).ch[0].band_type[W(w)],
+                &mut (*cpe).ch[1].band_type[W(w)]
+            ),
+            zip(&(*cpe).ch[0].zeroes[W(w)], &(*cpe).ch[1].zeroes[W(w)]),
+            &mut (*cpe).is_mask[W(w)],
+            &mut (*cpe).ms_mask[W(w)],
+            zip(
+                &mut (*cpe).ch[0].is_ener[W(w)],
+                &mut (*cpe).ch[1].is_ener[W(w)]
+            ),
+            &(*cpe).ch[1].sf_idx[W(w)]
+        ) {
+            let wstart = (w * 16 + g as c_int) as usize;
             if start as c_float * freq_mult > 6100. * ((*s).lambda / 170.)
-                && (*cpe).ch.iter().all(|ch| {
-                    ch.band_type[W(w)][g as usize] != NOISE_BT && !ch.zeroes[W(w)][g as usize]
-                })
-                && sfdelta_can_remove_band(sce1, &nextband1, prev_sf1, wstart as c_int)
+                && [(band_types.0, zeroes.0), (band_types.1, zeroes.1)]
+                    .iter()
+                    .all(|&(&mut band_type, &zero)| band_type != NOISE_BT && !zero)
+                && let Some(sf) = prev_sf1
+                && sfdelta_can_remove_band(sce1, &nextband1, sf, wstart as c_int)
             {
                 let [coeffs0, coeffs1] = [&sce0.coeffs, &sce1.coeffs].map(|coeffs| {
                     coeffs[W(w)][start as usize..][..usize::from(group_len) * 128]
                         .array_chunks::<128>()
-                        .flat_map(|chunk| &chunk[..sce0.ics.swb_sizes[g as usize].into()])
+                        .flat_map(|chunk| &chunk[..swb_size.into()])
                 });
                 let (Sum(ener0), Sum(ener1), Sum(ener01), Sum(ener01p)) = zip(coeffs0, coeffs1)
                     .map(|(&coef0, &coef1)| {
@@ -222,9 +235,9 @@ pub(crate) unsafe fn search(
                 let ph_err1 = encoding_err(
                     s,
                     cpe,
-                    start,
+                    start.into(),
                     w,
-                    g,
+                    g as c_int,
                     ener0,
                     ener1,
                     ener01p,
@@ -234,9 +247,9 @@ pub(crate) unsafe fn search(
                 let ph_err2 = encoding_err(
                     s,
                     cpe,
-                    start,
+                    start.into(),
                     w,
-                    g,
+                    g as c_int,
                     ener0,
                     ener1,
                     ener01,
@@ -250,37 +263,33 @@ pub(crate) unsafe fn search(
                     (None, None) => None,
                 };
                 if let Some(best) = best {
-                    (*cpe).is_mask[W(w)][g as usize] = true;
-                    (*cpe).ms_mask[W(w)][g as usize] = false;
-                    (*cpe).ch[0].is_ener[W(w)][g as usize] = (ener0 / best.ener01).sqrt();
-                    (*cpe).ch[1].is_ener[W(w)][g as usize] = ener0 / ener1;
-                    (*cpe).ch[1].band_type[W(w)][g as usize] = if let Phase::Positive = best.phase {
+                    *is_mask = true;
+                    *ms_mask = false;
+                    (*is_ener.0, *is_ener.1) = ((ener0 / best.ener01).sqrt(), ener0 / ener1);
+                    *band_types.1 = if let Phase::Positive = best.phase {
                         INTENSITY_BT
                     } else {
                         INTENSITY_BT2
                     };
-                    if prev_is && prev_bt != Some((*cpe).ch[1].band_type[W(w)][g as usize]) {
+                    if prev_is && prev_bt != Some(*band_types.1) {
                         // Flip M/S mask and pick the other CB, since it encodes more efficiently
-                        (*cpe).ms_mask[W(w)][g as usize] = true;
-                        (*cpe).ch[1].band_type[W(w)][g as usize] =
-                            if let Phase::Positive = best.phase {
-                                INTENSITY_BT2
-                            } else {
-                                INTENSITY_BT
-                            };
+                        *ms_mask = true;
+                        *band_types.1 = if let Phase::Positive = best.phase {
+                            INTENSITY_BT2
+                        } else {
+                            INTENSITY_BT
+                        };
                     }
-                    prev_bt = Some((*cpe).ch[1].band_type[W(w)][g as usize]);
-                    count += 1;
+                    prev_bt = Some(*band_types.1);
+                    (*cpe).is_mode = true;
                 }
             }
-            if !sce1.zeroes[W(w)][g as usize] && sce1.band_type[W(w)][g as usize] < RESERVED_BT {
-                prev_sf1 = sce1.sf_idx[W(w)][g as usize];
+            if !*zeroes.1 && *band_types.1 < RESERVED_BT {
+                prev_sf1 = Some(sf_idx);
             }
-            prev_is = (*cpe).is_mask[W(w)][g as usize];
-            start += sce0.ics.swb_sizes[g as usize] as c_int;
+            prev_is = *is_mask;
         }
     }
-    (*cpe).is_mode = count != 0;
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 580..=607, name = "apply_intensity_stereo")]

@@ -101,6 +101,7 @@ pub(crate) struct IndividualChannelStream {
     clip_avoidance_factor: c_float,
 }
 
+#[derive(Clone, Copy)]
 struct WindowedIteration {
     w: c_int,
     group_len: c_uchar,
