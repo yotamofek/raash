@@ -214,7 +214,7 @@ pub(crate) unsafe fn search(
             // At this stage, point 2 is relaxed for zeroed bands near
             // the noise threshold (hole avoidance is more important)
             if (!(*sce).zeroes[W(w)][g as usize]
-                && !sfdelta_can_remove_band(sce, &nextband, prev_sf, w * 16 + g))
+                && !sfdelta_can_remove_band(&(*sce).sf_idx, &nextband, prev_sf, w * 16 + g))
                 || (((*sce).zeroes[W(w)][g as usize]
                     || (*sce).band_alt[W(w)][g as usize] as u64 == 0)
                     && sfb_energy < threshold * sqrtf(1. / freq_boost))

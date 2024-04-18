@@ -101,4 +101,99 @@ macro_rules! izip {
                 |((((((((a, b), c), d), e), f), g), h), i)| (a, b, c, d, e, f, g, h, i),
             )
     };
+
+    ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr, $i:expr, $j:expr $(,)?) => {
+        ::std::iter::IntoIterator::into_iter($a)
+            .zip($b)
+            .zip($c)
+            .zip($d)
+            .zip($e)
+            .zip($f)
+            .zip($g)
+            .zip($h)
+            .zip($i)
+            .zip($j)
+            .map(
+                #[inline(always)]
+                |(((((((((a, b), c), d), e), f), g), h), i), j)| (a, b, c, d, e, f, g, h, i, j),
+            )
+    };
+
+    ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr, $i:expr, $j:expr, $k:expr $(,)?) => {
+        ::std::iter::IntoIterator::into_iter($a)
+            .zip($b)
+            .zip($c)
+            .zip($d)
+            .zip($e)
+            .zip($f)
+            .zip($g)
+            .zip($h)
+            .zip($i)
+            .zip($j)
+            .zip($k)
+            .map(
+                #[inline(always)]
+                |((((((((((a, b), c), d), e), f), g), h), i), j), k)| (a, b, c, d, e, f, g, h, i, j, k),
+            )
+    };
+
+    ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr, $i:expr, $j:expr, $k:expr, $l:expr $(,)?) => {
+        ::std::iter::IntoIterator::into_iter($a)
+            .zip($b)
+            .zip($c)
+            .zip($d)
+            .zip($e)
+            .zip($f)
+            .zip($g)
+            .zip($h)
+            .zip($i)
+            .zip($j)
+            .zip($k)
+            .zip($l)
+            .map(
+                #[inline(always)]
+                |(((((((((((a, b), c), d), e), f), g), h), i), j), k), l)| (a, b, c, d, e, f, g, h, i, j, k, l),
+            )
+    };
+
+    ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr, $i:expr, $j:expr, $k:expr, $l:expr, $m:expr $(,)?) => {
+        ::std::iter::IntoIterator::into_iter($a)
+            .zip($b)
+            .zip($c)
+            .zip($d)
+            .zip($e)
+            .zip($f)
+            .zip($g)
+            .zip($h)
+            .zip($i)
+            .zip($j)
+            .zip($k)
+            .zip($l)
+            .zip($m)
+            .map(
+                #[inline(always)]
+                |((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m)| (a, b, c, d, e, f, g, h, i, j, k, l, m),
+            )
+    };
+
+    ($a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr, $i:expr, $j:expr, $k:expr, $l:expr, $m:expr, $n:expr $(,)?) => {
+        ::std::iter::IntoIterator::into_iter($a)
+            .zip($b)
+            .zip($c)
+            .zip($d)
+            .zip($e)
+            .zip($f)
+            .zip($g)
+            .zip($h)
+            .zip($i)
+            .zip($j)
+            .zip($k)
+            .zip($l)
+            .zip($m)
+            .zip($n)
+            .map(
+                #[inline(always)]
+                |(((((((((((((a, b), c), d), e), f), g), h), i), j), k), l), m), n)| (a, b, c, d, e, f, g, h, i, j, k, l, m, n),
+            )
+    };
 }

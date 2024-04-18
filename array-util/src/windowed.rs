@@ -1,5 +1,6 @@
 use std::{
     fmt::Debug,
+    mem::transmute,
     ops::{Deref, DerefMut, Index, IndexMut, RangeFrom},
 };
 
@@ -23,15 +24,20 @@ where
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct WindowedArray<A, const W_SIZE: usize>(pub A);
+pub struct WindowedArray<A: ?Sized, const W_SIZE: usize>(pub A);
 
-impl<A, const W_SIZE: usize> WindowedArray<A, W_SIZE> {
+impl<A: ?Sized, const W_SIZE: usize> WindowedArray<A, W_SIZE> {
+    pub fn from_ref(arr: &A) -> &Self {
+        // this is safe because `Self` is a transparent wrapper over `A`
+        unsafe { transmute(arr) }
+    }
+
     const fn window_range(WindowIdx(idx): WindowIdx) -> RangeFrom<usize> {
         idx * W_SIZE..
     }
 }
 
-impl<A, const W_SIZE: usize> Deref for WindowedArray<A, W_SIZE> {
+impl<A: ?Sized, const W_SIZE: usize> Deref for WindowedArray<A, W_SIZE> {
     type Target = A;
 
     fn deref(&self) -> &Self::Target {
@@ -39,13 +45,13 @@ impl<A, const W_SIZE: usize> Deref for WindowedArray<A, W_SIZE> {
     }
 }
 
-impl<A, const W_SIZE: usize> DerefMut for WindowedArray<A, W_SIZE> {
+impl<A: ?Sized, const W_SIZE: usize> DerefMut for WindowedArray<A, W_SIZE> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<A, T, const W_SIZE: usize> Index<WindowIdx> for WindowedArray<A, W_SIZE>
+impl<A: ?Sized, T, const W_SIZE: usize> Index<WindowIdx> for WindowedArray<A, W_SIZE>
 where
     A: Index<RangeFrom<usize>, Output = [T]>,
 {
@@ -56,7 +62,7 @@ where
     }
 }
 
-impl<A, T, const W_SIZE: usize> IndexMut<WindowIdx> for WindowedArray<A, W_SIZE>
+impl<A: ?Sized, T, const W_SIZE: usize> IndexMut<WindowIdx> for WindowedArray<A, W_SIZE>
 where
     A: IndexMut<RangeFrom<usize>, Output = [T]>,
 {

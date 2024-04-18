@@ -999,7 +999,7 @@ unsafe fn find_next_bands(sce: *mut SingleChannelElement, maxvals: [c_float; 128
                 *band_type = find_min_book(*maxval, sf_idx.get()) as BandType;
                 if *band_type == 0 {
                     if !prev.is_some_and(|prev| {
-                        sfdelta_can_remove_band(sce, &nextband, prev, i as i32 + g)
+                        sfdelta_can_remove_band(&(*sce).sf_idx, &nextband, prev, i as i32 + g)
                     }) {
                         // Cannot zero out, make sure it's not attempted
                         *band_type = 1 as BandType;

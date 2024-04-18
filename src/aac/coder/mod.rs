@@ -171,7 +171,7 @@ fn find_form_factor(
     }
 }
 
-fn sfdelta_encoding_range(sf: c_int) -> RangeInclusive<c_int> {
+pub(super) fn sfdelta_encoding_range(sf: c_int) -> RangeInclusive<c_int> {
     sf - c_int::from(SCALE_MAX_DIFF)..=sf + c_int::from(SCALE_MAX_DIFF)
 }
 
@@ -182,14 +182,13 @@ fn sfdelta_encoding_range(sf: c_int) -> RangeInclusive<c_int> {
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 226..=238, name = "ff_sfdelta_can_remove_band")]
 #[inline]
 pub(super) unsafe fn sfdelta_can_remove_band(
-    mut sce: *const SingleChannelElement,
+    mut sf_idx: &[c_int; 128],
     mut nextband: &[c_uchar; 128],
     mut prev_sf: c_int,
     mut band: c_int,
 ) -> bool {
     prev_sf >= 0
-        && sfdelta_encoding_range(prev_sf)
-            .contains(&(*(*sce).sf_idx)[usize::from(nextband[band as usize])])
+        && sfdelta_encoding_range(prev_sf).contains(&sf_idx[usize::from(nextband[band as usize])])
 }
 
 /// Checks whether the specified band's scalefactor could be replaced

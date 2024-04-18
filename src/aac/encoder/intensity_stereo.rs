@@ -8,7 +8,7 @@
 
 use std::{iter::zip, ops::Mul, ptr};
 
-use array_util::W;
+use array_util::{WindowedArray, W};
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
@@ -18,10 +18,10 @@ use reductor::{Reduce, Sum};
 use super::pow::Pow34;
 use crate::{
     aac::{
-        coder::{quantize_band_cost, sfdelta_can_remove_band},
+        coder::{quantize_band_cost, sfdelta_encoding_range},
         encoder::ctx::AACEncContext,
         tables::POW_SF_TABLES,
-        WindowedIteration,
+        IndividualChannelStream, WindowedIteration,
     },
     common::*,
     types::*,
@@ -63,200 +63,243 @@ struct AACISError {
     ener01: c_float,
 }
 
-#[ffmpeg_src(file = "libavcodec/aacenc_is.c", lines = 33..=96, name = "ff_aac_is_encoding_err")]
-unsafe fn encoding_err(
-    mut s: *mut AACEncContext,
-    mut cpe: *mut ChannelElement,
-    start: c_int,
-    mut w: c_int,
-    mut g: c_int,
-    mut ener0: c_float,
-    mut ener1: c_float,
-    mut ener01: c_float,
-    use_pcoeffs: bool,
-    mut phase: Phase,
-) -> Option<AACISError> {
-    let [sce0, sce1] = &mut ((*cpe).ch);
-    let swb_size = usize::from(sce0.ics.swb_sizes[g as usize]);
-
-    let mut L = if use_pcoeffs {
-        &*sce0.pcoeffs
-    } else {
-        &sce0.coeffs
-    };
-    let mut R = if use_pcoeffs {
-        &*sce1.pcoeffs
-    } else {
-        &sce1.coeffs
-    };
-
-    let ([L34, R34, IS, I34, ..], []) = (*s).scaled_coeffs.as_chunks_mut::<256>() else {
-        unreachable!();
-    };
-
-    let mut dist1: c_float = 0.;
-    let mut dist2: c_float = 0.;
-
-    if ener01 <= 0. || ener0 <= 0. {
-        return None;
-    }
-
-    for w2 in 0..c_int::from(sce0.ics.group_len[w as usize]) {
-        let band0 = &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w + w2)][g as usize];
-        let band1 = &(*s).psy.ch[((*s).cur_channel + 1) as usize].psy_bands[W(w + w2)][g as usize];
-        let mut is_band_type: c_int = 0;
-        let mut is_sf_idx: c_int = 1.max(sce0.sf_idx[W(w)][g as usize] - 4);
-        let mut e01_34: c_float = phase * pos_pow34(ener1 / ener0);
-        let mut minthr = c_float::min(band0.threshold, band1.threshold);
-        let wstart = (start + (w + w2) * 128) as usize;
-        for (IS, &L, &R) in izip!(
-            &mut IS[..swb_size],
-            &L[wstart..][..swb_size],
-            &R[wstart..][..swb_size],
-        ) {
-            *IS = ((L + phase * R) as c_double * sqrt((ener0 / ener01) as c_double)) as c_float;
-        }
-        for (C34, C) in [(&mut *L34, &L[wstart..]), (R34, &R[wstart..]), (I34, IS)] {
-            for (C34, C) in zip(&mut C34[..swb_size], &C[..swb_size]) {
-                *C34 = C.abs_pow34();
-            }
-        }
-        let maxval = I34[..swb_size]
-            .iter()
-            .copied()
-            .max_by(c_float::total_cmp)
-            .unwrap();
-        is_band_type = find_min_book(maxval, is_sf_idx);
-        dist1 += quantize_band_cost(
-            &L[wstart..][..swb_size],
-            &L34[..swb_size],
-            sce0.sf_idx[W(w)][g as usize],
-            sce0.band_type[W(w)][g as usize] as c_int,
-            (*s).lambda / band0.threshold,
-            f32::INFINITY,
-            None,
-            None,
-        );
-        dist1 += quantize_band_cost(
-            &R[wstart..][..sce1.ics.swb_sizes[g as usize].into()],
-            &R34[..sce1.ics.swb_sizes[g as usize].into()],
-            sce1.sf_idx[W(w)][g as usize],
-            sce1.band_type[W(w)][g as usize] as c_int,
-            (*s).lambda / band1.threshold,
-            f32::INFINITY,
-            None,
-            None,
-        );
-        dist2 += quantize_band_cost(
-            &IS[..swb_size],
-            &I34[..swb_size],
-            is_sf_idx,
-            is_band_type,
-            (*s).lambda / minthr,
-            f32::INFINITY,
-            None,
-            None,
-        );
-
-        let dist_spec_err = izip!(&L34[..swb_size], &R34[..swb_size], &I34[..swb_size])
-            .map(|(&L34, &R34, &I34)| {
-                (L34 - I34) * (L34 - I34) + (R34 - I34 * e01_34) * (R34 - I34 * e01_34)
-            })
-            .sum::<c_float>();
-
-        dist2 += dist_spec_err * ((*s).lambda / minthr);
-    }
-
-    (dist2 <= dist1).then_some(AACISError {
-        phase,
-        error: dist2 - dist1,
-        ener01,
-    })
-}
-
 #[ffmpeg_src(file = "libavcodec/aacenc_is.c", lines = 98..=158, name = "ff_aac_search_for_is")]
 pub(crate) unsafe fn search(
     mut s: *mut AACEncContext,
     mut avctx: *mut AVCodecContext,
     mut cpe: *mut ChannelElement,
 ) {
-    let [sce0, sce1] = &mut (*cpe).ch;
+    let AACEncContext {
+        scaled_coeffs,
+        mut lambda,
+        psy: FFPsyContext {
+            ch: psy_channels, ..
+        },
+        mut cur_channel,
+        ..
+    } = &mut *s;
+    let &AVCodecContext { sample_rate, .. } = &*avctx;
+
+    let [FFPsyChannel {
+        psy_bands: psy_bands0,
+        ..
+    }, FFPsyChannel {
+        psy_bands: psy_bands1,
+        ..
+    }] = &psy_channels[cur_channel as usize..][..2]
+    else {
+        unreachable!()
+    };
+
+    let ChannelElement {
+        mut common_window,
+        is_mode,
+        ms_mask,
+        is_mask,
+        ch: [sce0, sce1],
+        ..
+    } = &mut *cpe;
+
+    if common_window == 0 {
+        return;
+    }
 
     let mut prev_sf1 = None;
     let mut prev_bt = None;
     let mut prev_is = false;
-    let freq_mult =
-        (*avctx).sample_rate as c_float / (1024. / sce0.ics.num_windows as c_float) / 2.;
-    if (*cpe).common_window == 0 {
-        return;
-    }
-    let nextband1 = ptr::from_mut(sce1).init_nextband_map();
-    for WindowedIteration { w, group_len } in sce0.ics.iter_windows() {
-        for (g, (swb_size, start), band_types, zeroes, is_mask, ms_mask, is_ener, &sf_idx) in izip!(
-            0..,
-            sce0.ics.iter_swb_sizes_sum(),
-            zip(
-                &mut (*cpe).ch[0].band_type[W(w)],
-                &mut (*cpe).ch[1].band_type[W(w)]
-            ),
-            zip(&(*cpe).ch[0].zeroes[W(w)], &(*cpe).ch[1].zeroes[W(w)]),
-            &mut (*cpe).is_mask[W(w)],
-            &mut (*cpe).ms_mask[W(w)],
-            zip(
-                &mut (*cpe).ch[0].is_ener[W(w)],
-                &mut (*cpe).ch[1].is_ener[W(w)]
-            ),
-            &(*cpe).ch[1].sf_idx[W(w)]
-        ) {
-            let wstart = (w * 16 + g as c_int) as usize;
-            if start as c_float * freq_mult > 6100. * ((*s).lambda / 170.)
-                && [(band_types.0, zeroes.0), (band_types.1, zeroes.1)]
-                    .iter()
-                    .all(|&(&mut band_type, &zero)| band_type != NOISE_BT && !zero)
-                && let Some(sf) = prev_sf1
-                && sfdelta_can_remove_band(sce1, &nextband1, sf, wstart as c_int)
-            {
-                let [coeffs0, coeffs1] = [&sce0.coeffs, &sce1.coeffs].map(|coeffs| {
-                    coeffs[W(w)][start as usize..][..usize::from(group_len) * 128]
-                        .array_chunks::<128>()
-                        .flat_map(|chunk| &chunk[..swb_size.into()])
-                });
-                let (Sum(ener0), Sum(ener1), Sum(ener01), Sum(ener01p)) = zip(coeffs0, coeffs1)
-                    .map(|(&coef0, &coef1)| {
-                        (
-                            coef0.powi(2),
-                            coef1.powi(2),
-                            (coef0 + coef1).powi(2),
-                            (coef0 - coef1).powi(2),
-                        )
-                    })
-                    .reduce_with();
 
-                let ph_err1 = encoding_err(
-                    s,
-                    cpe,
-                    start.into(),
-                    w,
-                    g as c_int,
-                    ener0,
-                    ener1,
-                    ener01p,
-                    false,
-                    Phase::Negative,
-                );
-                let ph_err2 = encoding_err(
-                    s,
-                    cpe,
-                    start.into(),
-                    w,
-                    g as c_int,
-                    ener0,
-                    ener1,
-                    ener01,
-                    false,
-                    Phase::Positive,
-                );
-                let best = match (&ph_err1, &ph_err2) {
+    let nextband1 = WindowedArray::<_, 16>(ptr::from_ref(sce1).init_nextband_map());
+
+    let [SingleChannelElement {
+        ics: ref ics0 @ IndividualChannelStream {
+            mut num_windows, ..
+        },
+        coeffs: ref coeffs0,
+        zeroes: ref zeroes0,
+        band_type: band_types0,
+        is_ener: is_ener0,
+        sf_idx: ref sf_indices0,
+        ..
+    }, SingleChannelElement {
+        ics:
+            IndividualChannelStream {
+                swb_sizes: mut swb_sizes1,
+                ..
+            },
+        coeffs: ref coeffs1,
+        zeroes: ref zeroes1,
+        band_type: band_types1,
+        is_ener: is_ener1,
+        sf_idx: ref sf_indices1,
+        ..
+    }] = [sce0, sce1];
+
+    let freq_mult = sample_rate as c_float / (1024. / num_windows as c_float) / 2.;
+
+    for WindowedIteration { w, group_len } in ics0.iter_windows() {
+        let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(|coeffs| &coeffs[W(w)]);
+        let [psy_bands0, psy_bands1] = [psy_bands0, psy_bands1]
+            .map(|bands| &bands[W(w)])
+            .map(WindowedArray::<_, 16>::from_ref);
+
+        for (
+            g,
+            (swb_size0, start),
+            &swb_size1,
+            band_type0,
+            band_type1,
+            &zero0,
+            &zero1,
+            is_mask,
+            ms_mask,
+            is_ener0,
+            is_ener1,
+            &sf_idx0,
+            &sf_idx1,
+            &nextband1,
+        ) in izip!(
+            0..,
+            ics0.iter_swb_sizes_sum(),
+            swb_sizes1,
+            &mut band_types0[W(w)],
+            &mut band_types1[W(w)],
+            &zeroes0[W(w)],
+            &zeroes1[W(w)],
+            &mut is_mask[W(w)],
+            &mut ms_mask[W(w)],
+            &mut is_ener0[W(w)],
+            &mut is_ener1[W(w)],
+            &sf_indices0[W(w)],
+            &sf_indices1[W(w)],
+            &nextband1[W(w)],
+        ) {
+            if c_float::from(start) * freq_mult > 6100. * (lambda / 170.)
+                && [(*band_type0, zero0), (*band_type1, zero1)]
+                    .iter()
+                    .all(|&(band_type, zero)| band_type != NOISE_BT && !zero)
+                && let Some(sf) = prev_sf1
+                // inlined from sfdelta_can_remove_band
+                && sfdelta_encoding_range(sf).contains(&(**sf_indices1)[usize::from(nextband1)])
+            {
+                let (Sum::<c_float>(ener0), Sum::<c_float>(ener1), Sum(ener01), Sum(ener01p)) = {
+                    let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(|coeffs| {
+                        coeffs[start as usize..][..usize::from(group_len) * 128]
+                            .array_chunks::<128>()
+                            .flat_map(|chunk| &chunk[..swb_size0.into()])
+                    });
+                    zip(coeffs0, coeffs1)
+                        .map(|(&coef0, &coef1)| {
+                            (
+                                coef0.powi(2),
+                                coef1.powi(2),
+                                (coef0 + coef1).powi(2),
+                                (coef0 - coef1).powi(2),
+                            )
+                        })
+                        .reduce_with()
+                };
+
+                // #[ffmpeg_src(file = "libavcodec/aacenc_is.c", lines = 33..=96, name =
+                // "ff_aac_is_encoding_err")]
+                let mut encoding_err = |ener01, phase| {
+                    if ener01 <= 0. || ener0 <= 0. {
+                        return None;
+                    }
+
+                    let [L, R] = [coeffs0, coeffs1].map(WindowedArray::<_, 128>::from_ref);
+
+                    let ([L34, R34, IS, I34, ..], []) = scaled_coeffs.as_chunks_mut::<256>() else {
+                        unreachable!();
+                    };
+
+                    let (Sum::<c_float>(dist1), Sum::<c_float>(dist2)) = (0..group_len)
+                        .map(|w| {
+                            (
+                                [L, R].map(|C| &C[W(w)][start as usize..]),
+                                [psy_bands0, psy_bands1].map(|bands| &bands[W(w)][g]),
+                            )
+                        })
+                        .map(|([L, R], [band0, band1])| {
+                            let is_sf_idx: c_int = 1.max(sf_idx0 - 4);
+                            let minthr = c_float::min(band0.threshold, band1.threshold);
+
+                            for (IS, &L, &R) in izip!(&mut *IS, L, R).take(swb_size0.into()) {
+                                *IS = ((L + phase * R) as c_double
+                                    * ((ener0 / ener01) as c_double).sqrt())
+                                    as c_float;
+                            }
+                            for (C34, C) in [(&mut *L34, L), (R34, R), (I34, IS)]
+                                .into_iter()
+                                .flat_map(|(C34, C)| zip(&mut *C34, C).take(swb_size0.into()))
+                            {
+                                *C34 = C.abs_pow34();
+                            }
+
+                            let maxval = I34
+                                .iter()
+                                .take(swb_size0.into())
+                                .copied()
+                                .max_by(c_float::total_cmp)
+                                .unwrap();
+                            let is_band_type = find_min_book(maxval, is_sf_idx);
+
+                            let dist1 = quantize_band_cost(
+                                &L[..swb_size0.into()],
+                                &L34[..swb_size0.into()],
+                                sf_idx0,
+                                *band_type0 as c_int,
+                                lambda / band0.threshold,
+                                f32::INFINITY,
+                                None,
+                                None,
+                            ) + quantize_band_cost(
+                                &R[..swb_size1.into()],
+                                &R34[..swb_size1.into()],
+                                sf_idx1,
+                                *band_type1 as c_int,
+                                lambda / band1.threshold,
+                                f32::INFINITY,
+                                None,
+                                None,
+                            );
+
+                            let dist2 = quantize_band_cost(
+                                &IS[..swb_size0.into()],
+                                &I34[..swb_size0.into()],
+                                is_sf_idx,
+                                is_band_type,
+                                lambda / minthr,
+                                f32::INFINITY,
+                                None,
+                                None,
+                            ) + {
+                                let e01_34: c_float = phase * pos_pow34(ener1 / ener0);
+                                let dist_spec_err = izip!(&*L34, &*R34, &*I34)
+                                    .take(swb_size0.into())
+                                    .map(|(&L34, &R34, &I34)| {
+                                        (L34 - I34) * (L34 - I34)
+                                            + (R34 - I34 * e01_34) * (R34 - I34 * e01_34)
+                                    })
+                                    .sum::<c_float>();
+
+                                dist_spec_err * (lambda / minthr)
+                            };
+
+                            (dist1, dist2)
+                        })
+                        .reduce_with();
+
+                    (dist2 <= dist1).then_some(AACISError {
+                        phase,
+                        error: dist2 - dist1,
+                        ener01,
+                    })
+                };
+
+                let [ph_err1, ph_err2] = [(ener01p, Phase::Negative), (ener01, Phase::Positive)]
+                    .map(|(ener01, phase)| encoding_err(ener01, phase));
+
+                let best = match (ph_err1, ph_err2) {
                     (Some(err1), Some(err2)) if err1.error < err2.error => Some(err1),
                     (_, Some(err2)) => Some(err2),
                     (Some(err), None) => Some(err),
@@ -265,27 +308,27 @@ pub(crate) unsafe fn search(
                 if let Some(best) = best {
                     *is_mask = true;
                     *ms_mask = false;
-                    (*is_ener.0, *is_ener.1) = ((ener0 / best.ener01).sqrt(), ener0 / ener1);
-                    *band_types.1 = if let Phase::Positive = best.phase {
+                    (*is_ener0, *is_ener1) = ((ener0 / best.ener01).sqrt(), ener0 / ener1);
+                    *band_type1 = if let Phase::Positive = best.phase {
                         INTENSITY_BT
                     } else {
                         INTENSITY_BT2
                     };
-                    if prev_is && prev_bt != Some(*band_types.1) {
+                    if prev_is && prev_bt != Some(*band_type1) {
                         // Flip M/S mask and pick the other CB, since it encodes more efficiently
                         *ms_mask = true;
-                        *band_types.1 = if let Phase::Positive = best.phase {
+                        *band_type1 = if let Phase::Positive = best.phase {
                             INTENSITY_BT2
                         } else {
                             INTENSITY_BT
                         };
                     }
-                    prev_bt = Some(*band_types.1);
-                    (*cpe).is_mode = true;
+                    prev_bt = Some(*band_type1);
+                    *is_mode = true;
                 }
             }
-            if !*zeroes.1 && *band_types.1 < RESERVED_BT {
-                prev_sf1 = Some(sf_idx);
+            if !zero1 && *band_type1 < RESERVED_BT {
+                prev_sf1 = Some(sf_idx1);
             }
             prev_is = *is_mask;
         }
@@ -302,11 +345,11 @@ pub(super) unsafe fn apply(mut cpe: *mut ChannelElement) {
             [SingleChannelElement {
                 ref ics,
                 ref is_ener,
-                coeffs: l_coeffs,
+                coeffs: coeffs0,
                 ..
             }, SingleChannelElement {
                 ref band_type,
-                coeffs: r_coeffs,
+                coeffs: coeffs1,
                 ..
             }],
         ..
@@ -337,12 +380,12 @@ pub(super) unsafe fn apply(mut cpe: *mut ChannelElement) {
                     }
                 } as c_float;
 
-                let [l_coeffs, r_coeffs] = [&mut *l_coeffs, &mut *r_coeffs]
+                let [coeffs0, coeffs1] = [&mut *coeffs0, coeffs1]
                     .map(|coeffs| &mut coeffs[W(w + w2)][offset as usize..][..swb_size.into()]);
 
-                for (l_coeff, r_coeff) in zip(l_coeffs, r_coeffs) {
-                    let sum = (*l_coeff + *r_coeff * p) * scale;
-                    (*l_coeff, *r_coeff) = (sum, 0.);
+                for (coeff0, coeff1) in zip(coeffs0, coeffs1) {
+                    let sum = (*coeff0 + *coeff1 * p) * scale;
+                    (*coeff0, *coeff1) = (sum, 0.);
                 }
             }
         }
