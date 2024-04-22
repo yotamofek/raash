@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     fmt::Debug,
     mem::transmute,
     ops::{Deref, DerefMut, Index, IndexMut, RangeFrom},
@@ -32,8 +33,31 @@ impl<A: ?Sized, const W_SIZE: usize> WindowedArray<A, W_SIZE> {
         unsafe { transmute(arr) }
     }
 
+    pub fn from_mut(arr: &mut A) -> &mut Self {
+        // this is safe because `Self` is a transparent wrapper over `A`
+        unsafe { transmute(arr) }
+    }
+
     const fn window_range(WindowIdx(idx): WindowIdx) -> RangeFrom<usize> {
         idx * W_SIZE..
+    }
+}
+
+impl<A: ?Sized, T, const N: usize, const W_SIZE: usize> WindowedArray<A, W_SIZE>
+where
+    A: Deref<Target = [T; N]> + DerefMut,
+{
+    pub fn as_array_of_cells(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
+        WindowedArray::from_ref(Cell::from_mut(&mut ***self).as_array_of_cells())
+    }
+}
+
+impl<A: ?Sized, T, const W_SIZE: usize> WindowedArray<A, W_SIZE>
+where
+    A: Deref<Target = [T]> + DerefMut,
+{
+    pub fn as_slice_of_cells(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
+        WindowedArray::from_ref(Cell::from_mut(&mut ***self).as_slice_of_cells())
     }
 }
 
@@ -68,6 +92,20 @@ where
 {
     fn index_mut(&mut self, index: WindowIdx) -> &mut Self::Output {
         self.0.index_mut(Self::window_range(index))
+    }
+}
+
+impl<'a, A: ?Sized, T, const W_SIZE: usize> IntoIterator for &'a WindowedArray<A, W_SIZE>
+where
+    A: Index<RangeFrom<usize>, Output = [T]>,
+    T: 'a,
+{
+    type Item = &'a [T];
+
+    type IntoIter = impl Iterator<Item = &'a [T]>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (0_usize..).map(|i| &self[window_idx(i)])
     }
 }
 

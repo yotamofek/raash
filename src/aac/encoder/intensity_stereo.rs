@@ -359,8 +359,10 @@ pub(super) unsafe fn apply(mut cpe: *mut ChannelElement) {
         return;
     }
 
+    let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(WindowedArray::as_array_of_cells);
+
     for WindowedIteration { w, group_len } in ics.iter_windows() {
-        for w2 in 0..c_int::from(group_len) {
+        for (coeffs0, coeffs1) in zip(coeffs0, coeffs1).take(group_len.into()) {
             for ((swb_size, offset), &band_type, &scale, _, &ms_mask) in izip!(
                 ics.iter_swb_sizes_sum(),
                 &band_type[W(w)],
@@ -380,12 +382,13 @@ pub(super) unsafe fn apply(mut cpe: *mut ChannelElement) {
                     }
                 } as c_float;
 
-                let [coeffs0, coeffs1] = [&mut *coeffs0, coeffs1]
-                    .map(|coeffs| &mut coeffs[W(w + w2)][offset as usize..][..swb_size.into()]);
-
-                for (coeff0, coeff1) in zip(coeffs0, coeffs1) {
-                    let sum = (*coeff0 + *coeff1 * p) * scale;
-                    (*coeff0, *coeff1) = (sum, 0.);
+                for (coeff0, coeff1) in zip(coeffs0, coeffs1)
+                    .skip(offset.into())
+                    .take(swb_size.into())
+                {
+                    let sum = (coeff0.get() + coeff1.get() * p) * scale;
+                    coeff0.set(sum);
+                    coeff1.set(0.);
                 }
             }
         }

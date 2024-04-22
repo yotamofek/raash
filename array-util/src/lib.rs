@@ -1,3 +1,5 @@
+#![feature(as_array_of_cells, impl_trait_in_assoc_type)]
+
 mod windowed;
 
 use std::{
