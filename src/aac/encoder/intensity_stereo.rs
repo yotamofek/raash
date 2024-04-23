@@ -359,7 +359,7 @@ pub(super) unsafe fn apply(mut cpe: *mut ChannelElement) {
         return;
     }
 
-    let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(WindowedArray::as_array_of_cells);
+    let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(WindowedArray::as_array_of_cells_deref);
 
     for WindowedIteration { w, group_len } in ics.iter_windows() {
         for (coeffs0, coeffs1) in zip(coeffs0, coeffs1).take(group_len.into()) {

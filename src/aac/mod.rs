@@ -1,6 +1,5 @@
 use std::iter;
 
-use array_util::Array;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
 
@@ -92,8 +91,7 @@ pub(crate) struct IndividualChannelStream {
     num_swb: c_int,
     num_windows: c_int,
     tns_max_bands: c_int,
-    predictor_present: c_int,
-    prediction_used: Array<c_uchar, 41>,
+    predictor_present: bool,
     /// set if a certain window is near clipping
     window_clipping: [c_uchar; 8],
     /// set if any window is near clipping to the necessary atennuation factor

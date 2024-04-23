@@ -2,6 +2,7 @@
     arbitrary_self_types,
     array_chunks,
     as_array_of_cells,
+    cell_update,
     generic_arg_infer,
     generic_const_exprs,
     inline_const,

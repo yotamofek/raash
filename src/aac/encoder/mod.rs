@@ -51,7 +51,6 @@ use self::{
     },
     options::OPTIONS,
     pb::*,
-    pow::Pow34,
     tables::{SWB_SIZE_1024, SWB_SIZE_128},
     temporal_noise_shaping as tns,
     window::{apply_window_and_mdct, APPLY_WINDOW},
@@ -96,17 +95,6 @@ extern "C" {
     ) -> c_int;
     fn av_mallocz(size: c_ulong) -> *mut c_void;
     fn av_log(avcl: *mut c_void, level: c_int, fmt: *const c_char, _: ...);
-}
-
-#[inline]
-pub(crate) unsafe fn abs_pow34_v(mut out: *mut c_float, mut in_0: *const c_float, size: c_int) {
-    let mut i: c_int = 0;
-    i = 0;
-    while i < size {
-        *out.offset(i as isize) = (*in_0.offset(i as isize)).abs_pow34();
-        i += 1;
-        i;
-    }
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 65..=78)]
@@ -228,7 +216,7 @@ unsafe extern "C" fn put_ics_info(
         put_bits(
             &mut (*s).pb,
             1,
-            ((*info).predictor_present != 0) as c_int as BitBuf,
+            ((*info).predictor_present) as c_int as BitBuf,
         );
     } else {
         put_bits(&mut (*s).pb, 4, (*info).max_sfb as BitBuf);
@@ -802,10 +790,9 @@ unsafe fn aac_encode_frame(
                 sce =
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
                 coeffs[ch as usize] = ((*sce).coeffs).as_mut_ptr();
-                (*sce).ics.predictor_present = 0;
-                (*sce).ics.ltp.present = 0;
-                (*sce).ics.ltp.used.fill(0);
-                (*sce).ics.prediction_used.fill(0);
+                (*sce).ics.predictor_present = false;
+                (*sce).ics.ltp.present = false;
+                (*sce).ics.ltp.used.fill(false);
                 (*sce).tns = TemporalNoiseShaping::default();
                 w = 0;
                 while w < 128 {
@@ -913,7 +900,7 @@ unsafe fn aac_encode_frame(
                     if (*ctx).options.pred != 0 {
                         unimplemented!("main pred is unimplemented");
                     }
-                    if (*cpe).ch[ch as usize].ics.predictor_present != 0 {
+                    if (*cpe).ch[ch as usize].ics.predictor_present {
                         pred_mode = 1;
                     }
                     ch += 1;
@@ -949,9 +936,9 @@ unsafe fn aac_encode_frame(
                         as *mut SingleChannelElement;
                     (*ctx).cur_channel = start_ch + ch;
 
-                    search_for_ltp(ctx, sce, (*cpe).common_window);
+                    search_for_ltp(ctx, sce);
 
-                    if (*sce).ics.ltp.present != 0 {
+                    if (*sce).ics.ltp.present {
                         pred_mode = 1;
                     }
                     ch += 1;

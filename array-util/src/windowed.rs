@@ -47,8 +47,14 @@ impl<A: ?Sized, T, const N: usize, const W_SIZE: usize> WindowedArray<A, W_SIZE>
 where
     A: Deref<Target = [T; N]> + DerefMut,
 {
-    pub fn as_array_of_cells(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
+    pub fn as_array_of_cells_deref(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
         WindowedArray::from_ref(Cell::from_mut(&mut ***self).as_array_of_cells())
+    }
+}
+
+impl<T, const N: usize, const W_SIZE: usize> WindowedArray<[T; N], W_SIZE> {
+    pub fn as_array_of_cells(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
+        WindowedArray::from_ref(Cell::from_mut(&mut **self).as_array_of_cells())
     }
 }
 
@@ -56,8 +62,14 @@ impl<A: ?Sized, T, const W_SIZE: usize> WindowedArray<A, W_SIZE>
 where
     A: Deref<Target = [T]> + DerefMut,
 {
-    pub fn as_slice_of_cells(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
+    pub fn as_slice_of_cells_deref(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
         WindowedArray::from_ref(Cell::from_mut(&mut ***self).as_slice_of_cells())
+    }
+}
+
+impl<T, const W_SIZE: usize> WindowedArray<[T], W_SIZE> {
+    pub fn as_slice_of_cells(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
+        WindowedArray::from_ref(Cell::from_mut(&mut **self).as_slice_of_cells())
     }
 }
 

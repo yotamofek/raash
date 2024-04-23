@@ -97,7 +97,7 @@ pub(crate) struct SingleChannelElement {
     pub(crate) coeffs: WindowedArray<Array<c_float, 1024>, 128>,
     pub(crate) ret_buf: Array<c_float, 2048>,
     pub(crate) ltp_state: [Array<c_float, 1024>; 3],
-    pub(crate) lcoeffs: Array<c_float, 1024>,
+    pub(crate) lcoeffs: WindowedArray<Array<c_float, 1024>, 128>,
 }
 
 pub(crate) type BandType = c_uint;

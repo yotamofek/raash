@@ -7,17 +7,19 @@
     unused_mut
 )]
 
-use std::{mem::size_of, ptr};
+use std::{iter::zip, mem::size_of, ptr};
 
-use array_util::{Array, W};
+use array_util::{Array, WindowedArray, W};
 use ffmpeg_src_macro::ffmpeg_src;
-use libc::{c_double, c_float, c_int, c_long, c_schar, c_short, c_uint, c_ulong};
+use izip::izip;
+use libc::{c_double, c_float, c_int, c_long, c_short, c_uint, c_ulong};
+use reductor::{Reduce, Sum};
 
+use super::pow::Pow34 as _;
 use crate::{
     aac::{
-        coder::quantize_band_cost,
-        encoder::{abs_pow34_v, ctx::AACEncContext},
-        IndividualChannelStream, SyntaxElementType, WindowedIteration, EIGHT_SHORT_SEQUENCE,
+        coder::quantize_band_cost, encoder::ctx::AACEncContext, IndividualChannelStream,
+        SyntaxElementType, WindowedIteration, EIGHT_SHORT_SEQUENCE,
     },
     common::*,
     types::*,
@@ -29,11 +31,11 @@ const MAX_LONG_SFB: usize = 40;
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 158..=167)]
 #[derive(Default, Copy, Clone)]
 pub(crate) struct LongTermPrediction {
-    pub(super) present: c_schar,
+    pub(super) present: bool,
     pub(super) lag: c_short,
     pub(super) coef_idx: c_int,
     pub(super) coef: c_float,
-    pub(super) used: Array<c_schar, MAX_LONG_SFB>,
+    pub(super) used: Array<bool, MAX_LONG_SFB>,
 }
 
 #[inline(always)]
@@ -105,14 +107,14 @@ pub(crate) unsafe fn encode_ltp_info(
 ) {
     let mut i: c_int = 0;
     let mut ics: *mut IndividualChannelStream = &mut (*sce).ics;
-    if (*s).profile != 3 || (*ics).predictor_present == 0 {
+    if (*s).profile != 3 || !(*ics).predictor_present {
         return;
     }
     if common_window != 0 {
         put_bits(&mut (*s).pb, 1, 0 as BitBuf);
     }
     put_bits(&mut (*s).pb, 1, (*ics).ltp.present as BitBuf);
-    if (*ics).ltp.present == 0 {
+    if !(*ics).ltp.present {
         return;
     }
     put_bits(&mut (*s).pb, 11, (*ics).ltp.lag as BitBuf);
@@ -215,7 +217,7 @@ unsafe fn generate_samples(mut buf: *mut c_float, mut ltp: *mut LongTermPredicti
     let mut i: c_int = 0;
     let mut samples_num: c_int = 2048;
     if (*ltp).lag == 0 {
-        (*ltp).present = 0;
+        (*ltp).present = false;
         return;
     } else if ((*ltp).lag as c_int) < 1024 {
         samples_num = (*ltp).lag as c_int + 1024;
@@ -256,7 +258,7 @@ pub(crate) unsafe fn adjust_common_ltp(mut _s: *mut AACEncContext, mut cpe: *mut
         || (*sce0).ics.window_sequence[0] as c_uint == EIGHT_SHORT_SEQUENCE as c_int as c_uint
         || (*sce1).ics.window_sequence[0] as c_uint == EIGHT_SHORT_SEQUENCE as c_int as c_uint
     {
-        (*sce0).ics.ltp.present = 0;
+        (*sce0).ics.ltp.present = false;
         return;
     }
     sfb = 0;
@@ -270,7 +272,7 @@ pub(crate) unsafe fn adjust_common_ltp(mut _s: *mut AACEncContext, mut cpe: *mut
         let mut sum: c_int = (*sce0).ics.ltp.used[sfb as usize] as c_int
             + (*sce1).ics.ltp.used[sfb as usize] as c_int;
         if sum != 2 {
-            (*sce0).ics.ltp.used[sfb as usize] = 0;
+            (*sce0).ics.ltp.used[sfb as usize] = false;
         } else {
             count += 1;
             count;
@@ -278,160 +280,166 @@ pub(crate) unsafe fn adjust_common_ltp(mut _s: *mut AACEncContext, mut cpe: *mut
         sfb += 1;
         sfb;
     }
-    (*sce0).ics.ltp.present = (count != 0) as c_int as c_schar;
-    (*sce0).ics.predictor_present = (count != 0) as c_int;
+    (*sce0).ics.ltp.present = count != 0;
+    (*sce0).ics.predictor_present = count != 0;
 }
 
-pub(crate) unsafe fn search_for_ltp(
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-    mut _common_window: c_int,
-) {
-    let mut g: c_int = 0;
-    let mut w2: c_int = 0;
-    let mut i: c_int = 0;
-    let mut start: c_int = 0;
-    let mut count: c_int = 0;
-    let mut saved_bits: c_int = -(15
-        + (if (*sce).ics.max_sfb as c_int > 40 {
-            40
-        } else {
-            (*sce).ics.max_sfb as c_int
-        }));
+pub(crate) unsafe fn search_for_ltp(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
+    let SingleChannelElement {
+        coeffs,
+        ref lcoeffs,
+        sf_idx: ref sf_indices,
+        band_type: ref band_types,
+        ics,
+        ltp_state,
+        ..
+    } = &mut *sce;
 
-    let ([C34, PCD, PCD34, ..], []) = (*s).scaled_coeffs.as_chunks_mut::<128>() else {
+    let AACEncContext {
+        scaled_coeffs,
+        mut lambda,
+        psy: FFPsyContext {
+            ch: psy_channels, ..
+        },
+        mut cur_channel,
+        ..
+    } = &mut *s;
+
+    let FFPsyChannel { psy_bands, .. } = &psy_channels[cur_channel as usize];
+
+    let mut count: usize = 0;
+    let mut saved_bits = -(15 + c_int::min(ics.max_sfb.into(), MAX_LONG_SFB as c_int));
+
+    let ([C34, PCD, PCD34, ..], []) = scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
-    let max_ltp: c_int = if (*sce).ics.max_sfb as c_int > 40 {
-        40
-    } else {
-        (*sce).ics.max_sfb as c_int
-    };
-    if (*sce).ics.window_sequence[0] as c_uint == EIGHT_SHORT_SEQUENCE as c_int as c_uint {
-        if (*sce).ics.ltp.lag != 0 {
-            (*sce).ltp_state = Default::default();
-            (*sce).ics.ltp = LongTermPrediction::default();
+    let max_ltp = c_int::min(ics.max_sfb.into(), MAX_LONG_SFB as c_int);
+
+    if ics.window_sequence[0] == EIGHT_SHORT_SEQUENCE {
+        if ics.ltp.lag != 0 {
+            *ltp_state = Default::default();
+            ics.ltp = LongTermPrediction::default();
         }
         return;
     }
-    if (*sce).ics.ltp.lag == 0 || (*s).lambda > 120. {
+
+    if ics.ltp.lag == 0 || lambda > 120. {
         return;
     }
-    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-        start = 0;
-        g = 0;
-        while g < (*sce).ics.num_swb {
-            let mut bits1: c_int = 0;
-            let mut bits2: c_int = 0;
-            let mut dist1: c_float = 0.;
-            let mut dist2: c_float = 0.;
-            if w * 16 + g > max_ltp {
-                start += (*sce).ics.swb_sizes[g as usize] as c_int;
-            } else {
-                w2 = 0;
-                while w2 < group_len as c_int {
-                    let mut bits_tmp1: c_int = 0;
-                    let mut bits_tmp2: c_int = 0;
-                    let mut band =
-                        &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w + w2)][g as usize];
-                    i = 0;
-                    while i < (*sce).ics.swb_sizes[g as usize] as c_int {
-                        PCD[i as usize] = (*sce).coeffs[W(w + w2)][(start + i) as usize]
-                            - (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
-                        i += 1;
-                        i;
-                    }
-                    abs_pow34_v(
-                        C34.as_mut_ptr(),
-                        &mut *((*sce).coeffs)
-                            .as_mut_ptr()
-                            .offset((start + (w + w2) * 128) as isize),
-                        (*sce).ics.swb_sizes[g as usize] as c_int,
-                    );
-                    abs_pow34_v(
-                        PCD34.as_mut_ptr(),
-                        PCD.as_ptr(),
-                        (*sce).ics.swb_sizes[g as usize] as c_int,
-                    );
-                    dist1 += quantize_band_cost(
-                        &(*sce).coeffs[W(w + w2)][start as usize..]
-                            [..(*sce).ics.swb_sizes[g as usize].into()],
-                        &C34[..(*sce).ics.swb_sizes[g as usize].into()],
-                        (*sce).sf_idx[W(w + w2)][g as usize],
-                        (*sce).band_type[W(w + w2)][g as usize] as c_int,
-                        (*s).lambda / band.threshold,
-                        f32::INFINITY,
-                        Some(&mut bits_tmp1),
-                        None,
-                    );
-                    dist2 += quantize_band_cost(
-                        &PCD[..(*sce).ics.swb_sizes[g as usize].into()],
-                        &PCD34[..(*sce).ics.swb_sizes[g as usize].into()],
-                        (*sce).sf_idx[W(w + w2)][g as usize],
-                        (*sce).band_type[W(w + w2)][g as usize] as c_int,
-                        (*s).lambda / band.threshold,
-                        f32::INFINITY,
-                        Some(&mut bits_tmp2),
-                        None,
-                    );
-                    bits1 += bits_tmp1;
-                    bits2 += bits_tmp2;
-                    w2 += 1;
-                    w2;
-                }
-                if dist2 < dist1 && bits2 < bits1 {
-                    w2 = 0;
-                    while w2 < group_len as c_int {
-                        i = 0;
-                        while i < (*sce).ics.swb_sizes[g as usize] as c_int {
-                            (*sce).coeffs[W(w + w2)][(start + i) as usize] -=
-                                (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
-                            i += 1;
-                            i;
-                        }
-                        w2 += 1;
-                        w2;
-                    }
-                    (*sce).ics.ltp.used[(w * 16 + g) as usize] = 1;
-                    saved_bits += bits1 - bits2;
-                    count += 1;
-                    count;
-                }
-                start += (*sce).ics.swb_sizes[g as usize] as c_int;
+
+    for WindowedIteration { w, group_len } in ics.iter_windows() {
+        let swb_sizes_sum_iter = ics.iter_swb_sizes_sum();
+        let coeffs = WindowedArray::<_, 128>::from_mut(&mut coeffs[W(w)]);
+        let lcoeffs = WindowedArray::<_, 128>::from_ref(&lcoeffs[W(w)]);
+        let psy_bands = WindowedArray::<_, 16>::from_ref(&psy_bands[W(w)]);
+        let sf_indices = WindowedArray::<_, 16>::from_ref(&sf_indices[W(w)]);
+        let band_types = WindowedArray::<_, 16>::from_ref(&band_types[W(w)]);
+        let used = &mut WindowedArray::<_, 16>::from_mut(&mut ics.ltp.used)[W(w)];
+
+        for (g, (swb_size, offset)) in swb_sizes_sum_iter.enumerate() {
+            if w * 16 + g as c_int > max_ltp {
+                continue;
             }
-            g += 1;
-            g;
+
+            let (
+                Sum::<c_float>(dist1),
+                Sum::<c_float>(dist2),
+                Sum::<c_int>(bits1),
+                Sum::<c_int>(bits2),
+            ) = izip!(lcoeffs, psy_bands, sf_indices, band_types)
+                .enumerate()
+                .take(group_len.into())
+                .map(|(w, (lcoeffs, psy_bands, sf_indices, band_types))| {
+                    let coeffs = &mut coeffs[W(w)];
+                    let FFPsyBand { threshold, .. } = psy_bands[g];
+
+                    let mut bits1 = 0;
+                    let mut bits2 = 0;
+                    for (PCD, &coeff, &lcoeff) in izip!(
+                        &mut *PCD,
+                        &coeffs[offset as usize..],
+                        &lcoeffs[offset as usize..]
+                    )
+                    .take(swb_size.into())
+                    {
+                        *PCD = coeff - lcoeff;
+                    }
+                    for (C34, coeff) in
+                        zip(&mut *C34, &coeffs[offset.into()..]).take(swb_size.into())
+                    {
+                        *C34 = coeff.abs_pow34();
+                    }
+                    for (PCD34, PCD) in zip(&mut *PCD34, &*PCD).take(swb_size.into()) {
+                        *PCD34 = PCD.abs_pow34();
+                    }
+                    let dist1 = quantize_band_cost(
+                        &coeffs[offset.into()..][..swb_size.into()],
+                        &C34[..swb_size.into()],
+                        sf_indices[g],
+                        band_types[g] as c_int,
+                        lambda / threshold,
+                        f32::INFINITY,
+                        Some(&mut bits1),
+                        None,
+                    );
+                    let dist2 = quantize_band_cost(
+                        &PCD[..swb_size.into()],
+                        &PCD34[..swb_size.into()],
+                        sf_indices[g],
+                        band_types[g] as c_int,
+                        lambda / threshold,
+                        f32::INFINITY,
+                        Some(&mut bits2),
+                        None,
+                    );
+
+                    (dist1, dist2, bits1, bits2)
+                })
+                .reduce_with();
+
+            if !(dist2 < dist1 && bits2 < bits1) {
+                continue;
+            }
+
+            let coeffs = coeffs.as_slice_of_cells();
+            for (coeffs, lcoeffs) in zip(coeffs, lcoeffs).take(group_len.into()) {
+                for (coeff, &lcoeff) in zip(coeffs, lcoeffs).skip(offset.into()) {
+                    coeff.update(|coeff| coeff - lcoeff);
+                }
+            }
+
+            used[g] = true;
+            saved_bits += bits1 - bits2;
+            count += 1;
         }
     }
-    (*sce).ics.ltp.present = (count != 0 && saved_bits >= 0) as c_int as c_schar;
-    (*sce).ics.predictor_present = ((*sce).ics.ltp.present != 0) as c_int;
-    if (*sce).ics.ltp.present == 0 && count != 0 {
-        for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-            start = 0;
-            g = 0;
-            while g < (*sce).ics.num_swb {
-                if (*sce).ics.ltp.used[(w * 16 + g) as usize] != 0 {
-                    w2 = 0;
-                    while w2 < group_len as c_int {
-                        i = 0;
-                        while i < (*sce).ics.swb_sizes[g as usize] as c_int {
-                            (*sce).coeffs[W(w + w2)][(start + i) as usize] +=
-                                (*sce).lcoeffs[(start + (w + w2) * 128 + i) as usize];
-                            i += 1;
-                            i;
-                        }
-                        w2 += 1;
-                        w2;
-                    }
+    ics.ltp.present = count != 0 && saved_bits >= 0;
+    ics.predictor_present = ics.ltp.present;
+
+    if !(!ics.ltp.present && count != 0) {
+        return;
+    }
+
+    for WindowedIteration { w, group_len } in ics.iter_windows() {
+        let coeffs = WindowedArray::<_, 128>::from_mut(&mut coeffs[W(w)]).as_slice_of_cells();
+        let lcoeffs = WindowedArray::<_, 128>::from_ref(&lcoeffs[W(w)]);
+        let used = WindowedArray::<_, 16>::from_ref(&ics.ltp.used);
+        for ((swb_size, offset), _) in
+            zip(ics.iter_swb_sizes_sum(), &used[W(w)]).filter(|(_, &used)| used)
+        {
+            for (coeffs, lcoeffs) in zip(coeffs, lcoeffs).take(group_len.into()) {
+                for (coeff, &lcoeff) in zip(coeffs, lcoeffs)
+                    .skip(offset.into())
+                    .take(swb_size.into())
+                {
+                    coeff.update(|coeff| coeff + lcoeff);
                 }
-                start += (*sce).ics.swb_sizes[g as usize] as c_int;
-                g += 1;
-                g;
             }
         }
     }
 }
+
 unsafe fn run_static_initializers() {
     BUF_BITS = (8 as c_ulong).wrapping_mul(size_of::<BitBuf>() as c_ulong) as c_int;
 }
