@@ -284,6 +284,8 @@ pub(crate) unsafe fn adjust_common_ltp(mut _s: *mut AACEncContext, mut cpe: *mut
     (*sce0).ics.predictor_present = count != 0;
 }
 
+/// Mark LTP sfb's
+#[ffmpeg_src(file = "libavcodec/aacenc_ltp.c", lines = 156..=236, name = "ff_aac_search_for_ltp")]
 pub(crate) unsafe fn search_for_ltp(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
     let SingleChannelElement {
         coeffs,
@@ -307,29 +309,37 @@ pub(crate) unsafe fn search_for_ltp(mut s: *mut AACEncContext, mut sce: *mut Sin
 
     let FFPsyChannel { psy_bands, .. } = &psy_channels[cur_channel as usize];
 
+    let IndividualChannelStream {
+        max_sfb,
+        window_sequence: [window_sequence, _],
+        ltp: LongTermPrediction { lag, .. },
+        ..
+    } = *ics;
+
     let mut count: usize = 0;
-    let mut saved_bits = -(15 + c_int::min(ics.max_sfb.into(), MAX_LONG_SFB as c_int));
+    let mut saved_bits = -(15 + c_int::min(max_sfb.into(), MAX_LONG_SFB as c_int));
 
     let ([C34, PCD, PCD34, ..], []) = scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
-    let max_ltp = c_int::min(ics.max_sfb.into(), MAX_LONG_SFB as c_int);
+    let max_ltp = c_int::min(max_sfb.into(), MAX_LONG_SFB as c_int);
 
-    if ics.window_sequence[0] == EIGHT_SHORT_SEQUENCE {
-        if ics.ltp.lag != 0 {
+    if window_sequence == EIGHT_SHORT_SEQUENCE {
+        if lag != 0 {
             *ltp_state = Default::default();
             ics.ltp = LongTermPrediction::default();
         }
         return;
     }
 
-    if ics.ltp.lag == 0 || lambda > 120. {
+    if lag == 0 || lambda > 120. {
         return;
     }
 
     for WindowedIteration { w, group_len } in ics.iter_windows() {
         let swb_sizes_sum_iter = ics.iter_swb_sizes_sum();
+
         let coeffs = WindowedArray::<_, 128>::from_mut(&mut coeffs[W(w)]);
         let lcoeffs = WindowedArray::<_, 128>::from_ref(&lcoeffs[W(w)]);
         let psy_bands = WindowedArray::<_, 16>::from_ref(&psy_bands[W(w)]);
@@ -337,11 +347,10 @@ pub(crate) unsafe fn search_for_ltp(mut s: *mut AACEncContext, mut sce: *mut Sin
         let band_types = WindowedArray::<_, 16>::from_ref(&band_types[W(w)]);
         let used = &mut WindowedArray::<_, 16>::from_mut(&mut ics.ltp.used)[W(w)];
 
-        for (g, (swb_size, offset)) in swb_sizes_sum_iter.enumerate() {
-            if w * 16 + g as c_int > max_ltp {
-                continue;
-            }
-
+        for (g, (swb_size, offset)) in swb_sizes_sum_iter
+            .enumerate()
+            .filter(|&(g, _)| w * 16 + g as c_int <= max_ltp)
+        {
             let (
                 Sum::<c_float>(dist1),
                 Sum::<c_float>(dist2),
