@@ -5,9 +5,6 @@ use libc::{c_double, c_float, c_int};
 pub(crate) fn sqrtf(n: c_float) -> c_float {
     n.sqrt()
 }
-pub(crate) fn sqrt(n: c_double) -> c_double {
-    n.sqrt()
-}
 pub(crate) fn fabsf(n: c_float) -> c_float {
     n.abs()
 }

@@ -3,8 +3,6 @@ use std::iter;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
 
-use self::encoder::LongTermPrediction;
-
 pub mod coder;
 pub mod encoder;
 pub mod psy_model;
@@ -81,7 +79,6 @@ pub(crate) struct IndividualChannelStream {
     /// If set, use Kaiser-Bessel window, otherwise use a sine window.
     use_kb_window: [c_uchar; 2],
     group_len: [c_uchar; 8],
-    ltp: LongTermPrediction,
     /// table of offsets to the lowest spectral coefficient of a scalefactor
     /// band, sfb, for a particular window
     swb_offset: &'static [c_ushort],

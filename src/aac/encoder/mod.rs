@@ -17,14 +17,12 @@ mod tables;
 mod window;
 
 mod intensity_stereo;
-mod long_term_prediction;
 mod temporal_noise_shaping;
 
 use core::panic;
 use std::{
     ffi::CStr,
     iter::zip,
-    mem::size_of,
     ptr::{self, addr_of, addr_of_mut, null_mut, NonNull},
 };
 
@@ -43,20 +41,15 @@ use itertools::Itertools as _;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_void};
 use lpc::LPCContext;
 
+pub(crate) use self::temporal_noise_shaping::TemporalNoiseShaping;
 use self::{
     channel_layout::pce,
     ctx::AACEncContext,
-    long_term_prediction::{
-        adjust_common_ltp, encode_ltp_info, ltp_insert_new_frame, search_for_ltp, update_ltp,
-    },
     options::OPTIONS,
     pb::*,
     tables::{SWB_SIZE_1024, SWB_SIZE_128},
     temporal_noise_shaping as tns,
-    window::{apply_window_and_mdct, APPLY_WINDOW},
-};
-pub(crate) use self::{
-    long_term_prediction::LongTermPrediction, temporal_noise_shaping::TemporalNoiseShaping,
+    window::apply_window_and_mdct,
 };
 use super::{
     IndividualChannelStream, SyntaxElementType, WindowSequence, WindowedIteration,
@@ -485,7 +478,6 @@ unsafe extern "C" fn encode_individual_channel(
     put_bits(&mut (*s).pb, 8, (*sce).sf_idx[W(0)][0] as BitBuf);
     if common_window == 0 {
         put_ics_info(s, &mut (*sce).ics);
-        encode_ltp_info(s, sce, 0);
     }
     encode_band_info(s, sce);
     encode_scale_factors(avctx, s, sce);
@@ -714,19 +706,6 @@ unsafe fn aac_encode_frame(
                 ics.clip_avoidance_factor = 1.;
             }
             apply_window_and_mdct(ctx, sce, overlap);
-            if (*ctx).options.ltp != 0 {
-                update_ltp(ctx, sce);
-                APPLY_WINDOW[sce.ics.window_sequence[0] as usize](
-                    sce,
-                    sce.ltp_state.as_mut_ptr().cast::<c_float>(),
-                );
-                ((*ctx).mdct1024_fn).expect("non-null function pointer")(
-                    (*ctx).mdct1024,
-                    sce.lcoeffs.as_mut_ptr() as *mut c_void,
-                    sce.ret_buf.as_mut_ptr() as *mut c_void,
-                    size_of::<c_float>() as c_ulong as ptrdiff_t,
-                );
-            }
 
             if sce
                 .coeffs
@@ -791,8 +770,6 @@ unsafe fn aac_encode_frame(
                     &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
                 coeffs[ch as usize] = ((*sce).coeffs).as_mut_ptr();
                 (*sce).ics.predictor_present = false;
-                (*sce).ics.ltp.present = false;
-                (*sce).ics.ltp.used.fill(false);
                 (*sce).tns = TemporalNoiseShaping::default();
                 w = 0;
                 while w < 128 {
@@ -929,31 +906,11 @@ unsafe fn aac_encode_frame(
                 ms::apply(cpe);
             }
             adjust_frame_information(cpe, chans);
-            if (*ctx).options.ltp != 0 {
-                ch = 0;
-                while ch < chans {
-                    sce = &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize)
-                        as *mut SingleChannelElement;
-                    (*ctx).cur_channel = start_ch + ch;
 
-                    search_for_ltp(ctx, sce);
-
-                    if (*sce).ics.ltp.present {
-                        pred_mode = 1;
-                    }
-                    ch += 1;
-                    ch;
-                }
-                (*ctx).cur_channel = start_ch;
-
-                adjust_common_ltp(ctx, cpe);
-            }
             if chans == 2 {
                 put_bits(&mut (*ctx).pb, 1, (*cpe).common_window as BitBuf);
                 if (*cpe).common_window != 0 {
                     put_ics_info(ctx, &mut (*((*cpe).ch).as_mut_ptr().offset(0)).ics);
-
-                    encode_ltp_info(ctx, &mut *((*cpe).ch).as_mut_ptr().offset(0), 1);
 
                     encode_ms_info(&mut (*ctx).pb, cpe);
                     if (*cpe).ms_mode != 0 {
@@ -1063,9 +1020,6 @@ unsafe fn aac_encode_frame(
             its += 1;
             its;
         }
-    }
-    if (*ctx).options.ltp != 0 {
-        ltp_insert_new_frame(ctx);
     }
     put_bits(&mut (*ctx).pb, 3, SyntaxElementType::End as c_int as BitBuf);
     flush_put_bits(&mut (*ctx).pb);
