@@ -18,9 +18,6 @@ pub(crate) fn log2f(n: c_float) -> c_float {
 pub(crate) fn cbrtf(n: c_float) -> c_float {
     n.cbrt()
 }
-pub(crate) fn ceilf(n: c_float) -> c_float {
-    n.ceil()
-}
 pub(crate) fn roundf(n: c_float) -> c_float {
     n.round()
 }

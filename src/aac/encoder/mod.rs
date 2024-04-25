@@ -473,20 +473,17 @@ unsafe extern "C" fn encode_individual_channel(
     mut sce: *mut SingleChannelElement,
     mut common_window: c_int,
 ) -> c_int {
-    put_bits(&mut (*s).pb, 8, (*sce).sf_idx[W(0)][0] as BitBuf);
+    let pb = addr_of_mut!((*s).pb);
+    put_bits(pb, 8, (*sce).sf_idx[W(0)][0] as BitBuf);
     if common_window == 0 {
         put_ics_info(s, addr_of!((*sce).ics));
     }
     encode_band_info(s, sce);
     encode_scale_factors(avctx, s, sce);
     encode_pulses(s, &mut (*sce).pulse);
-    put_bits(
-        &mut (*s).pb,
-        1,
-        ((*sce).tns.present != 0) as c_int as BitBuf,
-    );
+    put_bits(pb, 1, ((*sce).tns.present != 0) as c_int as BitBuf);
     tns::encode_info(s, sce);
-    put_bits(&mut (*s).pb, 1, 0 as BitBuf);
+    put_bits(pb, 1, 0 as BitBuf);
     encode_spectral_coeffs(s, sce);
     0
 }
