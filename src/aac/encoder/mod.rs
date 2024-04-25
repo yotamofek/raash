@@ -196,32 +196,30 @@ unsafe fn put_audio_specific_config(
     0
 }
 
-unsafe extern "C" fn put_ics_info(
-    mut s: *mut AACEncContext,
-    mut info: *mut IndividualChannelStream,
-) {
-    let mut w: c_int = 0;
-    put_bits(&mut (*s).pb, 1, 0 as BitBuf);
-    put_bits(&mut (*s).pb, 2, (*info).window_sequence[0] as BitBuf);
-    put_bits(&mut (*s).pb, 1, (*info).use_kb_window[0] as BitBuf);
-    if (*info).window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE as c_int as c_uint {
-        put_bits(&mut (*s).pb, 6, (*info).max_sfb as BitBuf);
-        put_bits(
-            &mut (*s).pb,
-            1,
-            ((*info).predictor_present) as c_int as BitBuf,
-        );
+/// Encode ics_info element.
+///
+/// @see Table 4.6 (syntax of ics_info)
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 491..=510)]
+unsafe extern "C" fn put_ics_info(s: *mut AACEncContext, info: *const IndividualChannelStream) {
+    let pb = addr_of_mut!((*s).pb);
+    let IndividualChannelStream {
+        window_sequence: [window_sequence, _],
+        use_kb_window: [use_kb_window, _],
+        max_sfb,
+        predictor_present,
+        group_len,
+        ..
+    } = *info;
+    put_bits(pb, 1, 0); // ics_reserved bit
+    put_bits(pb, 2, window_sequence);
+    put_bits(pb, 1, use_kb_window.into());
+    if window_sequence != EIGHT_SHORT_SEQUENCE {
+        put_bits(pb, 6, max_sfb.into());
+        put_bits(pb, 1, predictor_present.into());
     } else {
-        put_bits(&mut (*s).pb, 4, (*info).max_sfb as BitBuf);
-        w = 1;
-        while w < 8 {
-            put_bits(
-                &mut (*s).pb,
-                1,
-                ((*info).group_len[w as usize] == 0) as c_int as BitBuf,
-            );
-            w += 1;
-            w;
+        put_bits(pb, 4, max_sfb.into());
+        for &group_len in &group_len[1..] {
+            put_bits(pb, 1, (group_len == 0).into());
         }
     };
 }
@@ -477,7 +475,7 @@ unsafe extern "C" fn encode_individual_channel(
 ) -> c_int {
     put_bits(&mut (*s).pb, 8, (*sce).sf_idx[W(0)][0] as BitBuf);
     if common_window == 0 {
-        put_ics_info(s, &mut (*sce).ics);
+        put_ics_info(s, addr_of!((*sce).ics));
     }
     encode_band_info(s, sce);
     encode_scale_factors(avctx, s, sce);
@@ -910,7 +908,7 @@ unsafe fn aac_encode_frame(
             if chans == 2 {
                 put_bits(&mut (*ctx).pb, 1, (*cpe).common_window as BitBuf);
                 if (*cpe).common_window != 0 {
-                    put_ics_info(ctx, &mut (*((*cpe).ch).as_mut_ptr().offset(0)).ics);
+                    put_ics_info(ctx, addr_of!((*cpe).ch[0].ics));
 
                     encode_ms_info(&mut (*ctx).pb, cpe);
                     if (*cpe).ms_mode != 0 {
