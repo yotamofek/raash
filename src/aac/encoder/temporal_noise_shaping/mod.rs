@@ -164,21 +164,26 @@ fn quant_array_idx(val: c_float, mut arr: &[c_float], num: c_int) -> c_int {
     index
 }
 
+enum Compressed {
+    Yes,
+    No,
+}
+
 #[inline]
-fn compress_coeffs(mut coef: &mut [c_int], mut c_bits: c_int) -> c_int {
+fn compress_coeffs(mut coef: &mut [c_int], mut c_bits: c_int) -> Compressed {
     let low_idx: c_int = if c_bits != 0 { 4 } else { 2 };
     let shift_val: c_int = if c_bits != 0 { 8 } else { 4 };
     let high_idx: c_int = if c_bits != 0 { 11 } else { 5 };
 
     if coef.iter().any(|coef| (low_idx..=high_idx).contains(coef)) {
-        return 0;
+        return Compressed::No;
     }
 
     for coef in coef.iter_mut().filter(|&&mut coef| coef > high_idx) {
         *coef -= shift_val;
     }
 
-    1
+    Compressed::Yes
 }
 
 /// Encode TNS data.
@@ -186,7 +191,7 @@ fn compress_coeffs(mut coef: &mut [c_int], mut c_bits: c_int) -> c_int {
 /// Coefficient compression is simply not lossless as it should be
 /// on any decoder tested and as such is not active.
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 64..=98, name = "ff_aac_encode_tns_info")]
-pub(super) unsafe fn encode_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
+pub(super) unsafe fn encode_info(s: *mut AACEncContext, sce: *mut SingleChannelElement) {
     let pb = addr_of_mut!((*s).pb);
     let SingleChannelElement {
         ref mut tns,
@@ -205,6 +210,7 @@ pub(super) unsafe fn encode_info(mut s: *mut AACEncContext, mut sce: *mut Single
     if tns.present == 0 {
         return;
     }
+
     for (&n_filt, length, order, direction, coef_idx) in izip!(
         &tns.n_filt,
         &tns.length,
@@ -233,7 +239,10 @@ pub(super) unsafe fn encode_info(mut s: *mut AACEncContext, mut sce: *mut Single
             };
 
             put_bits(pb, 1, direction as BitBuf);
-            let coef_compress = compress_coeffs(coef_idx, c_bits);
+            let coef_compress = match compress_coeffs(coef_idx, c_bits) {
+                Compressed::Yes => 1,
+                Compressed::No => 0,
+            };
             put_bits(pb, 1, coef_compress as BitBuf);
             let coef_len = c_bits + 3 - coef_compress;
             for &coef_idx in &*coef_idx {
