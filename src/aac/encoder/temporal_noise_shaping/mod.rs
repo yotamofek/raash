@@ -9,10 +9,11 @@
 
 mod tables;
 
-use std::{mem::size_of, ops::RangeInclusive};
+use std::{mem::size_of, ops::RangeInclusive, ptr::addr_of_mut};
 
 use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
+use izip::izip;
 use libc::{c_double, c_float, c_int, c_long, c_uint, c_ulong};
 
 use self::tables::{tns_min_sfb, tns_tmp2_map};
@@ -196,68 +197,56 @@ unsafe fn compress_coeffs(mut coef: *mut c_int, mut order: c_int, mut c_bits: c_
 /// on any decoder tested and as such is not active.
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 64..=98, name = "ff_aac_encode_tns_info")]
 pub(super) unsafe fn encode_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
-    let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
-    let mut i: c_int = 0;
-    let mut w: c_int = 0;
-    let mut filt: c_int = 0;
+    let pb = addr_of_mut!((*s).pb);
+    let SingleChannelElement {
+        ref mut tns,
+        ics:
+            IndividualChannelStream {
+                window_sequence: [window_sequence, _],
+                num_windows,
+                ..
+            },
+        ..
+    } = *sce;
+
     let mut coef_compress: c_int = 0;
     let mut coef_len: c_int = 0;
-    let is8 = (*sce).ics.window_sequence[0] == EIGHT_SHORT_SEQUENCE;
+    let is8 = window_sequence == EIGHT_SHORT_SEQUENCE;
     let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
-    if (*sce).tns.present == 0 {
+    if tns.present == 0 {
         return;
     }
-    i = 0;
-    while i < (*sce).ics.num_windows {
-        put_bits(
-            &mut (*s).pb,
-            2 - i32::from(is8),
-            (*sce).tns.n_filt[i as usize] as BitBuf,
-        );
-        if (*tns).n_filt[i as usize] != 0 {
-            put_bits(&mut (*s).pb, 1, c_bits as BitBuf);
-            filt = 0;
-            while filt < (*tns).n_filt[i as usize] {
-                put_bits(
-                    &mut (*s).pb,
-                    6 - 2 * i32::from(is8),
-                    (*tns).length[i as usize][filt as usize] as BitBuf,
-                );
-                put_bits(
-                    &mut (*s).pb,
-                    5 - 2 * i32::from(is8),
-                    (*tns).order[i as usize][filt as usize] as BitBuf,
-                );
-                if (*tns).order[i as usize][filt as usize] != 0 {
-                    put_bits(
-                        &mut (*s).pb,
-                        1,
-                        (*tns).direction[i as usize][filt as usize] as BitBuf,
-                    );
-                    coef_compress = compress_coeffs(
-                        ((*tns).coef_idx[i as usize][filt as usize]).as_mut_ptr(),
-                        (*tns).order[i as usize][filt as usize],
-                        c_bits,
-                    );
-                    put_bits(&mut (*s).pb, 1, coef_compress as BitBuf);
-                    coef_len = c_bits + 3 - coef_compress;
-                    w = 0;
-                    while w < (*tns).order[i as usize][filt as usize] {
-                        put_bits(
-                            &mut (*s).pb,
-                            coef_len,
-                            (*tns).coef_idx[i as usize][filt as usize][w as usize] as BitBuf,
-                        );
-                        w += 1;
-                        w;
-                    }
+    for (&n_filt, length, order, direction, coef_idx) in izip!(
+        &tns.n_filt,
+        &tns.length,
+        &tns.order,
+        &tns.direction,
+        &mut tns.coef_idx
+    )
+    .take(num_windows as usize)
+    {
+        put_bits(pb, 2 - i32::from(is8), n_filt as BitBuf);
+
+        if n_filt == 0 {
+            continue;
+        }
+
+        put_bits(pb, 1, c_bits as BitBuf);
+        for (&length, &order, &direction, coef_idx) in
+            izip!(length, order, direction, coef_idx).take(n_filt as usize)
+        {
+            put_bits(pb, 6 - 2 * i32::from(is8), length as BitBuf);
+            put_bits(pb, 5 - 2 * i32::from(is8), order as BitBuf);
+            if order != 0 {
+                put_bits(pb, 1, direction as BitBuf);
+                coef_compress = compress_coeffs(coef_idx.as_mut_ptr(), order, c_bits);
+                put_bits(pb, 1, coef_compress as BitBuf);
+                coef_len = c_bits + 3 - coef_compress;
+                for &coef_idx in &coef_idx[..order as usize] {
+                    put_bits(pb, coef_len, coef_idx as BitBuf);
                 }
-                filt += 1;
-                filt;
             }
         }
-        i += 1;
-        i;
     }
 }
 

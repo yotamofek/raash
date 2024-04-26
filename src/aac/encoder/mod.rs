@@ -390,26 +390,29 @@ unsafe fn encode_scale_factors(
         }
     }
 }
-unsafe extern "C" fn encode_pulses(mut s: *mut AACEncContext, mut pulse: *mut Pulse) {
-    let mut i: c_int = 0;
-    put_bits(
-        &mut (*s).pb,
-        1,
-        ((*pulse).num_pulse != 0) as c_int as BitBuf,
-    );
-    if (*pulse).num_pulse == 0 {
+
+/// Encode pulse data.
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 691..=708)]
+unsafe extern "C" fn encode_pulses(s: *mut AACEncContext, pulse: *const Pulse) {
+    let pb = addr_of_mut!((*s).pb);
+    let Pulse {
+        num_pulse,
+        start,
+        ref pos,
+        ref amp,
+    } = *pulse;
+    put_bits(pb, 1, (num_pulse != 0) as c_int as BitBuf);
+    if num_pulse == 0 {
         return;
     }
-    put_bits(&mut (*s).pb, 2, ((*pulse).num_pulse - 1) as BitBuf);
-    put_bits(&mut (*s).pb, 6, (*pulse).start as BitBuf);
-    i = 0;
-    while i < (*pulse).num_pulse {
-        put_bits(&mut (*s).pb, 5, (*pulse).pos[i as usize] as BitBuf);
-        put_bits(&mut (*s).pb, 4, (*pulse).amp[i as usize] as BitBuf);
-        i += 1;
-        i;
+    put_bits(pb, 2, (num_pulse - 1) as BitBuf);
+    put_bits(pb, 6, start as BitBuf);
+    for (&pos, &amp) in zip(pos, amp).take(num_pulse as usize) {
+        put_bits(pb, 5, pos as BitBuf);
+        put_bits(pb, 4, amp as BitBuf);
     }
 }
+
 unsafe extern "C" fn encode_spectral_coeffs(
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
