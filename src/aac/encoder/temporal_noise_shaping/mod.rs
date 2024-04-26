@@ -165,29 +165,19 @@ fn quant_array_idx(val: c_float, mut arr: &[c_float], num: c_int) -> c_int {
 }
 
 #[inline]
-unsafe fn compress_coeffs(mut coef: *mut c_int, mut order: c_int, mut c_bits: c_int) -> c_int {
-    let mut i: c_int = 0;
+fn compress_coeffs(mut coef: &mut [c_int], mut c_bits: c_int) -> c_int {
     let low_idx: c_int = if c_bits != 0 { 4 } else { 2 };
     let shift_val: c_int = if c_bits != 0 { 8 } else { 4 };
     let high_idx: c_int = if c_bits != 0 { 11 } else { 5 };
-    i = 0;
-    while i < order {
-        if *coef.offset(i as isize) >= low_idx && *coef.offset(i as isize) <= high_idx {
-            return 0;
-        }
-        i += 1;
-        i;
+
+    if coef.iter().any(|coef| (low_idx..=high_idx).contains(coef)) {
+        return 0;
     }
-    i = 0;
-    while i < order {
-        *coef.offset(i as isize) -= if *coef.offset(i as isize) > high_idx {
-            shift_val
-        } else {
-            0
-        };
-        i += 1;
-        i;
+
+    for coef in coef.iter_mut().filter(|&&mut coef| coef > high_idx) {
+        *coef -= shift_val;
     }
+
     1
 }
 
@@ -209,10 +199,9 @@ pub(super) unsafe fn encode_info(mut s: *mut AACEncContext, mut sce: *mut Single
         ..
     } = *sce;
 
-    let mut coef_compress: c_int = 0;
-    let mut coef_len: c_int = 0;
     let is8 = window_sequence == EIGHT_SHORT_SEQUENCE;
     let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
+
     if tns.present == 0 {
         return;
     }
@@ -237,14 +226,18 @@ pub(super) unsafe fn encode_info(mut s: *mut AACEncContext, mut sce: *mut Single
         {
             put_bits(pb, 6 - 2 * i32::from(is8), length as BitBuf);
             put_bits(pb, 5 - 2 * i32::from(is8), order as BitBuf);
-            if order != 0 {
-                put_bits(pb, 1, direction as BitBuf);
-                coef_compress = compress_coeffs(coef_idx.as_mut_ptr(), order, c_bits);
-                put_bits(pb, 1, coef_compress as BitBuf);
-                coef_len = c_bits + 3 - coef_compress;
-                for &coef_idx in &coef_idx[..order as usize] {
-                    put_bits(pb, coef_len, coef_idx as BitBuf);
-                }
+
+            let coef_idx = match &mut coef_idx[..order as usize] {
+                [] => continue,
+                coef_idx => coef_idx,
+            };
+
+            put_bits(pb, 1, direction as BitBuf);
+            let coef_compress = compress_coeffs(coef_idx, c_bits);
+            put_bits(pb, 1, coef_compress as BitBuf);
+            let coef_len = c_bits + 3 - coef_compress;
+            for &coef_idx in &*coef_idx {
+                put_bits(pb, coef_len, coef_idx as BitBuf);
             }
         }
     }
