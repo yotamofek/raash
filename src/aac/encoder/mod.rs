@@ -27,7 +27,7 @@ use std::{
     ptr::{self, addr_of, addr_of_mut, null_mut, NonNull},
 };
 
-use array_util::W;
+use array_util::{WindowedArray, W};
 use arrayvec::ArrayVec;
 use encoder::{encoder, Class, Encoder, PacketBuilder};
 use ffi::{
@@ -413,38 +413,51 @@ unsafe extern "C" fn encode_pulses(s: *mut AACEncContext, pulse: *const Pulse) {
     }
 }
 
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 710..=736)]
 unsafe extern "C" fn encode_spectral_coeffs(
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
+    s: *mut AACEncContext,
+    sce: *const SingleChannelElement,
 ) {
-    let mut start: c_int = 0;
-    let mut i: c_int = 0;
-    let mut w2: c_int = 0;
-    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-        start = 0;
-        i = 0;
-        while i < (*sce).ics.max_sfb as c_int {
-            if (*sce).zeroes[W(w)][i as usize] {
-                start += (*sce).ics.swb_sizes[i as usize] as c_int;
-            } else {
-                w2 = w;
-                while w2 < w + group_len as c_int {
-                    quantize_and_encode_band(
-                        NonNull::new(addr_of_mut!((*s).pb)).unwrap(),
-                        &(*sce).coeffs[W(w2)][start as usize..]
-                            [..(*sce).ics.swb_sizes[i as usize].into()],
-                        (*sce).sf_idx[W(w)][i as usize],
-                        (*sce).band_type[W(w)][i as usize] as c_int,
-                        (*s).lambda,
-                        (*sce).ics.window_clipping[w as usize] as c_int,
-                    );
-                    w2 += 1;
-                    w2;
-                }
-                start += (*sce).ics.swb_sizes[i as usize] as c_int;
+    let lambda = (*s).lambda;
+    let pb = NonNull::new(addr_of_mut!((*s).pb)).unwrap();
+
+    let SingleChannelElement {
+        ics:
+            ref ics @ IndividualChannelStream {
+                ref window_clipping,
+                max_sfb,
+                ..
+            },
+        ref zeroes,
+        ref sf_idx,
+        ref band_type,
+        ref coeffs,
+        ..
+    } = *sce;
+
+    for WindowedIteration { w, group_len } in ics.iter_windows() {
+        let window_clipping = window_clipping[w as usize];
+
+        for ((swb_size, offset), _, &sf_idx, &band_type) in izip!(
+            ics.iter_swb_sizes_sum(),
+            &zeroes[W(w)],
+            &sf_idx[W(w)],
+            &band_type[W(w)]
+        )
+        .take(max_sfb.into())
+        .filter(|&(_, &zero, ..)| !zero)
+        {
+            let coeffs = WindowedArray::<_, 128>::from_ref(&coeffs[W(w)]);
+            for coeffs in coeffs.into_iter().take(group_len.into()) {
+                quantize_and_encode_band(
+                    pb,
+                    &coeffs[offset.into()..][..swb_size.into()],
+                    sf_idx,
+                    band_type as c_int,
+                    lambda,
+                    window_clipping.into(),
+                );
             }
-            i += 1;
-            i;
         }
     }
 }
