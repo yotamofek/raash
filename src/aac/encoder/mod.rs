@@ -23,6 +23,7 @@ use core::panic;
 use std::{
     ffi::CStr,
     iter::zip,
+    mem,
     ptr::{self, addr_of, addr_of_mut, null_mut, NonNull},
 };
 
@@ -38,6 +39,7 @@ use ffi::{
 };
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::Itertools as _;
+use izip::izip;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_void};
 use lpc::LPCContext;
 
@@ -63,10 +65,10 @@ use crate::{
             set_special_band_scalefactors, trellis,
         },
         tables::{
-            ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_aac_scalefactor_bits,
-            ff_aac_scalefactor_code, ff_swb_offset_1024, ff_swb_offset_128, ff_tns_max_bands_1024,
-            ff_tns_max_bands_128,
+            ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_swb_offset_1024, ff_swb_offset_128,
+            ff_tns_max_bands_1024, ff_tns_max_bands_128, SCALEFACTOR_BITS, SCALEFACTOR_CODE,
         },
+        SCALE_DIFF_ZERO,
     },
     audio_frame_queue::{AudioFrameQueue, AudioRemoved},
     avutil::tx::av_tx_uninit,
@@ -331,62 +333,60 @@ unsafe fn encode_band_info(mut s: *mut AACEncContext, mut sce: *mut SingleChanne
     }
 }
 
+/// preamble for [`NOISE_BT`], put in bitstream with the first noise band
+const NOISE_PRE: c_int = 256;
+/// length of preamble
+const NOISE_PRE_BITS: c_int = 9;
+/// subtracted from global gain, used as offset for the preamble
+const NOISE_OFFSET: c_int = 90;
+
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 655..=689)]
 unsafe fn encode_scale_factors(
     mut _avctx: *mut AVCodecContext,
     mut s: *mut AACEncContext,
     mut sce: *mut SingleChannelElement,
 ) {
+    let SingleChannelElement {
+        ref sf_idx,
+        ics: ref ics @ IndividualChannelStream { max_sfb, .. },
+        ref zeroes,
+        ref band_type,
+        ..
+    } = *sce;
+
+    let pb = addr_of_mut!((*s).pb);
+
     let mut diff: c_int = 0;
-    let mut off_sf: c_int = (*sce).sf_idx[W(0)][0];
-    let mut off_pns: c_int = (*sce).sf_idx[W(0)][0] - 90;
+    let mut off_sf: c_int = (**sf_idx)[0];
+    let mut off_pns: c_int = (**sf_idx)[0] - NOISE_OFFSET;
     let mut off_is: c_int = 0;
-    let mut noise_flag: c_int = 1;
-    let mut i: c_int = 0;
-    for WindowedIteration { w, .. } in (*sce).ics.iter_windows() {
-        let mut current_block_19: u64;
-        i = 0;
-        while i < (*sce).ics.max_sfb as c_int {
-            if !(*sce).zeroes[W(w)][i as usize] {
-                if (*sce).band_type[W(w)][i as usize] as c_uint == NOISE_BT as c_int as c_uint {
-                    diff = (*sce).sf_idx[W(w)][i as usize] - off_pns;
-                    off_pns = (*sce).sf_idx[W(w)][i as usize];
-                    let fresh1 = noise_flag;
-                    noise_flag -= 1;
-                    if fresh1 > 0 {
-                        put_bits(&mut (*s).pb, 9, (diff + 256) as BitBuf);
-                        current_block_19 = 10680521327981672866;
-                    } else {
-                        current_block_19 = 7976072742316086414;
-                    }
-                } else {
-                    if (*sce).band_type[W(w)][i as usize] as c_uint
-                        == INTENSITY_BT as c_int as c_uint
-                        || (*sce).band_type[W(w)][i as usize] as c_uint
-                            == INTENSITY_BT2 as c_int as c_uint
-                    {
-                        diff = (*sce).sf_idx[W(w)][i as usize] - off_is;
-                        off_is = (*sce).sf_idx[W(w)][i as usize];
-                    } else {
-                        diff = (*sce).sf_idx[W(w)][i as usize] - off_sf;
-                        off_sf = (*sce).sf_idx[W(w)][i as usize];
-                    }
-                    current_block_19 = 7976072742316086414;
-                }
-                match current_block_19 {
-                    10680521327981672866 => {}
-                    _ => {
-                        diff += 60;
-                        assert!((0..=120).contains(&diff));
-                        put_bits(
-                            &mut (*s).pb,
-                            ff_aac_scalefactor_bits[diff as usize] as c_int,
-                            ff_aac_scalefactor_code[diff as usize],
-                        );
-                    }
-                }
+    let mut noise_flag = true;
+
+    for WindowedIteration { w, .. } in ics.iter_windows() {
+        for (_, &band_type, &sf_idx) in izip!(&zeroes[W(w)], &band_type[W(w)], &sf_idx[W(w)])
+            .take(max_sfb.into())
+            .filter(|(&zero, ..)| !zero)
+        {
+            let offset = match band_type {
+                NOISE_BT => &mut off_pns,
+                INTENSITY_BT | INTENSITY_BT2 => &mut off_is,
+                _ => &mut off_sf,
+            };
+
+            diff = sf_idx - *offset;
+            *offset = sf_idx;
+
+            if band_type == NOISE_BT && mem::take(&mut noise_flag) {
+                put_bits(pb, NOISE_PRE_BITS, (diff + NOISE_PRE) as BitBuf);
+                continue;
             }
-            i += 1;
-            i;
+
+            diff += SCALE_DIFF_ZERO as c_int;
+            put_bits(
+                pb,
+                SCALEFACTOR_BITS[diff as usize] as c_int,
+                SCALEFACTOR_CODE[diff as usize],
+            );
         }
     }
 }

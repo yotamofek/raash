@@ -12,7 +12,7 @@ use crate::{
         coder::{find_form_factor, find_min_book, math::coef2minsf, sfdelta_can_remove_band},
         encoder::{ctx::AACEncContext, pow::Pow34},
         psy_model::cutoff_from_bitrate,
-        tables::ff_aac_scalefactor_bits,
+        tables::SCALEFACTOR_BITS,
         IndividualChannelStream, SyntaxElementType, WindowedIteration, SCALE_DIFF_ZERO,
         SCALE_DIV_512, SCALE_MAX_DIFF, SCALE_MAX_POS, SCALE_ONE_POS,
     },
@@ -237,7 +237,7 @@ pub(crate) unsafe fn search(
                         *qenergy = qenergy_0;
                         if prev != -1 {
                             let sf_diff = (sf_idx - prev + 60).clamp(0, 2 * 60);
-                            bits_0 += c_int::from(ff_aac_scalefactor_bits[sf_diff as usize]);
+                            bits_0 += c_int::from(SCALEFACTOR_BITS[sf_diff as usize]);
                         }
                         tbits += bits_0;
                         prev = sf_idx;
@@ -1107,7 +1107,7 @@ unsafe fn quantize_spectrum(
                 if let Some(prev) = prev {
                     let sfdiff = (sf_idx - prev + c_int::from(SCALE_DIFF_ZERO))
                         .clamp(0, 2 * c_int::from(SCALE_MAX_DIFF));
-                    bits += c_int::from(ff_aac_scalefactor_bits[sfdiff as usize]);
+                    bits += c_int::from(SCALEFACTOR_BITS[sfdiff as usize]);
                 }
                 tbits += bits;
                 prev = Some(sf_idx);

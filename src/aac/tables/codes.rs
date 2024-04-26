@@ -1,5 +1,6 @@
 #![allow(overflowing_literals, clippy::excessive_precision)]
 
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_uchar, c_uint, c_ushort};
 
 pub(crate) const ff_aac_num_swb_1024: [c_uchar; 13] =
@@ -8,7 +9,8 @@ pub(crate) const ff_aac_num_swb_1024: [c_uchar; 13] =
 pub(crate) const ff_aac_num_swb_128: [c_uchar; 13] =
     [12, 12, 12, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15];
 
-pub(crate) const ff_aac_scalefactor_code: [c_uint; 121] = [
+#[ffmpeg_src(file = "libavcodec/aactab.c", lines = 138..=155, name = "ff_aac_scalefactor_code")]
+pub(crate) const SCALEFACTOR_CODE: [c_uint; 121] = [
     0x3ffe8, 0x3ffe6, 0x3ffe7, 0x3ffe5, 0x7fff5, 0x7fff1, 0x7ffed, 0x7fff6, 0x7ffee, 0x7ffef,
     0x7fff0, 0x7fffc, 0x7fffd, 0x7ffff, 0x7fffe, 0x7fff7, 0x7fff8, 0x7fffb, 0x7fff9, 0x3ffe4,
     0x7fffa, 0x3ffe3, 0x1ffef, 0x1fff0, 0xfff5, 0x1ffee, 0xfff2, 0xfff3, 0xfff4, 0xfff1, 0x7ff6,
@@ -22,13 +24,15 @@ pub(crate) const ff_aac_scalefactor_code: [c_uint; 121] = [
     0x7ffd7, 0x7ffec, 0x7fff4, 0x7fff3,
 ];
 
-pub(crate) const ff_aac_scalefactor_bits: [c_uchar; 121] = [
+#[ffmpeg_src(file = "libavcodec/aactab.c", lines = 157..=166, name = "ff_aac_scalefactor_bits")]
+pub(crate) const SCALEFACTOR_BITS: [c_uchar; 121] = [
     18, 18, 18, 18, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 18, 19, 18, 17, 17,
     16, 17, 16, 16, 16, 16, 15, 15, 14, 14, 14, 14, 14, 14, 13, 13, 12, 12, 12, 11, 12, 11, 10, 10,
     10, 9, 9, 8, 8, 8, 7, 6, 6, 5, 4, 3, 1, 4, 4, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11,
     11, 11, 12, 12, 13, 13, 13, 14, 14, 16, 15, 16, 15, 18, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
     19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19,
 ];
+
 const codes1: [c_ushort; 81] = [
     0x7f8, 0x1f1, 0x7fd, 0x3f5, 0x68, 0x3f0, 0x7f7, 0x1ec, 0x7f5, 0x3f1, 0x72, 0x3f4, 0x74, 0x11,
     0x76, 0x1eb, 0x6c, 0x3f6, 0x7fc, 0x1e1, 0x7f1, 0x1f0, 0x61, 0x1f6, 0x7f2, 0x1ea, 0x7fb, 0x1f2,
