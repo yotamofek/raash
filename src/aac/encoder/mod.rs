@@ -510,32 +510,42 @@ unsafe fn put_bitstream_info(mut s: *mut AACEncContext, mut name: &CStr) {
     }
     put_bits(&mut (*s).pb, 12 - padbits, 0 as BitBuf);
 }
-unsafe extern "C" fn copy_input_samples(mut s: *mut AACEncContext, mut frame: *const AVFrame) {
-    let mut ch: c_int = 0;
-    let mut end: c_int = 2048
-        + (if !frame.is_null() {
+
+/// Copy input samples.
+///
+/// Channels are reordered from libavcodec's default order to AAC order.
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 804..=828)]
+unsafe extern "C" fn copy_input_samples(s: *mut AACEncContext, frame: *const AVFrame) {
+    let end: c_int = 2048
+        + if !frame.is_null() {
             (*frame).nb_samples
         } else {
             0
-        });
-    let mut channel_map: *const c_uchar = (*s).reorder_map.as_ptr();
-    ch = 0;
-    while ch < (*s).channels {
-        let mut planar_samples = &mut (*s).planar_samples[ch as usize];
+        };
 
+    let AACEncContext {
+        reorder_map,
+        ref mut planar_samples,
+        channels,
+        ..
+    } = *s;
+
+    // copy and remap input samples
+    for (&reorder, planar_samples) in
+        zip(reorder_map, &mut **planar_samples).take(channels as usize)
+    {
+        // copy last 1024 samples of previous frame to the start of the current frame
         planar_samples.copy_within(2048..2048 + 1024, 1024);
+
+        // copy new samples and zero any remaining samples
         if !frame.is_null() {
             ptr::copy_nonoverlapping(
-                *((*frame).extended_data).offset(*channel_map.offset(ch as isize) as isize)
-                    as *mut c_float,
+                *((*frame).extended_data).offset(reorder.into()) as *mut c_float,
                 planar_samples[2048..][..(*frame).nb_samples as usize].as_mut_ptr(),
                 (*frame).nb_samples as usize,
             );
         }
-
         planar_samples[end as usize..].fill(0.);
-        ch += 1;
-        ch;
     }
 }
 
