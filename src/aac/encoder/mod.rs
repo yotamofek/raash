@@ -241,88 +241,66 @@ unsafe extern "C" fn encode_ms_info(mut pb: *mut PutBitContext, mut cpe: *mut Ch
     }
 }
 
-unsafe fn adjust_frame_information(mut cpe: *mut ChannelElement, mut chans: c_int) {
-    let mut i: c_int = 0;
-    let mut w: c_int = 0;
-    let mut w2: c_int = 0;
-    let mut g: c_int = 0;
-    let mut ch: c_int = 0;
-    let mut maxsfb: c_int = 0;
-    let mut cmaxsfb: c_int = 0;
-    ch = 0;
-    while ch < chans {
-        let mut ics: *mut IndividualChannelStream =
-            &mut (*((*cpe).ch).as_mut_ptr().offset(ch as isize)).ics;
-        maxsfb = 0;
-        (*cpe).ch[ch as usize].pulse.num_pulse = 0;
-        for WindowedIteration { w, group_len } in (*ics).iter_windows() {
-            w2 = 0;
-            while w2 < group_len as c_int {
-                cmaxsfb = (*ics).num_swb;
-                while cmaxsfb > 0 && (*cpe).ch[ch as usize].zeroes[W(w)][(cmaxsfb - 1) as usize] {
-                    cmaxsfb -= 1;
-                    cmaxsfb;
-                }
-                maxsfb = if maxsfb > cmaxsfb { maxsfb } else { cmaxsfb };
-                w2 += 1;
-                w2;
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 527..=578)]
+unsafe fn adjust_frame_information(cpe: *mut ChannelElement, chans: c_int) {
+    let ChannelElement {
+        ref mut ch,
+        common_window,
+        ref mut ms_mode,
+        ref ms_mask,
+        ..
+    } = *cpe;
+
+    for SingleChannelElement {
+        ics,
+        pulse: Pulse { num_pulse, .. },
+        zeroes,
+        ..
+    } in &mut ch[..chans as usize]
+    {
+        *num_pulse = 0;
+        ics.max_sfb = ics
+            .iter_windows()
+            .map(|WindowedIteration { w, .. }| {
+                zeroes[W(w)][..ics.num_swb as usize]
+                    .iter()
+                    .rposition(|&zero| !zero)
+                    .map(|maxsfb| maxsfb + 1)
+                    .unwrap_or_default() as c_uchar
+            })
+            .max()
+            .unwrap();
+
+        let zeroes = zeroes.as_array_of_cells_deref();
+        for WindowedIteration { w, group_len } in ics.iter_windows() {
+            let zeroes = &zeroes[W(w)];
+            for (g, zero) in zeroes.iter().take(ics.max_sfb.into()).enumerate() {
+                zero.set(
+                    WindowedArray::<_, 16>::from_ref(zeroes)
+                        .into_iter()
+                        .take(group_len.into())
+                        .all(|zeroes| zeroes[g].get()),
+                );
             }
         }
-        (*ics).max_sfb = maxsfb as c_uchar;
-        for WindowedIteration { w, group_len } in (*ics).iter_windows() {
-            g = 0;
-            while g < (*ics).max_sfb as c_int {
-                let mut i = true;
-                w2 = w;
-                while w2 < w + group_len as c_int {
-                    if !(*cpe).ch[ch as usize].zeroes[W(w2)][g as usize] {
-                        i = false;
-                        break;
-                    } else {
-                        w2 += 1;
-                        w2;
-                    }
-                }
-                (*cpe).ch[ch as usize].zeroes[W(w)][g as usize] = i;
-                g += 1;
-                g;
-            }
-        }
-        ch += 1;
-        ch;
     }
-    if chans > 1 && (*cpe).common_window != 0 {
-        let mut ics0: *mut IndividualChannelStream = &mut (*((*cpe).ch).as_mut_ptr().offset(0)).ics;
-        let mut ics1: *mut IndividualChannelStream = &mut (*((*cpe).ch).as_mut_ptr().offset(1)).ics;
-        let mut msc: c_int = 0;
-        (*ics0).max_sfb = (if (*ics0).max_sfb as c_int > (*ics1).max_sfb as c_int {
-            (*ics0).max_sfb as c_int
+    if chans > 1 && common_window != 0 {
+        let [SingleChannelElement { ics: ics0, .. }, SingleChannelElement { ics: ics1, .. }] = ch;
+        ics0.max_sfb = c_uchar::max(ics0.max_sfb, ics1.max_sfb);
+        ics1.max_sfb = ics0.max_sfb;
+        let msc = ms_mask
+            .into_iter()
+            .take(ics0.num_windows as usize)
+            .flat_map(|ms_masks| &ms_masks[..ics0.max_sfb.into()])
+            .filter(|&&ms_mask| ms_mask)
+            .count();
+        *ms_mode = if msc == 0 || ics0.max_sfb == 0 {
+            0
+        } else if msc < usize::from(ics0.max_sfb) * ics0.num_windows as usize {
+            1
         } else {
-            (*ics1).max_sfb as c_int
-        }) as c_uchar;
-        (*ics1).max_sfb = (*ics0).max_sfb;
-        w = 0;
-        while w < (*ics0).num_windows {
-            i = 0;
-            while i < (*ics0).max_sfb as c_int {
-                if (*cpe).ms_mask[W(w)][i as usize] {
-                    msc += 1;
-                    msc;
-                }
-                i += 1;
-                i;
-            }
-            w += 1;
-        }
-        if msc == 0 || (*ics0).max_sfb as c_int == 0 {
-            (*cpe).ms_mode = 0;
-        } else {
-            (*cpe).ms_mode = if msc < (*ics0).max_sfb as c_int * (*ics0).num_windows {
-                1
-            } else {
-                2
-            };
-        }
+            2
+        };
     }
 }
 
