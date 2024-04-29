@@ -143,7 +143,7 @@ pub(crate) struct FFPsyChannelGroup {
     pub(crate) num_ch: c_uchar,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
 pub(crate) struct FFPsyWindowInfo {
     pub(crate) window_type: [c_int; 3],
@@ -151,26 +151,11 @@ pub(crate) struct FFPsyWindowInfo {
     pub(crate) num_windows: c_int,
     pub(crate) grouping: [c_int; 8],
     pub(crate) clipping: [c_float; 8],
-    pub(crate) window_sizes: *mut c_int,
-}
-
-impl FFPsyWindowInfo {
-    pub(crate) const fn zero() -> Self {
-        Self {
-            window_type: [0; 3],
-            window_shape: 0,
-            num_windows: 0,
-            grouping: [0; 8],
-            clipping: [0.; 8],
-            window_sizes: null_mut::<c_int>(),
-        }
-    }
 }
 
 #[derive(Clone)]
 pub(crate) struct FFPsyContext {
     pub(crate) avctx: *mut AVCodecContext,
-    pub(crate) model: *const FFPsyModel,
     pub(crate) ch: Box<[FFPsyChannel]>,
     pub(crate) group: Box<[FFPsyChannelGroup]>,
     // pub(crate) num_groups: c_int,
@@ -185,7 +170,6 @@ impl FFPsyContext {
     pub(crate) fn zero() -> Self {
         Self {
             avctx: null_mut(),
-            model: null(),
             ch: Default::default(),
             group: Default::default(),
             cutoff: 0,
@@ -207,31 +191,6 @@ pub(crate) struct C2RustUnnamed_2 {
     pub(crate) size: c_int,
     pub(crate) bits: c_int,
     pub(crate) alloc: c_int,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct FFPsyModel {
-    pub(crate) name: *const c_char,
-    pub(crate) init: Option<unsafe extern "C" fn(*mut FFPsyContext) -> c_int>,
-    pub(crate) window: Option<
-        unsafe extern "C" fn(
-            *mut FFPsyContext,
-            *const c_float,
-            *const c_float,
-            c_int,
-            c_int,
-        ) -> FFPsyWindowInfo,
-    >,
-    pub(crate) analyze: Option<
-        unsafe extern "C" fn(
-            *mut FFPsyContext,
-            c_int,
-            *mut *const c_float,
-            *const FFPsyWindowInfo,
-        ) -> (),
-    >,
-    pub(crate) end: Option<unsafe extern "C" fn(*mut FFPsyContext) -> ()>,
 }
 
 pub(crate) type AACCoder = c_uint;

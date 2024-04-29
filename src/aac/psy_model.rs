@@ -251,7 +251,7 @@ fn ath(mut f: c_float, mut add: c_float) -> c_float {
 }
 
 #[cold]
-unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
+pub(crate) unsafe extern "C" fn psy_3gpp_init(mut ctx: *mut FFPsyContext) -> c_int {
     let mut pctx: *mut AacPsyContext = std::ptr::null_mut::<AacPsyContext>();
     let mut bark: c_float = 0.;
     let mut i: c_int = 0;
@@ -986,7 +986,7 @@ unsafe fn psy_3gpp_analyze_channel(
     (*pch).prev_band = *(*pch).band;
 }
 
-unsafe extern "C" fn psy_3gpp_analyze(
+pub(super) unsafe extern "C" fn psy_3gpp_analyze(
     mut ctx: *mut FFPsyContext,
     mut channel: c_int,
     mut coeffs: *mut *const c_float,
@@ -1008,7 +1008,7 @@ unsafe extern "C" fn psy_3gpp_analyze(
 }
 
 #[cold]
-unsafe extern "C" fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
+pub(crate) unsafe extern "C" fn psy_3gpp_end(mut apc: *mut FFPsyContext) {
     let mut pctx: *mut AacPsyContext = (*apc).model_priv_data as *mut AacPsyContext;
     // TODO: leaks 🚿
     if !pctx.is_null() {
@@ -1039,9 +1039,9 @@ unsafe fn lame_apply_block_type(
     (*wi).window_type[0] = (*ctx).next_window_seq as c_int;
     (*ctx).next_window_seq = blocktype as WindowSequence;
 }
-unsafe extern "C" fn psy_lame_window(
+
+pub(super) unsafe extern "C" fn psy_lame_window(
     mut ctx: *mut FFPsyContext,
-    mut _audio: *const c_float,
     mut la: *const c_float,
     mut channel: c_int,
     mut prev_type: c_int,
@@ -1053,16 +1053,7 @@ unsafe extern "C" fn psy_lame_window(
     let mut uselongblock: c_int = 1;
     let mut attacks: [c_int; 9] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     let mut i: c_int = 0;
-    let mut wi: FFPsyWindowInfo = {
-        FFPsyWindowInfo {
-            window_type: [0, 0, 0],
-            window_shape: 0,
-            num_windows: 0,
-            grouping: [0; 8],
-            clipping: [0.; 8],
-            window_sizes: std::ptr::null_mut::<c_int>(),
-        }
-    };
+    let mut wi = FFPsyWindowInfo::default();
     if !la.is_null() {
         let mut hpfsmpl: [c_float; 1024] = [0.; 1024];
         let mut pf: *const c_float = hpfsmpl.as_mut_ptr();
@@ -1186,11 +1177,3 @@ unsafe extern "C" fn psy_lame_window(
     (*pch).prev_attack = attacks[8];
     wi
 }
-
-pub(crate) static mut ff_aac_psy_model: FFPsyModel = FFPsyModel {
-    name: c"3GPP TS 26.403-inspired model".as_ptr(),
-    init: Some(psy_3gpp_init),
-    window: Some(psy_lame_window),
-    analyze: Some(psy_3gpp_analyze),
-    end: Some(psy_3gpp_end),
-};

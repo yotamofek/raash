@@ -24,7 +24,7 @@ use std::{
     ffi::CStr,
     iter::zip,
     mem,
-    ptr::{self, addr_of, addr_of_mut, null_mut, NonNull},
+    ptr::{self, addr_of, addr_of_mut, null, null_mut, NonNull},
 };
 
 use array_util::{WindowedArray, W};
@@ -54,6 +54,7 @@ use self::{
     window::apply_window_and_mdct,
 };
 use super::{
+    psy_model::{psy_3gpp_analyze, psy_lame_window},
     IndividualChannelStream, SyntaxElementType, WindowSequence, WindowedIteration,
     EIGHT_SHORT_SEQUENCE, ONLY_LONG_SEQUENCE,
 };
@@ -555,9 +556,6 @@ unsafe fn aac_encode_frame(
     mut frame: *const AVFrame,
     mut packet_builder: PacketBuilder,
 ) -> c_int {
-    let mut samples2: *mut c_float = ptr::null_mut::<c_float>();
-    let mut la: *mut c_float = ptr::null_mut::<c_float>();
-    let mut overlap: *mut c_float = ptr::null_mut::<c_float>();
     let mut cpe: *mut ChannelElement = ptr::null_mut::<ChannelElement>();
     let mut sce: *mut SingleChannelElement = ptr::null_mut::<SingleChannelElement>();
     let mut i: c_int = 0;
@@ -577,7 +575,7 @@ unsafe fn aac_encode_frame(
     let mut tns_mode: c_int = 0;
     let mut pred_mode: c_int = 0;
     let mut chan_el_counter: [c_int; 4] = [0; 4];
-    let mut windows = [FFPsyWindowInfo::zero(); 16];
+    let mut windows = [FFPsyWindowInfo::default(); 16];
     if !frame.is_null() {
         (*ctx).afq.add_frame(&*frame)
     } else if (*ctx).afq.is_empty() {
@@ -588,32 +586,27 @@ unsafe fn aac_encode_frame(
         return 0;
     }
     start_ch = 0;
-    i = 0;
-    while i < (*ctx).chan_map[0] as c_int {
+    let chan_map = {
+        let mut chan_map = (*ctx).chan_map;
+        let len = *chan_map.take_first().unwrap();
+        &chan_map[..len.into()]
+    };
+
+    for (&tag, cpe) in zip(chan_map, &mut *(*ctx).cpe) {
         let mut wi = &mut windows[start_ch.try_into().unwrap()..];
-        tag = ((*ctx).chan_map[(i + 1) as usize]) as c_int;
-        chans = if tag == SyntaxElementType::ChannelPairElement as c_int {
+        chans = if c_int::from(tag) == SyntaxElementType::ChannelPairElement as c_int {
             2
         } else {
             1
         };
-        let mut cpe = &mut (*ctx).cpe[i as usize];
-        ch = 0;
-        while ch < chans {
-            let mut clip_avoidance_factor: c_float = 0.;
+        for ch in 0..chans {
             let sce = &mut cpe.ch[usize::try_from(ch).unwrap()];
             let ics = &mut sce.ics;
             (*ctx).cur_channel = start_ch + ch;
-            overlap = &mut *(*ctx).planar_samples[(*ctx).cur_channel as usize]
-                .as_mut_ptr()
-                .offset(0) as *mut c_float;
-            samples2 = overlap.offset(1024);
-            la = samples2.offset((448 + 64) as isize);
-            if frame.is_null() {
-                la = ptr::null_mut::<c_float>();
-            }
+            let overlap = &mut (*ctx).planar_samples[(*ctx).cur_channel as usize];
+            let la = (!frame.is_null()).then(|| &overlap[1024 + 448 + 64..]);
             let mut wi = &mut wi[usize::try_from(ch).unwrap()];
-            if tag == SyntaxElementType::LowFrequencyEffects as c_int {
+            if c_uint::from(tag) == SyntaxElementType::LowFrequencyEffects as c_uint {
                 let fresh2 = &mut wi.window_type[1];
                 *fresh2 = ONLY_LONG_SEQUENCE as c_int;
                 wi.window_type[0] = *fresh2;
@@ -623,10 +616,9 @@ unsafe fn aac_encode_frame(
                 wi.clipping[0] = 0.;
                 ics.num_swb = if (*ctx).samplerate_index >= 8 { 1 } else { 3 };
             } else {
-                *wi = ((*(*ctx).psy.model).window).expect("non-null function pointer")(
+                *wi = psy_lame_window(
                     &mut (*ctx).psy,
-                    samples2,
-                    la,
+                    la.map_or_else(null, |la| la.as_ptr()),
                     (*ctx).cur_channel,
                     ics.window_sequence[0] as c_int,
                 );
@@ -637,74 +629,65 @@ unsafe fn aac_encode_frame(
             ics.use_kb_window[0] = wi.window_shape as c_uchar;
             ics.num_windows = wi.num_windows;
             ics.swb_sizes = (*ctx).psy.bands[(ics.num_windows == 8) as usize];
-            ics.num_swb = if tag == SyntaxElementType::LowFrequencyEffects as c_int {
+            ics.num_swb = if c_int::from(tag) == SyntaxElementType::LowFrequencyEffects as c_int {
                 ics.num_swb
             } else {
-                ((*ctx).psy.num_bands)[(ics.num_windows == 8) as usize]
+                (*ctx).psy.num_bands[(ics.num_windows == 8) as usize]
             };
             ics.max_sfb = (if ics.max_sfb as c_int > ics.num_swb {
                 ics.num_swb
             } else {
                 ics.max_sfb as c_int
             }) as c_uchar;
-            ics.swb_offset = if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                ff_swb_offset_128[(*ctx).samplerate_index as usize]
+            ics.swb_offset = (if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
+                ff_swb_offset_128
             } else {
-                ff_swb_offset_1024[(*ctx).samplerate_index as usize]
-            };
-            ics.tns_max_bands = if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                ff_tns_max_bands_128[(*ctx).samplerate_index as usize] as c_int
+                ff_swb_offset_1024
+            })[(*ctx).samplerate_index as usize];
+            ics.tns_max_bands = (if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
+                ff_tns_max_bands_128
             } else {
-                ff_tns_max_bands_1024[(*ctx).samplerate_index as usize] as c_int
-            };
-            w = 0;
-            while w < ics.num_windows {
-                ics.group_len[w as usize] = wi.grouping[w as usize] as c_uchar;
-                w += 1;
-                w;
+                ff_tns_max_bands_1024
+            })[(*ctx).samplerate_index as usize] as c_int;
+
+            for (group_len, grouping) in zip(&mut ics.group_len, wi.grouping) {
+                *group_len = grouping as c_uchar;
             }
-            clip_avoidance_factor = 0.;
-            w = 0;
-            while w < ics.num_windows {
-                let mut wbuf: *const c_float = overlap.offset((w * 128) as isize);
+
+            for (clipping, wbuf) in zip(
+                &mut wi.clipping,
+                WindowedArray::<_, 128>::from_ref(&*overlap),
+            )
+            .take(ics.num_windows as usize)
+            {
                 let wlen: c_int = 2048 / ics.num_windows;
-                let mut max: c_float = 0.;
-                let mut j: c_int = 0;
-                j = 0;
-                while j < wlen {
-                    max = if max > fabsf(*wbuf.offset(j as isize)) {
-                        max
-                    } else {
-                        fabsf(*wbuf.offset(j as isize))
-                    };
-                    j += 1;
-                    j;
-                }
-                wi.clipping[w as usize] = max;
-                w += 1;
-                w;
+                *clipping = wbuf[..wlen as usize]
+                    .iter()
+                    .copied()
+                    .map(c_float::abs)
+                    .max_by(c_float::total_cmp)
+                    .unwrap();
             }
-            w = 0;
-            while w < ics.num_windows {
-                if wi.clipping[w as usize] > 0.95 {
-                    ics.window_clipping[w as usize] = 1;
-                    clip_avoidance_factor = if clip_avoidance_factor > wi.clipping[w as usize] {
-                        clip_avoidance_factor
+
+            let clip_avoidance_factor = zip(&wi.clipping, &mut ics.window_clipping)
+                .take(ics.num_windows as usize)
+                .filter_map(|(&clipping, window_clipping)| {
+                    if clipping > 0.95 {
+                        *window_clipping = 1;
+                        Some(clipping)
                     } else {
-                        wi.clipping[w as usize]
-                    };
-                } else {
-                    ics.window_clipping[w as usize] = 0;
-                }
-                w += 1;
-                w;
-            }
+                        *window_clipping = 0;
+                        None
+                    }
+                })
+                .max_by(c_float::total_cmp)
+                .unwrap_or_default();
             if clip_avoidance_factor > 0.95 {
                 ics.clip_avoidance_factor = 0.95 / clip_avoidance_factor;
             } else {
                 ics.clip_avoidance_factor = 1.;
             }
-            apply_window_and_mdct(ctx, sce, overlap);
+            apply_window_and_mdct(ctx, sce, overlap.as_mut_ptr());
 
             if sce
                 .coeffs
@@ -720,12 +703,8 @@ unsafe fn aac_encode_frame(
             }
 
             avoid_clipping(sce);
-            ch += 1;
-            ch;
         }
         start_ch += chans;
-        i += 1;
-        i;
     }
     let mut avpkt = packet_builder.allocate((8192 * (*ctx).channels) as c_long);
 
@@ -784,12 +763,7 @@ unsafe fn aac_encode_frame(
             }
             (*ctx).psy.bitres.alloc = -1;
             (*ctx).psy.bitres.bits = (*ctx).last_frame_pb_count / (*ctx).channels;
-            ((*(*ctx).psy.model).analyze).expect("non-null function pointer")(
-                &mut (*ctx).psy,
-                start_ch,
-                coeffs.as_mut_ptr(),
-                wi_0,
-            );
+            psy_3gpp_analyze(&mut (*ctx).psy, start_ch, coeffs.as_mut_ptr(), wi_0);
             if (*ctx).psy.bitres.alloc > 0 {
                 target_bits = (target_bits as c_float
                     + (*ctx).psy.bitres.alloc as c_float

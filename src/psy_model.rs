@@ -7,13 +7,14 @@
     unused_mut
 )]
 
-use std::ptr::addr_of;
-
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_int, c_uchar};
 
-use crate::{aac::psy_model::ff_aac_psy_model, types::*};
+use crate::{
+    aac::psy_model::{psy_3gpp_end, psy_3gpp_init},
+    types::*,
+};
 
 #[cold]
 pub(crate) unsafe fn ff_psy_init(
@@ -39,12 +40,8 @@ pub(crate) unsafe fn ff_psy_init(
         i += 1;
         i;
     }
-    if (*(*ctx).avctx).codec_id == AV_CODEC_ID_AAC {
-        (*ctx).model = addr_of!(ff_aac_psy_model);
-    }
-    if ((*(*ctx).model).init).is_some() {
-        return ((*(*ctx).model).init).expect("non-null function pointer")(ctx);
-    }
+    assert_eq!((*(*ctx).avctx).codec_id, AV_CODEC_ID_AAC);
+    psy_3gpp_init(ctx);
     0
 }
 
@@ -65,9 +62,7 @@ pub(crate) unsafe fn find_group(
 
 #[cold]
 pub(crate) unsafe fn ff_psy_end(mut ctx: *mut FFPsyContext) {
-    if !((*ctx).model).is_null() && ((*(*ctx).model).end).is_some() {
-        ((*(*ctx).model).end).expect("non-null function pointer")(ctx);
-    }
+    psy_3gpp_end(ctx);
     // TODO: leaks 🚿
     // av_freep(&mut (*ctx).bands as *mut *mut *mut uint8_t as *mut c_void);
     // av_freep(&mut (*ctx).num_bands as *mut *mut c_int as *mut c_void);
