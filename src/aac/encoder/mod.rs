@@ -23,7 +23,7 @@ use core::panic;
 use std::{
     ffi::CStr,
     iter::zip,
-    mem,
+    mem::{self, MaybeUninit},
     ptr::{self, addr_of, addr_of_mut, null, null_mut, NonNull},
 };
 
@@ -66,8 +66,8 @@ use crate::{
             set_special_band_scalefactors, trellis,
         },
         tables::{
-            ff_aac_num_swb_1024, ff_aac_num_swb_128, ff_swb_offset_1024, ff_swb_offset_128,
-            ff_tns_max_bands_1024, ff_tns_max_bands_128, SCALEFACTOR_BITS, SCALEFACTOR_CODE,
+            ff_aac_num_swb_1024, ff_aac_num_swb_128, SCALEFACTOR_BITS, SCALEFACTOR_CODE,
+            SWB_OFFSET_1024, SWB_OFFSET_128, TNS_MAX_BANDS_1024, TNS_MAX_BANDS_128,
         },
         SCALE_DIFF_ZERO,
     },
@@ -319,6 +319,9 @@ const NOISE_PRE_BITS: c_int = 9;
 /// subtracted from global gain, used as offset for the preamble
 const NOISE_OFFSET: c_int = 90;
 
+#[ffmpeg_src(file = "libavcodec/aac.h", lines = 52)]
+const CLIP_AVOIDANCE_FACTOR: c_float = 0.95;
+
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 655..=689)]
 unsafe fn encode_scale_factors(
     mut _avctx: *mut AVCodecContext,
@@ -550,6 +553,61 @@ unsafe extern "C" fn copy_input_samples(s: *mut AACEncContext, frame: *const AVF
     }
 }
 
+impl IndividualChannelStream {
+    #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 893..=909)]
+    fn apply_psy_window_info(
+        &mut self,
+        tag: c_uchar,
+        &FFPsyWindowInfo {
+            window_type: [window_type, ..],
+            window_shape,
+            num_windows,
+            ref grouping,
+            ..
+        }: &FFPsyWindowInfo,
+        psy: &FFPsyContext,
+        samplerate_index: c_int,
+    ) {
+        let Self {
+            window_sequence: [window_sequence, _],
+            use_kb_window: [use_kb_window, _],
+            max_sfb,
+            num_swb,
+            ..
+        } = *self;
+
+        let num_swb = if c_int::from(tag) == SyntaxElementType::LowFrequencyEffects as c_int {
+            num_swb
+        } else {
+            psy.num_bands[usize::from(num_windows == 8)]
+        };
+
+        *self = IndividualChannelStream {
+            window_sequence: [window_type as WindowSequence, window_sequence],
+            use_kb_window: [window_shape as c_uchar, use_kb_window],
+            num_windows,
+            swb_sizes: psy.bands[usize::from(num_windows == 8)],
+            num_swb,
+            max_sfb: max_sfb.min(num_swb as c_uchar),
+            group_len: grouping.map(|grouping| grouping as c_uchar),
+            ..if window_type == EIGHT_SHORT_SEQUENCE as c_int {
+                IndividualChannelStream {
+                    swb_offset: SWB_OFFSET_128[samplerate_index as usize],
+                    tns_max_bands: TNS_MAX_BANDS_128[samplerate_index as usize].into(),
+                    ..*self
+                }
+            } else {
+                IndividualChannelStream {
+                    swb_offset: SWB_OFFSET_1024[samplerate_index as usize],
+                    tns_max_bands: TNS_MAX_BANDS_1024[samplerate_index as usize].into(),
+                    ..*self
+                }
+            }
+        };
+    }
+}
+
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 830..=1183)]
 unsafe fn aac_encode_frame(
     mut avctx: *mut AVCodecContext,
     mut ctx: *mut AACEncContext,
@@ -610,6 +668,10 @@ unsafe fn aac_encode_frame(
                 wi.num_windows = 1;
                 wi.grouping[0] = 1;
                 wi.clipping[0] = 0.;
+
+                // Only the lowest 12 coefficients are used in a LFE channel.
+                // The expression below results in only the bottom 8 coefficients
+                // being used for 11.025kHz to 16kHz sample rates.
                 ics.num_swb = if (*ctx).samplerate_index >= 8 { 1 } else { 3 };
             } else {
                 *wi = psy_lame_window(
@@ -619,36 +681,8 @@ unsafe fn aac_encode_frame(
                     ics.window_sequence[0] as c_int,
                 );
             }
-            ics.window_sequence[1] = ics.window_sequence[0];
-            ics.window_sequence[0] = wi.window_type[0] as WindowSequence;
-            ics.use_kb_window[1] = ics.use_kb_window[0];
-            ics.use_kb_window[0] = wi.window_shape as c_uchar;
-            ics.num_windows = wi.num_windows;
-            ics.swb_sizes = (*ctx).psy.bands[(ics.num_windows == 8) as usize];
-            ics.num_swb = if c_int::from(tag) == SyntaxElementType::LowFrequencyEffects as c_int {
-                ics.num_swb
-            } else {
-                (*ctx).psy.num_bands[(ics.num_windows == 8) as usize]
-            };
-            ics.max_sfb = (if ics.max_sfb as c_int > ics.num_swb {
-                ics.num_swb
-            } else {
-                ics.max_sfb as c_int
-            }) as c_uchar;
-            ics.swb_offset = (if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                ff_swb_offset_128
-            } else {
-                ff_swb_offset_1024
-            })[(*ctx).samplerate_index as usize];
-            ics.tns_max_bands = (if wi.window_type[0] == EIGHT_SHORT_SEQUENCE as c_int {
-                ff_tns_max_bands_128
-            } else {
-                ff_tns_max_bands_1024
-            })[(*ctx).samplerate_index as usize] as c_int;
 
-            for (group_len, grouping) in zip(&mut ics.group_len, wi.grouping) {
-                *group_len = grouping as c_uchar;
-            }
+            ics.apply_psy_window_info(tag, wi, &(*ctx).psy, (*ctx).samplerate_index);
 
             for (clipping, wbuf) in zip(
                 &mut wi.clipping,
@@ -657,6 +691,7 @@ unsafe fn aac_encode_frame(
             .take(ics.num_windows as usize)
             {
                 let wlen: c_int = 2048 / ics.num_windows;
+                // mdct input is 2 * output
                 *clipping = wbuf[..wlen as usize]
                     .iter()
                     .copied()
@@ -668,7 +703,7 @@ unsafe fn aac_encode_frame(
             let clip_avoidance_factor = zip(&wi.clipping, &mut ics.window_clipping)
                 .take(ics.num_windows as usize)
                 .filter_map(|(&clipping, window_clipping)| {
-                    if clipping > 0.95 {
+                    if clipping > CLIP_AVOIDANCE_FACTOR {
                         *window_clipping = 1;
                         Some(clipping)
                     } else {
@@ -678,8 +713,8 @@ unsafe fn aac_encode_frame(
                 })
                 .max_by(c_float::total_cmp)
                 .unwrap_or_default();
-            if clip_avoidance_factor > 0.95 {
-                ics.clip_avoidance_factor = 0.95 / clip_avoidance_factor;
+            if clip_avoidance_factor > CLIP_AVOIDANCE_FACTOR {
+                ics.clip_avoidance_factor = CLIP_AVOIDANCE_FACTOR / clip_avoidance_factor;
             } else {
                 ics.clip_avoidance_factor = 1.;
             }

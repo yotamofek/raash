@@ -7,6 +7,8 @@
     generic_const_exprs,
     inline_const,
     let_chains,
+    maybe_uninit_fill,
+    maybe_uninit_uninit_array,
     slice_as_chunks,
     slice_take
 )]

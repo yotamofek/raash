@@ -537,7 +537,8 @@ const swb_offset_128_8: [c_ushort; 16] = [
     0, 4, 8, 12, 16, 20, 24, 28, 36, 44, 52, 60, 72, 88, 108, 128,
 ];
 
-pub(crate) const ff_swb_offset_1024: [&[c_ushort]; 13] = [
+#[ffmpeg_src(file = "libavcodec/aactab.c", lines = 1394..=1400, name = "ff_swb_offset_1024")]
+pub(crate) const SWB_OFFSET_1024: [&[c_ushort]; 13] = [
     &swb_offset_1024_96,
     &swb_offset_1024_96,
     &swb_offset_1024_64,
@@ -553,7 +554,8 @@ pub(crate) const ff_swb_offset_1024: [&[c_ushort]; 13] = [
     &swb_offset_1024_8,
 ];
 
-pub(crate) const ff_swb_offset_128: [&[c_ushort]; 13] = [
+#[ffmpeg_src(file = "libavcodec/aactab.c", lines = 1426..=1434, name = "ff_swb_offset_128")]
+pub(crate) const SWB_OFFSET_128: [&[c_ushort]; 13] = [
     &swb_offset_128_96,
     &swb_offset_128_96,
     &swb_offset_128_96,
@@ -569,8 +571,10 @@ pub(crate) const ff_swb_offset_128: [&[c_ushort]; 13] = [
     &swb_offset_128_8,
 ];
 
-pub(crate) const ff_tns_max_bands_1024: [c_uchar; 13] =
+#[ffmpeg_src(file = "libavcodec/aactab.c", lines = 1452..=1454, name = "ff_tns_max_bands_1024")]
+pub(crate) const TNS_MAX_BANDS_1024: [c_uchar; 13] =
     [31, 31, 34, 40, 42, 51, 46, 46, 42, 42, 42, 39, 39];
 
-pub(crate) const ff_tns_max_bands_128: [c_uchar; 13] =
+#[ffmpeg_src(file = "libavcodec/aactab.c", lines = 1464..=1466, name = "ff_tns_max_bands_128")]
+pub(crate) const TNS_MAX_BANDS_128: [c_uchar; 13] =
     [9, 9, 10, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14];
