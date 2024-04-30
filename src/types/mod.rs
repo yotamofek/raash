@@ -150,7 +150,6 @@ pub(crate) struct FFPsyWindowInfo {
     pub(crate) window_shape: c_int,
     pub(crate) num_windows: c_int,
     pub(crate) grouping: [c_int; 8],
-    pub(crate) clipping: [c_float; 8],
 }
 
 #[derive(Clone)]

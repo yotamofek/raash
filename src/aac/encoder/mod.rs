@@ -23,7 +23,7 @@ use core::panic;
 use std::{
     ffi::CStr,
     iter::zip,
-    mem::{self, MaybeUninit},
+    mem,
     ptr::{self, addr_of, addr_of_mut, null, null_mut, NonNull},
 };
 
@@ -667,7 +667,6 @@ unsafe fn aac_encode_frame(
                 wi.window_shape = 0;
                 wi.num_windows = 1;
                 wi.grouping[0] = 1;
-                wi.clipping[0] = 0.;
 
                 // Only the lowest 12 coefficients are used in a LFE channel.
                 // The expression below results in only the bottom 8 coefficients
@@ -684,40 +683,43 @@ unsafe fn aac_encode_frame(
 
             ics.apply_psy_window_info(tag, wi, &(*ctx).psy, (*ctx).samplerate_index);
 
-            for (clipping, wbuf) in zip(
-                &mut wi.clipping,
-                WindowedArray::<_, 128>::from_ref(&*overlap),
-            )
-            .take(ics.num_windows as usize)
-            {
+            let clip_avoidance_factor = {
+                let mut clipping = [0.; 8];
                 let wlen: c_int = 2048 / ics.num_windows;
-                // mdct input is 2 * output
-                *clipping = wbuf[..wlen as usize]
-                    .iter()
-                    .copied()
-                    .map(c_float::abs)
-                    .max_by(c_float::total_cmp)
-                    .unwrap();
-            }
 
-            let clip_avoidance_factor = zip(&wi.clipping, &mut ics.window_clipping)
-                .take(ics.num_windows as usize)
-                .filter_map(|(&clipping, window_clipping)| {
-                    if clipping > CLIP_AVOIDANCE_FACTOR {
-                        *window_clipping = 1;
-                        Some(clipping)
-                    } else {
-                        *window_clipping = 0;
-                        None
-                    }
-                })
-                .max_by(c_float::total_cmp)
-                .unwrap_or_default();
-            if clip_avoidance_factor > CLIP_AVOIDANCE_FACTOR {
-                ics.clip_avoidance_factor = CLIP_AVOIDANCE_FACTOR / clip_avoidance_factor;
+                for (clipping, wbuf) in
+                    zip(&mut clipping, WindowedArray::<_, 128>::from_ref(&*overlap))
+                        .take(ics.num_windows as usize)
+                {
+                    // mdct input is 2 * output
+                    *clipping = wbuf[..wlen as usize]
+                        .iter()
+                        .copied()
+                        .map(c_float::abs)
+                        .max_by(c_float::total_cmp)
+                        .unwrap();
+                }
+
+                zip(&clipping, &mut ics.window_clipping)
+                    .take(ics.num_windows as usize)
+                    .filter_map(|(&clipping, window_clipping)| {
+                        if clipping > CLIP_AVOIDANCE_FACTOR {
+                            *window_clipping = 1;
+                            Some(clipping)
+                        } else {
+                            *window_clipping = 0;
+                            None
+                        }
+                    })
+                    .max_by(c_float::total_cmp)
+                    .unwrap_or_default()
+            };
+            ics.clip_avoidance_factor = if clip_avoidance_factor > CLIP_AVOIDANCE_FACTOR {
+                CLIP_AVOIDANCE_FACTOR / clip_avoidance_factor
             } else {
-                ics.clip_avoidance_factor = 1.;
-            }
+                1.
+            };
+
             apply_window_and_mdct(ctx, sce, overlap.as_mut_ptr());
 
             if sce
