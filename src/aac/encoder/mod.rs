@@ -447,21 +447,37 @@ unsafe extern "C" fn encode_spectral_coeffs(
 
 /// Downscale spectral coefficients for near-clipping windows to avoid artifacts
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 738..=756)]
-fn avoid_clipping(mut sce: &mut SingleChannelElement) {
-    if sce.ics.clip_avoidance_factor < 1. {
-        for w in 0..sce.ics.num_windows {
-            let mut start = 0;
+fn avoid_clipping(
+    &mut SingleChannelElement {
+        ics:
+            IndividualChannelStream {
+                clip_avoidance_factor,
+                max_sfb,
+                num_windows,
+                swb_sizes,
+                ..
+            },
+        ref mut coeffs,
+        ..
+    }: &mut SingleChannelElement,
+) {
+    if clip_avoidance_factor >= 1. {
+        return;
+    }
 
-            for i in 0..sce.ics.max_sfb {
-                sce.coeffs[W(w)][start.try_into().unwrap()..]
-                    [..sce.ics.swb_sizes[usize::from(i)].into()]
-                    .iter_mut()
-                    .for_each(|swb_coeff| {
-                        *swb_coeff *= sce.ics.clip_avoidance_factor;
-                    });
+    for coeffs in coeffs
+        .as_array_of_cells_deref()
+        .into_iter()
+        .take(num_windows as usize)
+    {
+        let mut start = 0;
 
-                start += sce.ics.swb_sizes[usize::from(i)] as c_int;
+        for &swb_size in swb_sizes.iter().take(max_sfb.into()) {
+            for coeff in &coeffs[start..][..swb_size.into()] {
+                coeff.update(|coeff| coeff * clip_avoidance_factor);
             }
+
+            start += usize::from(swb_size);
         }
     }
 }
@@ -752,6 +768,7 @@ unsafe fn aac_encode_frame(
         }
         start_ch += chans;
     }
+
     let mut avpkt = packet_builder.allocate((8192 * ctx.channels) as c_long);
 
     its = 0;
