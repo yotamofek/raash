@@ -26,7 +26,7 @@ pub(super) unsafe extern "C" fn encode_frame<Enc: Encoder>(
     frame: *const AVFrame,
     got_packet_ptr: *mut c_int,
 ) -> c_int {
-    let priv_data = (*avctx).priv_data as *mut PrivData<Enc>;
+    let priv_data = (*avctx).priv_data.cast::<PrivData<Enc>>();
 
     debug_assert!(!(*priv_data).ctx.is_null());
     // TODO(yotam): is it safe to create a mut reference here?

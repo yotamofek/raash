@@ -1040,13 +1040,13 @@ unsafe fn lame_apply_block_type(
     (*ctx).next_window_seq = blocktype as WindowSequence;
 }
 
-pub(super) unsafe extern "C" fn psy_lame_window(
-    mut ctx: *mut FFPsyContext,
-    mut la: *const c_float,
+pub(super) unsafe fn psy_lame_window(
+    mut ctx: &mut FFPsyContext,
+    mut la: Option<&[c_float]>,
     mut channel: c_int,
     mut prev_type: c_int,
 ) -> FFPsyWindowInfo {
-    let mut pctx: *mut AacPsyContext = (*ctx).model_priv_data as *mut AacPsyContext;
+    let mut pctx: *mut AacPsyContext = ctx.model_priv_data as *mut AacPsyContext;
     let mut pch: *mut AacPsyChannel =
         &mut *((*pctx).ch).offset(channel as isize) as *mut AacPsyChannel;
     let mut grouping: c_int = 0;
@@ -1054,13 +1054,13 @@ pub(super) unsafe extern "C" fn psy_lame_window(
     let mut attacks: [c_int; 9] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
     let mut i: c_int = 0;
     let mut wi = FFPsyWindowInfo::default();
-    if !la.is_null() {
+    if let Some(la) = la {
         let mut hpfsmpl: [c_float; 1024] = [0.; 1024];
         let mut pf: *const c_float = hpfsmpl.as_mut_ptr();
         let mut attack_intensity: [c_float; 27] = [0.; 27];
         let mut energy_subshort: [c_float; 27] = [0.; 27];
         let mut energy_short: [c_float; 9] = [0., 0., 0., 0., 0., 0., 0., 0., 0.];
-        let mut firbuf: *const c_float = la.offset((128 / 4 - 21) as isize);
+        let mut firbuf: *const c_float = la.as_ptr().offset((128 / 4 - 21) as isize);
         let mut att_sum: c_int = 0;
         psy_hp_filter(firbuf, hpfsmpl.as_mut_ptr(), FIR_COEFFS.as_ptr());
         i = 0;

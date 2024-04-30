@@ -1,4 +1,4 @@
-#![feature(const_option, const_ptr_is_null, inline_const)]
+#![feature(const_option, const_ptr_is_null)]
 
 mod callback;
 mod capabilities;
@@ -52,7 +52,7 @@ pub trait Encoder: Class {
         avctx: *mut AVCodecContext,
         ctx: &mut Self::Ctx,
         options: &Self::Options,
-        frame: &AVFrame,
+        frame: *const AVFrame,
         packet_builder: PacketBuilder<'_>,
     );
     fn close(avctx: *mut AVCodecContext, ctx: Box<Self::Ctx>);

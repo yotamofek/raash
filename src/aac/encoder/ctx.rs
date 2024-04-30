@@ -23,14 +23,18 @@ impl QuantizeBandCostCache {
     }
 }
 
-pub(crate) struct AACEncContext {
-    pub options: AACEncOptions,
-
-    pub pb: PutBitContext,
+pub struct MdctContext {
     pub mdct1024: *mut AVTXContext,
     pub mdct1024_fn: av_tx_fn,
     pub mdct128: *mut AVTXContext,
     pub mdct128_fn: av_tx_fn,
+}
+
+pub(crate) struct AACEncContext {
+    pub options: AACEncOptions,
+
+    pub pb: PutBitContext,
+    pub mdct: MdctContext,
     pub pce: Option<pce::Info>,
     pub planar_samples: Box<[[c_float; 3 * 1024]]>,
     pub profile: c_int,

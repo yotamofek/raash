@@ -62,10 +62,14 @@ impl AudioFrameQueue {
     }
 
     #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 44..=73, name = "ff_af_queue_add")]
-    pub unsafe fn add_frame(&mut self, f: &AVFrame) {
+    pub unsafe fn add_frame(&mut self, f: *const AVFrame) {
+        let AVFrame {
+            pts, nb_samples, ..
+        } = *f;
+
         let new = AudioFrame {
-            pts: if f.pts != c_long::MIN {
-                let pts = av_rescale_q(f.pts, (*self.avctx).time_base, {
+            pts: if pts != c_long::MIN {
+                let pts = av_rescale_q(pts, (*self.avctx).time_base, {
                     AVRational {
                         num: 1,
                         den: (*self.avctx).sample_rate,
@@ -86,13 +90,13 @@ impl AudioFrameQueue {
             } else {
                 c_long::MIN
             },
-            duration: f.nb_samples + self.remaining_delay,
+            duration: nb_samples + self.remaining_delay,
         };
 
         self.frames.push(new);
 
         self.remaining_delay = 0;
-        self.remaining_samples += f.nb_samples;
+        self.remaining_samples += nb_samples;
     }
 
     #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 75..=113, name = "ff_af_queue_remove")]

@@ -1,9 +1,9 @@
-use std::{mem::size_of, ptr, slice};
+use std::{mem::size_of, slice};
 
 use izip::izip;
 use libc::{c_float, c_int, c_uint, c_ulong, c_void};
 
-use super::ctx::AACEncContext;
+use super::ctx::MdctContext;
 use crate::{
     aac::{
         tables::{KBD_LONG, KBD_SHORT},
@@ -148,33 +148,32 @@ pub(super) const APPLY_WINDOW: [unsafe fn(*mut SingleChannelElement, *const c_fl
 ];
 
 pub(super) unsafe fn apply_window_and_mdct(
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-    mut audio: *mut c_float,
+    mut mdct: &MdctContext,
+    mut sce: &mut SingleChannelElement,
+    mut audio: &mut [c_float],
 ) {
     let mut i: c_int = 0;
-    let mut output: *mut c_float = ((*sce).ret_buf).as_mut_ptr();
-    APPLY_WINDOW[(*sce).ics.window_sequence[0] as usize](sce, audio);
-    if (*sce).ics.window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE as c_int as c_uint {
-        ((*s).mdct1024_fn).expect("non-null function pointer")(
-            (*s).mdct1024,
-            ((*sce).coeffs).as_mut_ptr() as *mut c_void,
+    let mut output: *mut c_float = (sce.ret_buf).as_mut_ptr();
+    APPLY_WINDOW[sce.ics.window_sequence[0] as usize](sce, audio.as_ptr());
+    if sce.ics.window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE {
+        (mdct.mdct1024_fn).expect("non-null function pointer")(
+            mdct.mdct1024,
+            (sce.coeffs).as_mut_ptr() as *mut c_void,
             output as *mut c_void,
             size_of::<c_float>() as c_ulong as ptrdiff_t,
         );
     } else {
         i = 0;
         while i < 1024 {
-            ((*s).mdct128_fn).expect("non-null function pointer")(
-                (*s).mdct128,
-                &mut *((*sce).coeffs).as_mut_ptr().offset(i as isize) as *mut c_float
-                    as *mut c_void,
+            (mdct.mdct128_fn).expect("non-null function pointer")(
+                mdct.mdct128,
+                &mut *(sce.coeffs).as_mut_ptr().offset(i as isize) as *mut c_float as *mut c_void,
                 output.offset((i * 2) as isize) as *mut c_void,
                 size_of::<c_float>() as c_ulong as ptrdiff_t,
             );
             i += 128;
         }
     }
-    ptr::copy_nonoverlapping(audio.offset(1024), audio, 1024);
-    (*sce).pcoeffs = (*sce).coeffs;
+    audio.copy_within(1024..1024 * 2, 0);
+    sce.pcoeffs = sce.coeffs;
 }
