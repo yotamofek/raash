@@ -23,7 +23,7 @@ use core::panic;
 use std::{
     ffi::CStr,
     iter::zip,
-    mem,
+    mem::{self, MaybeUninit},
     ptr::{self, addr_of, addr_of_mut, null, null_mut, NonNull},
 };
 
@@ -438,7 +438,7 @@ unsafe extern "C" fn encode_spectral_coeffs(
                     sf_idx,
                     band_type as c_int,
                     lambda,
-                    window_clipping.into(),
+                    window_clipping,
                 );
             }
         }
@@ -606,6 +606,48 @@ impl IndividualChannelStream {
             }
         };
     }
+
+    /// Calculate input sample maximums and evaluate clipping risk
+    #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 911..=935)]
+    fn calc_clip_avoidance_factor(&mut self, overlap: &[c_float]) {
+        let mut clipping = MaybeUninit::uninit_array::<8>();
+        let wlen = 2048 / self.num_windows;
+
+        let (clipping, _) = MaybeUninit::fill_from(
+            &mut clipping,
+            WindowedArray::<_, 128>::from_ref(overlap)
+                .into_iter()
+                .take(self.num_windows as usize)
+                .map(|wbuf| {
+                    // mdct input is 2 * output
+                    wbuf[..wlen as usize]
+                        .iter()
+                        .copied()
+                        .map(c_float::abs)
+                        .max_by(c_float::total_cmp)
+                        .unwrap()
+                }),
+        );
+
+        let clip_avoidance_factor = zip(&*clipping, &mut self.window_clipping)
+            .filter_map(|(&clipping, window_clipping)| {
+                if clipping > CLIP_AVOIDANCE_FACTOR {
+                    *window_clipping = true;
+                    Some(clipping)
+                } else {
+                    *window_clipping = false;
+                    None
+                }
+            })
+            .max_by(c_float::total_cmp)
+            .unwrap_or_default();
+
+        self.clip_avoidance_factor = if clip_avoidance_factor > CLIP_AVOIDANCE_FACTOR {
+            CLIP_AVOIDANCE_FACTOR / clip_avoidance_factor
+        } else {
+            1.
+        };
+    }
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 830..=1183)]
@@ -621,7 +663,6 @@ unsafe fn aac_encode_frame(
     let mut w: c_int = 0;
     let mut chans: c_int = 0;
     let mut tag: c_int = 0;
-    let mut start_ch: c_int = 0;
     let mut frame_bits: c_int = 0;
     let mut rate_bits: c_int = 0;
     let mut too_many_bits: c_int = 0;
@@ -631,36 +672,43 @@ unsafe fn aac_encode_frame(
     let mut tns_mode: c_int = 0;
     let mut pred_mode: c_int = 0;
     let mut windows = [FFPsyWindowInfo::default(); 16];
+
     if !frame.is_null() {
         ctx.afq.add_frame(frame)
     } else if ctx.afq.is_empty() {
         return 0;
     }
+
     copy_input_samples(ctx, frame);
     if (*avctx).frame_num == 0 {
         return 0;
     }
-    start_ch = 0;
+
     let chan_map = {
         let mut chan_map = ctx.chan_map;
         let len = *chan_map.take_first().unwrap();
         &chan_map[..len.into()]
     };
 
+    let mut wi = windows.as_mut_slice();
+    let mut planar_samples = ctx.planar_samples.as_mut();
+    let mut start_ch = 0;
     for (&tag, cpe) in zip(chan_map, &mut *ctx.cpe) {
-        let mut wi = &mut windows[start_ch.try_into().unwrap()..];
         let chans = if c_int::from(tag) == SyntaxElementType::ChannelPairElement as c_int {
             2
         } else {
             1
         };
-        for ch in 0..chans {
-            let sce = &mut cpe.ch[usize::try_from(ch).unwrap()];
+        for (ch, (sce, wi, overlap)) in izip!(
+            &mut cpe.ch,
+            wi.take_mut(..chans as usize).unwrap(),
+            planar_samples.take_mut(..chans as usize).unwrap(),
+        )
+        .enumerate()
+        {
             let ics = &mut sce.ics;
-            ctx.cur_channel = start_ch + ch;
-            let overlap = &mut ctx.planar_samples[ctx.cur_channel as usize];
+            ctx.cur_channel = start_ch + ch as c_int;
             let la = (!frame.is_null()).then(|| &overlap[1024 + 448 + 64..]);
-            let mut wi = &mut wi[usize::try_from(ch).unwrap()];
             if c_uint::from(tag) == SyntaxElementType::LowFrequencyEffects as c_uint {
                 let fresh2 = &mut wi.window_type[1];
                 *fresh2 = ONLY_LONG_SEQUENCE as c_int;
@@ -683,43 +731,7 @@ unsafe fn aac_encode_frame(
             }
 
             ics.apply_psy_window_info(tag, wi, &ctx.psy, ctx.samplerate_index);
-
-            let clip_avoidance_factor = {
-                let mut clipping = [0.; 8];
-                let wlen: c_int = 2048 / ics.num_windows;
-
-                for (clipping, wbuf) in
-                    zip(&mut clipping, WindowedArray::<_, 128>::from_ref(&*overlap))
-                        .take(ics.num_windows as usize)
-                {
-                    // mdct input is 2 * output
-                    *clipping = wbuf[..wlen as usize]
-                        .iter()
-                        .copied()
-                        .map(c_float::abs)
-                        .max_by(c_float::total_cmp)
-                        .unwrap();
-                }
-
-                zip(&clipping, &mut ics.window_clipping)
-                    .take(ics.num_windows as usize)
-                    .filter_map(|(&clipping, window_clipping)| {
-                        if clipping > CLIP_AVOIDANCE_FACTOR {
-                            *window_clipping = 1;
-                            Some(clipping)
-                        } else {
-                            *window_clipping = 0;
-                            None
-                        }
-                    })
-                    .max_by(c_float::total_cmp)
-                    .unwrap_or_default()
-            };
-            ics.clip_avoidance_factor = if clip_avoidance_factor > CLIP_AVOIDANCE_FACTOR {
-                CLIP_AVOIDANCE_FACTOR / clip_avoidance_factor
-            } else {
-                1.
-            };
+            ics.calc_clip_avoidance_factor(overlap);
 
             apply_window_and_mdct(&ctx.mdct, sce, overlap);
 

@@ -90,7 +90,7 @@ pub(crate) struct IndividualChannelStream {
     tns_max_bands: c_int,
     predictor_present: bool,
     /// set if a certain window is near clipping
-    window_clipping: [c_uchar; 8],
+    window_clipping: [bool; 8],
     /// set if any window is near clipping to the necessary atennuation factor
     /// to avoid it
     clip_avoidance_factor: c_float,

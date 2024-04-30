@@ -455,9 +455,9 @@ pub(crate) unsafe fn quantize_and_encode_band(
     scale_idx: c_int,
     cb: c_int,
     lambda: c_float,
-    rtz: c_int,
+    rtz: bool,
 ) {
-    let arr = if rtz != 0 { &fn_rtz_arr } else { &fn_arr };
+    let arr = if rtz { &fn_rtz_arr } else { &fn_arr };
     let scaled = ArrayVec::<_, 1024>::from_iter(in_.iter().copied().map(Pow34::abs_pow34));
     arr[cb as usize](
         Some(pb),
