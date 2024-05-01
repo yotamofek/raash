@@ -136,44 +136,46 @@ fn apply_eight_short_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 
     }
 }
 
-pub(super) fn apply_window_and_mdct(
-    mut mdct: &MdctContext,
-    mut sce: &mut SingleChannelElement,
-    mut audio: &mut [c_float; 3 * 1024],
-) {
-    match sce.ics.window_sequence[0] {
-        ONLY_LONG_SEQUENCE => apply_only_long_window(sce, audio),
-        LONG_START_SEQUENCE => apply_long_start_window(sce, audio),
-        EIGHT_SHORT_SEQUENCE => apply_eight_short_window(sce, audio),
-        LONG_STOP_SEQUENCE => apply_long_stop_window(sce, audio),
-        _ => unreachable!(),
-    }
+impl SingleChannelElement {
+    pub(super) fn apply_window_and_mdct(
+        &mut self,
+        mut mdct: &MdctContext,
+        mut audio: &mut [c_float; 3 * 1024],
+    ) {
+        match self.ics.window_sequence[0] {
+            ONLY_LONG_SEQUENCE => apply_only_long_window(self, audio),
+            LONG_START_SEQUENCE => apply_long_start_window(self, audio),
+            EIGHT_SHORT_SEQUENCE => apply_eight_short_window(self, audio),
+            LONG_STOP_SEQUENCE => apply_long_stop_window(self, audio),
+            _ => unreachable!(),
+        }
 
-    if sce.ics.window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE {
-        unsafe {
-            mdct.mdct1024_fn.expect("non-null function pointer")(
-                mdct.mdct1024,
-                sce.coeffs.as_mut_ptr().cast(),
-                sce.ret_buf.as_mut_ptr().cast(),
-                size_of::<c_float>() as ptrdiff_t,
-            )
-        };
-    } else {
-        for (coeffs, output) in zip(
-            sce.coeffs.array_chunks_mut::<128>(),
-            sce.ret_buf.array_chunks_mut::<256>(),
-        ) {
+        if self.ics.window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE {
             unsafe {
-                mdct.mdct128_fn.expect("non-null function pointer")(
-                    mdct.mdct128,
-                    coeffs.as_mut_ptr().cast(),
-                    output.as_mut_ptr().cast(),
+                mdct.mdct1024_fn.expect("non-null function pointer")(
+                    mdct.mdct1024,
+                    self.coeffs.as_mut_ptr().cast(),
+                    self.ret_buf.as_mut_ptr().cast(),
                     size_of::<c_float>() as ptrdiff_t,
                 )
             };
+        } else {
+            for (coeffs, output) in zip(
+                self.coeffs.array_chunks_mut::<128>(),
+                self.ret_buf.array_chunks_mut::<256>(),
+            ) {
+                unsafe {
+                    mdct.mdct128_fn.expect("non-null function pointer")(
+                        mdct.mdct128,
+                        coeffs.as_mut_ptr().cast(),
+                        output.as_mut_ptr().cast(),
+                        size_of::<c_float>() as ptrdiff_t,
+                    )
+                };
+            }
         }
-    }
 
-    audio.copy_within(1024..1024 * 2, 0);
-    sce.pcoeffs = sce.coeffs;
+        audio.copy_within(1024..1024 * 2, 0);
+        self.pcoeffs = self.coeffs;
+    }
 }

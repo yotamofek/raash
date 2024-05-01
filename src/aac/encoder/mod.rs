@@ -51,7 +51,6 @@ use self::{
     pb::*,
     tables::{SWB_SIZE_1024, SWB_SIZE_128},
     temporal_noise_shaping as tns,
-    window::apply_window_and_mdct,
 };
 use super::{
     psy_model::{psy_3gpp_analyze, psy_lame_window},
@@ -450,7 +449,7 @@ impl SingleChannelElement {
     /// artifacts
     #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 738..=756)]
     fn avoid_clipping(&mut self) {
-        let SingleChannelElement {
+        let Self {
             ics:
                 IndividualChannelStream {
                     clip_avoidance_factor,
@@ -564,7 +563,7 @@ unsafe extern "C" fn copy_input_samples(s: &mut AACEncContext, frame: *const AVF
         // copy new samples and zero any remaining samples
         if !frame.is_null() {
             ptr::copy_nonoverlapping(
-                *((*frame).extended_data).offset(reorder.into()) as *mut c_float,
+                *(*frame).extended_data.offset(reorder.into()) as *mut c_float,
                 planar_samples[2048..][..(*frame).nb_samples as usize].as_mut_ptr(),
                 (*frame).nb_samples as usize,
             );
@@ -729,9 +728,8 @@ unsafe fn aac_encode_frame(
             ctx.cur_channel = start_ch + ch as c_int;
             let la = (!frame.is_null()).then(|| &overlap[1024 + 448 + 64..]);
             if c_uint::from(tag) == SyntaxElementType::LowFrequencyEffects as c_uint {
-                let fresh2 = &mut wi.window_type[1];
-                *fresh2 = ONLY_LONG_SEQUENCE as c_int;
-                wi.window_type[0] = *fresh2;
+                wi.window_type[0] = ONLY_LONG_SEQUENCE as c_int;
+                wi.window_type[1] = ONLY_LONG_SEQUENCE as c_int;
                 wi.window_shape = 0;
                 wi.num_windows = 1;
                 wi.grouping[0] = 1;
@@ -752,7 +750,7 @@ unsafe fn aac_encode_frame(
             ics.apply_psy_window_info(tag, wi, &ctx.psy, ctx.samplerate_index);
             ics.calc_clip_avoidance_factor(overlap);
 
-            apply_window_and_mdct(&ctx.mdct, sce, overlap);
+            sce.apply_window_and_mdct(&ctx.mdct, overlap);
 
             if sce
                 .coeffs
