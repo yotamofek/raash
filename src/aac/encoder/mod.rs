@@ -601,7 +601,7 @@ impl IndividualChannelStream {
 
         *self = IndividualChannelStream {
             window_sequence: [window_type as WindowSequence, window_sequence],
-            use_kb_window: [window_shape as c_uchar, use_kb_window],
+            use_kb_window: [window_shape != 0, use_kb_window],
             num_windows,
             swb_sizes: psy.bands[usize::from(num_windows == 8)],
             num_swb,

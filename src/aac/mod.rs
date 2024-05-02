@@ -81,7 +81,7 @@ pub(crate) struct IndividualChannelStream {
     max_sfb: c_uchar,
     window_sequence: [WindowSequence; 2],
     /// If set, use Kaiser-Bessel window, otherwise use a sine window.
-    use_kb_window: [c_uchar; 2],
+    use_kb_window: [bool; 2],
     group_len: [c_uchar; 8],
     /// table of offsets to the lowest spectral coefficient of a scalefactor
     /// band, sfb, for a particular window

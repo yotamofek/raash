@@ -16,13 +16,10 @@ use crate::{
 fn apply_only_long_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
-    let [lwindow, pwindow] = sce.ics.use_kb_window.map(|use_kb| {
-        if use_kb != 0 {
-            &*KBD_LONG
-        } else {
-            &SINE_WIN_1024
-        }
-    });
+    let [lwindow, pwindow] =
+        sce.ics
+            .use_kb_window
+            .map(|use_kb| if use_kb { &*KBD_LONG } else { &SINE_WIN_1024 });
 
     for (out, audio, lwindow) in izip!(&mut out[..1024], &audio[..1024], &lwindow[..1024]) {
         *out = *audio * *lwindow;
@@ -39,12 +36,12 @@ fn apply_only_long_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 
 fn apply_long_start_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
-    let mut lwindow = if sce.ics.use_kb_window[1] != 0 {
+    let mut lwindow = if sce.ics.use_kb_window[1] {
         &*KBD_LONG
     } else {
         &SINE_WIN_1024
     };
-    let mut swindow = if sce.ics.use_kb_window[0] != 0 {
+    let mut swindow = if sce.ics.use_kb_window[0] {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128
@@ -70,12 +67,12 @@ fn apply_long_start_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 *
 fn apply_long_stop_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
-    let mut lwindow = if sce.ics.use_kb_window[0] != 0 {
+    let mut lwindow = if sce.ics.use_kb_window[0] {
         &*KBD_LONG
     } else {
         &SINE_WIN_1024
     };
-    let mut swindow = if sce.ics.use_kb_window[1] != 0 {
+    let mut swindow = if sce.ics.use_kb_window[1] {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128
@@ -105,12 +102,12 @@ fn apply_long_stop_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 
 fn apply_eight_short_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
-    let mut swindow = if sce.ics.use_kb_window[0] != 0 {
+    let mut swindow = if sce.ics.use_kb_window[0] {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128
     };
-    let mut pwindow = if sce.ics.use_kb_window[1] != 0 {
+    let mut pwindow = if sce.ics.use_kb_window[1] {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128
