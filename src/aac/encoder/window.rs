@@ -1,13 +1,13 @@
 use std::{iter::zip, mem::size_of};
 
 use izip::izip;
-use libc::{c_float, c_uint};
+use libc::c_float;
 
 use super::ctx::MdctContext;
 use crate::{
     aac::{
         tables::{KBD_LONG, KBD_SHORT},
-        EIGHT_SHORT_SEQUENCE, LONG_START_SEQUENCE, LONG_STOP_SEQUENCE, ONLY_LONG_SEQUENCE,
+        WindowSequence,
     },
     sinewin::{SINE_WIN_1024, SINE_WIN_128},
     types::{ptrdiff_t, SingleChannelElement},
@@ -136,21 +136,26 @@ fn apply_eight_short_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 
     }
 }
 
+impl WindowSequence {
+    fn apply(self, sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
+        match self {
+            Self::OnlyLong => apply_only_long_window(sce, audio),
+            Self::LongStart => apply_long_start_window(sce, audio),
+            Self::EightShort => apply_eight_short_window(sce, audio),
+            Self::LongStop => apply_long_stop_window(sce, audio),
+        }
+    }
+}
+
 impl SingleChannelElement {
     pub(super) fn apply_window_and_mdct(
         &mut self,
-        mut mdct: &MdctContext,
-        mut audio: &mut [c_float; 3 * 1024],
+        mdct: &MdctContext,
+        audio: &mut [c_float; 3 * 1024],
     ) {
-        match self.ics.window_sequence[0] {
-            ONLY_LONG_SEQUENCE => apply_only_long_window(self, audio),
-            LONG_START_SEQUENCE => apply_long_start_window(self, audio),
-            EIGHT_SHORT_SEQUENCE => apply_eight_short_window(self, audio),
-            LONG_STOP_SEQUENCE => apply_long_stop_window(self, audio),
-            _ => unreachable!(),
-        }
+        self.ics.window_sequence[0].apply(self, audio);
 
-        if self.ics.window_sequence[0] as c_uint != EIGHT_SHORT_SEQUENCE {
+        if self.ics.window_sequence[0] != WindowSequence::EightShort {
             unsafe {
                 mdct.mdct1024_fn.expect("non-null function pointer")(
                     mdct.mdct1024,

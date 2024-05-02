@@ -1,7 +1,7 @@
 use std::iter;
 
 use ffmpeg_src_macro::ffmpeg_src;
-use libc::{c_float, c_int, c_uchar, c_uint, c_ushort};
+use libc::{c_float, c_int, c_uchar, c_ushort};
 
 pub mod coder;
 pub mod encoder;
@@ -64,11 +64,15 @@ const SCALE_DIFF_ZERO: c_uchar = 60;
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 152)]
 const POW_SF2_ZERO: c_uchar = 200;
 
-type WindowSequence = c_uint;
-const LONG_STOP_SEQUENCE: WindowSequence = 3;
-const EIGHT_SHORT_SEQUENCE: WindowSequence = 2;
-const LONG_START_SEQUENCE: WindowSequence = 1;
-const ONLY_LONG_SEQUENCE: WindowSequence = 0;
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub(crate) enum WindowSequence {
+    LongStop = 3,
+    EightShort = 2,
+    LongStart = 1,
+    #[default]
+    OnlyLong = 0,
+}
 
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 169..=191)]
 #[derive(Default, Copy, Clone)]

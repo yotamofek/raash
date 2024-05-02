@@ -12,12 +12,9 @@ use std::alloc::{alloc_zeroed, Layout};
 use array_util::{WindowedArray, W};
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
-use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
+use libc::{c_double, c_float, c_int, c_long, c_uchar};
 
-use super::{
-    WindowSequence, EIGHT_SHORT_SEQUENCE, LONG_START_SEQUENCE, LONG_STOP_SEQUENCE,
-    ONLY_LONG_SEQUENCE,
-};
+use super::WindowSequence;
 use crate::{common::*, psy_model::find_group, types::*};
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
@@ -744,8 +741,8 @@ unsafe fn psy_3gpp_analyze_channel(
                 (*coeffs.offset(g as isize)).ath
             };
             (*band).thr_quiet = (*band).thr;
-            if !((*wi).window_type[0] == LONG_STOP_SEQUENCE as c_int
-                || w == 0 && (*wi).window_type[1] == LONG_START_SEQUENCE as c_int)
+            if !((*wi).window_type[0] == WindowSequence::LongStop
+                || w == 0 && (*wi).window_type[1] == WindowSequence::LongStart)
             {
                 (*band).thr = if 0.01 * (*band).thr
                     > (if (*band).thr > 2. * (*pch).prev_band[(w + g) as usize].thr_quiet {
@@ -1022,21 +1019,21 @@ unsafe fn lame_apply_block_type(
     mut wi: *mut FFPsyWindowInfo,
     mut uselongblock: c_int,
 ) {
-    let mut blocktype: c_int = ONLY_LONG_SEQUENCE as c_int;
+    let mut blocktype = WindowSequence::default();
     if uselongblock != 0 {
-        if (*ctx).next_window_seq as c_uint == EIGHT_SHORT_SEQUENCE as c_int as c_uint {
-            blocktype = LONG_STOP_SEQUENCE as c_int;
+        if (*ctx).next_window_seq == WindowSequence::EightShort {
+            blocktype = WindowSequence::LongStop;
         }
     } else {
-        blocktype = EIGHT_SHORT_SEQUENCE as c_int;
-        if (*ctx).next_window_seq as c_uint == ONLY_LONG_SEQUENCE as c_int as c_uint {
-            (*ctx).next_window_seq = LONG_START_SEQUENCE;
+        blocktype = WindowSequence::EightShort;
+        if (*ctx).next_window_seq == WindowSequence::OnlyLong {
+            (*ctx).next_window_seq = WindowSequence::LongStart;
         }
-        if (*ctx).next_window_seq as c_uint == LONG_STOP_SEQUENCE as c_int as c_uint {
-            (*ctx).next_window_seq = EIGHT_SHORT_SEQUENCE;
+        if (*ctx).next_window_seq == WindowSequence::LongStop {
+            (*ctx).next_window_seq = WindowSequence::EightShort;
         }
     }
-    (*wi).window_type[0] = (*ctx).next_window_seq as c_int;
+    (*wi).window_type[0] = (*ctx).next_window_seq;
     (*ctx).next_window_seq = blocktype as WindowSequence;
 }
 
@@ -1044,7 +1041,7 @@ pub(super) unsafe fn psy_lame_window(
     mut ctx: &mut FFPsyContext,
     mut la: Option<&[c_float]>,
     mut channel: c_int,
-    mut prev_type: c_int,
+    mut prev_type: WindowSequence,
 ) -> FFPsyWindowInfo {
     let mut pctx: *mut AacPsyContext = ctx.model_priv_data as *mut AacPsyContext;
     let mut pch: *mut AacPsyChannel =
@@ -1136,14 +1133,14 @@ pub(super) unsafe fn psy_lame_window(
             }
         }
     } else {
-        uselongblock = !(prev_type == EIGHT_SHORT_SEQUENCE as c_int) as c_int;
+        uselongblock = !(prev_type == WindowSequence::EightShort) as c_int;
     }
     lame_apply_block_type(pch, &mut wi, uselongblock);
     wi.window_type[1] = prev_type;
-    if wi.window_type[0] != EIGHT_SHORT_SEQUENCE as c_int {
+    if wi.window_type[0] != WindowSequence::EightShort {
         wi.num_windows = 1;
         wi.grouping[0] = 1;
-        if wi.window_type[0] == LONG_START_SEQUENCE as c_int {
+        if wi.window_type[0] == WindowSequence::LongStart {
             wi.window_shape = 0;
         } else {
             wi.window_shape = 1;

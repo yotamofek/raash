@@ -14,14 +14,11 @@ use std::{mem::size_of, ops::RangeInclusive, ptr::addr_of_mut};
 use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
-use libc::{c_double, c_float, c_int, c_long, c_uint, c_ulong};
+use libc::{c_double, c_float, c_int, c_long, c_ulong};
 
 use self::tables::{tns_min_sfb, tns_tmp2_map};
 use crate::{
-    aac::{
-        encoder::ctx::AACEncContext, IndividualChannelStream, EIGHT_SHORT_SEQUENCE,
-        LONG_START_SEQUENCE, LONG_STOP_SEQUENCE,
-    },
+    aac::{encoder::ctx::AACEncContext, IndividualChannelStream, WindowSequence},
     common::*,
     types::*,
 };
@@ -204,7 +201,7 @@ pub(super) unsafe fn encode_info(s: *mut AACEncContext, sce: *mut SingleChannelE
         ..
     } = *sce;
 
-    let is8 = window_sequence == EIGHT_SHORT_SEQUENCE;
+    let is8 = window_sequence == WindowSequence::EightShort;
     let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
 
     if tns.present == 0 {
@@ -354,7 +351,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChann
     let mut gain: c_double = 0.;
     let mut coefs: [c_double; 32] = [0.; 32];
     let mmm: c_int = (*sce).ics.tns_max_bands.min((*sce).ics.max_sfb as c_int);
-    let is8 = (*sce).ics.window_sequence[0] == EIGHT_SHORT_SEQUENCE;
+    let is8 = (*sce).ics.window_sequence[0] == WindowSequence::EightShort;
     let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
     let sfb_start: c_int = av_clip_c(
         tns_min_sfb[is8 as usize][(*s).samplerate_index as usize] as c_int,
@@ -369,11 +366,9 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChann
     } else {
         MAX_ORDER as c_int
     };
-    let slant: c_int = if (*sce).ics.window_sequence[0] as c_uint
-        == LONG_STOP_SEQUENCE as c_int as c_uint
-    {
+    let slant: c_int = if (*sce).ics.window_sequence[0] == WindowSequence::LongStop {
         1
-    } else if (*sce).ics.window_sequence[0] as c_uint == LONG_START_SEQUENCE as c_int as c_uint {
+    } else if (*sce).ics.window_sequence[0] == WindowSequence::LongStart {
         0
     } else {
         2

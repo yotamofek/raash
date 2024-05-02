@@ -1,6 +1,6 @@
 #![deny(dead_code)]
 
-use std::ptr::{null, null_mut};
+use std::ptr::null_mut;
 
 use array_util::{Array, WindowedArray};
 use ffi::{
@@ -10,7 +10,7 @@ use ffi::{
 };
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
-use crate::aac::{encoder::TemporalNoiseShaping, IndividualChannelStream};
+use crate::aac::{encoder::TemporalNoiseShaping, IndividualChannelStream, WindowSequence};
 
 // pub(crate) const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
 
@@ -146,7 +146,7 @@ pub(crate) struct FFPsyChannelGroup {
 #[derive(Copy, Clone, Default)]
 #[repr(C)]
 pub(crate) struct FFPsyWindowInfo {
-    pub(crate) window_type: [c_int; 3],
+    pub(crate) window_type: [WindowSequence; 3],
     pub(crate) window_shape: c_int,
     pub(crate) num_windows: c_int,
     pub(crate) grouping: [c_int; 8],

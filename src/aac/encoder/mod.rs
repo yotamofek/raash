@@ -55,7 +55,6 @@ use self::{
 use super::{
     psy_model::{psy_3gpp_analyze, psy_lame_window},
     IndividualChannelStream, SyntaxElementType, WindowSequence, WindowedIteration,
-    EIGHT_SHORT_SEQUENCE, ONLY_LONG_SEQUENCE,
 };
 use crate::{
     aac::{
@@ -213,9 +212,9 @@ unsafe extern "C" fn put_ics_info(s: *mut AACEncContext, info: *const Individual
         ..
     } = *info;
     put_bits(pb, 1, 0); // ics_reserved bit
-    put_bits(pb, 2, window_sequence);
+    put_bits(pb, 2, (window_sequence as u8).into());
     put_bits(pb, 1, use_kb_window.into());
-    if window_sequence != EIGHT_SHORT_SEQUENCE {
+    if window_sequence != WindowSequence::EightShort {
         put_bits(pb, 6, max_sfb.into());
         put_bits(pb, 1, predictor_present.into());
     } else {
@@ -608,7 +607,7 @@ impl IndividualChannelStream {
             num_swb,
             max_sfb: max_sfb.min(num_swb as c_uchar),
             group_len: grouping.map(|grouping| grouping as c_uchar),
-            ..if window_type == EIGHT_SHORT_SEQUENCE as c_int {
+            ..if window_type == WindowSequence::EightShort {
                 IndividualChannelStream {
                     swb_offset: SWB_OFFSET_128[samplerate_index as usize],
                     tns_max_bands: TNS_MAX_BANDS_128[samplerate_index as usize].into(),
@@ -725,8 +724,8 @@ unsafe fn aac_encode_frame(
             ctx.cur_channel = start_ch + ch as c_int;
             let la = (!frame.is_null()).then(|| &overlap[1024 + 448 + 64..]);
             if c_uint::from(tag) == SyntaxElementType::LowFrequencyEffects as c_uint {
-                wi.window_type[0] = ONLY_LONG_SEQUENCE as c_int;
-                wi.window_type[1] = ONLY_LONG_SEQUENCE as c_int;
+                wi.window_type[0] = WindowSequence::OnlyLong;
+                wi.window_type[1] = WindowSequence::OnlyLong;
                 wi.window_shape = 0;
                 wi.num_windows = 1;
                 wi.grouping[0] = 1;
@@ -736,12 +735,7 @@ unsafe fn aac_encode_frame(
                 // being used for 11.025kHz to 16kHz sample rates.
                 ics.num_swb = if ctx.samplerate_index >= 8 { 1 } else { 3 };
             } else {
-                *wi = psy_lame_window(
-                    &mut ctx.psy,
-                    la,
-                    ctx.cur_channel,
-                    ics.window_sequence[0] as c_int,
-                );
+                *wi = psy_lame_window(&mut ctx.psy, la, ctx.cur_channel, ics.window_sequence[0]);
             }
 
             ics.apply_psy_window_info(tag, wi, &ctx.psy, ctx.samplerate_index);
