@@ -44,7 +44,6 @@ pub(crate) struct AACEncContext {
     pub channels: c_int,
     pub reorder_map: &'static [c_uchar],
     pub chan_map: &'static [c_uchar],
-    pub cpe: Box<[ChannelElement]>,
     pub psy: FFPsyContext,
     pub cur_channel: c_int,
     pub random_state: c_int,

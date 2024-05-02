@@ -73,7 +73,6 @@ use crate::{
     },
     audio_frame_queue::{AudioFrameQueue, AudioRemoved},
     avutil::tx::av_tx_uninit,
-    common::*,
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
     psy_model::{ff_psy_end, ff_psy_init},
     types::*,
@@ -672,15 +671,13 @@ impl IndividualChannelStream {
 unsafe fn aac_encode_frame(
     mut avctx: *mut AVCodecContext,
     mut ctx: &mut AACEncContext,
+    mut cpe: &mut Box<[ChannelElement]>,
     mut frame: *const AVFrame,
     mut packet_builder: PacketBuilder,
 ) -> c_int {
-    let mut i: c_int = 0;
     let mut its: c_int = 0;
     let mut ch: c_int = 0;
-    let mut w: c_int = 0;
     let mut chans: c_int = 0;
-    let mut tag: c_int = 0;
     let mut frame_bits: c_int = 0;
     let mut rate_bits: c_int = 0;
     let mut too_many_bits: c_int = 0;
@@ -711,7 +708,7 @@ unsafe fn aac_encode_frame(
     let mut wi = windows.as_mut_slice();
     let mut planar_samples = ctx.planar_samples.as_mut();
     let mut start_ch = 0;
-    for (&tag, cpe) in zip(chan_map, &mut *ctx.cpe) {
+    for (&tag, cpe) in zip(chan_map, &mut **cpe) {
         let chans = if c_int::from(tag) == SyntaxElementType::ChannelPairElement as c_int {
             2
         } else {
@@ -789,25 +786,22 @@ unsafe fn aac_encode_frame(
         let mut start_ch = 0;
         let mut target_bits = 0;
         let mut chan_el_counter = [0; 4];
-        i = 0;
-        while i < ctx.chan_map[0] as c_int {
-            let mut wi_0: *mut FFPsyWindowInfo = windows.as_mut_ptr().offset(start_ch as isize);
+        for (&tag, cpe) in zip(chan_map, &mut **cpe) {
+            let mut wi_0 = &mut windows[start_ch as usize..];
             let mut coeffs: [*const c_float; 2] = [null(); 2];
-            tag = ctx.chan_map[(i + 1) as usize] as c_int;
-            chans = if tag == SyntaxElementType::ChannelPairElement as c_int {
+            chans = if c_int::from(tag) == SyntaxElementType::ChannelPairElement as c_int {
                 2
             } else {
                 1
             };
-            let cpe = &mut ctx.cpe[i as usize] as *mut ChannelElement;
-            (*cpe).common_window = 0;
-            (*cpe).is_mask.fill(false);
-            (*cpe).ms_mask.fill(false);
+            cpe.common_window = 0;
+            cpe.is_mask.fill(false);
+            cpe.ms_mask.fill(false);
             put_bits(pb, 3, tag as BitBuf);
             let fresh3 = chan_el_counter[tag as usize];
             chan_el_counter[tag as usize] += 1;
             put_bits(pb, 4, fresh3 as BitBuf);
-            for (sce, coeffs) in zip(&mut (*cpe).ch, &mut coeffs).take(chans as usize) {
+            for (sce, coeffs) in zip(&mut cpe.ch, &mut coeffs).take(chans as usize) {
                 *coeffs = (sce.coeffs).as_mut_ptr();
                 sce.ics.predictor_present = false;
                 sce.tns = TemporalNoiseShaping::default();
@@ -820,7 +814,12 @@ unsafe fn aac_encode_frame(
             }
             ctx.psy.bitres.alloc = -1;
             ctx.psy.bitres.bits = ctx.last_frame_pb_count / ctx.channels;
-            psy_3gpp_analyze(&mut ctx.psy, start_ch, coeffs.as_mut_ptr(), wi_0);
+            psy_3gpp_analyze(
+                &mut ctx.psy,
+                start_ch,
+                coeffs.as_mut_ptr(),
+                wi_0.as_mut_ptr(),
+            );
             if ctx.psy.bitres.alloc > 0 {
                 target_bits = (target_bits as c_float
                     + ctx.psy.bitres.alloc as c_float
@@ -837,199 +836,172 @@ unsafe fn aac_encode_frame(
             while ch < chans {
                 ctx.cur_channel = start_ch + ch;
                 if ctx.options.pns != 0 {
-                    pns::mark(
-                        ctx,
-                        avctx,
-                        &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
-                    );
+                    pns::mark(ctx, avctx, &mut *(cpe.ch).as_mut_ptr().offset(ch as isize));
                 }
                 quantizers::twoloop::search(
                     avctx,
                     ctx,
-                    &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize),
+                    &mut *(cpe.ch).as_mut_ptr().offset(ch as isize),
                     ctx.lambda,
                 );
                 ch += 1;
                 ch;
             }
             if chans > 1
-                && (*wi_0.offset(0)).window_type[0] == (*wi_0.offset(1)).window_type[0]
-                && (*wi_0.offset(0)).window_shape == (*wi_0.offset(1)).window_shape
+                && wi_0[0].window_type[0] == wi_0[1].window_type[0]
+                && wi_0[0].window_shape == wi_0[1].window_shape
             {
-                (*cpe).common_window = 1;
-                w = 0;
-                while w < (*wi_0.offset(0)).num_windows {
-                    if (*wi_0.offset(0)).grouping[w as usize]
-                        != (*wi_0.offset(1)).grouping[w as usize]
-                    {
-                        (*cpe).common_window = 0;
-                        break;
-                    } else {
-                        w += 1;
-                        w;
-                    }
-                }
+                cpe.common_window = zip(&wi_0[0].grouping, &wi_0[1].grouping)
+                    .take(wi_0[0].num_windows as usize)
+                    .all(|(grouping0, grouping1)| grouping0 == grouping1)
+                    .into();
             }
-            ch = 0;
-            while ch < chans {
-                let sce =
-                    &mut *((*cpe).ch).as_mut_ptr().offset(ch as isize) as *mut SingleChannelElement;
-                ctx.cur_channel = start_ch + ch;
+            for (ch, sce) in cpe.ch.iter_mut().take(chans as usize).enumerate() {
+                ctx.cur_channel = start_ch + ch as c_int;
                 if ctx.options.tns != 0 {
                     tns::search(ctx, sce);
                 }
                 if ctx.options.tns != 0 {
                     tns::apply(sce);
                 }
-                if (*sce).tns.present != 0 {
+                if sce.tns.present != 0 {
                     tns_mode = 1;
                 }
                 if ctx.options.pns != 0 {
                     pns::search(ctx, avctx, sce);
                 }
-                ch += 1;
-                ch;
             }
             ctx.cur_channel = start_ch;
             if ctx.options.intensity_stereo != 0 {
                 intensity_stereo::search(ctx, avctx, cpe);
-                if (*cpe).is_mode {
+                if cpe.is_mode {
                     is_mode = 1;
                 }
                 intensity_stereo::apply(cpe);
             }
             if ctx.options.pred != 0 {
-                ch = 0;
-                while ch < chans {
-                    ctx.cur_channel = start_ch + ch;
+                for (ch, sce) in cpe.ch.iter().take(chans as usize).enumerate() {
+                    ctx.cur_channel = start_ch + ch as c_int;
                     if ctx.options.pred != 0 {
                         unimplemented!("main pred is unimplemented");
                     }
-                    if (*cpe).ch[ch as usize].ics.predictor_present {
+                    if sce.ics.predictor_present {
                         pred_mode = 1;
                     }
-                    ch += 1;
-                    ch;
                 }
 
-                ch = 0;
-                while ch < chans {
-                    ctx.cur_channel = start_ch + ch;
-                    if ctx.options.pred != 0 {
-                        unimplemented!("main pred is unimplemented");
-                    }
-                    ch += 1;
-                    ch;
-                }
                 ctx.cur_channel = start_ch;
             }
             if ctx.options.mid_side != 0 {
                 if ctx.options.mid_side == -1 {
                     ms::search(ctx, cpe);
-                } else if (*cpe).common_window != 0 {
-                    (*cpe).ms_mask.fill(true);
+                } else if cpe.common_window != 0 {
+                    cpe.ms_mask.fill(true);
                 }
                 ms::apply(cpe);
             }
             adjust_frame_information(cpe, chans);
 
             if chans == 2 {
-                put_bits(pb, 1, (*cpe).common_window as BitBuf);
-                if (*cpe).common_window != 0 {
-                    put_ics_info(ctx, addr_of!((*cpe).ch[0].ics));
+                put_bits(pb, 1, cpe.common_window as BitBuf);
+                if cpe.common_window != 0 {
+                    put_ics_info(ctx, addr_of!(cpe.ch[0].ics));
 
                     encode_ms_info(pb, cpe);
-                    if (*cpe).ms_mode != 0 {
+                    if cpe.ms_mode != 0 {
                         ms_mode = 1;
                     }
                 }
             }
-            for (ch, sce) in (*cpe).ch[..chans as usize].iter_mut().enumerate() {
+            for (ch, sce) in cpe.ch.iter_mut().take(chans as usize).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
-                encode_individual_channel(avctx, ctx, sce, (*cpe).common_window);
+                encode_individual_channel(avctx, ctx, sce, cpe.common_window);
             }
             start_ch += chans;
-            i += 1;
         }
+
         if (*avctx).flags.qscale() {
+            // When using a constant Q-scale, don't mess with lambda
             break;
         }
+
+        // rate control stuff
+        // allow between the nominal bitrate, and what psy's bit reservoir says to
+        // target but drift towards the nominal bitrate always
         frame_bits = put_bits_count(pb);
-        rate_bits = ((*avctx).bit_rate * 1024 as c_long / (*avctx).sample_rate as c_long) as c_int;
-        rate_bits = if rate_bits > 6144 * ctx.channels - 3 {
-            6144 * ctx.channels - 3
-        } else {
-            rate_bits
-        };
-        too_many_bits = if target_bits > rate_bits {
-            target_bits
-        } else {
-            rate_bits
-        };
-        too_many_bits = if too_many_bits > 6144 * ctx.channels - 3 {
-            6144 * ctx.channels - 3
-        } else {
-            too_many_bits
-        };
-        too_few_bits = if (if rate_bits - rate_bits / 4 > target_bits {
-            rate_bits - rate_bits / 4
-        } else {
-            target_bits
-        }) > too_many_bits
-        {
-            too_many_bits
-        } else if rate_bits - rate_bits / 4 > target_bits {
-            rate_bits - rate_bits / 4
-        } else {
-            target_bits
-        };
+        rate_bits = ((*avctx).bit_rate * 1024 / (*avctx).sample_rate as c_long) as c_int;
+        rate_bits = rate_bits.min(6144 * ctx.channels - 3);
+        too_many_bits = target_bits.max(rate_bits);
+        too_many_bits = too_many_bits.min(6144 * ctx.channels - 3);
+        too_few_bits = (rate_bits - rate_bits / 4)
+            .max(target_bits)
+            .min(too_many_bits);
+
+        // When strict bit-rate control is demanded
         if (*avctx).bit_rate_tolerance == 0 {
             if rate_bits < frame_bits {
-                let mut ratio: c_float = rate_bits as c_float / frame_bits as c_float;
-                ctx.lambda *= if 0.9 > ratio { ratio } else { 0.9 };
-            } else {
-                ctx.lambda = (if (*avctx).global_quality > 0 {
-                    (*avctx).global_quality
-                } else {
-                    120
-                }) as c_float;
-                break;
+                let mut ratio = rate_bits as c_float / frame_bits as c_float;
+                ctx.lambda *= ratio.min(0.9);
             }
+
+            // reset lambda when solution is found
+            ctx.lambda = if (*avctx).global_quality > 0 {
+                (*avctx).global_quality
+            } else {
+                120
+            } as c_float;
+            break;
+        }
+
+        // When using ABR, be strict (but only for increasing)
+        too_few_bits = too_few_bits - too_few_bits / 8;
+        too_many_bits = too_many_bits + too_many_bits / 2;
+
+        if !(its == 0 // for steady-state Q-scale tracking 
+            || its < 5 && (frame_bits < too_few_bits || frame_bits > too_many_bits)
+            || frame_bits >= 6144 * ctx.channels - 3)
+        {
+            break;
+        }
+
+        let mut ratio_0: c_float = rate_bits as c_float / frame_bits as c_float;
+        if frame_bits >= too_few_bits && frame_bits <= too_many_bits {
+            // This path is for steady-state Q-scale tracking
+            // When frame bits fall within the stable range, we still need to adjust
+            // lambda to maintain it like so in a stable fashion (large jumps in lambda
+            // create artifacts and should be avoided), but slowly
+            ratio_0 = ratio_0.sqrt().sqrt();
+            ratio_0 = ratio_0.clamp(0.9, 1.1);
         } else {
-            too_few_bits = too_few_bits - too_few_bits / 8;
-            too_many_bits = too_many_bits + too_many_bits / 2;
-            if !(its == 0
-                || its < 5 && (frame_bits < too_few_bits || frame_bits > too_many_bits)
-                || frame_bits >= 6144 * ctx.channels - 3)
-            {
-                break;
-            }
-            let mut ratio_0: c_float = rate_bits as c_float / frame_bits as c_float;
-            if frame_bits >= too_few_bits && frame_bits <= too_many_bits {
-                ratio_0 = sqrtf(sqrtf(ratio_0));
-                ratio_0 = av_clipf_c(ratio_0, 0.9, 1.1);
-            } else {
-                ratio_0 = sqrtf(ratio_0);
-            }
-            ctx.lambda = av_clipf_c(ctx.lambda * ratio_0, 1.192_092_9e-7_f32, 65536.);
-            if ratio_0 > 0.9 && ratio_0 < 1.1 {
-                break;
-            }
-            if is_mode != 0 || ms_mode != 0 || tns_mode != 0 || pred_mode != 0 {
-                for (_, ChannelElement { ch, .. }) in zip(chan_map, &mut *ctx.cpe) {
-                    chans = if tag == SyntaxElementType::ChannelPairElement as c_int {
-                        2
-                    } else {
-                        1
-                    };
-                    for sce in &mut ch[..chans as usize] {
-                        sce.coeffs = sce.pcoeffs;
-                    }
+            // Not so fast though
+            ratio_0 = ratio_0.sqrt();
+        }
+
+        ctx.lambda = (ctx.lambda * ratio_0).clamp(c_float::EPSILON, 65536.);
+
+        // Keep iterating if we must reduce and lambda is in the sky
+        if ratio_0 > 0.9 && ratio_0 < 1.1 {
+            break;
+        }
+
+        if is_mode != 0 || ms_mode != 0 || tns_mode != 0 || pred_mode != 0 {
+            for (_, ChannelElement { ch, .. }) in zip(chan_map, &mut **cpe) {
+                // Must restore coeffs
+                chans = if c_int::from(*chan_map.last().unwrap())
+                    == SyntaxElementType::ChannelPairElement as c_int
+                {
+                    2
+                } else {
+                    1
+                };
+                for sce in &mut ch[..chans as usize] {
+                    sce.coeffs = sce.pcoeffs;
                 }
             }
-            its += 1;
         }
+        its += 1;
     }
+
     put_bits(pb, 3, SyntaxElementType::End as BitBuf);
     flush_put_bits(pb);
     ctx.last_frame_pb_count = put_bits_count(pb);
@@ -1067,7 +1039,7 @@ impl Encoder for AACEncoder {
     const SAMPLE_FMTS: &'static [ffi::codec::AVSampleFormat] = &[8, -1];
     const DEFAULTS: &'static [FFCodecDefault] = &aac_encode_defaults;
 
-    type Ctx = AACEncContext;
+    type Ctx = (AACEncContext, Box<[ChannelElement]>);
     type Options = AACEncOptions;
 
     fn init(avctx: *mut AVCodecContext, options: &Self::Options) -> Box<Self::Ctx> {
@@ -1134,41 +1106,45 @@ impl Encoder for AACEncoder {
                 "only twoloop coder is supported"
             );
 
-            let mut ctx = Box::new(AACEncContext {
-                options: *options,
-                pb: PutBitContext::zero(),
-                mdct: MdctContext {
-                    mdct1024: null_mut(),
-                    mdct1024_fn: None,
-                    mdct128: null_mut(),
-                    mdct128_fn: None,
+            let mut res = Box::new((
+                AACEncContext {
+                    options: *options,
+                    pb: PutBitContext::zero(),
+                    mdct: MdctContext {
+                        mdct1024: null_mut(),
+                        mdct1024_fn: None,
+                        mdct128: null_mut(),
+                        mdct128_fn: None,
+                    },
+                    pce,
+                    planar_samples: vec![[0.; _]; (*ch_layout).nb_channels as usize]
+                        .into_boxed_slice(),
+                    profile: 0,
+                    needs_pce,
+                    lpc: LPCContext::new(2 * (*avctx).frame_size, 20, lpc::Type::Levinson),
+                    samplerate_index,
+                    channels: (*ch_layout).nb_channels,
+                    reorder_map,
+                    chan_map,
+                    psy: FFPsyContext::zero(),
+                    cur_channel: 0,
+                    random_state: 0x1f2e3d4c,
+                    lambda: if (*avctx).global_quality > 0 {
+                        (*avctx).global_quality as c_float
+                    } else {
+                        120.
+                    },
+                    last_frame_pb_count: 0,
+                    lambda_sum: 0.,
+                    lambda_count: 0,
+                    cur_type: SyntaxElementType::SingleChannelElement,
+                    afq: AudioFrameQueue::new(avctx),
+                    scaled_coeffs: Default::default(),
+                    quantize_band_cost_cache: Default::default(),
                 },
-                pce,
-                planar_samples: vec![[0.; _]; (*ch_layout).nb_channels as usize].into_boxed_slice(),
-                profile: 0,
-                needs_pce,
-                lpc: LPCContext::new(2 * (*avctx).frame_size, 20, lpc::Type::Levinson),
-                samplerate_index,
-                channels: (*ch_layout).nb_channels,
-                reorder_map,
-                chan_map,
-                cpe: vec![ChannelElement::default(); chan_map[0] as usize].into_boxed_slice(),
-                psy: FFPsyContext::zero(),
-                cur_channel: 0,
-                random_state: 0x1f2e3d4c,
-                lambda: if (*avctx).global_quality > 0 {
-                    (*avctx).global_quality as c_float
-                } else {
-                    120.
-                },
-                last_frame_pb_count: 0,
-                lambda_sum: 0.,
-                lambda_count: 0,
-                cur_type: SyntaxElementType::SingleChannelElement,
-                afq: AudioFrameQueue::new(avctx),
-                scaled_coeffs: Default::default(),
-                quantize_band_cost_cache: Default::default(),
-            });
+                vec![ChannelElement::default(); chan_map[0] as usize].into_boxed_slice(),
+            ));
+            let (ctx, _) = &mut *res;
 
             let mut i: c_int = 0;
             let mut ret: c_int = 0;
@@ -1280,9 +1256,9 @@ impl Encoder for AACEncoder {
                 ctx.options.mid_side = 0;
             }
 
-            ret = dsp::init(&mut ctx);
+            ret = dsp::init(ctx);
             assert!(ret >= 0, "dsp::init failed");
-            ret = put_audio_specific_config(avctx, &mut ctx);
+            ret = put_audio_specific_config(avctx, ctx);
             assert!(ret >= 0, "put_audio_specific_config failed");
             let mut sizes = [
                 SWB_SIZE_1024[ctx.samplerate_index as usize],
@@ -1311,7 +1287,7 @@ impl Encoder for AACEncoder {
             );
             assert!(ret >= 0, "ff_psy_init failed");
 
-            ctx
+            res
         }
     }
 
@@ -1322,11 +1298,13 @@ impl Encoder for AACEncoder {
         frame: *const AVFrame,
         packet_builder: PacketBuilder,
     ) {
-        let ret = unsafe { aac_encode_frame(avctx, ctx, frame, packet_builder) };
+        let (ctx, cpe) = &mut *ctx;
+        let ret = unsafe { aac_encode_frame(avctx, ctx, cpe, frame, packet_builder) };
         assert!(ret >= 0, "aac_encode_frame failed");
     }
 
     fn close(avctx: *mut AVCodecContext, mut ctx: Box<Self::Ctx>) {
+        let (ctx, _) = &mut *ctx;
         unsafe {
             av_log(
                 avctx.cast(),

@@ -318,19 +318,19 @@ pub(crate) unsafe fn search(
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 907..=976, name = "mark_pns")]
 pub(crate) unsafe fn mark(
-    mut s: *mut AACEncContext,
+    mut s: &mut AACEncContext,
     mut avctx: *mut AVCodecContext,
-    mut sce: *mut SingleChannelElement,
+    mut sce: &mut SingleChannelElement,
 ) {
-    let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
-    let lambda: c_float = (*s).lambda;
+    let mut wlen: c_int = 1024 / sce.ics.num_windows;
+    let lambda: c_float = s.lambda;
     let freq_mult = freq_mult((*avctx).sample_rate, wlen);
     let spread_threshold = spread_threshold(lambda);
     let pns_transient_energy_r = pns_transient_energy_r(lambda);
     let cutoff = cutoff(avctx, lambda, wlen);
-    (*sce).band_alt = (*sce).band_type;
-    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
-        for (g, &swb_offset) in (*sce).ics.swb_offset[..(*sce).ics.num_swb as usize]
+    sce.band_alt = sce.band_type;
+    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
+        for (g, &swb_offset) in sce.ics.swb_offset[..sce.ics.num_swb as usize]
             .iter()
             .enumerate()
         {
@@ -340,7 +340,7 @@ pub(crate) unsafe fn mark(
             let freq_boost = freq_boost(freq);
 
             if freq < NOISE_LOW_LIMIT || start >= cutoff {
-                (*sce).can_pns[W(w)][g as usize] = false;
+                sce.can_pns[W(w)][g as usize] = false;
                 continue;
             }
 
@@ -354,7 +354,7 @@ pub(crate) unsafe fn mark(
                         max: max_energy,
                     },
             } = reduce_bands(
-                &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w)][g as usize..],
+                &s.psy.ch[s.cur_channel as usize].psy_bands[W(w)][g as usize..],
                 group_len,
             );
 
@@ -364,8 +364,8 @@ pub(crate) unsafe fn mark(
             //    be noticed)
             // 3. on short window groups, all windows have similar energy (variations in
             //    energy would be destroyed by PNS)
-            (*sce).pns_ener[W(w)][g as usize] = sfb_energy;
-            (*sce).can_pns[W(w)][g as usize] = !(sfb_energy < threshold * sqrtf(1.5 / freq_boost)
+            sce.pns_ener[W(w)][g as usize] = sfb_energy;
+            sce.can_pns[W(w)][g as usize] = !(sfb_energy < threshold * sqrtf(1.5 / freq_boost)
                 || spread < spread_threshold
                 || min_energy < pns_transient_energy_r * max_energy);
         }
