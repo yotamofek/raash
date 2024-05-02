@@ -56,3 +56,11 @@ pub(crate) struct AACEncContext {
     pub scaled_coeffs: WindowedArray<Array<c_float, 1024>, 128>,
     pub quantize_band_cost_cache: QuantizeBandCostCache,
 }
+
+impl AACEncContext {
+    pub fn chan_map(&self) -> &'static [c_uchar] {
+        let mut chan_map = self.chan_map;
+        let len = *chan_map.take_first().unwrap();
+        &chan_map[..len.into()]
+    }
+}

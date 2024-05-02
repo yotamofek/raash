@@ -666,62 +666,31 @@ impl IndividualChannelStream {
     }
 }
 
-#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 830..=1183)]
-unsafe fn aac_encode_frame(
-    mut avctx: *mut AVCodecContext,
-    mut ctx: &mut AACEncContext,
-    mut cpe: &mut Box<[ChannelElement]>,
-    mut frame: *const AVFrame,
-    mut packet_builder: PacketBuilder,
-) -> c_int {
-    let mut its: c_int = 0;
-    let mut ch: c_int = 0;
-    let mut chans: c_int = 0;
-    let mut frame_bits: c_int = 0;
-    let mut rate_bits: c_int = 0;
-    let mut too_many_bits: c_int = 0;
-    let mut too_few_bits: c_int = 0;
-    let mut ms_mode: c_int = 0;
-    let mut is_mode: c_int = 0;
-    let mut tns_mode: c_int = 0;
-    let mut pred_mode: c_int = 0;
-    let mut windows = [FFPsyWindowInfo::default(); 16];
-
-    if !frame.is_null() {
-        ctx.afq.add_frame(frame)
-    } else if ctx.afq.is_empty() {
-        return 0;
-    }
-
-    copy_input_samples(ctx, frame);
-    if (*avctx).frame_num == 0 {
-        return 0;
-    }
-
-    let chan_map = {
-        let mut chan_map = ctx.chan_map;
-        let len = *chan_map.take_first().unwrap();
-        &chan_map[..len.into()]
-    };
-
-    let mut wi = windows.as_mut_slice();
+unsafe fn analyze_psy_windows(
+    ctx: &mut AACEncContext,
+    cpe: &mut Box<[ChannelElement]>,
+    frame: *const AVFrame,
+    chan_map: &[c_uchar],
+    windows: &mut [FFPsyWindowInfo; 16],
+) {
+    let mut windows = windows.as_mut_slice();
     let mut planar_samples = ctx.planar_samples.as_mut();
     let mut start_ch = 0;
     for (&tag, cpe) in zip(chan_map, &mut **cpe) {
-        let chans = if c_int::from(tag) == SyntaxElementType::ChannelPairElement as c_int {
+        let chans = if c_uint::from(tag) == SyntaxElementType::ChannelPairElement as c_uint {
             2
         } else {
             1
         };
         for (ch, (sce, wi, overlap)) in izip!(
             &mut cpe.ch,
-            wi.take_mut(..chans as usize).unwrap(),
-            planar_samples.take_mut(..chans as usize).unwrap(),
+            windows.take_mut(..chans).unwrap(),
+            planar_samples.take_mut(..chans).unwrap(),
         )
         .enumerate()
         {
             let ics = &mut sce.ics;
-            ctx.cur_channel = start_ch + ch as c_int;
+            ctx.cur_channel = (start_ch + ch) as c_int;
             let la = (!frame.is_null()).then(|| &overlap[1024 + 448 + 64..]);
             if c_uint::from(tag) == SyntaxElementType::LowFrequencyEffects as c_uint {
                 wi.window_type[0] = WindowSequence::OnlyLong;
@@ -743,30 +712,52 @@ unsafe fn aac_encode_frame(
 
             sce.apply_window_and_mdct(&ctx.mdct, overlap);
 
-            if sce
-                .coeffs
-                .iter()
-                .any(|coeff| coeff.partial_cmp(&1E16) != Some(std::cmp::Ordering::Less))
-            {
-                av_log(
-                    avctx as *mut c_void,
-                    16,
-                    c"Input contains (near) NaN/+-Inf\n".as_ptr(),
-                );
-                return -22;
-            }
+            assert!(
+                !sce.coeffs
+                    .iter()
+                    .any(|coeff| coeff.partial_cmp(&1E16) != Some(std::cmp::Ordering::Less)),
+                "Input contains (near) NaN/+-Inf"
+            );
 
             sce.avoid_clipping();
         }
         start_ch += chans;
     }
+}
+
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 830..=1183)]
+unsafe fn aac_encode_frame(
+    mut avctx: *mut AVCodecContext,
+    mut ctx: &mut AACEncContext,
+    mut cpe: &mut Box<[ChannelElement]>,
+    mut frame: *const AVFrame,
+    mut packet_builder: PacketBuilder,
+) -> c_int {
+    let mut ms_mode = false;
+    let mut is_mode = false;
+    let mut tns_mode = false;
+    let mut pred_mode = false;
+    let mut windows = [FFPsyWindowInfo::default(); 16];
+
+    if !frame.is_null() {
+        ctx.afq.add_frame(frame)
+    } else if ctx.afq.is_empty() {
+        return 0;
+    }
+
+    copy_input_samples(ctx, frame);
+    if (*avctx).frame_num == 0 {
+        return 0;
+    }
+
+    let chan_map = ctx.chan_map();
+
+    analyze_psy_windows(ctx, cpe, frame, chan_map, &mut windows);
 
     let mut avpkt = packet_builder.allocate((8192 * ctx.channels) as c_long);
 
-    its = 0;
-    frame_bits = its;
     let pb = addr_of_mut!(ctx.pb);
-    loop {
+    for iterations in 0.. {
         init_put_bits(
             pb,
             avpkt.data_mut().as_mut_ptr(),
@@ -781,9 +772,9 @@ unsafe fn aac_encode_frame(
         let mut target_bits = 0;
         let mut chan_el_counter = [0; 4];
         for (&tag, cpe) in zip(chan_map, &mut **cpe) {
-            let mut wi_0 = &mut windows[start_ch as usize..];
+            let mut wi = &mut windows[start_ch as usize..];
             let mut coeffs: [*const c_float; 2] = [null(); 2];
-            chans = if c_int::from(tag) == SyntaxElementType::ChannelPairElement as c_int {
+            let chans = if c_uint::from(tag) == SyntaxElementType::ChannelPairElement as c_uint {
                 2
             } else {
                 1
@@ -795,7 +786,7 @@ unsafe fn aac_encode_frame(
             let fresh3 = chan_el_counter[tag as usize];
             chan_el_counter[tag as usize] += 1;
             put_bits(pb, 4, fresh3 as BitBuf);
-            for (sce, coeffs) in zip(&mut cpe.ch, &mut coeffs).take(chans as usize) {
+            for (sce, coeffs) in zip(&mut cpe.ch, &mut coeffs).take(chans) {
                 *coeffs = (sce.coeffs).as_mut_ptr();
                 sce.ics.predictor_present = false;
                 sce.tns = TemporalNoiseShaping::default();
@@ -808,12 +799,7 @@ unsafe fn aac_encode_frame(
             }
             ctx.psy.bitres.alloc = -1;
             ctx.psy.bitres.bits = ctx.last_frame_pb_count / ctx.channels;
-            psy_3gpp_analyze(
-                &mut ctx.psy,
-                start_ch,
-                coeffs.as_mut_ptr(),
-                wi_0.as_mut_ptr(),
-            );
+            psy_3gpp_analyze(&mut ctx.psy, start_ch, coeffs.as_mut_ptr(), wi.as_mut_ptr());
             if ctx.psy.bitres.alloc > 0 {
                 target_bits = (target_bits as c_float
                     + ctx.psy.bitres.alloc as c_float
@@ -823,34 +809,28 @@ unsafe fn aac_encode_frame(
                             } else {
                                 120
                             }) as c_float)) as c_int;
-                ctx.psy.bitres.alloc /= chans;
+                ctx.psy.bitres.alloc /= chans as c_int;
             }
+
             ctx.cur_type = (tag as u32).try_into().unwrap();
-            ch = 0;
-            while ch < chans {
-                ctx.cur_channel = start_ch + ch;
+
+            for (ch, sce) in cpe.ch.iter_mut().take(chans).enumerate() {
+                ctx.cur_channel = start_ch + ch as c_int;
                 if ctx.options.pns != 0 {
-                    pns::mark(ctx, avctx, &mut *(cpe.ch).as_mut_ptr().offset(ch as isize));
+                    pns::mark(ctx, avctx, sce);
                 }
-                quantizers::twoloop::search(
-                    avctx,
-                    ctx,
-                    &mut *(cpe.ch).as_mut_ptr().offset(ch as isize),
-                    ctx.lambda,
-                );
-                ch += 1;
-                ch;
+                quantizers::twoloop::search(avctx, ctx, sce, ctx.lambda);
             }
             if chans > 1
-                && wi_0[0].window_type[0] == wi_0[1].window_type[0]
-                && wi_0[0].window_shape == wi_0[1].window_shape
+                && wi[0].window_type[0] == wi[1].window_type[0]
+                && wi[0].window_shape == wi[1].window_shape
             {
-                cpe.common_window = zip(&wi_0[0].grouping, &wi_0[1].grouping)
-                    .take(wi_0[0].num_windows as usize)
+                cpe.common_window = zip(&wi[0].grouping, &wi[1].grouping)
+                    .take(wi[0].num_windows as usize)
                     .all(|(grouping0, grouping1)| grouping0 == grouping1)
                     .into();
             }
-            for (ch, sce) in cpe.ch.iter_mut().take(chans as usize).enumerate() {
+            for (ch, sce) in cpe.ch.iter_mut().take(chans).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
                 if ctx.options.tns != 0 {
                     tns::search(ctx, sce);
@@ -859,7 +839,7 @@ unsafe fn aac_encode_frame(
                     tns::apply(sce);
                 }
                 if sce.tns.present != 0 {
-                    tns_mode = 1;
+                    tns_mode = true;
                 }
                 if ctx.options.pns != 0 {
                     pns::search(ctx, avctx, sce);
@@ -869,18 +849,18 @@ unsafe fn aac_encode_frame(
             if ctx.options.intensity_stereo != 0 {
                 intensity_stereo::search(ctx, avctx, cpe);
                 if cpe.is_mode {
-                    is_mode = 1;
+                    is_mode = true;
                 }
                 intensity_stereo::apply(cpe);
             }
             if ctx.options.pred != 0 {
-                for (ch, sce) in cpe.ch.iter().take(chans as usize).enumerate() {
+                for (ch, sce) in cpe.ch.iter().take(chans).enumerate() {
                     ctx.cur_channel = start_ch + ch as c_int;
                     if ctx.options.pred != 0 {
                         unimplemented!("main pred is unimplemented");
                     }
                     if sce.ics.predictor_present {
-                        pred_mode = 1;
+                        pred_mode = true;
                     }
                 }
 
@@ -894,7 +874,7 @@ unsafe fn aac_encode_frame(
                 }
                 ms::apply(cpe);
             }
-            adjust_frame_information(cpe, chans);
+            adjust_frame_information(cpe, chans as c_int);
 
             if chans == 2 {
                 put_bits(pb, 1, cpe.common_window as BitBuf);
@@ -903,15 +883,15 @@ unsafe fn aac_encode_frame(
 
                     encode_ms_info(pb, cpe);
                     if cpe.ms_mode != 0 {
-                        ms_mode = 1;
+                        ms_mode = true;
                     }
                 }
             }
-            for (ch, sce) in cpe.ch.iter_mut().take(chans as usize).enumerate() {
+            for (ch, sce) in cpe.ch.iter_mut().take(chans).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
                 encode_individual_channel(avctx, ctx, sce, cpe.common_window);
             }
-            start_ch += chans;
+            start_ch += chans as c_int;
         }
 
         if (*avctx).flags.qscale() {
@@ -922,12 +902,11 @@ unsafe fn aac_encode_frame(
         // rate control stuff
         // allow between the nominal bitrate, and what psy's bit reservoir says to
         // target but drift towards the nominal bitrate always
-        frame_bits = put_bits_count(pb);
-        rate_bits = ((*avctx).bit_rate * 1024 / (*avctx).sample_rate as c_long) as c_int;
-        rate_bits = rate_bits.min(6144 * ctx.channels - 3);
-        too_many_bits = target_bits.max(rate_bits);
-        too_many_bits = too_many_bits.min(6144 * ctx.channels - 3);
-        too_few_bits = (rate_bits - rate_bits / 4)
+        let frame_bits = put_bits_count(pb);
+        let rate_bits = (((*avctx).bit_rate * 1024 / (*avctx).sample_rate as c_long) as c_int)
+            .min(6144 * ctx.channels - 3);
+        let mut too_many_bits = target_bits.max(rate_bits).min(6144 * ctx.channels - 3);
+        let mut too_few_bits = (rate_bits - rate_bits / 4)
             .max(target_bits)
             .min(too_many_bits);
 
@@ -948,52 +927,54 @@ unsafe fn aac_encode_frame(
         }
 
         // When using ABR, be strict (but only for increasing)
-        too_few_bits = too_few_bits - too_few_bits / 8;
-        too_many_bits = too_many_bits + too_many_bits / 2;
+        too_few_bits -= too_few_bits / 8;
+        too_many_bits += too_many_bits / 2;
 
-        if !(its == 0 // for steady-state Q-scale tracking 
-            || its < 5 && (frame_bits < too_few_bits || frame_bits > too_many_bits)
+        let bits_range = too_few_bits..=too_many_bits;
+
+        if !(iterations == 0 // for steady-state Q-scale tracking 
+            || iterations < 5 && !bits_range.contains(&frame_bits)
             || frame_bits >= 6144 * ctx.channels - 3)
         {
             break;
         }
 
-        let mut ratio_0: c_float = rate_bits as c_float / frame_bits as c_float;
-        if frame_bits >= too_few_bits && frame_bits <= too_many_bits {
-            // This path is for steady-state Q-scale tracking
-            // When frame bits fall within the stable range, we still need to adjust
-            // lambda to maintain it like so in a stable fashion (large jumps in lambda
-            // create artifacts and should be avoided), but slowly
-            ratio_0 = ratio_0.sqrt().sqrt();
-            ratio_0 = ratio_0.clamp(0.9, 1.1);
-        } else {
-            // Not so fast though
-            ratio_0 = ratio_0.sqrt();
-        }
+        let ratio = {
+            let ratio = rate_bits as c_float / frame_bits as c_float;
+            if bits_range.contains(&frame_bits) {
+                // This path is for steady-state Q-scale tracking
+                // When frame bits fall within the stable range, we still need to adjust
+                // lambda to maintain it like so in a stable fashion (large jumps in lambda
+                // create artifacts and should be avoided), but slowly
+                ratio.sqrt().sqrt().clamp(0.9, 1.1)
+            } else {
+                // Not so fast though
+                ratio.sqrt()
+            }
+        };
 
-        ctx.lambda = (ctx.lambda * ratio_0).clamp(c_float::EPSILON, 65536.);
+        ctx.lambda = (ctx.lambda * ratio).clamp(c_float::EPSILON, 65536.);
 
         // Keep iterating if we must reduce and lambda is in the sky
-        if ratio_0 > 0.9 && ratio_0 < 1.1 {
+        if ratio > 0.9 && ratio < 1.1 {
             break;
         }
 
-        if is_mode != 0 || ms_mode != 0 || tns_mode != 0 || pred_mode != 0 {
+        if is_mode || ms_mode || tns_mode || pred_mode {
             for (_, ChannelElement { ch, .. }) in zip(chan_map, &mut **cpe) {
                 // Must restore coeffs
-                chans = if c_int::from(*chan_map.last().unwrap())
-                    == SyntaxElementType::ChannelPairElement as c_int
+                let chans = if c_uint::from(*chan_map.last().unwrap())
+                    == SyntaxElementType::ChannelPairElement as c_uint
                 {
                     2
                 } else {
                     1
                 };
-                for sce in &mut ch[..chans as usize] {
+                for sce in &mut ch[..chans] {
                     sce.coeffs = sce.pcoeffs;
                 }
             }
         }
-        its += 1;
     }
 
     put_bits(pb, 3, SyntaxElementType::End as BitBuf);
