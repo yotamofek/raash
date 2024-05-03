@@ -574,7 +574,7 @@ impl IndividualChannelStream {
     #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 893..=909)]
     fn apply_psy_window_info(
         &mut self,
-        tag: c_uchar,
+        tag: SyntaxElementType,
         &FFPsyWindowInfo {
             window_type: [window_type, ..],
             window_shape,
@@ -593,7 +593,7 @@ impl IndividualChannelStream {
             ..
         } = *self;
 
-        let num_swb = if c_int::from(tag) == SyntaxElementType::LowFrequencyEffects as c_int {
+        let num_swb = if tag == SyntaxElementType::LowFrequencyEffects {
             num_swb
         } else {
             psy.num_bands[usize::from(num_windows == 8)]
@@ -670,18 +670,13 @@ unsafe fn analyze_psy_windows(
     ctx: &mut AACEncContext,
     cpe: &mut Box<[ChannelElement]>,
     frame: *const AVFrame,
-    chan_map: &[c_uchar],
     windows: &mut [FFPsyWindowInfo; 16],
 ) {
     let mut windows = windows.as_mut_slice();
     let mut planar_samples = ctx.planar_samples.as_mut();
     let mut start_ch = 0;
-    for (&tag, cpe) in zip(chan_map, &mut **cpe) {
-        let chans = if c_uint::from(tag) == SyntaxElementType::ChannelPairElement as c_uint {
-            2
-        } else {
-            1
-        };
+    for (&tag, cpe) in zip(ctx.chan_map, &mut **cpe) {
+        let chans = tag.channels();
         for (ch, (sce, wi, overlap)) in izip!(
             &mut cpe.ch,
             windows.take_mut(..chans).unwrap(),
@@ -692,7 +687,7 @@ unsafe fn analyze_psy_windows(
             let ics = &mut sce.ics;
             ctx.cur_channel = (start_ch + ch) as c_int;
             let la = (!frame.is_null()).then(|| &overlap[1024 + 448 + 64..]);
-            if c_uint::from(tag) == SyntaxElementType::LowFrequencyEffects as c_uint {
+            if tag == SyntaxElementType::LowFrequencyEffects {
                 wi.window_type[0] = WindowSequence::OnlyLong;
                 wi.window_type[1] = WindowSequence::OnlyLong;
                 wi.window_shape = 0;
@@ -750,9 +745,7 @@ unsafe fn aac_encode_frame(
         return 0;
     }
 
-    let chan_map = ctx.chan_map();
-
-    analyze_psy_windows(ctx, cpe, frame, chan_map, &mut windows);
+    analyze_psy_windows(ctx, cpe, frame, &mut windows);
 
     let mut avpkt = packet_builder.allocate((8192 * ctx.channels) as c_long);
 
@@ -771,14 +764,10 @@ unsafe fn aac_encode_frame(
         let mut start_ch = 0;
         let mut target_bits = 0;
         let mut chan_el_counter = [0; 4];
-        for (&tag, cpe) in zip(chan_map, &mut **cpe) {
+        for (&tag, cpe) in zip(ctx.chan_map, &mut **cpe) {
             let mut wi = &mut windows[start_ch as usize..];
             let mut coeffs: [*const c_float; 2] = [null(); 2];
-            let chans = if c_uint::from(tag) == SyntaxElementType::ChannelPairElement as c_uint {
-                2
-            } else {
-                1
-            };
+            let chans = tag.channels();
             cpe.common_window = 0;
             cpe.is_mask.fill(false);
             cpe.ms_mask.fill(false);
@@ -812,7 +801,7 @@ unsafe fn aac_encode_frame(
                 ctx.psy.bitres.alloc /= chans as c_int;
             }
 
-            ctx.cur_type = (tag as u32).try_into().unwrap();
+            ctx.cur_type = tag;
 
             for (ch, sce) in cpe.ch.iter_mut().take(chans).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
@@ -961,18 +950,13 @@ unsafe fn aac_encode_frame(
         }
 
         if is_mode || ms_mode || tns_mode || pred_mode {
-            for (_, ChannelElement { ch, .. }) in zip(chan_map, &mut **cpe) {
-                // Must restore coeffs
-                let chans = if c_uint::from(*chan_map.last().unwrap())
-                    == SyntaxElementType::ChannelPairElement as c_uint
-                {
-                    2
-                } else {
-                    1
-                };
-                for sce in &mut ch[..chans] {
-                    sce.coeffs = sce.pcoeffs;
-                }
+            let chans = ctx.chan_map.last().unwrap().channels();
+            // Must restore coeffs
+            for sce in cpe
+                .iter_mut()
+                .flat_map(|ChannelElement { ch, .. }| &mut ch[..chans])
+            {
+                sce.coeffs = sce.pcoeffs;
             }
         }
     }
@@ -1063,16 +1047,12 @@ impl Encoder for AACEncoder {
                     buf.as_mut_ptr(),
                 );
 
-                (
-                    Some(*config),
-                    &config.reorder_map,
-                    config.config_map.as_slice(),
-                )
+                (Some(*config), &config.reorder_map, config.config_map)
             } else {
                 (
                     None,
                     &channel_layout::REORDER_MAPS[(channels - 1) as usize],
-                    channel_layout::CONFIGS[(channels - 1) as usize].as_slice(),
+                    channel_layout::CONFIGS[(channels - 1) as usize],
                 )
             };
 
@@ -1117,26 +1097,23 @@ impl Encoder for AACEncoder {
                     scaled_coeffs: Default::default(),
                     quantize_band_cost_cache: Default::default(),
                 },
-                vec![ChannelElement::default(); chan_map[0] as usize].into_boxed_slice(),
+                vec![ChannelElement::default(); chan_map.len()].into_boxed_slice(),
             ));
             let (ctx, _) = &mut *res;
 
-            let mut i: c_int = 0;
             let mut ret: c_int = 0;
             let mut grouping: [c_uchar; 16] = [0; 16];
 
             if (*avctx).bit_rate == 0 {
-                i = 1;
-                while i <= ctx.chan_map[0] as c_int {
-                    (*avctx).bit_rate += match u32::from(ctx.chan_map[i as usize]).try_into() {
-                        Ok(SyntaxElementType::ChannelPairElement) => 128000,
-                        Ok(SyntaxElementType::LowFrequencyEffects) => 16000,
+                (*avctx).bit_rate = ctx
+                    .chan_map
+                    .iter()
+                    .map(|&tag| match tag {
+                        SyntaxElementType::ChannelPairElement => 128000,
+                        SyntaxElementType::LowFrequencyEffects => 16000,
                         _ => 69000,
-                    } as c_long;
-
-                    i += 1;
-                    i;
-                }
+                    })
+                    .sum();
             }
 
             if 1024. * (*avctx).bit_rate as c_double / (*avctx).sample_rate as c_double
@@ -1243,13 +1220,8 @@ impl Encoder for AACEncoder {
                 ff_aac_num_swb_1024[ctx.samplerate_index as usize] as c_int,
                 ff_aac_num_swb_128[ctx.samplerate_index as usize] as c_int,
             ];
-            i = 0;
-            while i < ctx.chan_map[0] as c_int {
-                grouping[i as usize] = (ctx.chan_map[(i + 1) as usize] as c_int
-                    == SyntaxElementType::ChannelPairElement as c_int)
-                    as c_int as c_uchar;
-                i += 1;
-                i;
+            for (grouping, &tag) in zip(&mut grouping, ctx.chan_map) {
+                *grouping = (tag == SyntaxElementType::ChannelPairElement).into();
             }
 
             ret = ff_psy_init(
@@ -1257,7 +1229,7 @@ impl Encoder for AACEncoder {
                 avctx,
                 &sizes,
                 &lengths,
-                ctx.chan_map[0] as c_int,
+                ctx.chan_map.len() as c_int,
                 grouping.as_mut_ptr(),
             );
             assert!(ret >= 0, "ff_psy_init failed");

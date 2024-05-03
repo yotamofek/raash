@@ -13,8 +13,8 @@ pub mod tables;
 /// <https://wiki.multimedia.cx/index.php/Understanding_AAC#Frames_And_Syntax_Elements>
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 54..=63, name = "RawDataBlockType")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum SyntaxElementType {
+#[repr(u8)]
+enum SyntaxElementType {
     End = 7,
     FillElement = 6,
     LowFrequencyEffects = 3,
@@ -22,21 +22,12 @@ pub enum SyntaxElementType {
     SingleChannelElement = 0,
 }
 
-#[derive(Debug)]
-pub struct UnknownSyntaxElementType();
-
-impl TryFrom<u32> for SyntaxElementType {
-    type Error = UnknownSyntaxElementType;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        Ok(match value {
-            7 => Self::End,
-            6 => Self::FillElement,
-            3 => Self::LowFrequencyEffects,
-            1 => Self::ChannelPairElement,
-            0 => Self::SingleChannelElement,
-            _ => return Err(UnknownSyntaxElementType()),
-        })
+impl SyntaxElementType {
+    const fn channels(self) -> usize {
+        match self {
+            Self::ChannelPairElement => 2,
+            _ => 1,
+        }
     }
 }
 

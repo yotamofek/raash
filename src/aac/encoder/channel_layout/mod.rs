@@ -28,17 +28,6 @@ const fn channel_layout(channels: &[AVChannel]) -> AVChannelLayout {
     }
 }
 
-const fn config_map<const N: usize>(types: &[SyntaxElementType]) -> [c_uchar; N] {
-    let mut map: [u8; N] = [0; N];
-    let mut i = 0;
-    map[0] = types.len() as c_uchar;
-    while i < types.len() {
-        map[i + 1] = types[i] as c_uchar;
-        i += 1;
-    }
-    map
-}
-
 pub(super) const NORMAL_LAYOUTS: [AVChannelLayout; 7] = [
     channel_layout(&[channel::FRONT_CENTER]),
     channel_layout(&[channel::FRONT_LEFT, channel::FRONT_RIGHT]),
@@ -80,23 +69,23 @@ pub(super) const NORMAL_LAYOUTS: [AVChannelLayout; 7] = [
     ]),
 ];
 
-pub(super) const CONFIGS: [[c_uchar; 6]; 16] = [
-    config_map(&[SCE]),
-    config_map(&[CPE]),
-    config_map(&[SCE, CPE]),
-    config_map(&[SCE, CPE, SCE]),
-    config_map(&[SCE, CPE, CPE]),
-    config_map(&[SCE, CPE, CPE, LFE]),
-    config_map(&[]),
-    config_map(&[SCE, CPE, CPE, CPE, LFE]),
-    config_map(&[]),
-    config_map(&[]),
-    config_map(&[]),
-    config_map(&[]),
-    config_map(&[]),
-    config_map(&[]),
-    config_map(&[]),
-    config_map(&[]),
+pub(super) const CONFIGS: [&[SyntaxElementType]; 16] = [
+    &[SCE],
+    &[CPE],
+    &[SCE, CPE],
+    &[SCE, CPE, SCE],
+    &[SCE, CPE, CPE],
+    &[SCE, CPE, CPE, LFE],
+    &[],
+    &[SCE, CPE, CPE, CPE, LFE],
+    &[],
+    &[],
+    &[],
+    &[],
+    &[],
+    &[],
+    &[],
+    &[],
 ];
 
 pub(super) const REORDER_MAPS: [[c_uchar; 16]; 16] = [

@@ -3,9 +3,9 @@
 use ffi::codec::channel::{self as ch, AVChannelLayout};
 use libc::{c_int, c_uchar};
 
-use super::{channel_layout, config_map};
+use super::channel_layout;
 use crate::aac::SyntaxElementType::{
-    ChannelPairElement as CPE, LowFrequencyEffects as LFE, SingleChannelElement as SCE,
+    self, ChannelPairElement as CPE, LowFrequencyEffects as LFE, SingleChannelElement as SCE,
 };
 
 #[derive(Copy, Clone)]
@@ -14,7 +14,7 @@ pub(crate) struct Info {
     pub(crate) num_ele: [c_int; 4],
     pub(crate) pairing: [[c_int; 8]; 3],
     pub(crate) index: [[c_int; 8]; 4],
-    pub(crate) config_map: [c_uchar; 16],
+    pub(crate) config_map: &'static [SyntaxElementType],
     pub(crate) reorder_map: [c_uchar; 16],
 }
 
@@ -24,7 +24,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [1, 0, 0, 0],
         pairing: [[0; 8]; 3],
         index: [[0; 8]; 4],
-        config_map: config_map(&[SCE]),
+        config_map: &[SCE],
         reorder_map: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -32,7 +32,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [1, 0, 0, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [0; 8]],
         index: [[0; 8]; 4],
-        config_map: config_map(&[CPE]),
+        config_map: &[CPE],
         reorder_map: [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -40,7 +40,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [1, 0, 0, 1],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [0; 8]],
         index: [[0; 8]; 4],
-        config_map: config_map(&[CPE, LFE]),
+        config_map: &[CPE, LFE],
         reorder_map: [0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -48,7 +48,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [1, 0, 1, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [0; 8]],
         index: [[0; 8]; 4],
-        config_map: config_map(&[CPE, SCE]),
+        config_map: &[CPE, SCE],
         reorder_map: [0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -56,7 +56,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [2, 0, 0, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [0; 8]],
         index: [[0; 8]; 4],
-        config_map: config_map(&[CPE, SCE]),
+        config_map: &[CPE, SCE],
         reorder_map: [0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -69,7 +69,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [2, 0, 0, 1],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [0; 8]],
         index: [[0; 8]; 4],
-        config_map: config_map(&[CPE, SCE, LFE]),
+        config_map: &[CPE, SCE, LFE],
         reorder_map: [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -82,7 +82,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [2, 0, 1, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [0; 8]],
         index: [[0; 8], [0; 8], [1, 0, 0, 0, 0, 0, 0, 0], [0; 8]],
-        config_map: config_map(&[CPE, SCE, SCE]),
+        config_map: &[CPE, SCE, SCE],
         reorder_map: [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -101,7 +101,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [2, 0, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, SCE]),
+        config_map: &[CPE, SCE, SCE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -114,7 +114,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [1, 1, 0, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0], [0; 8]],
         index: [[0; 8], [1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [0; 8]],
-        config_map: config_map(&[CPE, CPE]),
+        config_map: &[CPE, CPE],
         reorder_map: [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -127,7 +127,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [1, 0, 1, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [1, 0, 0, 0, 0, 0, 0, 0]],
         index: [[0; 8], [0; 8], [1, 0, 0, 0, 0, 0, 0, 0], [0; 8]],
-        config_map: config_map(&[CPE, CPE]),
+        config_map: &[CPE, CPE],
         reorder_map: [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -141,7 +141,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [2, 1, 0, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0], [0; 8]],
         index: [[0; 8], [1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [0; 8]],
-        config_map: config_map(&[CPE, SCE, CPE]),
+        config_map: &[CPE, SCE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -161,7 +161,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 0, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, CPE]),
+        config_map: &[CPE, SCE, SCE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -175,7 +175,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [2, 0, 1, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [1, 0, 0, 0, 0, 0, 0, 0]],
         index: [[0; 8], [0; 8], [1, 0, 0, 0, 0, 0, 0, 0], [0; 8]],
-        config_map: config_map(&[CPE, SCE, CPE]),
+        config_map: &[CPE, SCE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -195,7 +195,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 0, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, CPE]),
+        config_map: &[CPE, SCE, SCE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -215,7 +215,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 0, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, CPE, SCE]),
+        config_map: &[CPE, SCE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -235,7 +235,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [0; 8],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, CPE, CPE]),
+        config_map: &[CPE, CPE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -250,7 +250,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
         num_ele: [2, 0, 2, 0],
         pairing: [[1, 0, 0, 0, 0, 0, 0, 0], [0; 8], [1, 0, 0, 0, 0, 0, 0, 0]],
         index: [[0; 8], [0; 8], [1, 1, 0, 0, 0, 0, 0, 0], [0; 8]],
-        config_map: config_map(&[CPE, SCE, CPE, SCE]),
+        config_map: &[CPE, SCE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -271,7 +271,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 2, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, CPE, SCE]),
+        config_map: &[CPE, SCE, SCE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -292,7 +292,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 2, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, CPE, SCE]),
+        config_map: &[CPE, SCE, SCE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -313,7 +313,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 2, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, CPE, SCE]),
+        config_map: &[CPE, SCE, SCE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -334,7 +334,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [2, 0, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, CPE, CPE]),
+        config_map: &[CPE, SCE, CPE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -355,7 +355,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [2, 0, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, CPE, CPE]),
+        config_map: &[CPE, SCE, CPE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -377,7 +377,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 2, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, CPE, CPE]),
+        config_map: &[CPE, SCE, SCE, CPE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -399,7 +399,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 2, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, CPE, CPE]),
+        config_map: &[CPE, SCE, SCE, CPE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -421,7 +421,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [1, 2, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, SCE, CPE, CPE]),
+        config_map: &[CPE, SCE, SCE, CPE, CPE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -443,7 +443,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [2, 1, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, CPE, CPE, SCE]),
+        config_map: &[CPE, SCE, CPE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -466,7 +466,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [2, 2, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, CPE, SCE, CPE, SCE]),
+        config_map: &[CPE, SCE, CPE, SCE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -494,7 +494,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [3, 1, 0, 0, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, CPE, CPE, SCE, CPE, SCE]),
+        config_map: &[CPE, CPE, CPE, SCE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0],
     },
     Info {
@@ -528,7 +528,7 @@ pub(crate) const CONFIGS: [Info; 29] = [
             [4, 2, 5, 3, 0, 0, 0, 0],
             [0; 8],
         ],
-        config_map: config_map(&[CPE, SCE, CPE, SCE, CPE, CPE, CPE, SCE, CPE, SCE]),
+        config_map: &[CPE, SCE, CPE, SCE, CPE, CPE, CPE, SCE, CPE, SCE],
         reorder_map: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     },
 ];
