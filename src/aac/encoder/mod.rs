@@ -761,21 +761,27 @@ unsafe fn aac_encode_frame(
         {
             put_bitstream_info(ctx, c"Lavc60.33.100");
         }
+        let mut windows = windows.as_slice();
         let mut start_ch = 0;
         let mut target_bits = 0;
         let mut chan_el_counter = [0; 4];
         for (&tag, cpe) in zip(ctx.chan_map, &mut **cpe) {
-            let mut wi = &mut windows[start_ch as usize..];
+            let windows = windows.take(..tag.channels()).unwrap();
             let mut coeffs: [*const c_float; 2] = [null(); 2];
-            let chans = tag.channels();
-            cpe.common_window = 0;
-            cpe.is_mask.fill(false);
-            cpe.ms_mask.fill(false);
+
+            *cpe = ChannelElement {
+                common_window: 0,
+                is_mask: Default::default(),
+                ms_mask: Default::default(),
+                ..*cpe
+            };
+
             put_bits(pb, 3, tag as BitBuf);
-            let fresh3 = chan_el_counter[tag as usize];
-            chan_el_counter[tag as usize] += 1;
-            put_bits(pb, 4, fresh3 as BitBuf);
-            for (sce, coeffs) in zip(&mut cpe.ch, &mut coeffs).take(chans) {
+            let chan_el_counter = &mut chan_el_counter[tag as usize];
+            put_bits(pb, 4, *chan_el_counter as BitBuf);
+            *chan_el_counter += 1;
+
+            for (sce, coeffs) in zip(&mut cpe.ch, &mut coeffs).take(windows.len()) {
                 *coeffs = (sce.coeffs).as_mut_ptr();
                 sce.ics.predictor_present = false;
                 sce.tns = TemporalNoiseShaping::default();
@@ -788,7 +794,12 @@ unsafe fn aac_encode_frame(
             }
             ctx.psy.bitres.alloc = -1;
             ctx.psy.bitres.bits = ctx.last_frame_pb_count / ctx.channels;
-            psy_3gpp_analyze(&mut ctx.psy, start_ch, coeffs.as_mut_ptr(), wi.as_mut_ptr());
+            psy_3gpp_analyze(
+                &mut ctx.psy,
+                start_ch,
+                coeffs.as_mut_ptr(),
+                windows.as_ptr(),
+            );
             if ctx.psy.bitres.alloc > 0 {
                 target_bits = (target_bits as c_float
                     + ctx.psy.bitres.alloc as c_float
@@ -798,28 +809,28 @@ unsafe fn aac_encode_frame(
                             } else {
                                 120
                             }) as c_float)) as c_int;
-                ctx.psy.bitres.alloc /= chans as c_int;
+                ctx.psy.bitres.alloc /= windows.len() as c_int;
             }
 
             ctx.cur_type = tag;
 
-            for (ch, sce) in cpe.ch.iter_mut().take(chans).enumerate() {
+            for (ch, sce) in cpe.ch.iter_mut().take(windows.len()).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
                 if ctx.options.pns != 0 {
                     pns::mark(ctx, avctx, sce);
                 }
                 quantizers::twoloop::search(avctx, ctx, sce, ctx.lambda);
             }
-            if chans > 1
-                && wi[0].window_type[0] == wi[1].window_type[0]
-                && wi[0].window_shape == wi[1].window_shape
+            if let [wi0, wi1] = windows
+                && wi0.window_type[0] == wi1.window_type[0]
+                && wi0.window_shape == wi1.window_shape
             {
-                cpe.common_window = zip(&wi[0].grouping, &wi[1].grouping)
-                    .take(wi[0].num_windows as usize)
+                cpe.common_window = zip(&wi0.grouping, &wi1.grouping)
+                    .take(wi0.num_windows as usize)
                     .all(|(grouping0, grouping1)| grouping0 == grouping1)
                     .into();
             }
-            for (ch, sce) in cpe.ch.iter_mut().take(chans).enumerate() {
+            for (ch, sce) in cpe.ch.iter_mut().take(windows.len()).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
                 if ctx.options.tns != 0 {
                     tns::search(ctx, sce);
@@ -843,7 +854,7 @@ unsafe fn aac_encode_frame(
                 intensity_stereo::apply(cpe);
             }
             if ctx.options.pred != 0 {
-                for (ch, sce) in cpe.ch.iter().take(chans).enumerate() {
+                for (ch, sce) in cpe.ch.iter().take(windows.len()).enumerate() {
                     ctx.cur_channel = start_ch + ch as c_int;
                     if ctx.options.pred != 0 {
                         unimplemented!("main pred is unimplemented");
@@ -863,9 +874,9 @@ unsafe fn aac_encode_frame(
                 }
                 ms::apply(cpe);
             }
-            adjust_frame_information(cpe, chans as c_int);
+            adjust_frame_information(cpe, windows.len() as c_int);
 
-            if chans == 2 {
+            if let [_, _] = windows {
                 put_bits(pb, 1, cpe.common_window as BitBuf);
                 if cpe.common_window != 0 {
                     put_ics_info(ctx, addr_of!(cpe.ch[0].ics));
@@ -876,11 +887,11 @@ unsafe fn aac_encode_frame(
                     }
                 }
             }
-            for (ch, sce) in cpe.ch.iter_mut().take(chans).enumerate() {
+            for (ch, sce) in cpe.ch.iter_mut().take(windows.len()).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
                 encode_individual_channel(avctx, ctx, sce, cpe.common_window);
             }
-            start_ch += chans as c_int;
+            start_ch += windows.len() as c_int;
         }
 
         if (*avctx).flags.qscale() {
