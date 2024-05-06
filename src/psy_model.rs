@@ -46,18 +46,18 @@ pub(crate) unsafe fn ff_psy_init(
 }
 
 #[ffmpeg_src(file = "libavcodec/psymodel.c", lines = 73..=81, name = "ff_psy_find_group")]
-pub(crate) unsafe fn find_group(
-    mut ctx: *mut FFPsyContext,
-    mut channel: c_int,
-) -> *mut FFPsyChannelGroup {
-    let mut i: c_int = 0;
-    let mut ch: c_int = 0;
-    while ch <= channel {
-        let fresh2 = i;
-        i += 1;
-        ch += (*ctx).group[fresh2 as usize].num_ch as c_int;
-    }
-    &mut (*ctx).group[(i - 1) as usize] as *mut FFPsyChannelGroup
+pub(crate) fn find_group(ctx: &FFPsyContext, channel: c_int) -> &FFPsyChannelGroup {
+    let pos = ctx
+        .group
+        .iter()
+        .scan(0, |channels, &FFPsyChannelGroup { num_ch }| {
+            *channels += c_int::from(num_ch);
+            Some(*channels)
+        })
+        .position(|ch| ch > channel)
+        .unwrap();
+
+    &ctx.group[pos]
 }
 
 #[cold]

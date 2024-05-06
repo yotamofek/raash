@@ -794,12 +794,7 @@ unsafe fn aac_encode_frame(
             }
             ctx.psy.bitres.alloc = -1;
             ctx.psy.bitres.bits = ctx.last_frame_pb_count / ctx.channels;
-            psy_3gpp_analyze(
-                &mut ctx.psy,
-                start_ch,
-                coeffs.as_mut_ptr(),
-                windows.as_ptr(),
-            );
+            psy_3gpp_analyze(&mut ctx.psy, start_ch, &coeffs, windows);
             if ctx.psy.bitres.alloc > 0 {
                 target_bits = (target_bits as c_float
                     + ctx.psy.bitres.alloc as c_float
