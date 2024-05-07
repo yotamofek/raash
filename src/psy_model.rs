@@ -7,6 +7,8 @@
     unused_mut
 )]
 
+use std::ptr::null_mut;
+
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_int, c_uchar};
@@ -23,23 +25,23 @@ pub(crate) unsafe fn ff_psy_init(
     mut bands: &[&'static [c_uchar]],
     mut num_bands: &[c_int],
     mut num_groups: c_int,
-    mut group_map: *const c_uchar,
+    mut group_map: &[c_uchar; 16],
 ) -> c_int {
     assert_eq!(bands.len(), num_bands.len());
-    let mut i: c_int = 0;
-    (*ctx).avctx = avctx;
-    (*ctx).ch = vec![FFPsyChannel::default(); (*avctx).ch_layout.nb_channels as usize * 2]
-        .into_boxed_slice();
-    (*ctx).group = vec![FFPsyChannelGroup::default(); num_groups as usize].into_boxed_slice();
-    (*ctx).bands = bands.to_vec().into_boxed_slice();
-    (*ctx).num_bands = num_bands.to_vec().into_boxed_slice();
-    (*ctx).cutoff = (*avctx).cutoff;
-    i = 0;
-    while i < num_groups {
-        (*ctx).group[i as usize].num_ch = (*group_map.offset(i as isize) as c_int + 1) as c_uchar;
-        i += 1;
-        i;
-    }
+    (*ctx) = FFPsyContext {
+        avctx,
+        ch: vec![FFPsyChannel::default(); (*avctx).ch_layout.nb_channels as usize * 2]
+            .into_boxed_slice(),
+        group: group_map[..num_groups as usize]
+            .iter()
+            .map(|&group| FFPsyChannelGroup { num_ch: group + 1 })
+            .collect(),
+        cutoff: (*avctx).cutoff,
+        bands: bands.to_vec().into_boxed_slice(),
+        num_bands: num_bands.to_vec().into_boxed_slice(),
+        bitres: Default::default(),
+        model_priv_data: null_mut(),
+    };
     assert_eq!((*(*ctx).avctx).codec_id, AV_CODEC_ID_AAC);
     psy_3gpp_init(ctx);
     0

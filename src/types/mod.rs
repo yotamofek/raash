@@ -185,7 +185,6 @@ impl FFPsyContext {
 }
 
 #[derive(Copy, Clone, Default)]
-#[repr(C)]
 pub(crate) struct C2RustUnnamed_2 {
     pub(crate) size: c_int,
     pub(crate) bits: c_int,

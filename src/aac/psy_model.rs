@@ -12,7 +12,7 @@ use std::{
     iter::zip,
 };
 
-use array_util::{WindowedArray, W};
+use array_util::{Array, WindowedArray, W};
 use ffi::codec::AVCodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uchar};
@@ -30,8 +30,7 @@ enum AvoidHoles {
     None = 0,
 }
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Copy, Clone, Default)]
 pub(crate) struct AacPsyBand {
     energy: c_float,
     thr: c_float,
@@ -44,13 +43,10 @@ pub(crate) struct AacPsyBand {
     avoid_holes: AvoidHoles,
 }
 
-#[derive(Copy, Clone)]
-#[repr(C)]
+#[derive(Copy, Clone, Default)]
 pub(crate) struct AacPsyChannel {
-    band: WindowedArray<[AacPsyBand; 128], 16>,
-    prev_band: [AacPsyBand; 128],
-    win_energy: c_float,
-    iir_state: [c_float; 2],
+    band: WindowedArray<Array<AacPsyBand, 128>, 16>,
+    prev_band: Array<AacPsyBand, 128>,
     next_grouping: c_uchar,
     next_window_seq: WindowSequence,
     attack_threshold: c_float,
@@ -59,7 +55,6 @@ pub(crate) struct AacPsyChannel {
 }
 
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct AacPsyCoeffs {
     ath: c_float,
     barks: c_float,
@@ -69,7 +64,6 @@ pub(crate) struct AacPsyCoeffs {
 }
 
 #[derive(Copy, Clone)]
-#[repr(C)]
 pub(crate) struct AacPsyContext {
     chan_bitrate: c_int,
     frame_bits: c_int,
@@ -206,26 +200,19 @@ fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
 #[cold]
 unsafe fn lame_window_init(mut ctx: *mut AacPsyContext, mut avctx: *mut AVCodecContext) {
     let mut i: c_int = 0;
-    let mut j: c_int = 0;
     i = 0;
     while i < (*avctx).ch_layout.nb_channels {
         let mut pch: *mut AacPsyChannel =
             &mut *((*ctx).ch).offset(i as isize) as *mut AacPsyChannel;
-        if (*avctx).flags.qscale() {
-            (*pch).attack_threshold =
-                VBR_MAP[av_clip_c((*avctx).global_quality / 118, 0, 10) as usize].st_lrm;
+        (*pch).attack_threshold = if (*avctx).flags.qscale() {
+            VBR_MAP[av_clip_c((*avctx).global_quality / 118, 0, 10) as usize].st_lrm
         } else {
-            (*pch).attack_threshold = lame_calc_attack_threshold(
+            lame_calc_attack_threshold(
                 ((*avctx).bit_rate / (*avctx).ch_layout.nb_channels as c_long / 1000 as c_long)
                     as c_int,
-            );
-        }
-        j = 0;
-        while j < 8 * 3 {
-            (*pch).prev_energy_subshort[j as usize] = 10.;
-            j += 1;
-            j;
-        }
+            )
+        };
+        (*pch).prev_energy_subshort.fill(10.);
         i += 1;
         i;
     }

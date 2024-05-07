@@ -21,6 +21,7 @@ mod temporal_noise_shaping;
 
 use core::panic;
 use std::{
+    array,
     ffi::CStr,
     iter::zip,
     mem::{self, MaybeUninit},
@@ -1108,7 +1109,6 @@ impl Encoder for AACEncoder {
             let (ctx, _) = &mut *res;
 
             let mut ret: c_int = 0;
-            let mut grouping: [c_uchar; 16] = [0; 16];
 
             if (*avctx).bit_rate == 0 {
                 (*avctx).bit_rate = ctx
@@ -1226,9 +1226,12 @@ impl Encoder for AACEncoder {
                 ff_aac_num_swb_1024[ctx.samplerate_index as usize] as c_int,
                 ff_aac_num_swb_128[ctx.samplerate_index as usize] as c_int,
             ];
-            for (grouping, &tag) in zip(&mut grouping, ctx.chan_map) {
-                *grouping = (tag == SyntaxElementType::ChannelPairElement).into();
-            }
+            let grouping = array::from_fn::<c_uchar, 16, _>(|i| {
+                ctx.chan_map
+                    .get(i)
+                    .map(|&tag| (tag == SyntaxElementType::ChannelPairElement).into())
+                    .unwrap_or_default()
+            });
 
             ret = ff_psy_init(
                 &mut ctx.psy,
@@ -1236,7 +1239,7 @@ impl Encoder for AACEncoder {
                 &sizes,
                 &lengths,
                 ctx.chan_map.len() as c_int,
-                grouping.as_mut_ptr(),
+                &grouping,
             );
             assert!(ret >= 0, "ff_psy_init failed");
 
