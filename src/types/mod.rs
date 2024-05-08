@@ -129,7 +129,6 @@ pub(crate) struct ChannelElement {
 
 #[derive(Copy, Clone, Default)]
 pub(crate) struct FFPsyBand {
-    pub(crate) bits: c_int,
     pub(crate) energy: c_float,
     pub(crate) threshold: c_float,
     pub(crate) spread: c_float,

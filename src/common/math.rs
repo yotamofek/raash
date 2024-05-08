@@ -22,14 +22,7 @@ pub(crate) fn roundf(n: c_float) -> c_float {
     n.round()
 }
 
-pub(crate) fn exp2f(n: c_float) -> c_float {
-    n.exp2()
-}
-
 pub(crate) fn av_clip_c(a: c_int, amin: c_int, amax: c_int) -> c_int {
-    a.clamp(amin, amax)
-}
-pub(crate) fn av_clipf_c(a: c_float, amin: c_float, amax: c_float) -> c_float {
     a.clamp(amin, amax)
 }
 
