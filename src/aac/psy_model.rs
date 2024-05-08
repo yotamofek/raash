@@ -423,125 +423,105 @@ impl AacPsyContext {
 
 const WINDOW_GROUPING: [c_uchar; 9] = [0xb6, 0x6c, 0xd8, 0xb2, 0x66, 0xc6, 0x96, 0x36, 0x36];
 
-unsafe fn calc_bit_demand(
-    mut ctx: *mut AacPsyContext,
-    mut pe: c_float,
-    mut bits: c_int,
-    mut size: c_int,
-    mut short_window: bool,
-) -> c_int {
-    #[derive(Default)]
-    struct SlopeAdd {
-        slope: c_float,
-        add: c_float,
-    }
+impl AacPsyContext {
+    /// 5.6.1.2 "Calculation of Bit Demand"
+    #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 493..=535)]
+    fn calc_bit_demand(
+        &mut self,
+        pe: c_float,
+        bits: c_int,
+        size: c_int,
+        short_window: bool,
+    ) -> c_int {
+        #[derive(Default)]
+        struct SlopeAdd {
+            slope: c_float,
+            add: c_float,
+        }
 
-    #[derive(Default)]
-    struct Info {
-        bit_save: SlopeAdd,
-        bit_spend: SlopeAdd,
-        clip_low: c_float,
-        clip_high: c_float,
-    }
+        #[derive(Default)]
+        struct Info {
+            bit_save: SlopeAdd,
+            bit_spend: SlopeAdd,
+            clip_low: c_float,
+            clip_high: c_float,
+        }
 
-    fn get_info(short_window: bool) -> Info {
-        Info {
-            clip_low: 0.2,
-            ..if short_window {
-                Info {
-                    bit_save: SlopeAdd {
-                        slope: -0.36363637,
-                        add: -0.75,
-                    },
-                    bit_spend: SlopeAdd {
-                        slope: 0.818_181_8,
-                        add: -0.261_111_1,
-                    },
-                    clip_high: 0.75,
-                    ..Default::default()
-                }
-            } else {
-                Info {
-                    bit_save: SlopeAdd {
-                        slope: -0.46666667,
-                        add: -0.842_857_1,
-                    },
-                    bit_spend: SlopeAdd {
-                        slope: 0.666_666_7,
-                        add: -0.35,
-                    },
-                    clip_high: 0.95,
-                    ..Default::default()
+        fn get_info(short_window: bool) -> Info {
+            Info {
+                clip_low: 0.2,
+                ..if short_window {
+                    Info {
+                        bit_save: SlopeAdd {
+                            slope: -0.36363637,
+                            add: -0.75,
+                        },
+                        bit_spend: SlopeAdd {
+                            slope: 0.818_181_8,
+                            add: -0.261_111_1,
+                        },
+                        clip_high: 0.75,
+                        ..Default::default()
+                    }
+                } else {
+                    Info {
+                        bit_save: SlopeAdd {
+                            slope: -0.46666667,
+                            add: -0.842_857_1,
+                        },
+                        bit_spend: SlopeAdd {
+                            slope: 0.666_666_7,
+                            add: -0.35,
+                        },
+                        clip_high: 0.95,
+                        ..Default::default()
+                    }
                 }
             }
         }
+
+        let Info {
+            bit_save:
+                SlopeAdd {
+                    slope: bitsave_slope,
+                    add: bitsave_add,
+                },
+            bit_spend:
+                SlopeAdd {
+                    slope: bitspend_slope,
+                    add: bitspend_add,
+                },
+            clip_low,
+            clip_high,
+        } = get_info(short_window);
+
+        self.fill_level += self.frame_bits - bits;
+        self.fill_level = self.fill_level.clamp(0, size);
+        let fill_level = (self.fill_level as c_float / size as c_float).clamp(clip_low, clip_high);
+        let clipped_pe = pe.clamp(self.pe.min, self.pe.max);
+        let bit_save = (fill_level + bitsave_add) * bitsave_slope;
+        let bit_spend = (fill_level + bitspend_add) * bitspend_slope;
+        // The bit factor graph in the spec is obviously incorrect.
+        //      bit_spend + ((bit_spend - bit_spend))...
+        // The reference encoder subtracts everything from 1, but also seems incorrect.
+        //      1 - bit_save + ((bit_spend + bit_save))...
+        // Hopefully below is correct.
+        let bit_factor = 1. - bit_save
+            + (bit_spend - bit_save) / (self.pe.max - self.pe.min) * (clipped_pe - self.pe.min);
+        // NOTE: The reference encoder attempts to center pe max/min around the current
+        // pe. Here we do that by slowly forgetting pe.min when pe stays in a range that
+        // makes it unlikely (ie: above the mean)
+        self.pe.max = pe.max(self.pe.max);
+        let forgetful_min_pe =
+            (self.pe.min * 511. + self.pe.min.max(pe * (pe / self.pe.max))) / (511 + 1) as c_float;
+        self.pe.min = pe.min(forgetful_min_pe);
+
+        // NOTE: allocate a minimum of 1/8th average frame bits, to avoid
+        // reservoir starvation from producing zero-bit frames
+        (self.frame_bits as c_float * bit_factor)
+            .min((self.frame_bits + size - bits).max(self.frame_bits / 8) as c_float)
+            as c_int
     }
-
-    let Info {
-        bit_save:
-            SlopeAdd {
-                slope: bitsave_slope,
-                add: bitsave_add,
-            },
-        bit_spend:
-            SlopeAdd {
-                slope: bitspend_slope,
-                add: bitspend_add,
-            },
-        clip_low,
-        clip_high,
-    } = get_info(short_window);
-
-    let mut clipped_pe: c_float = 0.;
-    let mut bit_save: c_float = 0.;
-    let mut bit_spend: c_float = 0.;
-    let mut bit_factor: c_float = 0.;
-    let mut fill_level: c_float = 0.;
-    let mut forgetful_min_pe: c_float = 0.;
-    (*ctx).fill_level += (*ctx).frame_bits - bits;
-    (*ctx).fill_level = av_clip_c((*ctx).fill_level, 0, size);
-    fill_level = av_clipf_c(
-        (*ctx).fill_level as c_float / size as c_float,
-        clip_low,
-        clip_high,
-    );
-    clipped_pe = av_clipf_c(pe, (*ctx).pe.min, (*ctx).pe.max);
-    bit_save = (fill_level + bitsave_add) * bitsave_slope;
-    bit_spend = (fill_level + bitspend_add) * bitspend_slope;
-    bit_factor = 1. - bit_save
-        + (bit_spend - bit_save) / ((*ctx).pe.max - (*ctx).pe.min) * (clipped_pe - (*ctx).pe.min);
-    (*ctx).pe.max = if pe > (*ctx).pe.max {
-        pe
-    } else {
-        (*ctx).pe.max
-    };
-    forgetful_min_pe = ((*ctx).pe.min * 511.
-        + (if (*ctx).pe.min > pe * (pe / (*ctx).pe.max) {
-            (*ctx).pe.min
-        } else {
-            pe * (pe / (*ctx).pe.max)
-        }))
-        / (511 + 1) as c_float;
-    (*ctx).pe.min = if pe > forgetful_min_pe {
-        forgetful_min_pe
-    } else {
-        pe
-    };
-    (if (*ctx).frame_bits as c_float * bit_factor
-        > (if (*ctx).frame_bits + size - bits > (*ctx).frame_bits / 8 {
-            (*ctx).frame_bits + size - bits
-        } else {
-            (*ctx).frame_bits / 8
-        }) as c_float
-    {
-        (if (*ctx).frame_bits + size - bits > (*ctx).frame_bits / 8 {
-            (*ctx).frame_bits + size - bits
-        } else {
-            (*ctx).frame_bits / 8
-        }) as c_float
-    } else {
-        (*ctx).frame_bits as c_float * bit_factor
-    }) as c_int
 }
 
 unsafe fn calc_pe_3gpp(mut band: *mut AacPsyBand) -> c_float {
@@ -829,13 +809,9 @@ unsafe fn psy_3gpp_analyze_channel(
         pctx.pe.max = if pe > pctx.pe.max { pe } else { pctx.pe.max };
         pctx.pe.min = if pe > pctx.pe.min { pctx.pe.min } else { pe };
     } else {
-        desired_bits = calc_bit_demand(
-            pctx,
-            pe,
-            ctx.bitres.bits,
-            ctx.bitres.size,
-            wi.num_windows == 8,
-        ) as c_float;
+        desired_bits =
+            pctx.calc_bit_demand(pe, ctx.bitres.bits, ctx.bitres.size, wi.num_windows == 8)
+                as c_float;
         desired_pe = desired_bits * 1.18;
         if ctx.bitres.bits > 0 {
             desired_pe *= av_clipf_c(
