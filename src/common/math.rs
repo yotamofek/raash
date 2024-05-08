@@ -1,4 +1,4 @@
-use std::f64;
+use std::{f32, f64};
 
 use libc::{c_double, c_float, c_int};
 
@@ -22,18 +22,8 @@ pub(crate) fn roundf(n: c_float) -> c_float {
     n.round()
 }
 
-pub(crate) fn exp(n: c_double) -> c_double {
-    n.exp()
-}
-
 pub(crate) fn exp2f(n: c_float) -> c_float {
     n.exp2()
-}
-pub(crate) fn exp2(n: c_double) -> c_double {
-    n.exp2()
-}
-pub(crate) fn pow(n: c_double, i: c_double) -> c_double {
-    n.powf(i)
 }
 
 pub(crate) fn av_clip_c(a: c_int, amin: c_int, amax: c_int) -> c_int {
@@ -43,6 +33,18 @@ pub(crate) fn av_clipf_c(a: c_float, amin: c_float, amax: c_float) -> c_float {
     a.clamp(amin, amax)
 }
 
-pub(crate) unsafe fn ff_exp10(x: c_double) -> c_double {
-    (f64::consts::LOG2_10 * x).exp2()
+pub(crate) trait Exp10 {
+    fn exp10(x: Self) -> Self;
+}
+
+impl Exp10 for c_double {
+    fn exp10(x: Self) -> Self {
+        (f64::consts::LOG2_10 * x).exp2()
+    }
+}
+
+impl Exp10 for c_float {
+    fn exp10(x: Self) -> Self {
+        (f32::consts::LOG2_10 * x).exp2()
+    }
 }

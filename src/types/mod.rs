@@ -10,7 +10,10 @@ use ffi::{
 };
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
 
-use crate::aac::{encoder::TemporalNoiseShaping, IndividualChannelStream, WindowSequence};
+use crate::aac::{
+    encoder::TemporalNoiseShaping, psy_model::AacPsyContext, IndividualChannelStream,
+    WindowSequence,
+};
 
 // pub(crate) const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
 
@@ -157,12 +160,11 @@ pub(crate) struct FFPsyContext {
     pub(crate) avctx: *mut AVCodecContext,
     pub(crate) ch: Box<[FFPsyChannel]>,
     pub(crate) group: Box<[FFPsyChannelGroup]>,
-    // pub(crate) num_groups: c_int,
     pub(crate) cutoff: c_int,
     pub(crate) bands: Box<[&'static [c_uchar]]>,
     pub(crate) num_bands: Box<[c_int]>,
-    pub(crate) bitres: C2RustUnnamed_2,
-    pub(crate) model_priv_data: *mut c_void,
+    pub(crate) bitres: BitResolution,
+    pub(crate) model_priv_data: Box<AacPsyContext>,
 }
 
 impl FFPsyContext {
@@ -174,18 +176,18 @@ impl FFPsyContext {
             cutoff: 0,
             bands: Default::default(),
             num_bands: Default::default(),
-            bitres: C2RustUnnamed_2 {
+            bitres: BitResolution {
                 size: 0,
                 bits: 0,
                 alloc: 0,
             },
-            model_priv_data: null_mut(),
+            model_priv_data: Default::default(),
         }
     }
 }
 
 #[derive(Copy, Clone, Default)]
-pub(crate) struct C2RustUnnamed_2 {
+pub(crate) struct BitResolution {
     pub(crate) size: c_int,
     pub(crate) bits: c_int,
     pub(crate) alloc: c_int,

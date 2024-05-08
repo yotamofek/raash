@@ -1,6 +1,7 @@
 #![feature(
     arbitrary_self_types,
     array_chunks,
+    array_windows,
     as_array_of_cells,
     cell_update,
     generic_arg_infer,

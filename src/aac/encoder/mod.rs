@@ -25,7 +25,7 @@ use std::{
     ffi::CStr,
     iter::zip,
     mem::{self, MaybeUninit},
-    ptr::{self, addr_of, addr_of_mut, null, null_mut, NonNull},
+    ptr::{self, addr_of, addr_of_mut, null_mut, NonNull},
 };
 
 use array_util::{WindowedArray, W};
@@ -74,7 +74,6 @@ use crate::{
     audio_frame_queue::{AudioFrameQueue, AudioRemoved},
     avutil::tx::av_tx_uninit,
     mpeg4audio_sample_rates::ff_mpeg4audio_sample_rates,
-    psy_model::{ff_psy_end, ff_psy_init},
     types::*,
 };
 
@@ -768,7 +767,7 @@ unsafe fn aac_encode_frame(
         let mut chan_el_counter = [0; 4];
         for (&tag, cpe) in zip(ctx.chan_map, &mut **cpe) {
             let windows = windows.take(..tag.channels()).unwrap();
-            let mut coeffs: [*const c_float; 2] = [null(); 2];
+            let mut coeffs: [&[c_float]; 2] = [&[]; 2];
 
             *cpe = ChannelElement {
                 common_window: 0,
@@ -783,7 +782,7 @@ unsafe fn aac_encode_frame(
             *chan_el_counter += 1;
 
             for (sce, coeffs) in zip(&mut cpe.ch, &mut coeffs).take(windows.len()) {
-                *coeffs = (sce.coeffs).as_mut_ptr();
+                *coeffs = &**sce.coeffs;
                 sce.ics.predictor_present = false;
                 sce.tns = TemporalNoiseShaping::default();
                 for band_type in (*sce.band_type)[..128]
@@ -1233,15 +1232,13 @@ impl Encoder for AACEncoder {
                     .unwrap_or_default()
             });
 
-            ret = ff_psy_init(
-                &mut ctx.psy,
+            ctx.psy = FFPsyContext::init(
                 avctx,
                 &sizes,
                 &lengths,
                 ctx.chan_map.len() as c_int,
                 &grouping,
             );
-            assert!(ret >= 0, "ff_psy_init failed");
 
             res
         }
@@ -1274,7 +1271,6 @@ impl Encoder for AACEncoder {
             );
             av_tx_uninit(&mut ctx.mdct.mdct1024);
             av_tx_uninit(&mut ctx.mdct.mdct128);
-            ff_psy_end(&mut ctx.psy);
         }
     }
 }
