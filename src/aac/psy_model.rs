@@ -87,7 +87,7 @@ pub(crate) struct AacPsyBand {
 #[derive(Copy, Clone, Default)]
 pub(crate) struct AacPsyChannel {
     band: WindowedArray<Array<AacPsyBand, 128>, 16>,
-    prev_band: Array<AacPsyBand, 128>,
+    prev_band: WindowedArray<Array<AacPsyBand, 128>, 16>,
     next_grouping: c_uchar,
     next_window_seq: WindowSequence,
     attack_threshold: c_float,
@@ -104,21 +104,35 @@ pub(crate) struct AacPsyCoeffs {
     min_snr: c_float,
 }
 
+/// 3GPP TS26.403-inspired psychoacoustic model specific data
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 148..=164)]
 #[derive(Clone, Default)]
 pub(crate) struct AacPsyContext {
+    /// bitrate per channel
     chan_bitrate: c_int,
-    frame_bits: c_int,
-    fill_level: c_int,
-    pe: PEState,
+    pe: PEContext,
     psy_coef: [Array<AacPsyCoeffs, 64>; 2],
     ch: Box<[AacPsyChannel]>,
+}
+
+/// (yotam): Split out from [`AacPsyContext`] to appease borrow checker
+#[derive(Copy, Clone, Default)]
+struct PEContext {
+    /// average bits per frame
+    frame_bits: c_int,
+    /// bit reservoir fill level
+    fill_level: c_int,
+    pe: PEState,
 }
 
 /// Perceptual entropy state
 #[derive(Copy, Clone, Default)]
 pub(crate) struct PEState {
+    /// minimum allowed PE for bit factor calculation
     min: c_float,
+    /// maximum allowed PE for bit factor calculation
     max: c_float,
+    /// allowed PE of the previous frame
     previous: c_float,
 }
 
@@ -407,19 +421,21 @@ impl AacPsyContext {
 
         Self {
             chan_bitrate,
-            frame_bits,
-            pe: {
-                let pe_state = |c| {
-                    c * c_float::from(BLOCK_SIZE_LONG) * bandwidth as c_float
-                        / (sample_rate as c_float * 2.)
-                };
-                PEState {
-                    min: pe_state(8.),
-                    max: pe_state(12.),
-                    ..Default::default()
-                }
+            pe: PEContext {
+                frame_bits,
+                pe: {
+                    let pe_state = |c| {
+                        c * c_float::from(BLOCK_SIZE_LONG) * bandwidth as c_float
+                            / (sample_rate as c_float * 2.)
+                    };
+                    PEState {
+                        min: pe_state(8.),
+                        max: pe_state(12.),
+                        ..Default::default()
+                    }
+                },
+                fill_level: ctx.bitres.size,
             },
-            fill_level: ctx.bitres.size,
             psy_coef: psy_coeffs,
             ch: vec![lame_window_init(ctx.avctx); (*ctx.avctx).ch_layout.nb_channels as usize]
                 .into_boxed_slice(),
@@ -429,7 +445,7 @@ impl AacPsyContext {
 
 const WINDOW_GROUPING: [c_uchar; 9] = [0xb6, 0x6c, 0xd8, 0xb2, 0x66, 0xc6, 0x96, 0x36, 0x36];
 
-impl AacPsyContext {
+impl PEContext {
     /// 5.6.1.2 "Calculation of Bit Demand"
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 493..=535)]
     fn calc_bit_demand(
@@ -459,7 +475,7 @@ impl AacPsyContext {
                 ..if short_window {
                     Info {
                         bit_save: SlopeAdd {
-                            slope: -0.36363637,
+                            slope: -0.363_636_37,
                             add: -0.75,
                         },
                         bit_spend: SlopeAdd {
@@ -472,7 +488,7 @@ impl AacPsyContext {
                 } else {
                     Info {
                         bit_save: SlopeAdd {
-                            slope: -0.46666667,
+                            slope: -0.466_666_67,
                             add: -0.842_857_1,
                         },
                         bit_spend: SlopeAdd {
@@ -530,23 +546,23 @@ impl AacPsyContext {
     }
 }
 
-unsafe fn calc_pe_3gpp(band: *mut AacPsyBand) -> c_float {
-    (*band).pe = 0.;
-    (*band).pe_const = 0.;
-    (*band).active_lines = 0.;
-    if (*band).energy > (*band).threshold {
-        let mut a = (*band).energy.log2();
-        let mut pe = a - (*band).threshold.log2();
-        (*band).active_lines = (*band).nz_lines;
+fn calc_pe_3gpp(band: &mut AacPsyBand) -> c_float {
+    band.pe = 0.;
+    band.pe_const = 0.;
+    band.active_lines = 0.;
+    if band.energy > band.threshold {
+        let mut a = band.energy.log2();
+        let mut pe = a - band.threshold.log2();
+        band.active_lines = band.nz_lines;
         if pe < 3. {
             pe = pe * 0.559_357_3_f32 + 1.3219281;
             a = a * 0.559_357_3_f32 + 1.3219281;
-            (*band).active_lines *= 0.559_357_3_f32;
+            band.active_lines *= 0.559_357_3_f32;
         }
-        (*band).pe = pe * (*band).nz_lines;
-        (*band).pe_const = a * (*band).nz_lines;
+        band.pe = pe * band.nz_lines;
+        band.pe_const = a * band.nz_lines;
     }
-    (*band).pe
+    band.pe
 }
 
 fn calc_reduction_3gpp(
@@ -568,34 +584,34 @@ fn calc_reduction_3gpp(
     }
 }
 
-unsafe fn calc_reduced_thr_3gpp(
-    mut band: *mut AacPsyBand,
+fn calc_reduced_thr_3gpp(
+    mut band: &mut AacPsyBand,
     mut min_snr: c_float,
     mut reduction: c_float,
 ) -> c_float {
-    let mut thr: c_float = (*band).threshold;
-    if (*band).energy > thr {
-        thr = sqrtf(thr);
-        thr = sqrtf(thr) + reduction;
+    let mut thr = band.threshold;
+    if band.energy > thr {
+        thr = thr.sqrt();
+        thr = thr.sqrt() + reduction;
         thr *= thr;
         thr *= thr;
-        if thr > (*band).energy * min_snr && (*band).avoid_holes != AvoidHoles::None {
-            thr = if (*band).threshold > (*band).energy * min_snr {
-                (*band).threshold
+        if thr > band.energy * min_snr && band.avoid_holes != AvoidHoles::None {
+            thr = if band.threshold > band.energy * min_snr {
+                band.threshold
             } else {
-                (*band).energy * min_snr
+                band.energy * min_snr
             };
-            (*band).avoid_holes = AvoidHoles::Active;
+            band.avoid_holes = AvoidHoles::Active;
         }
     }
     thr
 }
 
-unsafe fn calc_thr_3gpp(
-    mut wi: *const FFPsyWindowInfo,
+fn calc_thr_3gpp(
+    mut wi: &FFPsyWindowInfo,
     num_bands: c_int,
-    mut pch: *mut AacPsyChannel,
-    mut band_sizes: *const c_uchar,
+    mut pch: &mut AacPsyChannel,
+    mut band_sizes: &[c_uchar],
     mut coefs: &[c_float],
     cutoff: c_int,
 ) {
@@ -605,33 +621,32 @@ unsafe fn calc_thr_3gpp(
     let mut start: c_int = 0;
     let mut wstart: c_int = 0;
     w = 0;
-    while w < (*wi).num_windows * 16 {
+    while w < wi.num_windows * 16 {
         wstart = 0;
         g = 0;
         while g < num_bands {
-            let mut band: *mut AacPsyBand =
-                &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize) as *mut AacPsyBand;
+            let mut band = &mut (*pch.band)[(w + g) as usize];
             let mut form_factor: c_float = 0.;
             let mut Temp: c_float = 0.;
-            (*band).energy = 0.;
+            band.energy = 0.;
             if wstart < cutoff {
                 i = 0;
-                while i < *band_sizes.offset(g as isize) as c_int {
-                    (*band).energy += coefs[(start + i) as usize].powi(2);
+                while i < band_sizes[g as usize] as c_int {
+                    band.energy += coefs[(start + i) as usize].powi(2);
                     form_factor += sqrtf(fabs(coefs[(start + i) as usize] as c_double) as c_float);
                     i += 1;
                     i;
                 }
             }
-            Temp = if (*band).energy > 0. {
-                sqrtf(*band_sizes.offset(g as isize) as c_float / (*band).energy)
+            Temp = if band.energy > 0. {
+                sqrtf(band_sizes[g as usize] as c_float / band.energy)
             } else {
                 0.
             };
-            (*band).threshold = (*band).energy * 0.001258925;
-            (*band).nz_lines = form_factor * sqrtf(Temp);
-            start += *band_sizes.offset(g as isize) as c_int;
-            wstart += *band_sizes.offset(g as isize) as c_int;
+            band.threshold = band.energy * 0.001258925;
+            band.nz_lines = form_factor * sqrtf(Temp);
+            start += band_sizes[g as usize] as c_int;
+            wstart += band_sizes[g as usize] as c_int;
             g += 1;
             g;
         }
@@ -675,14 +690,13 @@ unsafe fn psy_3gpp_analyze_channel(
     mut coefs: &[c_float],
     mut wi: &FFPsyWindowInfo,
 ) {
-    let mut pctx = &mut *ctx.model_priv_data;
-    let mut pch: *mut AacPsyChannel = &mut pctx.ch[channel as usize];
-    let mut w: c_int = 0;
+    let pctx = &mut *ctx.model_priv_data;
+    let pch = &mut pctx.ch[channel as usize];
     let mut desired_bits: c_float = 0.;
     let mut desired_pe: c_float = 0.;
     let mut delta_pe: c_float = 0.;
     let mut reduction: c_float = f32::NAN;
-    let mut spread_en: [c_float; 128] = [0.; 128];
+    let mut spread_en = WindowedArray::<_, 16>([const { Cell::new(0.) }; 128]);
     let mut a: c_float = 0.;
     let mut active_lines: c_float = 0.;
     let mut norm_fac: c_float = 0.;
@@ -691,9 +705,9 @@ unsafe fn psy_3gpp_analyze_channel(
     } else {
         c_float::max(50., 100. - pctx.chan_bitrate as c_float * 100. / 32000.)
     };
-    let num_bands = ctx.num_bands[(wi.num_windows == 8) as usize];
-    let band_sizes = ctx.bands[(wi.num_windows == 8) as usize];
-    let coeffs = pctx.psy_coef[usize::from(wi.num_windows == 8)].as_mut_ptr();
+    let num_bands = ctx.num_bands[usize::from(wi.num_windows == 8)];
+    let band_sizes = ctx.bands[usize::from(wi.num_windows == 8)];
+    let coeffs = &mut pctx.psy_coef[usize::from(wi.num_windows == 8)];
     let avoid_hole_thr = if wi.num_windows == 8 { 0.63 } else { 0.5 };
     let bandwidth = if ctx.cutoff != 0 {
         ctx.cutoff
@@ -704,73 +718,84 @@ unsafe fn psy_3gpp_analyze_channel(
 
     // calculate energies, initial thresholds and related values -
     // 5.4.2 "Threshold Calculation"
-    calc_thr_3gpp(wi, num_bands, pch, band_sizes.as_ptr(), coefs, cutoff);
+    calc_thr_3gpp(wi, num_bands, pch, band_sizes, coefs, cutoff);
 
     // modify thresholds and energies - spread, threshold in quiet, pre-echo control
-    w = 0;
-    while w < wi.num_windows * 16 {
-        let mut bands: *mut AacPsyBand =
-            &mut *((*pch).band).as_mut_ptr().offset(w as isize) as *mut AacPsyBand;
-
+    for (w, (bands, spread_ens, prev_bands)) in izip!(
+        pch.band.as_array_of_cells_deref(),
+        &spread_en,
+        &pch.prev_band
+    )
+    .take(wi.num_windows as usize)
+    .enumerate()
+    {
         // 5.4.2.3 "Spreading" & 5.4.3 "Spread Energy Calculation"
-        spread_en[0] = (*bands.offset(0)).energy;
-        for g in 1..num_bands {
-            (*bands.offset(g as isize)).threshold = c_float::max(
-                (*bands.offset(g as isize)).threshold,
-                (*bands.offset((g - 1) as isize)).threshold
-                    * (*coeffs.offset(g as isize)).spread_hi[0],
-            );
-            spread_en[(w + g) as usize] = c_float::max(
-                (*bands.offset(g as isize)).energy,
-                spread_en[(w + g - 1) as usize] * (*coeffs.offset(g as isize)).spread_hi[1],
-            );
+        (*spread_en)[0].set(bands[0].get().energy);
+        for ([band0, band1], [spread_en0, spread_en1], coeff) in izip!(
+            bands.array_windows(),
+            spread_ens.array_windows(),
+            &coeffs[1..num_bands as usize]
+        ) {
+            band1.update(|band| AacPsyBand {
+                threshold: c_float::max(band.threshold, band0.get().threshold * coeff.spread_hi[0]),
+                ..band
+            });
+            spread_en1.set(c_float::max(
+                band1.get().energy,
+                spread_en0.get() * coeff.spread_hi[1],
+            ));
         }
-        for g in (0..num_bands - 1).rev() {
-            (*bands.offset(g as isize)).threshold = c_float::max(
-                (*bands.offset(g as isize)).threshold,
-                (*bands.offset((g + 1) as isize)).threshold
-                    * (*coeffs.offset(g as isize)).spread_low[0],
-            );
-            spread_en[(w + g) as usize] = c_float::max(
-                spread_en[(w + g) as usize],
-                spread_en[(w + g + 1) as usize] * (*coeffs.offset(g as isize)).spread_low[1],
-            );
+        for ([band0, band1], [spread_en0, spread_en1], coeff) in izip!(
+            bands.array_windows(),
+            spread_ens.array_windows(),
+            coeffs[..num_bands as usize].iter(),
+        )
+        .rev()
+        {
+            band0.update(|band| AacPsyBand {
+                threshold: c_float::max(
+                    band.threshold,
+                    band1.get().threshold * coeff.spread_low[0],
+                ),
+                ..band
+            });
+            spread_en0.update(|en| c_float::max(en, spread_en1.get() * coeff.spread_low[1]));
         }
+
         // 5.4.2.4 "Threshold in quiet"
-        for g in 0..num_bands {
-            let mut band: *mut AacPsyBand = &mut *bands.offset(g as isize) as *mut AacPsyBand;
+        for (band, prev_band, coeffs, spread_en) in
+            izip!(bands, prev_bands, &*coeffs, spread_ens).take(num_bands as usize)
+        {
+            band.update(|mut band| {
+                band.threshold = c_float::max(band.threshold, coeffs.ath);
+                band.thr_quiet = band.threshold;
 
-            (*band).threshold = c_float::max((*band).threshold, (*coeffs.offset(g as isize)).ath);
-            (*band).thr_quiet = (*band).threshold;
+                // 5.4.2.5 "Pre-echo control"
+                if !(wi.window_type[0] == WindowSequence::LongStop
+                    || w == 0 && wi.window_type[1] == WindowSequence::LongStart)
+                {
+                    band.threshold = c_float::max(
+                        0.01 * band.threshold,
+                        c_float::min(band.threshold, 2. * prev_band.thr_quiet),
+                    );
+                }
 
-            // 5.4.2.5 "Pre-echo control"
-            if !(wi.window_type[0] == WindowSequence::LongStop
-                || w == 0 && wi.window_type[1] == WindowSequence::LongStart)
-            {
-                (*band).threshold = c_float::max(
-                    0.01 * (*band).threshold,
-                    c_float::min(
-                        (*band).threshold,
-                        2. * (*pch).prev_band[(w + g) as usize].thr_quiet,
-                    ),
-                );
-            }
+                // 5.6.1.3.1 "Preparatory steps of the perceptual entropy calculation"
+                pe += calc_pe_3gpp(&mut band);
+                a += band.pe_const;
+                active_lines += band.active_lines;
 
-            // 5.6.1.3.1 "Preparatory steps of the perceptual entropy calculation"
-            pe += calc_pe_3gpp(band);
-            a += (*band).pe_const;
-            active_lines += (*band).active_lines;
+                // 5.6.1.3.3 "Selection of the bands for avoidance of holes"
+                band.avoid_holes =
+                    if spread_en.get() * avoid_hole_thr > band.energy || coeffs.min_snr > 1. {
+                        AvoidHoles::None
+                    } else {
+                        AvoidHoles::Inactive
+                    };
 
-            // 5.6.1.3.3 "Selection of the bands for avoidance of holes"
-            (*band).avoid_holes = if spread_en[(w + g) as usize] * avoid_hole_thr > (*band).energy
-                || (*coeffs.offset(g as isize)).min_snr > 1.
-            {
-                AvoidHoles::None
-            } else {
-                AvoidHoles::Inactive
-            };
+                band
+            });
         }
-        w += 16;
     }
 
     // 5.6.1.3.2 "Calculation of the desired perceptual entropy"
@@ -793,11 +818,12 @@ unsafe fn psy_3gpp_analyze_channel(
             desired_pe = desired_bits.bits_to_pe();
         }
 
-        pctx.pe.max = pe.max(pctx.pe.max);
-        pctx.pe.min = pe.min(pctx.pe.min);
+        pctx.pe.pe.max = pe.max(pctx.pe.pe.max);
+        pctx.pe.pe.min = pe.min(pctx.pe.pe.min);
     } else {
         desired_bits =
-            pctx.calc_bit_demand(pe, ctx.bitres.bits, ctx.bitres.size, wi.num_windows == 8)
+            pctx.pe
+                .calc_bit_demand(pe, ctx.bitres.bits, ctx.bitres.size, wi.num_windows == 8)
                 as c_float;
         desired_pe = desired_bits.bits_to_pe();
 
@@ -806,30 +832,33 @@ unsafe fn psy_3gpp_analyze_channel(
         //       back and do more testing later.
         if ctx.bitres.bits > 0 {
             desired_pe *=
-                (pctx.pe.previous / (ctx.bitres.bits as c_float * 1.18)).clamp(0.85, 1.15);
+                (pctx.pe.pe.previous / (ctx.bitres.bits as c_float).bits_to_pe()).clamp(0.85, 1.15);
         }
     }
-    pctx.pe.previous = desired_bits.bits_to_pe();
+    pctx.pe.pe.previous = desired_bits.bits_to_pe();
     ctx.bitres.alloc = desired_bits as c_int;
 
     if desired_pe < pe {
         // 5.6.1.3.4 "First Estimation of the reduction value"
-        w = 0;
-        while w < wi.num_windows * 16 {
+        for bands in pch
+            .band
+            .as_array_of_cells_deref()
+            .into_iter()
+            .take(wi.num_windows as usize)
+        {
             reduction = calc_reduction_3gpp(a, desired_pe, pe, active_lines);
             pe = 0.;
             a = 0.;
             active_lines = 0.;
-            for g in 0..num_bands {
-                let band: *mut AacPsyBand =
-                    &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize);
-                (*band).threshold =
-                    calc_reduced_thr_3gpp(band, (*coeffs.offset(g as isize)).min_snr, reduction);
-                pe += calc_pe_3gpp(band);
-                a += (*band).pe_const;
-                active_lines += (*band).active_lines;
+            for (band, coeffs) in zip(bands, &*coeffs).take(num_bands as usize) {
+                band.update(|mut band| {
+                    band.threshold = calc_reduced_thr_3gpp(&mut band, coeffs.min_snr, reduction);
+                    pe += calc_pe_3gpp(&mut band);
+                    a += band.pe_const;
+                    active_lines += band.active_lines;
+                    band
+                });
             }
-            w += 16;
         }
 
         // 5.6.1.3.5 "Second Estimation of the reduction value"
@@ -838,21 +867,21 @@ unsafe fn psy_3gpp_analyze_channel(
             let mut desired_pe_no_ah: c_float = 0.;
             a = 0.;
             active_lines = a;
-            w = 0;
-            while w < wi.num_windows * 16 {
-                for g in 0..num_bands {
-                    let band: *mut AacPsyBand =
-                        &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize);
-
-                    if (*band).avoid_holes == AvoidHoles::Active {
+            for bands in pch
+                .band
+                .as_array_of_cells_deref()
+                .into_iter()
+                .take(wi.num_windows as usize)
+            {
+                for band in bands.iter().map(Cell::get).take(num_bands as usize) {
+                    if band.avoid_holes == AvoidHoles::Active {
                         continue;
                     }
 
-                    pe_no_ah += (*band).pe;
-                    a += (*band).pe_const;
-                    active_lines += (*band).active_lines;
+                    pe_no_ah += band.pe;
+                    a += band.pe_const;
+                    active_lines += band.active_lines;
                 }
-                w += 16;
             }
             desired_pe_no_ah = c_float::max(desired_pe - (pe - pe_no_ah), 0.);
             if active_lines > 0. {
@@ -860,28 +889,29 @@ unsafe fn psy_3gpp_analyze_channel(
             }
 
             pe = 0.;
-            w = 0;
-            while w < wi.num_windows * 16 {
-                for g in 0..num_bands {
-                    let band: *mut AacPsyBand =
-                        &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize);
+            for bands in pch
+                .band
+                .as_array_of_cells_deref()
+                .into_iter()
+                .take(wi.num_windows as usize)
+            {
+                for (band, coeffs) in zip(bands, &*coeffs).take(num_bands as usize) {
+                    band.update(|mut band| {
+                        if active_lines > 0. {
+                            band.threshold =
+                                calc_reduced_thr_3gpp(&mut band, coeffs.min_snr, reduction);
+                        }
+                        pe += calc_pe_3gpp(&mut band);
+                        band.norm_fac = if band.threshold > 0. {
+                            band.active_lines / band.threshold
+                        } else {
+                            0.
+                        };
+                        norm_fac += band.norm_fac;
 
-                    if active_lines > 0. {
-                        (*band).threshold = calc_reduced_thr_3gpp(
-                            band,
-                            (*coeffs.offset(g as isize)).min_snr,
-                            reduction,
-                        );
-                    }
-                    pe += calc_pe_3gpp(band);
-                    (*band).norm_fac = if (*band).threshold > 0. {
-                        (*band).active_lines / (*band).threshold
-                    } else {
-                        0.
-                    };
-                    norm_fac += (*band).norm_fac;
+                        band
+                    });
                 }
-                w += 16;
             }
             delta_pe = desired_pe - pe;
             if delta_pe.abs() > 0.05 * desired_pe {
@@ -892,52 +922,62 @@ unsafe fn psy_3gpp_analyze_channel(
         if pe < 1.15 * desired_pe {
             // 6.6.1.3.6 "Final threshold modification by linearization"
             norm_fac = if norm_fac != 0. { 1. / norm_fac } else { 0. };
-            w = 0;
-            while w < wi.num_windows * 16 {
-                for g in 0..num_bands {
-                    let mut band: *mut AacPsyBand =
-                        &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize);
+            for bands in pch
+                .band
+                .as_array_of_cells_deref()
+                .into_iter()
+                .take(wi.num_windows as usize)
+            {
+                for (band, coeffs) in zip(bands, &*coeffs)
+                    .take(num_bands as usize)
+                    .filter(|(band, _)| band.get().active_lines > 0.5)
+                {
+                    band.update(|mut band| {
+                        let delta_sfb_pe = band.norm_fac * norm_fac * delta_pe;
+                        let mut thr = band.threshold;
 
-                    if (*band).active_lines <= 0.5 {
-                        continue;
-                    }
-
-                    let delta_sfb_pe = (*band).norm_fac * norm_fac * delta_pe;
-                    let mut thr = (*band).threshold;
-
-                    thr *= (delta_sfb_pe / (*band).active_lines).exp2();
-                    if thr > (*coeffs.offset(g as isize)).min_snr * (*band).energy
-                        && (*band).avoid_holes == AvoidHoles::Inactive
-                    {
-                        thr = c_float::max(
-                            (*band).threshold,
-                            (*coeffs.offset(g as isize)).min_snr * (*band).energy,
-                        );
-                    }
-                    (*band).threshold = thr;
+                        thr *= (delta_sfb_pe / band.active_lines).exp2();
+                        if thr > coeffs.min_snr * band.energy
+                            && band.avoid_holes == AvoidHoles::Inactive
+                        {
+                            thr = c_float::max(band.threshold, coeffs.min_snr * band.energy);
+                        }
+                        band.threshold = thr;
+                        band
+                    });
                 }
-                w += 16;
             }
         } else {
             // 5.6.1.3.7 "Further perceptual entropy reduction"
-            let mut g = num_bands;
-            while pe > desired_pe && {
-                let fresh0 = g;
-                g -= 1;
-                fresh0 != 0
-            } {
-                w = 0;
-                while w < wi.num_windows * 16 {
-                    let band: *mut AacPsyBand =
-                        &mut *((*pch).band).as_mut_ptr().offset((w + g) as isize);
-                    if (*band).avoid_holes != AvoidHoles::None
-                        && (*coeffs.offset(g as isize)).min_snr < 7.943_282e-1_f32
-                    {
-                        (*coeffs.offset(g as isize)).min_snr = 7.943_282e-1_f32;
-                        (*band).threshold = (*band).energy * 7.943_282e-1_f32;
-                        pe += (*band).active_lines * 1.5 - (*band).pe;
-                    }
-                    w += 16;
+            for (g, coeffs) in coeffs[..num_bands as usize]
+                .iter_mut()
+                .map(Cell::from_mut)
+                .enumerate()
+                .rev()
+            {
+                for band in pch
+                    .band
+                    .as_array_of_cells_deref()
+                    .into_iter()
+                    .take(wi.num_windows as usize)
+                    .map(|bands| &bands[g])
+                    .filter(|band| {
+                        band.get().avoid_holes != AvoidHoles::None && coeffs.get().min_snr < SNR_1DB
+                    })
+                {
+                    coeffs.update(|coeffs| AacPsyCoeffs {
+                        min_snr: SNR_1DB,
+                        ..coeffs
+                    });
+                    band.update(|mut band| {
+                        band.threshold = band.energy * SNR_1DB;
+                        pe += band.active_lines * 1.5 - band.pe;
+                        band
+                    });
+                }
+
+                if pe <= desired_pe {
+                    break;
                 }
             }
             /* TODO: allow more holes (unused without mid/side) */
@@ -946,7 +986,7 @@ unsafe fn psy_3gpp_analyze_channel(
 
     for (psy_bands, aac_bands) in zip(
         ctx.ch[channel as usize].psy_bands.as_array_of_cells_deref(),
-        &(*pch).band,
+        &pch.band,
     )
     .take(wi.num_windows as usize)
     {
@@ -969,7 +1009,7 @@ unsafe fn psy_3gpp_analyze_channel(
         }
     }
 
-    (*pch).prev_band = *(*pch).band;
+    pch.prev_band = pch.band;
 }
 
 pub(super) unsafe fn psy_3gpp_analyze(
@@ -978,8 +1018,8 @@ pub(super) unsafe fn psy_3gpp_analyze(
     coeffs: &[&[c_float]; 2],
     wi: &[FFPsyWindowInfo],
 ) {
-    let mut group = ctx.find_group(channel);
-    for (ch, (&coeffs, wi)) in zip(coeffs, wi).take(group.num_ch.into()).enumerate() {
+    let &FFPsyChannelGroup { num_ch } = ctx.find_group(channel);
+    for (ch, (&coeffs, wi)) in zip(coeffs, wi).take(num_ch.into()).enumerate() {
         psy_3gpp_analyze_channel(ctx, channel + ch as c_int, coeffs, wi);
     }
 }
