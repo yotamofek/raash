@@ -7,13 +7,14 @@
     unused_mut
 )]
 
-use std::{cell::Cell, iter::zip};
+use std::{array, cell::Cell, iter::zip};
 
 use array_util::{Array, WindowedArray};
 use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_ushort};
+use reductor::{Reduce as _, Sum};
 
 use super::WindowSequence;
 use crate::{common::*, types::*};
@@ -654,32 +655,25 @@ fn calc_thr_3gpp(
     }
 }
 
-unsafe fn psy_hp_filter(
-    mut firbuf: *const c_float,
-    mut hpfsmpl: *mut c_float,
-    mut psy_fir_coeffs_0: *const c_float,
-) {
-    let mut i: c_int = 0;
-    let mut j: c_int = 0;
-    i = 0;
-    while i < 1024 {
-        let mut sum1: c_float = 0.;
-        let mut sum2: c_float = 0.;
-        sum1 = *firbuf.offset((i + (21 - 1) / 2) as isize);
-        sum2 = 0.;
-        j = 0;
-        while j < (21 - 1) / 2 - 1 {
-            sum1 += *psy_fir_coeffs_0.offset(j as isize)
-                * (*firbuf.offset((i + j) as isize) + *firbuf.offset((i + 21 - j) as isize));
-            sum2 += *psy_fir_coeffs_0.offset((j + 1) as isize)
-                * (*firbuf.offset((i + j + 1) as isize)
-                    + *firbuf.offset((i + 21 - j - 1) as isize));
-            j += 2;
-        }
-        *hpfsmpl.offset(i as isize) = (sum1 + sum2) * 32768.;
-        i += 1;
-        i;
-    }
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 631..=646)]
+fn psy_hp_filter(firbuf: &[c_float], mut psy_fir_coeffs_0: &[c_float; 10]) -> [c_float; 1024] {
+    array::from_fn(|i| {
+        let firbuf = &firbuf[i..];
+
+        let (Sum::<c_float>(sum1), Sum::<c_float>(sum2)) = izip!(
+            psy_fir_coeffs_0.array_chunks(),
+            firbuf.array_chunks(),
+            firbuf[..22].array_chunks().rev()
+        )
+        .map(|(&[coeff0, coeff1], &[fir0, fir1], &[rfir0, rfir1])| {
+            (coeff0 * (fir0 + rfir1), coeff1 * (fir1 + rfir0))
+        })
+        .reduce_with();
+
+        // NOTE: The LAME psymodel expects it's input in the range -32768 to 32768.
+        //       Tuning this for normalized floats would be difficult.
+        (sum1 + firbuf[(21 - 1) / 2] + sum2) * 32768.
+    })
 }
 
 /// Calculate band thresholds as suggested in 3GPP TS26.403
@@ -1024,27 +1018,23 @@ pub(super) unsafe fn psy_3gpp_analyze(
     }
 }
 
-unsafe fn lame_apply_block_type(
-    mut ctx: *mut AacPsyChannel,
-    mut wi: *mut FFPsyWindowInfo,
-    mut uselongblock: c_int,
-) {
+fn lame_apply_block_type(ctx: &mut AacPsyChannel, wi: &mut FFPsyWindowInfo, uselongblock: bool) {
     let mut blocktype = WindowSequence::default();
-    if uselongblock != 0 {
-        if (*ctx).next_window_seq == WindowSequence::EightShort {
+    if uselongblock {
+        if ctx.next_window_seq == WindowSequence::EightShort {
             blocktype = WindowSequence::LongStop;
         }
     } else {
         blocktype = WindowSequence::EightShort;
-        if (*ctx).next_window_seq == WindowSequence::OnlyLong {
-            (*ctx).next_window_seq = WindowSequence::LongStart;
+        if ctx.next_window_seq == WindowSequence::OnlyLong {
+            ctx.next_window_seq = WindowSequence::LongStart;
         }
-        if (*ctx).next_window_seq == WindowSequence::LongStop {
-            (*ctx).next_window_seq = WindowSequence::EightShort;
+        if ctx.next_window_seq == WindowSequence::LongStop {
+            ctx.next_window_seq = WindowSequence::EightShort;
         }
     }
-    (*wi).window_type[0] = (*ctx).next_window_seq;
-    (*ctx).next_window_seq = blocktype as WindowSequence;
+    wi.window_type[0] = ctx.next_window_seq;
+    ctx.next_window_seq = blocktype;
 }
 
 pub(super) unsafe fn psy_lame_window(
@@ -1053,96 +1043,76 @@ pub(super) unsafe fn psy_lame_window(
     mut channel: c_int,
     mut prev_type: WindowSequence,
 ) -> FFPsyWindowInfo {
-    let mut pctx = &mut *ctx.model_priv_data;
-    let mut pch: *mut AacPsyChannel = &mut pctx.ch[channel as usize];
-    let mut grouping: c_int = 0;
-    let mut uselongblock: c_int = 1;
-    let mut attacks: [c_int; 9] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let mut i: c_int = 0;
+    let pctx = &mut *ctx.model_priv_data;
+    let pch = &mut pctx.ch[channel as usize];
+    let mut uselongblock = true;
+    let mut attacks: [c_int; 9] = [0; 9];
     let mut wi = FFPsyWindowInfo::default();
     if let Some(la) = la {
-        let mut hpfsmpl: [c_float; 1024] = [0.; 1024];
-        let mut pf: *const c_float = hpfsmpl.as_mut_ptr();
-        let mut attack_intensity: [c_float; 27] = [0.; 27];
-        let mut energy_subshort: [c_float; 27] = [0.; 27];
-        let mut energy_short: [c_float; 9] = [0., 0., 0., 0., 0., 0., 0., 0., 0.];
-        let mut firbuf: *const c_float = la.as_ptr().offset((128 / 4 - 21) as isize);
+        let mut attack_intensity = [0.; 27];
+        let mut energy_subshort = [0.; 27];
+        let mut energy_short = [0.; 9];
+        let firbuf = &la[128 / 4 - 21..];
         let mut att_sum: c_int = 0;
-        psy_hp_filter(firbuf, hpfsmpl.as_mut_ptr(), FIR_COEFFS.as_ptr());
-        i = 0;
-        while i < 3 {
-            energy_subshort[i as usize] = (*pch).prev_energy_subshort[(i + (8 - 1) * 3) as usize];
-            attack_intensity[i as usize] = energy_subshort[i as usize]
-                / (*pch).prev_energy_subshort[(i + ((8 - 2) * 3 + 1)) as usize];
-            energy_short[0] += energy_subshort[i as usize];
-            i += 1;
-            i;
+        let hpfsmpl = psy_hp_filter(firbuf, &FIR_COEFFS);
+        let mut pf = hpfsmpl.as_slice();
+        for i in 0..3 {
+            energy_subshort[i] = pch.prev_energy_subshort[i + (8 - 1) * 3];
+            attack_intensity[i] =
+                energy_subshort[i] / pch.prev_energy_subshort[i + ((8 - 2) * 3 + 1)];
+            energy_short[0] += energy_subshort[i];
         }
-        i = 0;
-        while i < 8 * 3 {
-            let pfe: *const c_float = pf.offset((1024 / (8 * 3)) as isize);
-            let mut p: c_float = 1.;
-            while pf < pfe {
-                p = if p > fabsf(*pf) { p } else { fabsf(*pf) };
-                pf = pf.offset(1);
-                pf;
-            }
-            energy_subshort[(i + 3) as usize] = p;
-            (*pch).prev_energy_subshort[i as usize] = energy_subshort[(i + 3) as usize];
-            energy_short[(1 + i / 3) as usize] += p;
-            if p > energy_subshort[(i + 1) as usize] {
-                p /= energy_subshort[(i + 1) as usize];
-            } else if energy_subshort[(i + 1) as usize] > p * 10. {
-                p = energy_subshort[(i + 1) as usize] / (p * 10.);
+        for i in 0..8 * 3 {
+            let mut p = pf
+                .take(..1024 / (8 * 3))
+                .unwrap()
+                .iter()
+                .fold(1., |p, pf| c_float::max(p, pf.abs()));
+            energy_subshort[i + 3] = p;
+            pch.prev_energy_subshort[i] = energy_subshort[i + 3];
+            energy_short[1 + i / 3] += p;
+            if p > energy_subshort[i + 1] {
+                p /= energy_subshort[i + 1];
+            } else if energy_subshort[i + 1] > p * 10. {
+                p = energy_subshort[i + 1] / (p * 10.);
             } else {
                 p = 0.;
             }
-            attack_intensity[(i + 3) as usize] = p;
-            i += 1;
-            i;
+            attack_intensity[i + 3] = p;
         }
-        i = 0;
-        while i < (8 + 1) * 3 {
-            if attacks[(i / 3) as usize] == 0
-                && attack_intensity[i as usize] > (*pch).attack_threshold
+        for i in 0 as c_uchar..(8 + 1) * 3 {
+            if attacks[usize::from(i) / 3] == 0
+                && attack_intensity[usize::from(i)] > pch.attack_threshold
             {
-                attacks[(i / 3) as usize] = i % 3 + 1;
+                attacks[usize::from(i) / 3] = c_int::from(i) % 3 + 1;
             }
-            i += 1;
-            i;
         }
-        i = 1;
-        while i < 8 + 1 {
-            let u: c_float = energy_short[(i - 1) as usize];
-            let v: c_float = energy_short[i as usize];
-            let m: c_float = if u > v { u } else { v };
+        for i in 1..8 + 1 {
+            let u = energy_short[i - 1];
+            let v = energy_short[i];
+            let m = c_float::max(u, v);
             if m < 40000. && u < 1.7 * v && v < 1.7 * u {
-                if i == 1 && attacks[0] < attacks[i as usize] {
+                if i == 1 && attacks[0] < attacks[i] {
                     attacks[0] = 0;
                 }
-                attacks[i as usize] = 0;
+                attacks[i] = 0;
             }
-            att_sum += attacks[i as usize];
-            i += 1;
-            i;
+            att_sum += attacks[i];
         }
-        if attacks[0] <= (*pch).prev_attack {
+        if attacks[0] <= pch.prev_attack {
             attacks[0] = 0;
         }
         att_sum += attacks[0];
-        if (*pch).prev_attack == 3 || att_sum != 0 {
-            uselongblock = 0;
-            i = 1;
-            while i < 8 + 1 {
-                if attacks[i as usize] != 0 && attacks[(i - 1) as usize] != 0 {
-                    attacks[i as usize] = 0;
+        if pch.prev_attack == 3 || att_sum != 0 {
+            uselongblock = false;
+            for i in 1..8 + 1 {
+                if attacks[i] != 0 && attacks[i - 1] != 0 {
+                    attacks[i] = 0;
                 }
-                i += 1;
-                i;
             }
         }
     } else {
-        uselongblock = !(prev_type == WindowSequence::EightShort) as c_int;
+        uselongblock = !(prev_type == WindowSequence::EightShort);
     }
     lame_apply_block_type(pch, &mut wi, uselongblock);
     wi.window_type[1] = prev_type;
@@ -1155,31 +1125,21 @@ pub(super) unsafe fn psy_lame_window(
             wi.window_shape = 1;
         }
     } else {
-        let mut lastgrp: c_int = 0;
+        let mut lastgrp = 0;
         wi.num_windows = 8;
         wi.window_shape = 0;
-        i = 0;
-        while i < 8 {
-            if (*pch).next_grouping as c_int >> i & 1 == 0 {
+        for i in 0..8 {
+            if usize::from(pch.next_grouping) >> i & 1 == 0 {
                 lastgrp = i;
             }
-            wi.grouping[lastgrp as usize] += 1;
-            wi.grouping[lastgrp as usize];
-            i += 1;
-            i;
+            wi.grouping[lastgrp] += 1;
         }
     }
-    i = 0;
-    while i < 9 {
-        if attacks[i as usize] != 0 {
-            grouping = i;
-            break;
-        } else {
-            i += 1;
-            i;
-        }
-    }
-    (*pch).next_grouping = WINDOW_GROUPING[grouping as usize];
-    (*pch).prev_attack = attacks[8];
+    let grouping = attacks
+        .iter()
+        .position(|&attack| attack != 0)
+        .unwrap_or_default();
+    pch.next_grouping = WINDOW_GROUPING[grouping];
+    pch.prev_attack = attacks[8];
     wi
 }
