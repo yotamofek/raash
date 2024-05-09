@@ -7,7 +7,11 @@
     unused_mut
 )]
 
-use std::{array, cell::Cell, iter::zip};
+use std::{
+    array,
+    cell::Cell,
+    iter::{successors, zip},
+};
 
 use array_util::{Array, WindowedArray};
 use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
@@ -1018,9 +1022,9 @@ pub(super) unsafe fn psy_3gpp_analyze(
     }
 }
 
-fn lame_apply_block_type(ctx: &mut AacPsyChannel, wi: &mut FFPsyWindowInfo, uselongblock: bool) {
+fn lame_apply_block_type(ctx: &mut AacPsyChannel, wi: &mut FFPsyWindowInfo, use_long_block: bool) {
     let mut blocktype = WindowSequence::default();
-    if uselongblock {
+    if use_long_block {
         if ctx.next_window_seq == WindowSequence::EightShort {
             blocktype = WindowSequence::LongStop;
         }
@@ -1045,7 +1049,7 @@ pub(super) unsafe fn psy_lame_window(
 ) -> FFPsyWindowInfo {
     let pctx = &mut *ctx.model_priv_data;
     let pch = &mut pctx.ch[channel as usize];
-    let mut uselongblock = true;
+    let mut use_long_block = true;
     let mut attacks: [c_int; 9] = [0; 9];
     let mut wi = FFPsyWindowInfo::default();
     if let Some(la) = la {
@@ -1053,68 +1057,80 @@ pub(super) unsafe fn psy_lame_window(
         let mut energy_subshort = [0.; 27];
         let mut energy_short = [0.; 9];
         let firbuf = &la[128 / 4 - 21..];
-        let mut att_sum: c_int = 0;
         let hpfsmpl = psy_hp_filter(firbuf, &FIR_COEFFS);
-        let mut pf = hpfsmpl.as_slice();
-        for i in 0..3 {
-            energy_subshort[i] = pch.prev_energy_subshort[i + (8 - 1) * 3];
-            attack_intensity[i] =
-                energy_subshort[i] / pch.prev_energy_subshort[i + ((8 - 2) * 3 + 1)];
-            energy_short[0] += energy_subshort[i];
+        for (energy_subshort, attack_intensity, prev_energy_subshort) in izip!(
+            &mut energy_subshort,
+            &mut attack_intensity,
+            successors(pch.prev_energy_subshort.get(..), |s| s.get(1..))
+        )
+        .take(3)
+        {
+            *energy_subshort = prev_energy_subshort[(8 - 1) * 3];
+            *attack_intensity = *energy_subshort / prev_energy_subshort[(8 - 2) * 3 + 1];
+            energy_short[0] += *energy_subshort;
         }
-        for i in 0..8 * 3 {
-            let mut p = pf
-                .take(..1024 / (8 * 3))
-                .unwrap()
-                .iter()
-                .fold(1., |p, pf| c_float::max(p, pf.abs()));
+        for (i, (pf, prev_energy_subshort, attack_intensity)) in izip!(
+            hpfsmpl.array_chunks::<{ 1024 / (8 * 3) }>(),
+            &mut pch.prev_energy_subshort,
+            &mut attack_intensity[3..]
+        )
+        .enumerate()
+        {
+            let p = pf.iter().fold(1., |p, pf| c_float::max(p, pf.abs()));
             energy_subshort[i + 3] = p;
-            pch.prev_energy_subshort[i] = energy_subshort[i + 3];
+            *prev_energy_subshort = energy_subshort[i + 3];
             energy_short[1 + i / 3] += p;
-            if p > energy_subshort[i + 1] {
-                p /= energy_subshort[i + 1];
+
+            *attack_intensity = if p > energy_subshort[i + 1] {
+                p / energy_subshort[i + 1]
             } else if energy_subshort[i + 1] > p * 10. {
-                p = energy_subshort[i + 1] / (p * 10.);
+                energy_subshort[i + 1] / (p * 10.)
             } else {
-                p = 0.;
-            }
-            attack_intensity[i + 3] = p;
+                0.
+            };
         }
-        for i in 0 as c_uchar..(8 + 1) * 3 {
-            if attacks[usize::from(i) / 3] == 0
-                && attack_intensity[usize::from(i)] > pch.attack_threshold
+        for (attack, attack_intensities) in zip(&mut attacks, attack_intensity.array_chunks::<3>())
+        {
+            if *attack == 0
+                && let Some(i) = attack_intensities
+                    .iter()
+                    .position(|&attack_intensity| attack_intensity > pch.attack_threshold)
             {
-                attacks[usize::from(i) / 3] = c_int::from(i) % 3 + 1;
+                *attack = i as c_int + 1;
             }
         }
-        for i in 1..8 + 1 {
-            let u = energy_short[i - 1];
-            let v = energy_short[i];
-            let m = c_float::max(u, v);
-            if m < 40000. && u < 1.7 * v && v < 1.7 * u {
-                if i == 1 && attacks[0] < attacks[i] {
-                    attacks[0] = 0;
+        {
+            let ([first_attack], attacks) = attacks.split_array_mut();
+            for (i, (_, attack)) in zip(energy_short.array_windows(), attacks)
+                .enumerate()
+                .filter(|(_, (&[u, v], _))| {
+                    c_float::max(u, v) < 40000. && u < 1.7 * v && v < 1.7 * u
+                })
+            {
+                if i == 1 && *first_attack < *attack {
+                    *first_attack = 0;
                 }
-                attacks[i] = 0;
+                *attack = 0;
             }
-            att_sum += attacks[i];
         }
         if attacks[0] <= pch.prev_attack {
             attacks[0] = 0;
         }
-        att_sum += attacks[0];
+        let att_sum: c_int = attacks.iter().sum();
         if pch.prev_attack == 3 || att_sum != 0 {
-            uselongblock = false;
-            for i in 1..8 + 1 {
-                if attacks[i] != 0 && attacks[i - 1] != 0 {
-                    attacks[i] = 0;
-                }
+            use_long_block = false;
+            for [_, attack1] in Cell::from_mut(&mut attacks)
+                .as_array_of_cells()
+                .array_windows()
+                .filter(|attacks| attacks.iter().map(Cell::get).all(|attack| attack != 0))
+            {
+                attack1.set(0);
             }
         }
     } else {
-        uselongblock = !(prev_type == WindowSequence::EightShort);
+        use_long_block = !(prev_type == WindowSequence::EightShort);
     }
-    lame_apply_block_type(pch, &mut wi, uselongblock);
+    lame_apply_block_type(pch, &mut wi, use_long_block);
     wi.window_type[1] = prev_type;
     if wi.window_type[0] != WindowSequence::EightShort {
         wi.num_windows = 1;
