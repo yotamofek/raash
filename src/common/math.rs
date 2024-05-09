@@ -8,9 +8,6 @@ pub(crate) fn sqrtf(n: c_float) -> c_float {
 pub(crate) fn fabsf(n: c_float) -> c_float {
     n.abs()
 }
-pub(crate) fn fabs(n: c_double) -> c_double {
-    n.abs()
-}
 
 pub(crate) fn log2f(n: c_float) -> c_float {
     n.log2()

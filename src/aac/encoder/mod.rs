@@ -53,10 +53,7 @@ use self::{
     tables::{SWB_SIZE_1024, SWB_SIZE_128},
     temporal_noise_shaping as tns,
 };
-use super::{
-    psy_model::{psy_3gpp_analyze, psy_lame_window},
-    IndividualChannelStream, SyntaxElementType, WindowSequence, WindowedIteration,
-};
+use super::{IndividualChannelStream, SyntaxElementType, WindowSequence, WindowedIteration};
 use crate::{
     aac::{
         coder::{
@@ -699,7 +696,7 @@ unsafe fn analyze_psy_windows(
                 // being used for 11.025kHz to 16kHz sample rates.
                 ics.num_swb = if ctx.samplerate_index >= 8 { 1 } else { 3 };
             } else {
-                *wi = psy_lame_window(&mut ctx.psy, la, ctx.cur_channel, ics.window_sequence[0]);
+                *wi = ctx.psy.window(la, ctx.cur_channel, ics.window_sequence[0]);
             }
 
             ics.apply_psy_window_info(tag, wi, &ctx.psy, ctx.samplerate_index);
@@ -794,7 +791,7 @@ unsafe fn aac_encode_frame(
             }
             ctx.psy.bitres.alloc = -1;
             ctx.psy.bitres.bits = ctx.last_frame_pb_count / ctx.channels;
-            psy_3gpp_analyze(&mut ctx.psy, start_ch, &coeffs, windows);
+            ctx.psy.analyze(start_ch, &coeffs, windows);
             if ctx.psy.bitres.alloc > 0 {
                 target_bits = (target_bits as c_float
                     + ctx.psy.bitres.alloc as c_float
