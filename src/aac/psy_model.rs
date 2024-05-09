@@ -660,8 +660,8 @@ fn calc_thr_3gpp(
     }
 }
 
-#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 631..=646)]
-fn psy_hp_filter(firbuf: &[c_float], mut psy_fir_coeffs_0: &[c_float; 10]) -> [c_float; 1024] {
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 631..=646, name = "psy_hp_filter")]
+fn hp_filter(firbuf: &[c_float], psy_fir_coeffs_0: &[c_float; 10]) -> [c_float; 1024] {
     array::from_fn(|i| {
         let firbuf = &firbuf[i..];
 
@@ -1023,19 +1023,22 @@ pub(super) unsafe fn psy_3gpp_analyze(
     }
 }
 
-fn lame_apply_block_type(ctx: &mut AacPsyChannel, use_long_block: bool) -> WindowSequence {
-    use WindowSequence::*;
+impl AacPsyChannel {
+    #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 866..=882, name = "lame_apply_block_type")]
+    fn apply_block_type(&mut self, use_long_block: bool) -> WindowSequence {
+        use WindowSequence::*;
 
-    let block_type;
-    (block_type, ctx.next_window_seq) = match (use_long_block, ctx.next_window_seq) {
-        (true, seq @ EightShort) => (LongStop, seq),
-        (false, OnlyLong) => (EightShort, LongStart),
-        (false, LongStop) => (EightShort, EightShort),
-        (false, seq) => (EightShort, seq),
-        (_, seq) => (Default::default(), seq),
-    };
+        let block_type;
+        (block_type, self.next_window_seq) = match (use_long_block, self.next_window_seq) {
+            (true, seq @ EightShort) => (LongStop, seq),
+            (false, OnlyLong) => (EightShort, LongStart),
+            (false, LongStop) => (EightShort, EightShort),
+            (false, seq) => (EightShort, seq),
+            (_, seq) => (Default::default(), seq),
+        };
 
-    mem::replace(&mut ctx.next_window_seq, block_type)
+        mem::replace(&mut self.next_window_seq, block_type)
+    }
 }
 
 #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 996..=1000)]
@@ -1067,7 +1070,7 @@ pub(super) fn psy_lame_window(
         let mut energy_subshort = [0.; 27];
         let mut energy_short = [0.; 9];
         let firbuf = &la[128 / 4 - 21..];
-        let hpf_samples = psy_hp_filter(firbuf, &FIR_COEFFS);
+        let hpf_samples = hp_filter(firbuf, &FIR_COEFFS);
         for (energy_subshort, attack_intensity, prev_energy_subshort) in izip!(
             &mut energy_subshort,
             &mut attack_intensity,
@@ -1144,7 +1147,7 @@ pub(super) fn psy_lame_window(
         use_long_block = !(prev_type == WindowSequence::EightShort);
     }
 
-    let window_type = lame_apply_block_type(pch, use_long_block);
+    let window_type = pch.apply_block_type(use_long_block);
     let wi = FFPsyWindowInfo {
         window_type: [window_type, prev_type, Default::default()],
         ..match window_type {
