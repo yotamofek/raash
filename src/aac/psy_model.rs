@@ -11,6 +11,7 @@ use std::{
     array,
     cell::Cell,
     iter::{successors, zip},
+    mem,
 };
 
 use array_util::{Array, WindowedArray};
@@ -1022,26 +1023,35 @@ pub(super) unsafe fn psy_3gpp_analyze(
     }
 }
 
-fn lame_apply_block_type(ctx: &mut AacPsyChannel, wi: &mut FFPsyWindowInfo, use_long_block: bool) {
-    let mut blocktype = WindowSequence::default();
-    if use_long_block {
-        if ctx.next_window_seq == WindowSequence::EightShort {
-            blocktype = WindowSequence::LongStop;
-        }
-    } else {
-        blocktype = WindowSequence::EightShort;
-        if ctx.next_window_seq == WindowSequence::OnlyLong {
-            ctx.next_window_seq = WindowSequence::LongStart;
-        }
-        if ctx.next_window_seq == WindowSequence::LongStop {
-            ctx.next_window_seq = WindowSequence::EightShort;
-        }
-    }
-    wi.window_type[0] = ctx.next_window_seq;
-    ctx.next_window_seq = blocktype;
+fn lame_apply_block_type(ctx: &mut AacPsyChannel, use_long_block: bool) -> WindowSequence {
+    use WindowSequence::*;
+
+    let block_type;
+    (block_type, ctx.next_window_seq) = match (use_long_block, ctx.next_window_seq) {
+        (true, seq @ EightShort) => (LongStop, seq),
+        (false, OnlyLong) => (EightShort, LongStart),
+        (false, LongStop) => (EightShort, EightShort),
+        (false, seq) => (EightShort, seq),
+        (_, seq) => (Default::default(), seq),
+    };
+
+    mem::replace(&mut ctx.next_window_seq, block_type)
 }
 
-pub(super) unsafe fn psy_lame_window(
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 996..=1000)]
+fn calc_grouping(next_grouping: c_uchar) -> [c_int; 8] {
+    let mut grouping = [0; 8];
+    let mut last = 0;
+    for i in 0..8 {
+        if next_grouping >> i & 1 == 0 {
+            last = i;
+        }
+        grouping[last] += 1;
+    }
+    grouping
+}
+
+pub(super) fn psy_lame_window(
     mut ctx: &mut FFPsyContext,
     mut la: Option<&[c_float]>,
     mut channel: c_int,
@@ -1051,13 +1061,13 @@ pub(super) unsafe fn psy_lame_window(
     let pch = &mut pctx.ch[channel as usize];
     let mut use_long_block = true;
     let mut attacks: [c_int; 9] = [0; 9];
-    let mut wi = FFPsyWindowInfo::default();
+
     if let Some(la) = la {
         let mut attack_intensity = [0.; 27];
         let mut energy_subshort = [0.; 27];
         let mut energy_short = [0.; 9];
         let firbuf = &la[128 / 4 - 21..];
-        let hpfsmpl = psy_hp_filter(firbuf, &FIR_COEFFS);
+        let hpf_samples = psy_hp_filter(firbuf, &FIR_COEFFS);
         for (energy_subshort, attack_intensity, prev_energy_subshort) in izip!(
             &mut energy_subshort,
             &mut attack_intensity,
@@ -1070,7 +1080,7 @@ pub(super) unsafe fn psy_lame_window(
             energy_short[0] += *energy_subshort;
         }
         for (i, (pf, prev_energy_subshort, attack_intensity)) in izip!(
-            hpfsmpl.array_chunks::<{ 1024 / (8 * 3) }>(),
+            hpf_samples.array_chunks::<{ 1024 / (8 * 3) }>(),
             &mut pch.prev_energy_subshort,
             &mut attack_intensity[3..]
         )
@@ -1113,11 +1123,14 @@ pub(super) unsafe fn psy_lame_window(
                 *attack = 0;
             }
         }
-        if attacks[0] <= pch.prev_attack {
-            attacks[0] = 0;
+        {
+            let [attack, ..] = &mut attacks;
+            if *attack <= pch.prev_attack {
+                *attack = 0;
+            }
         }
-        let att_sum: c_int = attacks.iter().sum();
-        if pch.prev_attack == 3 || att_sum != 0 {
+        let attack_sum: c_int = attacks.iter().sum();
+        if pch.prev_attack == 3 || attack_sum != 0 {
             use_long_block = false;
             for [_, attack1] in Cell::from_mut(&mut attacks)
                 .as_array_of_cells()
@@ -1130,32 +1143,32 @@ pub(super) unsafe fn psy_lame_window(
     } else {
         use_long_block = !(prev_type == WindowSequence::EightShort);
     }
-    lame_apply_block_type(pch, &mut wi, use_long_block);
-    wi.window_type[1] = prev_type;
-    if wi.window_type[0] != WindowSequence::EightShort {
-        wi.num_windows = 1;
-        wi.grouping[0] = 1;
-        if wi.window_type[0] == WindowSequence::LongStart {
-            wi.window_shape = 0;
-        } else {
-            wi.window_shape = 1;
+
+    let window_type = lame_apply_block_type(pch, use_long_block);
+    let wi = FFPsyWindowInfo {
+        window_type: [window_type, prev_type, Default::default()],
+        ..match window_type {
+            WindowSequence::EightShort => FFPsyWindowInfo {
+                window_shape: 0,
+                num_windows: 8,
+                grouping: calc_grouping(pch.next_grouping),
+                ..Default::default()
+            },
+            window_type => FFPsyWindowInfo {
+                window_shape: (window_type != WindowSequence::LongStart).into(),
+                num_windows: 1,
+                grouping: [1, 0, 0, 0, 0, 0, 0, 0],
+                ..Default::default()
+            },
         }
-    } else {
-        let mut lastgrp = 0;
-        wi.num_windows = 8;
-        wi.window_shape = 0;
-        for i in 0..8 {
-            if usize::from(pch.next_grouping) >> i & 1 == 0 {
-                lastgrp = i;
-            }
-            wi.grouping[lastgrp] += 1;
-        }
-    }
+    };
+
     let grouping = attacks
         .iter()
         .position(|&attack| attack != 0)
         .unwrap_or_default();
     pch.next_grouping = WINDOW_GROUPING[grouping];
-    pch.prev_attack = attacks[8];
+    [.., pch.prev_attack] = attacks;
+
     wi
 }
