@@ -141,19 +141,19 @@ fn reduce_bands(psy_bands: &[FFPsyBand], group_len: u8) -> ReducedBands {
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 765..=905, name = "search_for_pns")]
 pub(crate) unsafe fn search(
-    mut s: *mut AACEncContext,
+    mut s: &mut AACEncContext,
     mut avctx: *const AVCodecContext,
-    mut sce: *mut SingleChannelElement,
+    mut sce: &mut SingleChannelElement,
 ) {
-    let mut wlen: c_int = 1024 / (*sce).ics.num_windows;
+    let mut wlen: c_int = 1024 / sce.ics.num_windows;
 
     let AVCodecContext { sample_rate, .. } = *avctx;
 
-    let ([PNS, PNS34, _, NOR34, ..], []) = (*s).scaled_coeffs.as_chunks_mut::<128>() else {
+    let ([PNS, PNS34, _, NOR34, ..], []) = s.scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
-    let lambda: c_float = (*s).lambda;
+    let lambda: c_float = s.lambda;
     let freq_mult = freq_mult(sample_rate, wlen);
     let thr_mult: c_float = NOISE_LAMBDA_REPLACE * (100. / lambda);
     let spread_threshold = spread_threshold(lambda);
@@ -162,14 +162,14 @@ pub(crate) unsafe fn search(
     let mut prev: c_int = -1000;
     let mut prev_sf: c_int = -1;
     let cutoff = cutoff(avctx, lambda, wlen);
-    (*sce).band_alt = (*sce).band_type;
-    let mut nextband = sce.init_nextband_map();
-    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
+    sce.band_alt = sce.band_type;
+    let mut nextband = sce.init_next_band_map();
+    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
         let mut wstart: c_int = w * 128;
-        let num_swb = (*sce).ics.num_swb as usize;
+        let num_swb = sce.ics.num_swb as usize;
         for (g, (&swb_offset, &swb_size)) in zip(
-            &(*sce).ics.swb_offset[..num_swb],
-            &(*sce).ics.swb_sizes[..num_swb],
+            &sce.ics.swb_offset[..num_swb],
+            &sce.ics.swb_sizes[..num_swb],
         )
         .enumerate()
         {
@@ -181,8 +181,8 @@ pub(crate) unsafe fn search(
             let freq: c_float = (start - wstart) as c_float * freq_mult;
             let freq_boost = freq_boost(freq);
             if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
-                if !(*sce).zeroes[W(w)][g as usize] {
-                    prev_sf = (*sce).sf_idx[W(w)][g as usize];
+                if !sce.zeroes[W(w)][g as usize] {
+                    prev_sf = sce.sf_idx[W(w)][g as usize];
                 }
                 continue;
             }
@@ -197,7 +197,7 @@ pub(crate) unsafe fn search(
                         max: max_energy,
                     },
             } = reduce_bands(
-                &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w)][g as usize..],
+                &s.psy.ch[s.cur_channel as usize].psy_bands[W(w)][g as usize..],
                 group_len,
             );
 
@@ -213,20 +213,19 @@ pub(crate) unsafe fn search(
             //
             // At this stage, point 2 is relaxed for zeroed bands near
             // the noise threshold (hole avoidance is more important)
-            if (!(*sce).zeroes[W(w)][g as usize]
-                && !sfdelta_can_remove_band(&(*sce).sf_idx, &nextband, prev_sf, w * 16 + g))
-                || (((*sce).zeroes[W(w)][g as usize]
-                    || (*sce).band_alt[W(w)][g as usize] as u64 == 0)
+            if (!sce.zeroes[W(w)][g as usize]
+                && !sfdelta_can_remove_band(&sce.sf_idx, &nextband, prev_sf, w * 16 + g))
+                || ((sce.zeroes[W(w)][g as usize] || sce.band_alt[W(w)][g as usize] as u64 == 0)
                     && sfb_energy < threshold * sqrtf(1. / freq_boost))
                 || spread < spread_threshold
-                || (!(*sce).zeroes[W(w)][g as usize]
-                    && (*sce).band_alt[W(w)][g as usize] as c_uint != 0
+                || (!sce.zeroes[W(w)][g as usize]
+                    && sce.band_alt[W(w)][g as usize] as c_uint != 0
                     && sfb_energy > threshold * thr_mult * freq_boost)
                 || min_energy < pns_transient_energy_r * max_energy
             {
-                (*sce).pns_ener[W(w)][g as usize] = sfb_energy;
-                if !(*sce).zeroes[W(w)][g as usize] {
-                    prev_sf = (*sce).sf_idx[W(w)][g as usize];
+                sce.pns_ener[W(w)][g as usize] = sfb_energy;
+                if !sce.zeroes[W(w)][g as usize] {
+                    prev_sf = sce.sf_idx[W(w)][g as usize];
                 }
                 continue;
             }
@@ -237,23 +236,22 @@ pub(crate) unsafe fn search(
             if prev != -1000 {
                 let mut noise_sfdiff: c_int = noise_sfi - prev + 60;
                 if !(0..=2 * 60).contains(&noise_sfdiff) {
-                    if !(*sce).zeroes[W(w)][g as usize] {
-                        prev_sf = (*sce).sf_idx[W(w)][g as usize];
+                    if !sce.zeroes[W(w)][g as usize] {
+                        prev_sf = sce.sf_idx[W(w)][g as usize];
                     }
                     continue;
                 }
             }
 
             for w2 in 0..c_int::from(group_len) {
-                let band =
-                    &mut (*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w + w2)][g as usize];
+                let band = &mut s.psy.ch[s.cur_channel as usize].psy_bands[W(w + w2)][g as usize];
 
                 let [PNS, PNS34, NOR34] =
                     [&mut *PNS, PNS34, NOR34].map(|arr| &mut arr[..usize::from(swb_size)]);
 
                 PNS.fill_with(|| {
-                    (*s).random_state = lcg_random((*s).random_state as c_uint);
-                    (*s).random_state as c_float
+                    s.random_state = lcg_random(s.random_state as c_uint);
+                    s.random_state as c_float
                 });
 
                 // (yotam): scalarproduct_float
@@ -272,7 +270,7 @@ pub(crate) unsafe fn search(
 
                 for (NOR34, coeff) in zip(
                     &mut *NOR34,
-                    &(*sce).coeffs[W(w + w2)][swb_offset as usize..][..swb_size.into()],
+                    &sce.coeffs[W(w + w2)][swb_offset as usize..][..swb_size.into()],
                 ) {
                     *NOR34 = coeff.abs_pow34();
                 }
@@ -281,10 +279,10 @@ pub(crate) unsafe fn search(
                 }
 
                 dist1 += quantize_band_cost(
-                    &((*sce).coeffs)[W(w + w2)][swb_offset as usize..][..swb_size.into()],
+                    &(sce.coeffs)[W(w + w2)][swb_offset as usize..][..swb_size.into()],
                     &NOR34[..swb_size.into()],
-                    (*sce).sf_idx[W(w + w2)][g as usize],
-                    (*sce).band_alt[W(w + w2)][g as usize] as c_int,
+                    sce.sf_idx[W(w + w2)][g as usize],
+                    sce.band_alt[W(w + w2)][g as usize] as c_int,
                     lambda / band.threshold,
                     f32::INFINITY,
                     None,
@@ -295,22 +293,22 @@ pub(crate) unsafe fn search(
                 dist2 += band.energy / (band.spread * band.spread) * lambda * dist_thresh
                     / band.threshold;
             }
-            dist2 += if g != 0 && (*sce).band_type[W(w)][g as usize - 1] == NOISE_BT {
+            dist2 += if g != 0 && sce.band_type[W(w)][g as usize - 1] == NOISE_BT {
                 5.
             } else {
                 9.
             };
             let energy_ratio = pns_tgt_energy / pns_energy; // Compensates for quantization error
-            (*sce).pns_ener[W(w)][g as usize] = energy_ratio * pns_tgt_energy;
-            if (*sce).zeroes[W(w)][g as usize]
-                || (*sce).band_alt[W(w)][g as usize] as u64 == 0
+            sce.pns_ener[W(w)][g as usize] = energy_ratio * pns_tgt_energy;
+            if sce.zeroes[W(w)][g as usize]
+                || sce.band_alt[W(w)][g as usize] as u64 == 0
                 || energy_ratio > 0.85 && energy_ratio < 1.25 && dist2 < dist1
             {
-                (*sce).band_type[W(w)][g as usize] = NOISE_BT;
-                (*sce).zeroes[W(w)][g as usize] = false;
+                sce.band_type[W(w)][g as usize] = NOISE_BT;
+                sce.zeroes[W(w)][g as usize] = false;
                 prev = noise_sfi;
-            } else if !(*sce).zeroes[W(w)][g as usize] {
-                prev_sf = (*sce).sf_idx[W(w)][g as usize];
+            } else if !sce.zeroes[W(w)][g as usize] {
+                prev_sf = sce.sf_idx[W(w)][g as usize];
             }
         }
     }

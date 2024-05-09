@@ -1,4 +1,4 @@
-use std::{iter, ptr};
+use std::iter;
 
 use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
@@ -14,25 +14,25 @@ use crate::{
 };
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 978..=1117, name = "search_for_ms")]
-pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElement) {
+pub(crate) unsafe fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
     let mut start: c_int = 0;
 
-    let ([M, S, L34, R34, M34, S34, ..], []) = (*s).scaled_coeffs.as_chunks_mut::<128>() else {
+    let ([M, S, L34, R34, M34, S34, ..], []) = s.scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
-    let lambda = (*s).lambda;
+    let lambda = s.lambda;
     let mslambda = f32::min(1., lambda / 120.);
 
-    let [sce0, sce1] = &mut (*cpe).ch;
+    let [sce0, sce1] = &mut cpe.ch;
 
-    if (*cpe).common_window == 0 {
+    if cpe.common_window == 0 {
         return;
     }
 
     // Scout out next nonzero bands
-    let mut nextband0 = ptr::from_mut(sce0).init_nextband_map();
-    let mut nextband1 = ptr::from_mut(sce1).init_nextband_map();
+    let mut nextband0 = sce0.init_next_band_map();
+    let mut nextband1 = sce1.init_next_band_map();
 
     let mut prev_mid = sce0.sf_idx[W(0)][0];
     let mut prev_side = sce1.sf_idx[W(0)][0];
@@ -41,12 +41,12 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
         for g in 0..sce0.ics.num_swb {
             let swb_size = sce0.ics.swb_sizes[g as usize];
             let bmax = bval2bmax(g as c_float * 17. / sce0.ics.num_swb as c_float) / 0.0045;
-            if !(*cpe).is_mask[W(w)][g as usize] {
-                (*cpe).ms_mask[W(w)][g as usize] = false;
+            if !cpe.is_mask[W(w)][g as usize] {
+                cpe.ms_mask[W(w)][g as usize] = false;
             }
             if !sce0.zeroes[W(w)][g as usize]
                 && !sce1.zeroes[W(w)][g as usize]
-                && !(*cpe).is_mask[W(w)][g as usize]
+                && !cpe.is_mask[W(w)][g as usize]
             {
                 let mut Mmax: c_float = 0.;
                 let mut Smax: c_float = 0.;
@@ -107,10 +107,10 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                     let sidcb = sidcb.max(1);
 
                     for w2 in 0..c_int::from(group_len) {
-                        let band0 = &(*s).psy.ch[((*s).cur_channel) as usize].psy_bands[W(w + w2)]
+                        let band0 =
+                            &s.psy.ch[(s.cur_channel) as usize].psy_bands[W(w + w2)][g as usize];
+                        let band1 = &s.psy.ch[(s.cur_channel + 1) as usize].psy_bands[W(w + w2)]
                             [g as usize];
-                        let band1 = &(*s).psy.ch[((*s).cur_channel + 1) as usize].psy_bands
-                            [W(w + w2)][g as usize];
                         let minthr = c_float::min(band0.threshold, band1.threshold);
                         let mut b1: c_int = 0;
                         let mut b2: c_int = 0;
@@ -194,8 +194,8 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                         dist1 -= (b1 + b2) as c_float;
                         dist2 -= (b3 + b4) as c_float;
                     }
-                    (*cpe).ms_mask[W(w)][g as usize] = dist2 <= dist1 && B1 < B0;
-                    if (*cpe).ms_mask[W(w)][g as usize] {
+                    cpe.ms_mask[W(w)][g as usize] = dist2 <= dist1 && B1 < B0;
+                    if cpe.ms_mask[W(w)][g as usize] {
                         if sce0.band_type[W(w)][g as usize] != NOISE_BT
                             && sce1.band_type[W(w)][g as usize] != NOISE_BT
                         {
@@ -207,7 +207,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                             ^ (sce1.band_type[W(w)][g as usize] != NOISE_BT)
                         {
                             // ms_mask unneeded, and it confuses some decoders
-                            (*cpe).ms_mask[W(w)][g as usize] = false;
+                            cpe.ms_mask[W(w)][g as usize] = false;
                         }
                         break;
                     } else if B1 > B0 {
@@ -220,7 +220,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut cpe: *mut ChannelElem
                 prev_mid = sce0.sf_idx[W(w)][g as usize];
             }
             if !sce1.zeroes[W(w)][g as usize]
-                && !(*cpe).is_mask[W(w)][g as usize]
+                && !cpe.is_mask[W(w)][g as usize]
                 && sce1.band_type[W(w)][g as usize] < RESERVED_BT
             {
                 prev_side = sce1.sf_idx[W(w)][g as usize];

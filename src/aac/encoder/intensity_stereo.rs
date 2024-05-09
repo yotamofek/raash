@@ -6,7 +6,7 @@
     unused_mut
 )]
 
-use std::{iter::zip, ops::Mul, ptr};
+use std::{iter::zip, ops::Mul};
 
 use array_util::{WindowedArray, W};
 use ffi::codec::AVCodecContext;
@@ -23,17 +23,16 @@ use crate::{
         tables::POW_SF_TABLES,
         IndividualChannelStream, WindowedIteration,
     },
-    common::*,
     types::*,
 };
 
 #[inline]
-fn pos_pow34(mut a: c_float) -> c_float {
-    sqrtf(a * sqrtf(a))
+fn pos_pow34(a: c_float) -> c_float {
+    (a * a.sqrt()).sqrt()
 }
 
 #[inline]
-fn find_min_book(mut maxval: c_float, mut sf: c_int) -> c_int {
+fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
     let mut Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
     let qmaxval = (maxval * Q34 + 0.405_4_f32) as usize;
     aac_maxval_cb.get(qmaxval).copied().unwrap_or(11) as c_int
@@ -57,7 +56,7 @@ impl Mul<c_float> for Phase {
 }
 
 #[derive(Copy, Clone)]
-struct AACISError {
+struct ISError {
     phase: Phase,
     error: c_float,
     ener01: c_float,
@@ -65,9 +64,9 @@ struct AACISError {
 
 #[ffmpeg_src(file = "libavcodec/aacenc_is.c", lines = 98..=158, name = "ff_aac_search_for_is")]
 pub(crate) unsafe fn search(
-    mut s: *mut AACEncContext,
-    mut avctx: *mut AVCodecContext,
-    mut cpe: *mut ChannelElement,
+    s: &mut AACEncContext,
+    avctx: *mut AVCodecContext,
+    cpe: &mut ChannelElement,
 ) {
     let AACEncContext {
         scaled_coeffs,
@@ -77,7 +76,7 @@ pub(crate) unsafe fn search(
         },
         mut cur_channel,
         ..
-    } = &mut *s;
+    } = s;
     let &AVCodecContext { sample_rate, .. } = &*avctx;
 
     let [FFPsyChannel {
@@ -98,7 +97,7 @@ pub(crate) unsafe fn search(
         is_mask,
         ch: [sce0, sce1],
         ..
-    } = &mut *cpe;
+    } = cpe;
 
     if common_window == 0 {
         return;
@@ -108,7 +107,7 @@ pub(crate) unsafe fn search(
     let mut prev_bt = None;
     let mut prev_is = false;
 
-    let nextband1 = WindowedArray::<_, 16>(ptr::from_ref(sce1).init_nextband_map());
+    let nextband1 = WindowedArray::<_, 16>(sce1.init_next_band_map());
 
     let [SingleChannelElement {
         ics: ref ics0 @ IndividualChannelStream {
@@ -178,7 +177,7 @@ pub(crate) unsafe fn search(
                     .iter()
                     .all(|&(band_type, zero)| band_type != NOISE_BT && !zero)
                 && let Some(sf) = prev_sf1
-                // inlined from sfdelta_can_remove_band
+                // (yotam): inlined from sfdelta_can_remove_band
                 && sfdelta_encoding_range(sf).contains(&(**sf_indices1)[usize::from(nextband1)])
             {
                 let (Sum::<c_float>(ener0), Sum::<c_float>(ener1), Sum(ener01), Sum(ener01p)) = {
@@ -289,7 +288,7 @@ pub(crate) unsafe fn search(
                         })
                         .reduce_with();
 
-                    (dist2 <= dist1).then_some(AACISError {
+                    (dist2 <= dist1).then_some(ISError {
                         phase,
                         error: dist2 - dist1,
                         ener01,
@@ -336,7 +335,7 @@ pub(crate) unsafe fn search(
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 580..=607, name = "apply_intensity_stereo")]
-pub(super) unsafe fn apply(mut cpe: *mut ChannelElement) {
+pub(super) fn apply(cpe: &mut ChannelElement) {
     let ChannelElement {
         mut common_window,
         ref ms_mask,
@@ -353,7 +352,7 @@ pub(super) unsafe fn apply(mut cpe: *mut ChannelElement) {
                 ..
             }],
         ..
-    } = &mut *cpe;
+    } = cpe;
 
     if common_window == 0 {
         return;

@@ -14,7 +14,7 @@ pub(super) mod quantize_and_encode_band;
 pub(super) mod quantizers;
 pub(super) mod trellis;
 
-use std::{array, iter, mem::size_of, ops::RangeInclusive};
+use std::{array, iter::zip, mem::size_of, ops::RangeInclusive};
 
 use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
@@ -216,29 +216,32 @@ impl SingleChannelElement {
     /// map to valid, nonzero bands of the form w*16+g (with w being the initial
     /// window of the window group, only) are left indetermined.
     #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 169..=191, name = "ff_init_nextband_map")]
-    pub(super) unsafe fn init_nextband_map(self: *const Self) -> [c_uchar; 128] {
+    pub(super) fn init_next_band_map(&self) -> [c_uchar; 128] {
         let Self {
             ics: ics @ IndividualChannelStream { num_swb, .. },
             ref zeroes,
             ref band_type,
             ..
         } = *self;
-        let mut prevband: c_uchar = 0;
-        let mut nextband = array::from_fn(|g| g as c_uchar);
+
+        let mut prev_band = 0;
+        let mut next_band = array::from_fn(|g| g as c_uchar);
+
         for WindowedIteration { w, .. } in ics.iter_windows() {
             let zeroes = &zeroes[W(w)][..num_swb as usize];
             let band_type = &band_type[W(w)][..num_swb as usize];
-            for (g, _) in iter::zip(zeroes, band_type)
+            for (g, _) in zip(zeroes, band_type)
                 .enumerate()
                 .filter(|(_, (&zero, &band_type))| !zero && band_type < RESERVED_BT)
             {
-                let fresh0 = &mut nextband[prevband as usize];
-                *fresh0 = (w * 16 + g as c_int) as c_uchar;
-                prevband = *fresh0;
+                let next_band = &mut next_band[usize::from(prev_band)];
+                *next_band = (w * 16 + g as c_int) as c_uchar;
+                prev_band = *next_band;
             }
         }
-        nextband[prevband as usize] = prevband;
-        nextband
+
+        next_band[usize::from(prev_band)] = prev_band;
+        next_band
     }
 }
 
