@@ -188,8 +188,8 @@ fn compress_coeffs(mut coef: &mut [c_int], mut c_bits: c_int) -> Compressed {
 /// Coefficient compression is simply not lossless as it should be
 /// on any decoder tested and as such is not active.
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 64..=98, name = "ff_aac_encode_tns_info")]
-pub(super) unsafe fn encode_info(s: *mut AACEncContext, sce: *mut SingleChannelElement) {
-    let pb = addr_of_mut!((*s).pb);
+pub(super) unsafe fn encode_info(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
+    let pb = addr_of_mut!(s.pb);
     let SingleChannelElement {
         ref mut tns,
         ics:
@@ -251,9 +251,9 @@ pub(super) unsafe fn encode_info(s: *mut AACEncContext, sce: *mut SingleChannelE
 
 /// Apply TNS filter
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 100..=141, name = "ff_aac_apply_tns")]
-pub(crate) unsafe fn apply(mut sce: *mut SingleChannelElement) {
-    let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
-    let mut ics: *mut IndividualChannelStream = &mut (*sce).ics;
+pub(crate) unsafe fn apply(sce: &mut SingleChannelElement) {
+    let mut tns = &mut sce.tns;
+    let mut ics = &mut sce.ics;
     let mut w: c_int = 0;
     let mut filt: c_int = 0;
     let mut m: c_int = 0;
@@ -265,30 +265,30 @@ pub(crate) unsafe fn apply(mut sce: *mut SingleChannelElement) {
     let mut end: c_int = 0;
     let mut size: c_int = 0;
     let mut inc: c_int = 0;
-    let mmm = (*ics).tns_max_bands.min((*ics).max_sfb as c_int);
+    let mmm = ics.tns_max_bands.min(ics.max_sfb as c_int);
     let mut lpc: [c_float; 20] = [0.; 20];
     w = 0;
-    while w < (*ics).num_windows {
-        bottom = (*ics).num_swb;
+    while w < ics.num_windows {
+        bottom = ics.num_swb;
         filt = 0;
-        while filt < (*tns).n_filt[w as usize] {
+        while filt < tns.n_filt[w as usize] {
             top = bottom;
-            bottom = 0.max(top - (*tns).length[w as usize][filt as usize]);
-            order = (*tns).order[w as usize][filt as usize];
+            bottom = 0.max(top - tns.length[w as usize][filt as usize]);
+            order = tns.order[w as usize][filt as usize];
             if order != 0 {
                 compute_lpc_coefs(
-                    ((*tns).coef[w as usize][filt as usize]).as_mut_ptr(),
+                    tns.coef[w as usize][filt as usize].as_mut_ptr(),
                     order,
                     lpc.as_mut_ptr(),
                     0,
                     0,
                     0,
                 );
-                start = (*ics).swb_offset[bottom.min(mmm) as usize] as c_int;
-                end = (*ics).swb_offset[top.min(mmm) as usize] as c_int;
+                start = ics.swb_offset[bottom.min(mmm) as usize] as c_int;
+                end = ics.swb_offset[top.min(mmm) as usize] as c_int;
                 size = end - start;
                 if size > 0 {
-                    if (*tns).direction[w as usize][filt as usize] != 0 {
+                    if tns.direction[w as usize][filt as usize] != 0 {
                         inc = -1;
                         start = end - 1;
                     } else {
@@ -299,22 +299,18 @@ pub(crate) unsafe fn apply(mut sce: *mut SingleChannelElement) {
                     while m < size {
                         i = 1;
                         while i <= m.min(order) {
-                            (*(*sce).coeffs)[start as usize] += lpc[(i - 1) as usize]
-                                * (*(*sce).pcoeffs)[(start - i * inc) as usize];
+                            (*sce.coeffs)[start as usize] +=
+                                lpc[(i - 1) as usize] * (*sce.pcoeffs)[(start - i * inc) as usize];
                             i += 1;
-                            i;
                         }
                         m += 1;
-                        m;
                         start += inc;
                     }
                 }
             }
             filt += 1;
-            filt;
         }
         w += 1;
-        w;
     }
 }
 
@@ -343,52 +339,52 @@ unsafe fn quantize_coefs(
 
 /// 3 bits per coefficient with 8 short windows
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 157..=214, name = "ff_aac_search_for_tns")]
-pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
-    let mut tns: *mut TemporalNoiseShaping = &mut (*sce).tns;
+pub(crate) unsafe fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
+    let mut tns: *mut TemporalNoiseShaping = &mut sce.tns;
     let mut w: c_int = 0;
     let mut g: c_int = 0;
     let mut count: c_int = 0;
     let mut gain: c_double = 0.;
     let mut coefs: [c_double; 32] = [0.; 32];
-    let mmm: c_int = (*sce).ics.tns_max_bands.min((*sce).ics.max_sfb as c_int);
-    let is8 = (*sce).ics.window_sequence[0] == WindowSequence::EightShort;
+    let mmm: c_int = sce.ics.tns_max_bands.min(sce.ics.max_sfb as c_int);
+    let is8 = sce.ics.window_sequence[0] == WindowSequence::EightShort;
     let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
     let sfb_start: c_int = av_clip_c(
-        tns_min_sfb[is8 as usize][(*s).samplerate_index as usize] as c_int,
+        tns_min_sfb[is8 as usize][s.samplerate_index as usize] as c_int,
         0,
         mmm,
     );
-    let sfb_end: c_int = av_clip_c((*sce).ics.num_swb, 0, mmm);
+    let sfb_end: c_int = av_clip_c(sce.ics.num_swb, 0, mmm);
     let order = if is8 {
         7
-    } else if (*s).profile == 1 {
+    } else if s.profile == 1 {
         12
     } else {
         MAX_ORDER as c_int
     };
-    let slant: c_int = if (*sce).ics.window_sequence[0] == WindowSequence::LongStop {
+    let slant: c_int = if sce.ics.window_sequence[0] == WindowSequence::LongStop {
         1
-    } else if (*sce).ics.window_sequence[0] == WindowSequence::LongStart {
+    } else if sce.ics.window_sequence[0] == WindowSequence::LongStart {
         0
     } else {
         2
     };
     let sfb_len: c_int = sfb_end - sfb_start;
-    let coef_len: c_int = (*sce).ics.swb_offset[sfb_end as usize] as c_int
-        - (*sce).ics.swb_offset[sfb_start as usize] as c_int;
+    let coef_len: c_int = sce.ics.swb_offset[sfb_end as usize] as c_int
+        - sce.ics.swb_offset[sfb_start as usize] as c_int;
     if coef_len <= 0 || sfb_len <= 0 {
-        (*sce).tns.present = 0;
+        sce.tns.present = 0;
         return;
     }
     w = 0;
-    while w < (*sce).ics.num_windows {
+    while w < sce.ics.num_windows {
         let mut en: [c_float; 2] = [0., 0.];
         let mut oc_start: c_int = 0;
         let mut os_start: c_int = 0;
-        let mut coef_start: c_int = (*sce).ics.swb_offset[sfb_start as usize] as c_int;
+        let mut coef_start: c_int = sce.ics.swb_offset[sfb_start as usize] as c_int;
         g = sfb_start;
-        while g < (*sce).ics.num_swb && g <= sfb_end {
-            let band = &(*s).psy.ch[(*s).cur_channel as usize].psy_bands[W(w)][g as usize];
+        while g < sce.ics.num_swb && g <= sfb_end {
+            let band = &s.psy.ch[s.cur_channel as usize].psy_bands[W(w)][g as usize];
             if g > sfb_start + sfb_len / 2 {
                 en[1] += band.energy;
             } else {
@@ -398,8 +394,8 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChann
             g;
         }
 
-        gain = (*s).lpc.calc_ref_coefs_f(
-            &(*sce).coeffs[W(w)][coef_start as usize..][..coef_len as usize],
+        gain = s.lpc.calc_ref_coefs_f(
+            &sce.coeffs[W(w)][coef_start as usize..][..coef_len as usize],
             order,
             &mut coefs,
         );
@@ -447,7 +443,7 @@ pub(crate) unsafe fn search(mut s: *mut AACEncContext, mut sce: *mut SingleChann
         w += 1;
         w;
     }
-    (*sce).tns.present = (count != 0) as c_int;
+    sce.tns.present = (count != 0) as c_int;
 }
 
 unsafe fn run_static_initializers() {

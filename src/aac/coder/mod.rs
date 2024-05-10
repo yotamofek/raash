@@ -326,7 +326,7 @@ unsafe fn quantize_band_cost_bits(
 }
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 419..=456)]
-pub(crate) unsafe fn set_special_band_scalefactors(mut sce: *mut SingleChannelElement) {
+pub(crate) unsafe fn set_special_band_scalefactors(sce: &mut SingleChannelElement) {
     let mut prevscaler_n: c_int = -255;
 
     let SingleChannelElement {
@@ -337,7 +337,7 @@ pub(crate) unsafe fn set_special_band_scalefactors(mut sce: *mut SingleChannelEl
         ref is_ener,
         ref pns_ener,
         ..
-    } = &mut *sce;
+    } = sce;
 
     let found = {
         let sf_idx = sf_idx.as_array_of_cells_deref();

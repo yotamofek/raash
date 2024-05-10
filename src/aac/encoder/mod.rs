@@ -111,14 +111,14 @@ pub(crate) fn quantize_bands(
         .collect()
 }
 
-unsafe extern "C" fn put_pce(
+unsafe fn put_pce(
     mut pb: *mut PutBitContext,
     mut avctx: *mut AVCodecContext,
-    mut s: *mut AACEncContext,
+    mut s: &mut AACEncContext,
 ) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
-    let mut pce: *mut pce::Info = &mut (*s).pce.unwrap();
+    let mut pce = &s.pce.unwrap();
     let mut aux_data = if (*avctx).flags.bit_exact() {
         c"Lavc"
     } else {
@@ -126,11 +126,11 @@ unsafe extern "C" fn put_pce(
     };
     put_bits(pb, 4, 0 as BitBuf);
     put_bits(pb, 2, (*avctx).profile as BitBuf);
-    put_bits(pb, 4, (*s).samplerate_index as BitBuf);
-    put_bits(pb, 4, (*pce).num_ele[0] as BitBuf);
-    put_bits(pb, 4, (*pce).num_ele[1] as BitBuf);
-    put_bits(pb, 4, (*pce).num_ele[2] as BitBuf);
-    put_bits(pb, 2, (*pce).num_ele[3] as BitBuf);
+    put_bits(pb, 4, s.samplerate_index as BitBuf);
+    put_bits(pb, 4, pce.num_ele[0] as BitBuf);
+    put_bits(pb, 4, pce.num_ele[1] as BitBuf);
+    put_bits(pb, 4, pce.num_ele[2] as BitBuf);
+    put_bits(pb, 2, pce.num_ele[3] as BitBuf);
     put_bits(pb, 3, 0 as BitBuf);
     put_bits(pb, 4, 0 as BitBuf);
     put_bits(pb, 1, 0 as BitBuf);
@@ -139,11 +139,11 @@ unsafe extern "C" fn put_pce(
     i = 0;
     while i < 4 {
         j = 0;
-        while j < (*pce).num_ele[i as usize] {
+        while j < pce.num_ele[i as usize] {
             if i < 3 {
-                put_bits(pb, 1, (*pce).pairing[i as usize][j as usize] as BitBuf);
+                put_bits(pb, 1, pce.pairing[i as usize][j as usize] as BitBuf);
             }
-            put_bits(pb, 4, (*pce).index[i as usize][j as usize] as BitBuf);
+            put_bits(pb, 4, pce.index[i as usize][j as usize] as BitBuf);
             j += 1;
             j;
         }
@@ -198,8 +198,8 @@ unsafe fn put_audio_specific_config(
 ///
 /// @see Table 4.6 (syntax of ics_info)
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 491..=510)]
-unsafe extern "C" fn put_ics_info(s: *mut AACEncContext, info: *const IndividualChannelStream) {
-    let pb = addr_of_mut!((*s).pb);
+unsafe extern "C" fn put_ics_info(s: &mut AACEncContext, info: &IndividualChannelStream) {
+    let pb = addr_of_mut!(s.pb);
     let IndividualChannelStream {
         window_sequence: [window_sequence, _],
         use_kb_window: [use_kb_window, _],
@@ -300,9 +300,9 @@ unsafe fn adjust_frame_information(cpe: *mut ChannelElement, chans: c_int) {
     }
 }
 
-unsafe fn encode_band_info(mut s: *mut AACEncContext, mut sce: *mut SingleChannelElement) {
+unsafe fn encode_band_info(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
     set_special_band_scalefactors(sce);
-    for WindowedIteration { w, group_len } in (*sce).ics.iter_windows() {
+    for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
         trellis::codebook_rate(s, sce, w, group_len.into());
     }
 }
@@ -318,11 +318,7 @@ const NOISE_OFFSET: c_int = 90;
 const CLIP_AVOIDANCE_FACTOR: c_float = 0.95;
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 655..=689)]
-unsafe fn encode_scale_factors(
-    mut _avctx: *mut AVCodecContext,
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
-) {
+unsafe fn encode_scale_factors(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
     let SingleChannelElement {
         ref sf_idx,
         ics: ref ics @ IndividualChannelStream { max_sfb, .. },
@@ -331,7 +327,7 @@ unsafe fn encode_scale_factors(
         ..
     } = *sce;
 
-    let pb = addr_of_mut!((*s).pb);
+    let pb = addr_of_mut!(s.pb);
 
     let mut diff: c_int = 0;
     let mut off_sf: c_int = (**sf_idx)[0];
@@ -370,8 +366,8 @@ unsafe fn encode_scale_factors(
 
 /// Encode pulse data.
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 691..=708)]
-unsafe extern "C" fn encode_pulses(s: *mut AACEncContext, pulse: *const Pulse) {
-    let pb = addr_of_mut!((*s).pb);
+unsafe fn encode_pulses(s: &mut AACEncContext, pulse: &Pulse) {
+    let pb = addr_of_mut!(s.pb);
     let Pulse {
         num_pulse,
         start,
@@ -391,12 +387,9 @@ unsafe extern "C" fn encode_pulses(s: *mut AACEncContext, pulse: *const Pulse) {
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 710..=736)]
-unsafe extern "C" fn encode_spectral_coeffs(
-    s: *mut AACEncContext,
-    sce: *const SingleChannelElement,
-) {
-    let lambda = (*s).lambda;
-    let pb = NonNull::new(addr_of_mut!((*s).pb)).unwrap();
+unsafe extern "C" fn encode_spectral_coeffs(s: &mut AACEncContext, sce: &SingleChannelElement) {
+    let lambda = s.lambda;
+    let pb = NonNull::new(addr_of_mut!(s.pb)).unwrap();
 
     let SingleChannelElement {
         ics:
@@ -479,54 +472,53 @@ impl SingleChannelElement {
     }
 }
 
-unsafe extern "C" fn encode_individual_channel(
-    mut avctx: *mut AVCodecContext,
-    mut s: *mut AACEncContext,
-    mut sce: *mut SingleChannelElement,
+unsafe fn encode_individual_channel(
+    mut s: &mut AACEncContext,
+    mut sce: &mut SingleChannelElement,
     mut common_window: c_int,
 ) -> c_int {
-    let pb = addr_of_mut!((*s).pb);
-    put_bits(pb, 8, (*sce).sf_idx[W(0)][0] as BitBuf);
+    let pb = addr_of_mut!(s.pb);
+    put_bits(pb, 8, sce.sf_idx[W(0)][0] as BitBuf);
     if common_window == 0 {
-        put_ics_info(s, addr_of!((*sce).ics));
+        put_ics_info(s, &sce.ics);
     }
     encode_band_info(s, sce);
-    encode_scale_factors(avctx, s, sce);
-    encode_pulses(s, &mut (*sce).pulse);
-    put_bits(pb, 1, ((*sce).tns.present != 0) as c_int as BitBuf);
+    encode_scale_factors(s, sce);
+    encode_pulses(s, &sce.pulse);
+    put_bits(pb, 1, (sce.tns.present != 0) as c_int as BitBuf);
     tns::encode_info(s, sce);
     put_bits(pb, 1, 0 as BitBuf);
     encode_spectral_coeffs(s, sce);
     0
 }
-unsafe fn put_bitstream_info(mut s: *mut AACEncContext, mut name: &CStr) {
+unsafe fn put_bitstream_info(s: &mut AACEncContext, mut name: &CStr) {
     let mut i: c_int = 0;
     let mut namelen: c_int = 0;
     let mut padbits: c_int = 0;
     namelen = name.to_bytes().len().wrapping_add(2) as c_int;
     put_bits(
-        &mut (*s).pb,
+        &mut s.pb,
         3,
         SyntaxElementType::FillElement as c_int as BitBuf,
     );
     put_bits(
-        &mut (*s).pb,
+        &mut s.pb,
         4,
         (if namelen > 15 { 15 } else { namelen }) as BitBuf,
     );
     if namelen >= 15 {
-        put_bits(&mut (*s).pb, 8, (namelen - 14) as BitBuf);
+        put_bits(&mut s.pb, 8, (namelen - 14) as BitBuf);
     }
-    put_bits(&mut (*s).pb, 4, 0 as BitBuf);
-    padbits = -put_bits_count(&mut (*s).pb) & 7;
-    align_put_bits(&mut (*s).pb);
+    put_bits(&mut s.pb, 4, 0 as BitBuf);
+    padbits = -put_bits_count(&mut s.pb) & 7;
+    align_put_bits(&mut s.pb);
     i = 0;
     while i < namelen - 2 {
-        put_bits(&mut (*s).pb, 8, name.to_bytes()[i as usize] as BitBuf);
+        put_bits(&mut s.pb, 8, name.to_bytes()[i as usize] as BitBuf);
         i += 1;
         i;
     }
-    put_bits(&mut (*s).pb, 12 - padbits, 0 as BitBuf);
+    put_bits(&mut s.pb, 12 - padbits, 0 as BitBuf);
 }
 
 /// Copy input samples.
@@ -871,7 +863,7 @@ unsafe fn aac_encode_frame(
             if let [_, _] = windows {
                 put_bits(pb, 1, cpe.common_window as BitBuf);
                 if cpe.common_window != 0 {
-                    put_ics_info(ctx, addr_of!(cpe.ch[0].ics));
+                    put_ics_info(ctx, &cpe.ch[0].ics);
 
                     encode_ms_info(pb, cpe);
                     if cpe.ms_mode != 0 {
@@ -881,7 +873,7 @@ unsafe fn aac_encode_frame(
             }
             for (ch, sce) in cpe.ch.iter_mut().take(windows.len()).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
-                encode_individual_channel(avctx, ctx, sce, cpe.common_window);
+                encode_individual_channel(ctx, sce, cpe.common_window);
             }
             start_ch += windows.len() as c_int;
         }

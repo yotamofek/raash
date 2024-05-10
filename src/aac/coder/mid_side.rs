@@ -231,12 +231,12 @@ pub(crate) unsafe fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 609..=639, name = "apply_mid_side_stereo")]
-pub(crate) unsafe fn apply(mut cpe: *mut ChannelElement) {
+pub(crate) unsafe fn apply(cpe: &mut ChannelElement) {
     let ref ics @ IndividualChannelStream {
         num_swb, swb_sizes, ..
-    } = (*cpe).ch[0].ics;
+    } = cpe.ch[0].ics;
 
-    if (*cpe).common_window == 0 {
+    if cpe.common_window == 0 {
         return;
     }
 
@@ -248,16 +248,16 @@ pub(crate) unsafe fn apply(mut cpe: *mut ChannelElement) {
                 // so must not apply M/S if any band uses either, even if
                 // ms_mask is set.
                 let swb_size = swb_sizes[g as usize];
-                if !(*cpe).ms_mask[W(w)][g as usize]
-                    || (*cpe).is_mask[W(w)][g as usize]
-                    || (*cpe).ch[0].band_type[W(w)][g as usize] >= NOISE_BT
-                    || (*cpe).ch[1].band_type[W(w)][g as usize] >= NOISE_BT
+                if !cpe.ms_mask[W(w)][g as usize]
+                    || cpe.is_mask[W(w)][g as usize]
+                    || cpe.ch[0].band_type[W(w)][g as usize] >= NOISE_BT
+                    || cpe.ch[1].band_type[W(w)][g as usize] >= NOISE_BT
                 {
                     start += c_int::from(swb_size);
                     continue;
                 }
 
-                let [L_coeffs, R_coeffs] = (*cpe)
+                let [L_coeffs, R_coeffs] = cpe
                     .ch
                     .each_mut()
                     .map(|ch| &mut ch.coeffs[W(w + w2)][start as usize..][..swb_size.into()]);
