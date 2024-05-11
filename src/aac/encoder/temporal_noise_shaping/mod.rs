@@ -9,7 +9,11 @@
 
 mod tables;
 
-use std::{mem::size_of, ops::RangeInclusive, ptr::addr_of_mut};
+use std::{
+    mem::size_of,
+    ops::{Neg, RangeInclusive},
+    ptr::addr_of_mut,
+};
 
 use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
@@ -86,61 +90,33 @@ unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: c_int, mut value:
 unsafe fn put_bits(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
     put_bits_no_assert(s, n, value);
 }
+
+/// Levinson-Durbin recursion.
+/// Produce LPC coefficients from autocorrelation data.
+#[ffmpeg_src(file = "libavcodec/lpc.h", lines = 163..=212)]
 #[inline]
-unsafe fn compute_lpc_coefs(
-    mut autoc: *const LPC_TYPE,
-    mut max_order: c_int,
-    mut lpc: *mut LPC_TYPE,
-    mut lpc_stride: c_int,
-    mut fail: c_int,
-    mut normalize: c_int,
-) -> c_int {
-    let mut i: c_int = 0;
-    let mut j: c_int = 0;
-    let mut err: LPC_TYPE = 0 as LPC_TYPE;
-    let mut lpc_last: *mut LPC_TYPE = lpc;
-    if normalize != 0 {
-        let fresh0 = autoc;
-        autoc = autoc.offset(1);
-        err = *fresh0;
-    }
-    if fail != 0 && (*autoc.offset((max_order - 1) as isize) == 0. || err <= 0.) {
-        return -1;
-    }
-    i = 0;
-    while i < max_order {
-        let mut r: LPC_TYPE = -*autoc.offset(i as isize);
-        if normalize != 0 {
-            j = 0;
-            while j < i {
-                r -= *lpc_last.offset(j as isize) * *autoc.offset((i - j - 1) as isize);
-                j += 1;
-                j;
+fn compute_lpc_coefs(autoc: &[LPC_TYPE; MAX_ORDER], max_order: c_int) -> [LPC_TYPE; MAX_ORDER] {
+    let mut lpc = [0.; MAX_ORDER];
+
+    for (i, mut r) in autoc
+        .iter()
+        .map(Neg::neg)
+        .take(max_order as usize)
+        .enumerate()
+    {
+        lpc[i] = r;
+
+        let (mut front, mut back) = lpc[..i].split_at_mut((i + 1) / 2);
+        while let Some(f) = front.take_first_mut() {
+            if let Some(b) = back.take_last_mut() {
+                (*f, *b) = (*f + r * *b, *b + r * *f);
+            } else {
+                *f = *f + r * *f;
             }
-            if err != 0. {
-                r /= err;
-            }
-            err *= 1. - r * r;
         }
-        *lpc.offset(i as isize) = r;
-        j = 0;
-        while j < i + 1 >> 1 {
-            let mut f: LPC_TYPE = *lpc_last.offset(j as isize);
-            let mut b: LPC_TYPE = *lpc_last.offset((i - 1 - j) as isize);
-            *lpc.offset(j as isize) = f + r * b;
-            *lpc.offset((i - 1 - j) as isize) = b + r * f;
-            j += 1;
-            j;
-        }
-        if fail != 0 && err < 0. {
-            return -1;
-        }
-        lpc_last = lpc;
-        lpc = lpc.offset(lpc_stride as isize);
-        i += 1;
-        i;
     }
-    0
+
+    lpc
 }
 
 #[inline]
@@ -251,7 +227,7 @@ pub(super) unsafe fn encode_info(s: &mut AACEncContext, sce: &mut SingleChannelE
 
 /// Apply TNS filter
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 100..=141, name = "ff_aac_apply_tns")]
-pub(crate) unsafe fn apply(sce: &mut SingleChannelElement) {
+pub(crate) fn apply(sce: &mut SingleChannelElement) {
     let mut tns = &mut sce.tns;
     let mut ics = &mut sce.ics;
     let mut w: c_int = 0;
@@ -266,7 +242,6 @@ pub(crate) unsafe fn apply(sce: &mut SingleChannelElement) {
     let mut size: c_int = 0;
     let mut inc: c_int = 0;
     let mmm = ics.tns_max_bands.min(ics.max_sfb as c_int);
-    let mut lpc: [c_float; 20] = [0.; 20];
     w = 0;
     while w < ics.num_windows {
         bottom = ics.num_swb;
@@ -276,14 +251,7 @@ pub(crate) unsafe fn apply(sce: &mut SingleChannelElement) {
             bottom = 0.max(top - tns.length[w as usize][filt as usize]);
             order = tns.order[w as usize][filt as usize];
             if order != 0 {
-                compute_lpc_coefs(
-                    tns.coef[w as usize][filt as usize].as_mut_ptr(),
-                    order,
-                    lpc.as_mut_ptr(),
-                    0,
-                    0,
-                    0,
-                );
+                let lpc = compute_lpc_coefs(&tns.coef[w as usize][filt as usize], order);
                 start = ics.swb_offset[bottom.min(mmm) as usize] as c_int;
                 end = ics.swb_offset[top.min(mmm) as usize] as c_int;
                 size = end - start;
