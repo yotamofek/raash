@@ -145,14 +145,14 @@ impl LPCContext {
         for i in 0..=samples.len() / 2 {
             let weight: c_double =
                 a - b * (2. * PI * i as c_double / (samples.len() as c_int - 1) as c_double).cos();
-            (self.windowed_samples)[padding_size + i] = weight * samples[i] as c_double;
-            (self.windowed_samples)[padding_size + samples.len() - 1 - i] =
+            self.windowed_samples[padding_size + i] = weight * samples[i] as c_double;
+            self.windowed_samples[padding_size + samples.len() - 1 - i] =
                 weight * samples[samples.len() - 1 - i] as c_double;
         }
 
         self.compute_autocorr_c(samples.len(), order, &mut autoc);
 
-        let signal = autoc[0];
+        let [signal, ..] = autoc;
         compute_ref_coefs(&autoc, order, ref_0, Some(&mut error));
 
         let avg_err = error[..order as usize]

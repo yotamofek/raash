@@ -6,15 +6,14 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
+use itertools::Itertools;
 use izip::izip;
 use libc::{c_double, c_float, c_int, c_long, c_ulong};
 
 use self::tables::{tns_min_sfb, tns_tmp2_map};
 use crate::{
     aac::{encoder::ctx::AACEncContext, IndividualChannelStream, WindowSequence},
-    common::*,
     types::*,
 };
 
@@ -135,21 +134,11 @@ fn compute_lpc_coefs(autoc: &[LPC_TYPE; MAX_ORDER], max_order: c_int) -> [LPC_TY
 }
 
 #[inline]
-fn quant_array_idx(val: c_float, mut arr: &[c_float], num: c_int) -> c_int {
-    let mut i: c_int = 0;
-    let mut index: c_int = 0;
-    let mut quant_min_err: c_float = f32::INFINITY;
-    i = 0;
-    while i < num {
-        let mut error: c_float = (val - arr[i as usize]) * (val - arr[i as usize]);
-        if error < quant_min_err {
-            quant_min_err = error;
-            index = i;
-        }
-        i += 1;
-        i;
-    }
-    index
+fn quant_array_idx(val: c_float, arr: &[c_float]) -> c_int {
+    arr.iter()
+        .map(|&arr_val| (val - arr_val).powi(2))
+        .position_min_by(c_float::total_cmp)
+        .unwrap_or_default() as c_int
 }
 
 enum Compressed {
@@ -296,46 +285,30 @@ pub(crate) fn apply(sce: &mut SingleChannelElement) {
 }
 
 #[inline]
-unsafe fn quantize_coefs(
-    mut coef: *mut c_double,
-    mut idx: *mut c_int,
-    mut lpc: *mut c_float,
-    mut order: c_int,
-    mut c_bits: c_int,
+fn quantize_coefs(
+    coef: &[c_double],
+    idx: &mut [c_int],
+    lpc: &mut [c_float],
+    order: c_int,
+    c_bits: bool,
 ) {
-    let mut i: c_int = 0;
-    let mut quant_arr = tns_tmp2_map[c_bits as usize];
-    i = 0;
-    while i < order {
-        *idx.offset(i as isize) = quant_array_idx(
-            *coef.offset(i as isize) as c_float,
-            quant_arr,
-            if c_bits != 0 { 16 } else { 8 },
-        );
-        *lpc.offset(i as isize) = quant_arr[*idx.offset(i as isize) as usize];
-        i += 1;
-        i;
+    let mut quant_arr = tns_tmp2_map[usize::from(c_bits)];
+    for (idx, lpc, &coef) in izip!(idx, lpc, coef).take(order as usize) {
+        *idx = quant_array_idx(coef as c_float, quant_arr);
+        *lpc = quant_arr[*idx as usize];
     }
 }
 
 /// 3 bits per coefficient with 8 short windows
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 157..=214, name = "ff_aac_search_for_tns")]
-pub(crate) unsafe fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
-    let mut tns: *mut TemporalNoiseShaping = &mut sce.tns;
-    let mut w: c_int = 0;
-    let mut g: c_int = 0;
-    let mut count: c_int = 0;
-    let mut gain: c_double = 0.;
+pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
+    let mut tns = &mut sce.tns;
     let mut coefs: [c_double; 32] = [0.; 32];
-    let mmm: c_int = sce.ics.tns_max_bands.min(sce.ics.max_sfb as c_int);
+    let mmm: c_int = sce.ics.tns_max_bands.min(sce.ics.max_sfb.into());
     let is8 = sce.ics.window_sequence[0] == WindowSequence::EightShort;
-    let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
-    let sfb_start: c_int = av_clip_c(
-        tns_min_sfb[is8 as usize][s.samplerate_index as usize] as c_int,
-        0,
-        mmm,
-    );
-    let sfb_end: c_int = av_clip_c(sce.ics.num_swb, 0, mmm);
+    let c_bits = if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 };
+    let sfb_start = (tns_min_sfb[is8 as usize][s.samplerate_index as usize] as c_int).clamp(0, mmm);
+    let sfb_end: c_int = sce.ics.num_swb.clamp(0, mmm);
     let order = if is8 {
         7
     } else if s.profile == 1 {
@@ -355,74 +328,75 @@ pub(crate) unsafe fn search(s: &mut AACEncContext, sce: &mut SingleChannelElemen
         sce.tns.present = false;
         return;
     }
-    w = 0;
-    while w < sce.ics.num_windows {
+    for (psy_bands, coeffs, n_filt, directions, orders, lengths, tns_coef_idx, tns_coef) in izip!(
+        &s.psy.ch[s.cur_channel as usize].psy_bands,
+        &sce.coeffs,
+        &mut tns.n_filt,
+        &mut tns.direction,
+        &mut tns.order,
+        &mut tns.length,
+        &mut tns.coef_idx,
+        &mut tns.coef,
+    )
+    .take(sce.ics.num_windows as usize)
+    {
         let mut en: [c_float; 2] = [0., 0.];
         let mut oc_start: c_int = 0;
         let mut os_start: c_int = 0;
-        let mut coef_start: c_int = sce.ics.swb_offset[sfb_start as usize] as c_int;
-        g = sfb_start;
-        while g < sce.ics.num_swb && g <= sfb_end {
-            let band = &s.psy.ch[s.cur_channel as usize].psy_bands[W(w)][g as usize];
+        let coef_start = sce.ics.swb_offset[sfb_start as usize];
+        for g in sfb_start..(sce.ics.num_swb).min(sfb_end + 1) {
+            let band = &psy_bands[g as usize];
             if g > sfb_start + sfb_len / 2 {
                 en[1] += band.energy;
             } else {
                 en[0] += band.energy;
             }
-            g += 1;
-            g;
         }
 
-        gain = s.lpc.calc_ref_coefs_f(
-            &sce.coeffs[W(w)][coef_start as usize..][..coef_len as usize],
+        let gain = s.lpc.calc_ref_coefs_f(
+            &coeffs[usize::from(coef_start)..][..coef_len as usize],
             order,
             &mut coefs,
         );
 
-        if !(order == 0 || !gain.is_finite() || !GAIN_THRESHOLD.contains(&gain)) {
-            (*tns).n_filt[w as usize] = if is8 {
-                1
-            } else if order != MAX_ORDER as c_int {
-                2
-            } else {
-                3
-            };
-            g = 0;
-            while g < (*tns).n_filt[w as usize] {
-                (*tns).direction[w as usize][g as usize] = slant.unwrap_or_else(|| {
-                    (en[g as usize] < en[(g == 0) as c_int as usize])
-                        .then_some(Direction::Backward)
-                        .unwrap_or_default()
-                });
-                (*tns).order[w as usize][g as usize] = if g < (*tns).n_filt[w as usize] {
-                    order / (*tns).n_filt[w as usize]
-                } else {
-                    order - oc_start
-                };
-                (*tns).length[w as usize][g as usize] = if g < (*tns).n_filt[w as usize] {
-                    sfb_len / (*tns).n_filt[w as usize]
-                } else {
-                    sfb_len - os_start
-                };
-                quantize_coefs(
-                    &mut *coefs.as_mut_ptr().offset(oc_start as isize),
-                    ((*tns).coef_idx[w as usize][g as usize]).as_mut_ptr(),
-                    ((*tns).coef[w as usize][g as usize]).as_mut_ptr(),
-                    (*tns).order[w as usize][g as usize],
-                    c_bits,
-                );
-                oc_start += (*tns).order[w as usize][g as usize];
-                os_start += (*tns).length[w as usize][g as usize];
-                g += 1;
-                g;
-            }
-            count += 1;
-            count;
+        if order == 0 || !gain.is_finite() || !GAIN_THRESHOLD.contains(&gain) {
+            continue;
         }
-        w += 1;
-        w;
+
+        *n_filt = if is8 {
+            1
+        } else if order != MAX_ORDER as c_int {
+            2
+        } else {
+            3
+        };
+        for (g, (direction, cur_order, length, tns_coef_idx, tns_coef, &cur_en)) in
+            izip!(directions, orders, lengths, tns_coef_idx, tns_coef, &en)
+                .enumerate()
+                .take(*n_filt as usize)
+        {
+            *direction = slant.unwrap_or_else(|| {
+                (cur_en < en[usize::from(g == 0)])
+                    .then_some(Direction::Backward)
+                    .unwrap_or_default()
+            });
+            (*cur_order, *length) = if (g as c_int) < *n_filt {
+                (order / *n_filt, sfb_len / *n_filt)
+            } else {
+                (order - oc_start, sfb_len - os_start)
+            };
+            quantize_coefs(
+                &coefs[oc_start as usize..],
+                tns_coef_idx,
+                tns_coef,
+                *cur_order,
+                c_bits,
+            );
+            oc_start += *cur_order;
+            os_start += *length;
+        }
+        tns.present = true;
     }
-    sce.tns.present = count != 0;
 }
 
 unsafe fn run_static_initializers() {
