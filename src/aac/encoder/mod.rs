@@ -485,7 +485,7 @@ unsafe fn encode_individual_channel(
     encode_band_info(s, sce);
     encode_scale_factors(s, sce);
     encode_pulses(s, &sce.pulse);
-    put_bits(pb, 1, (sce.tns.present != 0) as c_int as BitBuf);
+    put_bits(pb, 1, sce.tns.present as BitBuf);
     tns::encode_info(s, sce);
     put_bits(pb, 1, 0 as BitBuf);
     encode_spectral_coeffs(s, sce);
@@ -822,7 +822,7 @@ unsafe fn aac_encode_frame(
                 if ctx.options.tns != 0 {
                     tns::apply(sce);
                 }
-                if sce.tns.present != 0 {
+                if sce.tns.present {
                     tns_mode = true;
                 }
                 if ctx.options.pns != 0 {

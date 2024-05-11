@@ -1,17 +1,8 @@
-#![allow(
-    mutable_transmutes,
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals,
-    unused_assignments,
-    unused_mut
-)]
-
 mod tables;
 
 use std::{
     mem::size_of,
-    ops::{Neg, RangeInclusive},
+    ops::{AddAssign, Mul, Neg, RangeInclusive},
     ptr::addr_of_mut,
 };
 
@@ -47,16 +38,40 @@ const GAIN_THRESHOLD: RangeInclusive<f64> = {
     LOW..=1.16 * LOW
 };
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum Direction {
+    #[default]
+    Forward,
+    Backward,
+}
+
+impl Mul<Direction> for c_int {
+    type Output = c_int;
+
+    fn mul(self, rhs: Direction) -> Self::Output {
+        self * match rhs {
+            Direction::Forward => 1,
+            Direction::Backward => -1,
+        }
+    }
+}
+
+impl AddAssign<Direction> for c_int {
+    fn add_assign(&mut self, rhs: Direction) {
+        *self += 1 * rhs;
+    }
+}
+
 #[ffmpeg_src(file = "libavcodec/aac.h", lines = 193..=204)]
 #[derive(Copy, Clone, Default)]
 pub(crate) struct TemporalNoiseShaping {
-    pub(super) present: c_int,
-    pub(super) n_filt: [c_int; 8],
-    pub(super) length: [[c_int; 4]; 8],
-    pub(super) direction: [[c_int; 4]; 8],
-    pub(super) order: [[c_int; 4]; 8],
-    pub(super) coef_idx: [[[c_int; MAX_ORDER]; 4]; 8],
-    pub(super) coef: [[[c_float; MAX_ORDER]; 4]; 8],
+    pub(super) present: bool,
+    n_filt: [c_int; 8],
+    length: [[c_int; 4]; 8],
+    direction: [[Direction; 4]; 8],
+    order: [[c_int; 4]; 8],
+    coef_idx: [[[c_int; MAX_ORDER]; 4]; 8],
+    coef: [[[c_float; MAX_ORDER]; 4]; 8],
 }
 
 static mut BUF_BITS: c_int = 0;
@@ -180,7 +195,7 @@ pub(super) unsafe fn encode_info(s: &mut AACEncContext, sce: &mut SingleChannelE
     let is8 = window_sequence == WindowSequence::EightShort;
     let c_bits = c_int::from(if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 });
 
-    if tns.present == 0 {
+    if !tns.present {
         return;
     }
 
@@ -230,55 +245,53 @@ pub(super) unsafe fn encode_info(s: &mut AACEncContext, sce: &mut SingleChannelE
 pub(crate) fn apply(sce: &mut SingleChannelElement) {
     let mut tns = &mut sce.tns;
     let mut ics = &mut sce.ics;
-    let mut w: c_int = 0;
-    let mut filt: c_int = 0;
-    let mut m: c_int = 0;
-    let mut i: c_int = 0;
-    let mut top: c_int = 0;
-    let mut order: c_int = 0;
-    let mut bottom: c_int = 0;
-    let mut start: c_int = 0;
-    let mut end: c_int = 0;
-    let mut size: c_int = 0;
-    let mut inc: c_int = 0;
     let mmm = ics.tns_max_bands.min(ics.max_sfb as c_int);
-    w = 0;
-    while w < ics.num_windows {
-        bottom = ics.num_swb;
-        filt = 0;
-        while filt < tns.n_filt[w as usize] {
-            top = bottom;
-            bottom = 0.max(top - tns.length[w as usize][filt as usize]);
-            order = tns.order[w as usize][filt as usize];
-            if order != 0 {
-                let lpc = compute_lpc_coefs(&tns.coef[w as usize][filt as usize], order);
-                start = ics.swb_offset[bottom.min(mmm) as usize] as c_int;
-                end = ics.swb_offset[top.min(mmm) as usize] as c_int;
-                size = end - start;
-                if size > 0 {
-                    if tns.direction[w as usize][filt as usize] != 0 {
-                        inc = -1;
-                        start = end - 1;
-                    } else {
-                        inc = 1;
-                    }
-                    start += w * 128;
-                    m = 0;
-                    while m < size {
-                        i = 1;
-                        while i <= m.min(order) {
-                            (*sce.coeffs)[start as usize] +=
-                                lpc[(i - 1) as usize] * (*sce.pcoeffs)[(start - i * inc) as usize];
-                            i += 1;
-                        }
-                        m += 1;
-                        start += inc;
-                    }
-                }
+    for (w, (&n_filt, lengths, orders, coeffs, directions)) in izip!(
+        &tns.n_filt,
+        &tns.length,
+        &tns.order,
+        &tns.coef,
+        &tns.direction
+    )
+    .enumerate()
+    {
+        let mut bottom = ics.num_swb;
+        for (&length, &order, coeffs, &direction) in
+            izip!(lengths, orders, coeffs, directions).take(n_filt as usize)
+        {
+            let top = bottom;
+            bottom = 0.max(top - length);
+
+            if order == 0 {
+                continue;
             }
-            filt += 1;
+
+            let lpc = compute_lpc_coefs(coeffs, order);
+            let mut start = c_int::from(ics.swb_offset[bottom.min(mmm) as usize]);
+            let end = c_int::from(ics.swb_offset[top.min(mmm) as usize]);
+            let size = end - start;
+
+            if size <= 0 {
+                continue;
+            }
+
+            if direction == Direction::Backward {
+                start = end - 1;
+            }
+
+            start += w as c_int * 128;
+            for m in 0..size {
+                (*sce.coeffs)[start as usize] += lpc
+                    .iter()
+                    .take(m.min(order) as usize)
+                    .enumerate()
+                    .map(|(i, &lpc)| {
+                        lpc * (*sce.pcoeffs)[(start - (i + 1) as c_int * direction) as usize]
+                    })
+                    .sum::<c_float>();
+                start += direction;
+            }
         }
-        w += 1;
     }
 }
 
@@ -330,18 +343,16 @@ pub(crate) unsafe fn search(s: &mut AACEncContext, sce: &mut SingleChannelElemen
     } else {
         MAX_ORDER as c_int
     };
-    let slant: c_int = if sce.ics.window_sequence[0] == WindowSequence::LongStop {
-        1
-    } else if sce.ics.window_sequence[0] == WindowSequence::LongStart {
-        0
-    } else {
-        2
+    let slant = match sce.ics.window_sequence[0] {
+        WindowSequence::LongStop => Some(Direction::Backward),
+        WindowSequence::LongStart => Some(Direction::Forward),
+        _ => None,
     };
     let sfb_len: c_int = sfb_end - sfb_start;
     let coef_len: c_int = sce.ics.swb_offset[sfb_end as usize] as c_int
         - sce.ics.swb_offset[sfb_start as usize] as c_int;
     if coef_len <= 0 || sfb_len <= 0 {
-        sce.tns.present = 0;
+        sce.tns.present = false;
         return;
     }
     w = 0;
@@ -378,11 +389,11 @@ pub(crate) unsafe fn search(s: &mut AACEncContext, sce: &mut SingleChannelElemen
             };
             g = 0;
             while g < (*tns).n_filt[w as usize] {
-                (*tns).direction[w as usize][g as usize] = if slant != 2 {
-                    slant
-                } else {
-                    (en[g as usize] < en[(g == 0) as c_int as usize]) as c_int
-                };
+                (*tns).direction[w as usize][g as usize] = slant.unwrap_or_else(|| {
+                    (en[g as usize] < en[(g == 0) as c_int as usize])
+                        .then_some(Direction::Backward)
+                        .unwrap_or_default()
+                });
                 (*tns).order[w as usize][g as usize] = if g < (*tns).n_filt[w as usize] {
                     order / (*tns).n_filt[w as usize]
                 } else {
@@ -411,7 +422,7 @@ pub(crate) unsafe fn search(s: &mut AACEncContext, sce: &mut SingleChannelElemen
         w += 1;
         w;
     }
-    sce.tns.present = (count != 0) as c_int;
+    sce.tns.present = count != 0;
 }
 
 unsafe fn run_static_initializers() {
