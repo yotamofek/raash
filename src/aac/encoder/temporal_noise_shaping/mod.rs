@@ -342,7 +342,6 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
     {
         let mut en: [c_float; 2] = [0., 0.];
         let mut oc_start: c_int = 0;
-        let mut os_start: c_int = 0;
         let coef_start = sce.ics.swb_offset[sfb_start as usize];
         for g in sfb_start..(sce.ics.num_swb).min(sfb_end + 1) {
             let band = &psy_bands[g as usize];
@@ -380,11 +379,8 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
                     .then_some(Direction::Backward)
                     .unwrap_or_default()
             });
-            (*cur_order, *length) = if (g as c_int) < *n_filt {
-                (order / *n_filt, sfb_len / *n_filt)
-            } else {
-                (order - oc_start, sfb_len - os_start)
-            };
+            *cur_order = order / *n_filt;
+            *length = sfb_len / *n_filt;
             quantize_coefs(
                 &coefs[oc_start as usize..],
                 tns_coef_idx,
@@ -393,7 +389,6 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
                 c_bits,
             );
             oc_start += *cur_order;
-            os_start += *length;
         }
         tns.present = true;
     }
