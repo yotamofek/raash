@@ -10,6 +10,7 @@ use ffmpeg_src_macro::ffmpeg_src;
 use itertools::Itertools;
 use izip::izip;
 use libc::{c_double, c_float, c_int, c_long, c_ulong};
+use lpc::RefCoeffs;
 
 use self::tables::{tns_min_sfb, tns_tmp2_map};
 use crate::{
@@ -302,13 +303,13 @@ fn quantize_coefs(
 /// 3 bits per coefficient with 8 short windows
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 157..=214, name = "ff_aac_search_for_tns")]
 pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
-    let mut tns = &mut sce.tns;
-    let mut coefs: [c_double; 32] = [0.; 32];
-    let mmm: c_int = sce.ics.tns_max_bands.min(sce.ics.max_sfb.into());
+    let tns = &mut sce.tns;
+    let mmm = sce.ics.tns_max_bands.min(sce.ics.max_sfb.into());
     let is8 = sce.ics.window_sequence[0] == WindowSequence::EightShort;
     let c_bits = if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 };
-    let sfb_start = (tns_min_sfb[is8 as usize][s.samplerate_index as usize] as c_int).clamp(0, mmm);
-    let sfb_end: c_int = sce.ics.num_swb.clamp(0, mmm);
+    let sfb_start =
+        (tns_min_sfb[usize::from(is8)][s.samplerate_index as usize] as c_int).clamp(0, mmm);
+    let sfb_end = sce.ics.num_swb.clamp(0, mmm);
     let order = if is8 {
         7
     } else if s.profile == 1 {
@@ -321,9 +322,9 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
         WindowSequence::LongStart => Some(Direction::Forward),
         _ => None,
     };
-    let sfb_len: c_int = sfb_end - sfb_start;
-    let coef_len: c_int = sce.ics.swb_offset[sfb_end as usize] as c_int
-        - sce.ics.swb_offset[sfb_start as usize] as c_int;
+    let sfb_len = sfb_end - sfb_start;
+    let coef_len = c_int::from(sce.ics.swb_offset[sfb_end as usize])
+        - c_int::from(sce.ics.swb_offset[sfb_start as usize]);
     if coef_len <= 0 || sfb_len <= 0 {
         sce.tns.present = false;
         return;
@@ -340,9 +341,9 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
     )
     .take(sce.ics.num_windows as usize)
     {
-        let mut oc_start: c_int = 0;
+        let mut oc_start = 0;
         let coef_start = sce.ics.swb_offset[sfb_start as usize];
-        let en: [c_float; _] = {
+        let [en0, en1]: [c_float; _] = {
             let mut ens = psy_bands
                 .iter()
                 .skip(sfb_start as usize)
@@ -352,10 +353,9 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
             [ens.by_ref().take(sfb_len as usize / 2 + 1).sum(), ens.sum()]
         };
 
-        let gain = s.lpc.calc_ref_coefs_f(
+        let RefCoeffs { gain, coeffs } = s.lpc.calc_ref_coefs_f(
             &coeffs[usize::from(coef_start)..][..coef_len as usize],
             order,
-            &mut coefs,
         );
 
         if order == 0 || !gain.is_finite() || !GAIN_THRESHOLD.contains(&gain) {
@@ -369,20 +369,25 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
         } else {
             3
         };
-        for (g, (direction, cur_order, length, tns_coef_idx, tns_coef, &cur_en)) in
-            izip!(directions, orders, lengths, tns_coef_idx, tns_coef, &en)
-                .enumerate()
-                .take(*n_filt as usize)
+        for (direction, cur_order, length, tns_coef_idx, tns_coef, [en0, en1]) in izip!(
+            directions,
+            orders,
+            lengths,
+            tns_coef_idx,
+            tns_coef,
+            [[en0, en1], [en1, en0]]
+        )
+        .take(*n_filt as usize)
         {
             *direction = slant.unwrap_or_else(|| {
-                (cur_en < en[usize::from(g == 0)])
+                (en0 < en1)
                     .then_some(Direction::Backward)
                     .unwrap_or_default()
             });
             *cur_order = order / *n_filt;
             *length = sfb_len / *n_filt;
             quantize_coefs(
-                &coefs[oc_start as usize..],
+                &coeffs[oc_start as usize..],
                 tns_coef_idx,
                 tns_coef,
                 *cur_order,

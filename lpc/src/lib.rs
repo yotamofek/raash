@@ -29,6 +29,11 @@ pub struct LPCContext {
     windowed_samples: Box<[c_double]>,
 }
 
+pub struct RefCoeffs {
+    pub gain: c_double,
+    pub coeffs: [c_double; 32],
+}
+
 /// Schur recursion.
 /// Produces reflection coefficients from autocorrelation data.
 #[ffmpeg_src(file = "libavcodec/lpc.h", lines = 136..=161)]
@@ -36,9 +41,9 @@ pub struct LPCContext {
 fn compute_ref_coefs(
     autoc: &[c_double],
     max_order: c_int,
-    ref_0: &mut [c_double],
     mut error: Option<&mut [c_double]>,
-) {
+) -> [c_double; 32] {
+    let mut ref_0 = [0.; 32];
     let mut gen0 = [0.; MAX_ORDER as usize];
     let mut gen1 = [0.; MAX_ORDER as usize];
     let mut i = 0;
@@ -68,6 +73,8 @@ fn compute_ref_coefs(
         }
         i += 1;
     }
+
+    ref_0
 }
 
 impl LPCContext {
@@ -129,12 +136,7 @@ impl LPCContext {
     }
 
     #[ffmpeg_src(file = "libavcodec/lpc.c", lines = 178..=199, name = "ff_lpc_calc_ref_coefs_f")]
-    pub fn calc_ref_coefs_f(
-        &mut self,
-        samples: &[c_float],
-        order: c_int,
-        ref_0: &mut [c_double],
-    ) -> c_double {
+    pub fn calc_ref_coefs_f(&mut self, samples: &[c_float], order: c_int) -> RefCoeffs {
         let mut autoc = [0.; MAX_ORDER as usize + 1];
         let mut error = [0.; MAX_ORDER as usize + 1];
         let a: c_double = 0.5;
@@ -153,16 +155,18 @@ impl LPCContext {
         self.compute_autocorr_c(samples.len(), order, &mut autoc);
 
         let [signal, ..] = autoc;
-        compute_ref_coefs(&autoc, order, ref_0, Some(&mut error));
+        let coeffs = compute_ref_coefs(&autoc, order, Some(&mut error));
 
         let avg_err = error[..order as usize]
             .iter()
             .fold(0., |acc, &error| (acc + error) / 2.);
 
-        if avg_err != 0. {
+        let gain = if avg_err != 0. {
             signal / avg_err
         } else {
             f64::NAN
-        }
+        };
+
+        RefCoeffs { gain, coeffs }
     }
 }
