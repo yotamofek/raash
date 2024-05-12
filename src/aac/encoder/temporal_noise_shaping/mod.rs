@@ -340,17 +340,17 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
     )
     .take(sce.ics.num_windows as usize)
     {
-        let mut en: [c_float; 2] = [0., 0.];
         let mut oc_start: c_int = 0;
         let coef_start = sce.ics.swb_offset[sfb_start as usize];
-        for g in sfb_start..(sce.ics.num_swb).min(sfb_end + 1) {
-            let band = &psy_bands[g as usize];
-            if g > sfb_start + sfb_len / 2 {
-                en[1] += band.energy;
-            } else {
-                en[0] += band.energy;
-            }
-        }
+        let en: [c_float; _] = {
+            let mut ens = psy_bands
+                .iter()
+                .skip(sfb_start as usize)
+                .take(sfb_len as usize)
+                .take((sce.ics.num_swb - sfb_start) as usize)
+                .map(|&FFPsyBand { energy, .. }| energy);
+            [ens.by_ref().take(sfb_len as usize / 2 + 1).sum(), ens.sum()]
+        };
 
         let gain = s.lpc.calc_ref_coefs_f(
             &coeffs[usize::from(coef_start)..][..coef_len as usize],
