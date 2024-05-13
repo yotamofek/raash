@@ -1,3 +1,4 @@
+use ffmpeg_src_macro::ffmpeg_src;
 use ilog::IntLog;
 use libc::{c_float, c_int, c_uchar, c_uint};
 
@@ -10,8 +11,10 @@ pub(super) fn ff_fast_powf(mut x: c_float, mut y: c_float) -> c_float {
     (x.ln() * y).exp()
 }
 
+/// approximates exp10f(-3.0f*(0.5f + 0.5f * cosf(FFMIN(b,15.5f) / 15.5f)))
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 161..=167)]
 #[inline(always)]
-pub(super) fn bval2bmax(mut b: c_float) -> c_float {
+pub(super) fn bval2bmax(b: c_float) -> c_float {
     0.001 + 0.0035 * b.powi(3) / 15.5_f32.powi(3)
 }
 

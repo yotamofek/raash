@@ -233,8 +233,8 @@ pub(super) unsafe fn encode_info(s: &mut AACEncContext, sce: &mut SingleChannelE
 /// Apply TNS filter
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 100..=141, name = "ff_aac_apply_tns")]
 pub(crate) fn apply(sce: &mut SingleChannelElement) {
-    let mut tns = &mut sce.tns;
-    let mut ics = &mut sce.ics;
+    let tns = &mut sce.tns;
+    let ics = &mut sce.ics;
     let mmm = ics.tns_max_bands.min(ics.max_sfb as c_int);
     for (w, (&n_filt, lengths, orders, coeffs, directions)) in izip!(
         &tns.n_filt,

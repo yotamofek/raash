@@ -47,7 +47,7 @@ impl<A: ?Sized, T, const N: usize, const W_SIZE: usize> WindowedArray<A, W_SIZE>
 where
     A: Deref<Target = [T; N]> + DerefMut,
 {
-    pub fn as_array_of_cells_deref(&mut self) -> &WindowedArray<[Cell<T>], W_SIZE> {
+    pub fn as_array_of_cells_deref(&mut self) -> &WindowedArray<[Cell<T>; N], W_SIZE> {
         WindowedArray::from_ref(Cell::from_mut(&mut ***self).as_array_of_cells())
     }
 }
