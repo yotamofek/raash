@@ -6,11 +6,13 @@ use izip::izip;
 use libc::{c_float, c_int};
 use reductor::{Reduce as _, Sum};
 
-use super::{find_min_book, math::bval2bmax, quantize_band_cost, sfdelta_can_replace};
+use super::{
+    find_min_book, math::bval2bmax, quantize_band_cost, sfdelta_can_replace, SingleChannelElement,
+};
 use crate::{
     aac::{
         encoder::{ctx::AACEncContext, pow::Pow34},
-        IndividualChannelStream, WindowedIteration, SCALE_DIV_512, SCALE_MAX_POS,
+        WindowedIteration, SCALE_DIV_512, SCALE_MAX_POS,
     },
     types::{BandType, ChannelElement, NOISE_BT, RESERVED_BT},
 };
@@ -233,40 +235,54 @@ pub(crate) unsafe fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 609..=639, name = "apply_mid_side_stereo")]
 pub(crate) unsafe fn apply(cpe: &mut ChannelElement) {
-    let ref ics @ IndividualChannelStream {
-        num_swb, swb_sizes, ..
-    } = cpe.ch[0].ics;
+    let ChannelElement {
+        ch:
+            [SingleChannelElement {
+                ref ics,
+                band_type: ref band_types0,
+                coeffs: ref mut coeffs0,
+                ..
+            }, SingleChannelElement {
+                band_type: ref band_types1,
+                coeffs: ref mut coeffs1,
+                ..
+            }],
+        ref ms_mask,
+        ref is_mask,
+        common_window,
+        ..
+    } = *cpe;
 
-    if cpe.common_window == 0 {
+    if common_window == 0 {
         return;
     }
 
     for WindowedIteration { w, group_len } in ics.iter_windows() {
-        for w2 in 0..c_int::from(group_len) {
-            let mut start: c_int = 0;
-            for g in 0..num_swb {
+        let [coeffs0, coeffs1] = [&mut *coeffs0, &mut *coeffs1]
+            .map(WindowedArray::as_array_of_cells_deref)
+            .map(|coeffs| &coeffs[W(w)])
+            .map(WindowedArray::<_, 128>::from_ref);
+        for (L_coeffs, R_coeffs) in zip(coeffs0, coeffs1).take(group_len.into()) {
+            for ((swb_size, offset), ..) in izip!(
+                ics.iter_swb_sizes_sum(),
+                &ms_mask[W(w)],
+                &is_mask[W(w)],
+                &band_types0[W(w)],
+                &band_types1[W(w)],
+            )
+            .filter(|(_, &ms_mask, &is_mask, &band_type0, &band_type1)| {
                 // ms_mask can be used for other purposes in PNS and I/S,
                 // so must not apply M/S if any band uses either, even if
                 // ms_mask is set.
-                let swb_size = swb_sizes[g as usize];
-                if !cpe.ms_mask[W(w)][g as usize]
-                    || cpe.is_mask[W(w)][g as usize]
-                    || cpe.ch[0].band_type[W(w)][g as usize] >= NOISE_BT
-                    || cpe.ch[1].band_type[W(w)][g as usize] >= NOISE_BT
+                ms_mask && !is_mask && band_type0 < NOISE_BT && band_type1 < NOISE_BT
+            }) {
+                for (L, R) in zip(L_coeffs, R_coeffs)
+                    .skip(offset.into())
+                    .take(swb_size.into())
                 {
-                    start += c_int::from(swb_size);
-                    continue;
+                    L.update(|L| (L + R.get()) * 0.5);
+                    R.update(|R| L.get() - R);
                 }
-
-                let [L_coeffs, R_coeffs] = cpe
-                    .ch
-                    .each_mut()
-                    .map(|ch| &mut ch.coeffs[W(w + w2)][start as usize..][..swb_size.into()]);
-                for (L, R) in zip(L_coeffs, R_coeffs) {
-                    *L = (*L + *R) * 0.5;
-                    *R = *L - *R;
-                }
-                start += c_int::from(swb_size);
             }
         }
     }
