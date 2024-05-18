@@ -211,17 +211,26 @@ fn put_ics_info(pb: &mut BitWriter, info: &IndividualChannelStream) {
     };
 }
 
+/// Encode MS data.
+///
+/// See 4.6.8.1 "Joint Coding - M/S Stereo"
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 513..=526)]
 fn encode_ms_info(pb: &mut BitWriter, cpe: &ChannelElement) {
-    let mut i: c_int = 0;
     pb.put(2, cpe.ms_mode as _);
-    if cpe.ms_mode == 1 {
-        for WindowedIteration { w, .. } in cpe.ch[0].ics.iter_windows() {
-            i = 0;
-            while i < cpe.ch[0].ics.max_sfb as c_int {
-                pb.put(1, cpe.ms_mask[W(w)][i as usize].into());
-                i += 1;
-                i;
-            }
+
+    if cpe.ms_mode != 1 {
+        return;
+    }
+
+    let ChannelElement {
+        ch: [SingleChannelElement { ics, .. }, _],
+        ms_mask,
+        ..
+    } = cpe;
+
+    for WindowedIteration { w, .. } in ics.iter_windows() {
+        for &ms_mask in ms_mask[W(w)].iter().take(ics.max_sfb.into()) {
+            pb.put(1, ms_mask.into());
         }
     }
 }
