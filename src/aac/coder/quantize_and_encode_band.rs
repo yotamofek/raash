@@ -1,13 +1,12 @@
-use std::ptr::NonNull;
-
 use arrayvec::ArrayVec;
+use bit_writer::{BitBuf, BitWriter};
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uint};
 
 use super::{
     aac_cb_maxval,
     math::{clip_uintp2_c, ff_log2_c},
-    put_bits, put_sbits, quant, CB_RANGE,
+    quant, CB_RANGE,
 };
 use crate::{
     aac::{
@@ -21,8 +20,8 @@ use crate::{
     types::*,
 };
 
-type QuantizeAndEncodeBandFunc = unsafe fn(
-    Option<NonNull<PutBitContext>>,
+type QuantizeAndEncodeBandFunc = fn(
+    Option<&mut BitWriter>,
     &[c_float],
     Option<&mut [c_float]>,
     &[c_float],
@@ -39,8 +38,8 @@ type QuantizeAndEncodeBandFunc = unsafe fn(
 /// Returns quantization distortion
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 71..=194, name = "quantize_and_encode_band_cost_template")]
 #[inline(always)]
-unsafe fn cost_template(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_template(
+    mut pb: Option<&mut BitWriter>,
     in_: &[c_float],
     mut out: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -149,17 +148,16 @@ unsafe fn cost_template(
         if cost >= uplim {
             return uplim;
         }
-        if let Some(pb) = pb.map(NonNull::as_ptr) {
-            put_bits(
-                pb,
-                ff_aac_spectral_bits[(cb - 1) as usize][curidx as usize] as c_int,
-                ff_aac_spectral_codes[(cb - 1) as usize][curidx as usize] as BitBuf,
+        if let Some(pb) = &mut pb {
+            pb.put(
+                ff_aac_spectral_bits[(cb - 1) as usize][curidx as usize],
+                BitBuf::from(ff_aac_spectral_codes[(cb - 1) as usize][curidx as usize]),
             );
             if BT_UNSIGNED != 0 {
                 for j in 0..dim {
                     if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * dim + j) as usize] != 0.
                     {
-                        put_bits(pb, 1, (in_[(i + j) as usize] < 0.) as c_int as BitBuf);
+                        pb.put(1, BitBuf::from(in_[(i + j) as usize] < 0.));
                     }
                 }
             }
@@ -171,8 +169,8 @@ unsafe fn cost_template(
                             clip_uintp2_c(quant(fabsf(in_[(i + j) as usize]), Q, ROUNDING), 13)
                                 as c_int;
                         let len: c_int = ff_log2_c(coef as c_uint);
-                        put_bits(pb, len - 4 + 1, ((1 << (len - 4 + 1)) - 2) as BitBuf);
-                        put_sbits(pb, len, coef);
+                        pb.put((len - 4 + 1) as u8, ((1 << (len - 4 + 1)) - 2) as BitBuf);
+                        pb.put_signed(len as u8, coef);
                     }
                 }
             }
@@ -188,8 +186,8 @@ unsafe fn cost_template(
 }
 
 #[inline]
-unsafe fn cost_NONE(
-    _pb: Option<NonNull<PutBitContext>>,
+fn cost_NONE(
+    _pb: Option<&mut BitWriter>,
     _in_: &[c_float],
     _quant: Option<&mut [c_float]>,
     _scaled: &[c_float],
@@ -202,8 +200,8 @@ unsafe fn cost_NONE(
 ) -> c_float {
     0.
 }
-unsafe fn cost_ZERO(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_ZERO(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -220,8 +218,8 @@ unsafe fn cost_ZERO(
     )
 }
 
-unsafe fn cost_SQUAD(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_SQUAD(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -238,8 +236,8 @@ unsafe fn cost_SQUAD(
     )
 }
 
-unsafe fn cost_UQUAD(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_UQUAD(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -256,8 +254,8 @@ unsafe fn cost_UQUAD(
     )
 }
 
-unsafe fn cost_SPAIR(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_SPAIR(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -274,8 +272,8 @@ unsafe fn cost_SPAIR(
     )
 }
 
-unsafe fn cost_UPAIR(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_UPAIR(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -292,8 +290,8 @@ unsafe fn cost_UPAIR(
     )
 }
 
-unsafe fn cost_ESC(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_ESC(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -325,8 +323,8 @@ unsafe fn cost_ESC(
     )
 }
 
-unsafe fn cost_ESC_RTZ(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_ESC_RTZ(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -358,8 +356,8 @@ unsafe fn cost_ESC_RTZ(
     )
 }
 
-unsafe fn cost_NOISE(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_NOISE(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -376,8 +374,8 @@ unsafe fn cost_NOISE(
     )
 }
 
-unsafe fn cost_STEREO(
-    pb: Option<NonNull<PutBitContext>>,
+fn cost_STEREO(
+    pb: Option<&mut BitWriter>,
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -432,7 +430,7 @@ const fn_rtz_arr: [QuantizeAndEncodeBandFunc; 16] = [
     cost_STEREO,
 ];
 
-pub(crate) unsafe fn quantize_and_encode_band_cost(
+pub(crate) fn quantize_and_encode_band_cost(
     in_: &[c_float],
     quant: Option<&mut [c_float]>,
     scaled: &[c_float],
@@ -449,8 +447,8 @@ pub(crate) unsafe fn quantize_and_encode_band_cost(
 }
 
 #[inline]
-pub(crate) unsafe fn quantize_and_encode_band(
-    pb: NonNull<PutBitContext>,
+pub(crate) fn quantize_and_encode_band(
+    pb: &mut BitWriter,
     in_: &[c_float],
     scale_idx: c_int,
     cb: c_int,

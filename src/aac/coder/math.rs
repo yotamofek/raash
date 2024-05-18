@@ -47,12 +47,6 @@ pub(super) fn clip_uintp2_c(mut a: c_int, mut p: c_int) -> c_uint {
     }
 }
 
-/// Clear high bits from an unsigned integer starting with specific bit
-/// position.
-pub(super) fn mod_uintp2_c(mut a: c_uint, mut p: c_uint) -> c_uint {
-    a & ((1 as c_uint) << p).wrapping_sub(1 as c_uint)
-}
-
 #[inline(always)]
 pub(super) unsafe fn lcg_random(mut previous_val: c_uint) -> c_int {
     #[repr(C)]

@@ -28,35 +28,6 @@ pub(crate) const AV_OPT_TYPE_FLAGS: AVOptionType = 0;
 
 pub(crate) const AV_CODEC_ID_AAC: AVCodecID = 86018;
 
-#[derive(Copy, Clone)]
-#[repr(C, packed)]
-pub(crate) union unaligned_32 {
-    pub(crate) l: c_uint,
-}
-pub(crate) type BitBuf = c_uint;
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub(crate) struct PutBitContext {
-    pub(crate) bit_buf: BitBuf,
-    pub(crate) bit_left: c_int,
-    pub(crate) buf: *mut c_uchar,
-    pub(crate) buf_ptr: *mut c_uchar,
-    pub(crate) buf_end: *mut c_uchar,
-}
-
-impl PutBitContext {
-    pub(crate) const fn zero() -> Self {
-        Self {
-            bit_buf: 0,
-            bit_left: 0,
-            buf: null_mut(),
-            buf_ptr: null_mut(),
-            buf_end: null_mut(),
-        }
-    }
-}
-
 pub(crate) type AudioObjectType = c_uint;
 pub(crate) const AOT_SBR: AudioObjectType = 5;
 

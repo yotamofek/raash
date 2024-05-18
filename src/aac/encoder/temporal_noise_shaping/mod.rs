@@ -1,15 +1,12 @@
 mod tables;
 
-use std::{
-    mem::size_of,
-    ops::{AddAssign, Mul, Neg, RangeInclusive},
-    ptr::addr_of_mut,
-};
+use std::ops::{AddAssign, Mul, Neg, RangeInclusive};
 
+use bit_writer::{BitBuf, BitWriter};
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::Itertools;
 use izip::izip;
-use libc::{c_double, c_float, c_int, c_long, c_ulong};
+use libc::{c_double, c_float, c_int};
 use lpc::RefCoeffs;
 
 use self::tables::{tns_min_sfb, tns_tmp2_map};
@@ -72,38 +69,6 @@ pub(crate) struct TemporalNoiseShaping {
     order: [[c_int; 4]; 8],
     coef_idx: [[[c_int; MAX_ORDER]; 4]; 8],
     coef: [[[c_float; MAX_ORDER]; 4]; 8],
-}
-
-static mut BUF_BITS: c_int = 0;
-#[inline]
-unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
-    let mut bit_buf: BitBuf = 0;
-    let mut bit_left: c_int = 0;
-    bit_buf = (*s).bit_buf;
-    bit_left = (*s).bit_left;
-    if n < bit_left {
-        bit_buf = bit_buf << n | value;
-        bit_left -= n;
-    } else {
-        bit_buf <<= bit_left;
-        bit_buf |= value >> n - bit_left;
-        if ((*s).buf_end).offset_from((*s).buf_ptr) as c_long as c_ulong
-            >= size_of::<BitBuf>() as c_ulong
-        {
-            (*((*s).buf_ptr as *mut unaligned_32)).l = bit_buf.swap_bytes();
-            (*s).buf_ptr = ((*s).buf_ptr).offset(size_of::<BitBuf>() as c_ulong as isize);
-        } else {
-            panic!("Internal error, put_bits buffer too small");
-        }
-        bit_left += BUF_BITS - n;
-        bit_buf = value;
-    }
-    (*s).bit_buf = bit_buf;
-    (*s).bit_left = bit_left;
-}
-#[inline]
-unsafe fn put_bits(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
-    put_bits_no_assert(s, n, value);
 }
 
 /// Levinson-Durbin recursion.
@@ -169,8 +134,7 @@ fn compress_coeffs(mut coef: &mut [c_int], mut c_bits: c_int) -> Compressed {
 /// Coefficient compression is simply not lossless as it should be
 /// on any decoder tested and as such is not active.
 #[ffmpeg_src(file = "libavcodec/aacenc_tns.c", lines = 64..=98, name = "ff_aac_encode_tns_info")]
-pub(super) unsafe fn encode_info(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
-    let pb = addr_of_mut!(s.pb);
+pub(super) fn encode_info(pb: &mut BitWriter, sce: &mut SingleChannelElement) {
     let SingleChannelElement {
         ref mut tns,
         ics:
@@ -198,33 +162,33 @@ pub(super) unsafe fn encode_info(s: &mut AACEncContext, sce: &mut SingleChannelE
     )
     .take(num_windows as usize)
     {
-        put_bits(pb, 2 - i32::from(is8), n_filt as BitBuf);
+        pb.put(2 - u8::from(is8), n_filt as BitBuf);
 
         if n_filt == 0 {
             continue;
         }
 
-        put_bits(pb, 1, c_bits as BitBuf);
+        pb.put(1, c_bits as BitBuf);
         for (&length, &order, &direction, coef_idx) in
             izip!(length, order, direction, coef_idx).take(n_filt as usize)
         {
-            put_bits(pb, 6 - 2 * i32::from(is8), length as BitBuf);
-            put_bits(pb, 5 - 2 * i32::from(is8), order as BitBuf);
+            pb.put(6 - 2 * u8::from(is8), length as BitBuf);
+            pb.put(5 - 2 * u8::from(is8), order as BitBuf);
 
             let coef_idx = match &mut coef_idx[..order as usize] {
                 [] => continue,
                 coef_idx => coef_idx,
             };
 
-            put_bits(pb, 1, direction as BitBuf);
+            pb.put(1, direction as BitBuf);
             let coef_compress = match compress_coeffs(coef_idx, c_bits) {
                 Compressed::Yes => 1,
                 Compressed::No => 0,
             };
-            put_bits(pb, 1, coef_compress as BitBuf);
+            pb.put(1, coef_compress as BitBuf);
             let coef_len = c_bits + 3 - coef_compress;
             for &coef_idx in &*coef_idx {
-                put_bits(pb, coef_len, coef_idx as BitBuf);
+                pb.put(coef_len as u8, coef_idx as BitBuf);
             }
         }
     }
@@ -398,12 +362,3 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
         tns.present = true;
     }
 }
-
-unsafe fn run_static_initializers() {
-    BUF_BITS = (8 as c_ulong).wrapping_mul(size_of::<BitBuf>() as c_ulong) as c_int;
-}
-#[used]
-#[cfg_attr(target_os = "linux", link_section = ".init_array")]
-#[cfg_attr(target_os = "windows", link_section = ".CRT$XIB")]
-#[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-static INIT_ARRAY: [unsafe fn(); 1] = [run_static_initializers];

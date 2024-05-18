@@ -109,7 +109,6 @@ pub struct AVCodecContext {
     pub codec: *const AVCodec,
     pub codec_id: AVCodecID,
     pub codec_tag: c_uint,
-    // TODO: make this generic?
     pub priv_data: *mut c_void,
     pub internal: *mut AVCodecInternal,
     pub opaque: *mut c_void,

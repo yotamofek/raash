@@ -1,4 +1,11 @@
+use std::{
+    marker::PhantomData,
+    ptr::{self, addr_of, addr_of_mut},
+};
+
+use bit_writer::BitWriter;
 use ffi::codec::{AVCodecContext, AVPacket};
+use libc::{c_int, c_long, c_uchar};
 
 use crate::ff_alloc_packet;
 
@@ -21,39 +28,47 @@ impl<'a> PacketBuilder<'a> {
         }
     }
 
-    pub fn allocate(self, size: i64) -> Packet<'a> {
+    pub fn allocate(self, size: c_long) -> Packet<'a> {
         unsafe {
             assert_eq!(ff_alloc_packet(self.avctx, self.avpkt, size), 0);
             *self.allocated = true;
-            Packet(&mut *self.avpkt)
+            Packet(self.avpkt, PhantomData)
         }
     }
 }
 
-pub struct Packet<'a>(&'a mut AVPacket);
+pub struct Packet<'a>(*mut AVPacket, PhantomData<&'a mut ()>);
 
 impl<'a> Packet<'a> {
-    pub fn data(&self) -> &'a [u8] {
-        unsafe { std::slice::from_raw_parts(self.0.data, self.0.size as usize) }
+    fn data_ptr(&self) -> *mut c_uchar {
+        unsafe { ptr::read(addr_of!((*self.0).data)) }
     }
 
-    pub fn data_mut(&mut self) -> &'a mut [u8] {
-        unsafe { std::slice::from_raw_parts_mut(self.0.data, self.0.size as usize) }
+    fn len(&self) -> usize {
+        unsafe { ptr::read(addr_of!((*self.0).size)) }
+            .try_into()
+            .unwrap()
+    }
+
+    pub fn data_mut(&mut self) -> *mut [c_uchar] {
+        ptr::slice_from_raw_parts_mut(self.data_ptr(), self.len())
     }
 
     pub fn truncate(&mut self, len: usize) {
-        assert!(
-            len <= self.0.size as usize,
-            "truncating packet to a larger size"
-        );
-        self.0.size = len as i32;
+        assert!(len <= self.len(), "truncating packet to a larger size");
+
+        unsafe { ptr::write(addr_of_mut!((*self.0).size), len as c_int) };
     }
 
-    pub fn set_pts(&mut self, pts: i64) {
-        self.0.pts = pts;
+    pub fn set_pts(&mut self, pts: c_long) {
+        unsafe { ptr::write(addr_of_mut!((*self.0).pts), pts) };
     }
 
-    pub fn set_duration(&mut self, duration: i64) {
-        self.0.duration = duration;
+    pub fn set_duration(&mut self, duration: c_long) {
+        unsafe { ptr::write(addr_of_mut!((*self.0).duration), duration) };
+    }
+
+    pub fn bit_writer(&mut self) -> BitWriter {
+        unsafe { BitWriter::from_ptr_slice(self.data_mut()) }
     }
 }

@@ -2,7 +2,10 @@
 
 // TODO: catch panics, we can't unwind into C
 
-use std::{mem, ptr::null_mut};
+use std::{
+    mem,
+    ptr::{self, addr_of, null_mut},
+};
 
 use ffi::codec::{frame::AVFrame, AVCodecContext, AVPacket};
 use libc::c_int;
@@ -10,12 +13,22 @@ use libc::c_int;
 use super::{Encoder, PrivData};
 use crate::PacketBuilder;
 
-pub(super) unsafe extern "C" fn init<Enc: Encoder>(avctx: *mut AVCodecContext) -> c_int {
-    let priv_data = (*avctx).priv_data as *mut PrivData<Enc>;
-    debug_assert!((*priv_data).ctx.is_null());
+trait CodecContextExt {
+    unsafe fn priv_data<'pd, Enc: Encoder>(self: *mut Self) -> &'pd mut PrivData<Enc>;
+}
 
-    let ctx = Enc::init(&mut *avctx, &(*priv_data).options);
-    (*priv_data).ctx = Box::into_raw(ctx);
+impl CodecContextExt for AVCodecContext {
+    unsafe fn priv_data<'pd, Enc: Encoder>(self: *mut Self) -> &'pd mut PrivData<Enc> {
+        &mut *ptr::read(addr_of!((*self).priv_data)).cast()
+    }
+}
+
+pub(super) unsafe extern "C" fn init<Enc: Encoder>(avctx: *mut AVCodecContext) -> c_int {
+    let priv_data = avctx.priv_data::<Enc>();
+    debug_assert!(priv_data.ctx.is_null());
+
+    let ctx = Enc::init(&mut *avctx, &priv_data.options);
+    priv_data.ctx = Box::into_raw(ctx);
 
     0
 }
@@ -26,13 +39,12 @@ pub(super) unsafe extern "C" fn encode_frame<Enc: Encoder>(
     frame: *const AVFrame,
     got_packet_ptr: *mut c_int,
 ) -> c_int {
-    let priv_data = (*avctx).priv_data.cast::<PrivData<Enc>>();
+    let priv_data = avctx.priv_data::<Enc>();
+    debug_assert!(!priv_data.ctx.is_null());
 
-    debug_assert!(!(*priv_data).ctx.is_null());
     // TODO(yotam): is it safe to create a mut reference here?
-    let ctx = &mut *(*priv_data).ctx;
-
-    let options = &(*priv_data).options;
+    let ctx = &mut *priv_data.ctx;
+    let options = &priv_data.options;
 
     let mut allocated = false;
     Enc::encode_frame(
@@ -49,10 +61,10 @@ pub(super) unsafe extern "C" fn encode_frame<Enc: Encoder>(
 }
 
 pub(super) unsafe extern "C" fn close<Enc: Encoder>(avctx: *mut AVCodecContext) -> c_int {
-    let priv_data = (*avctx).priv_data as *mut PrivData<Enc>;
-    debug_assert!(!(*priv_data).ctx.is_null());
+    let priv_data = avctx.priv_data::<Enc>();
+    debug_assert!(!priv_data.ctx.is_null());
 
-    let ctx = mem::replace(&mut (*priv_data).ctx, null_mut());
+    let ctx = mem::replace(&mut priv_data.ctx, null_mut());
     let ctx = Box::from_raw(ctx);
 
     Enc::close(&mut *avctx, ctx);

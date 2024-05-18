@@ -10,6 +10,7 @@
     maybe_uninit_fill,
     maybe_uninit_uninit_array,
     slice_as_chunks,
+    slice_ptr_get,
     slice_take,
     split_array
 )]

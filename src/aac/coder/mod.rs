@@ -14,17 +14,14 @@ pub(super) mod quantize_and_encode_band;
 pub(super) mod quantizers;
 pub(super) mod trellis;
 
-use std::{array, cell::Cell, iter::zip, mem::size_of, ops::RangeInclusive};
+use std::{array, cell::Cell, iter::zip, ops::RangeInclusive};
 
 use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
-use libc::{c_char, c_float, c_int, c_long, c_uchar, c_uint, c_ulong};
+use libc::{c_char, c_float, c_int, c_uchar};
 
-use self::{
-    math::{ff_fast_powf, mod_uintp2_c},
-    quantize_and_encode_band::quantize_and_encode_band_cost,
-};
+use self::{math::ff_fast_powf, quantize_and_encode_band::quantize_and_encode_band_cost};
 use super::{
     encoder::ctx::QuantizeBandCostCache, tables::*, IndividualChannelStream, WindowedIteration,
     SCALE_MAX_DIFF,
@@ -39,44 +36,6 @@ struct BandCodingPath {
     run: c_int,
 }
 
-const BUF_BITS: c_int = BitBuf::BITS as c_int;
-
-#[inline]
-unsafe fn put_sbits(mut pb: *mut PutBitContext, mut n: c_int, mut value: c_int) {
-    put_bits(pb, n, mod_uintp2_c(value as c_uint, n as c_uint));
-}
-
-#[inline]
-unsafe fn put_bits(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
-    put_bits_no_assert(s, n, value);
-}
-
-#[inline]
-unsafe fn put_bits_no_assert(mut s: *mut PutBitContext, mut n: c_int, mut value: BitBuf) {
-    let mut bit_buf: BitBuf = 0;
-    let mut bit_left: c_int = 0;
-    bit_buf = (*s).bit_buf;
-    bit_left = (*s).bit_left;
-    if n < bit_left {
-        bit_buf = bit_buf << n | value;
-        bit_left -= n;
-    } else {
-        bit_buf <<= bit_left;
-        bit_buf |= value >> n - bit_left;
-        if ((*s).buf_end).offset_from((*s).buf_ptr) as c_long as c_ulong
-            >= size_of::<BitBuf>() as c_ulong
-        {
-            (*((*s).buf_ptr as *mut unaligned_32)).l = bit_buf.swap_bytes();
-            (*s).buf_ptr = ((*s).buf_ptr).offset(size_of::<BitBuf>() as c_ulong as isize);
-        } else {
-            panic!("Internal error, put_bits buffer too small");
-        }
-        bit_left += BUF_BITS - n;
-        bit_buf = value;
-    }
-    (*s).bit_buf = bit_buf;
-    (*s).bit_left = bit_left;
-}
 static run_value_bits_long: [c_uchar; 64] = [
     5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
     10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
@@ -182,7 +141,7 @@ pub(super) fn sfdelta_encoding_range(sf: c_int) -> RangeInclusive<c_int> {
 /// band, in encoding order, or negative if there was no such band.
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 226..=238, name = "ff_sfdelta_can_remove_band")]
 #[inline]
-pub(super) unsafe fn sfdelta_can_remove_band(
+pub(super) fn sfdelta_can_remove_band(
     mut sf_idx: &[c_int; 128],
     mut nextband: &[c_uchar; 128],
     mut prev_sf: c_int,
@@ -245,7 +204,7 @@ impl SingleChannelElement {
 
 impl QuantizeBandCostCache {
     #[inline]
-    unsafe fn quantize_band_cost_cached(
+    fn quantize_band_cost_cached(
         &mut self,
         w: c_int,
         g: c_int,
@@ -285,7 +244,7 @@ impl QuantizeBandCostCache {
 }
 
 #[inline]
-pub(super) unsafe fn quantize_band_cost(
+pub(super) fn quantize_band_cost(
     mut in_: &[c_float],
     mut scaled: &[c_float],
     mut scale_idx: c_int,
@@ -301,7 +260,7 @@ pub(super) unsafe fn quantize_band_cost(
 }
 
 #[inline]
-unsafe fn quantize_band_cost_bits(
+fn quantize_band_cost_bits(
     mut in_: &[c_float],
     mut scaled: &[c_float],
     mut scale_idx: c_int,
@@ -324,7 +283,7 @@ unsafe fn quantize_band_cost_bits(
 }
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 419..=456)]
-pub(crate) unsafe fn set_special_band_scalefactors(sce: &mut SingleChannelElement) {
+pub(crate) fn set_special_band_scalefactors(sce: &mut SingleChannelElement) {
     let mut prevscaler_n: c_int = -255;
 
     let SingleChannelElement {

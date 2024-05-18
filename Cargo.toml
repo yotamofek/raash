@@ -1,11 +1,13 @@
-workspace = { members = [
+[workspace]
+members = [
     "array-util",
+    "bit-writer",
     "encoder",
     "ffi",
     "ffmpeg-src-macro",
     "izip",
     "lpc",
-] }
+]
 
 [package]
 name = "raash"
@@ -18,6 +20,7 @@ crate-type = ["staticlib"]
 [dependencies]
 array-util = { version = "0.1.0", path = "array-util" }
 arrayvec = "0.7.4"
+bit-writer = { version = "0.1.0", path = "bit-writer" }
 encoder = { version = "0.1.0", path = "encoder" }
 ffi = { version = "0.1.0", path = "ffi" }
 ffmpeg-src-macro = { version = "0.1.0", path = "ffmpeg-src-macro" }

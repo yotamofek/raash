@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bit-writer = { version = "0.1.0", path = "../bit-writer" }
 ffi = { version = "0.1.0", path = "../ffi" }
 libc = "0.2.150"

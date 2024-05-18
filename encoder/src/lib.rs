@@ -1,4 +1,4 @@
-#![feature(const_option, const_ptr_is_null)]
+#![feature(arbitrary_self_types, const_option, const_ptr_is_null, slice_ptr_get)]
 
 mod callback;
 mod capabilities;

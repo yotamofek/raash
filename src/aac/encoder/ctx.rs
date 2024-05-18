@@ -33,7 +33,6 @@ pub struct MdctContext {
 pub(crate) struct AACEncContext {
     pub options: AACEncOptions,
 
-    pub pb: PutBitContext,
     pub mdct: MdctContext,
     pub pce: Option<pce::Info>,
     pub planar_samples: Box<[[c_float; 3 * 1024]]>,

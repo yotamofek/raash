@@ -1,13 +1,14 @@
 use std::{cmp::Ordering, iter::zip};
 
 use array_util::W;
+use bit_writer::{BitBuf, BitWriter};
 use itertools::Itertools as _;
 use libc::{c_float, c_int, c_uint};
 
-use super::{aac_cb_in_map, aac_cb_out_map, put_bits, quantize_band_cost_bits, run_value_bits};
+use super::{aac_cb_in_map, aac_cb_out_map, quantize_band_cost_bits, run_value_bits};
 use crate::{
     aac::encoder::{ctx::AACEncContext, pow::Pow34 as _},
-    types::{BandType, BitBuf, SingleChannelElement},
+    types::{BandType, SingleChannelElement},
 };
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -26,9 +27,10 @@ impl BandCodingPath {
     }
 }
 
-pub(crate) unsafe fn codebook_rate(
+pub(crate) fn codebook_rate(
     s: &mut AACEncContext,
     sce: &mut SingleChannelElement,
+    pb: &mut BitWriter,
     win: c_int,
     group_len: c_int,
 ) {
@@ -164,16 +166,16 @@ pub(crate) unsafe fn codebook_rate(
     }
     let mut start = 0;
     for i in (0..stack_len).rev() {
-        let cb = aac_cb_out_map[stackcb[i as usize] as usize] as c_int;
-        put_bits(&mut s.pb, 4, cb as BitBuf);
+        let cb = aac_cb_out_map[stackcb[i as usize] as usize];
+        pb.put(4, BitBuf::from(cb));
         let mut count = stackrun[i as usize];
         sce.zeroes[W(win)][start as usize..][..count as usize].fill(cb == 0);
         sce.band_type[W(win)][start as usize..][..count as usize].fill(cb as BandType);
         start += count;
         while count >= run_esc {
-            put_bits(&mut s.pb, run_bits, run_esc as BitBuf);
+            pb.put(run_bits, run_esc as BitBuf);
             count -= run_esc;
         }
-        put_bits(&mut s.pb, run_bits, count as BitBuf);
+        pb.put(run_bits, count as BitBuf);
     }
 }

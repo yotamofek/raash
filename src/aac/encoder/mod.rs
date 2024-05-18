@@ -11,7 +11,6 @@ mod channel_layout;
 pub(super) mod ctx;
 mod dsp;
 mod options;
-mod pb;
 pub(super) mod pow;
 mod tables;
 mod window;
@@ -25,11 +24,12 @@ use std::{
     ffi::CStr,
     iter::zip,
     mem::{self, MaybeUninit},
-    ptr::{self, addr_of, addr_of_mut, null_mut, NonNull},
+    ptr::{self, addr_of, null_mut},
 };
 
 use array_util::{WindowedArray, W};
 use arrayvec::ArrayVec;
+use bit_writer::{BitBuf, BitWriter};
 use encoder::{encoder, Class, Encoder, PacketBuilder};
 use ffi::{
     class::option::AVOption,
@@ -49,7 +49,6 @@ use self::{
     channel_layout::pce,
     ctx::AACEncContext,
     options::OPTIONS,
-    pb::*,
     tables::{SWB_SIZE_1024, SWB_SIZE_128},
     temporal_noise_shaping as tns,
 };
@@ -84,7 +83,6 @@ extern "C" {
         chl: *const AVChannelLayout,
         chl1: *const AVChannelLayout,
     ) -> c_int;
-    fn av_mallocz(size: c_ulong) -> *mut c_void;
     fn av_log(avcl: *mut c_void, level: c_int, fmt: *const c_char, _: ...);
 }
 
@@ -111,11 +109,7 @@ pub(crate) fn quantize_bands(
         .collect()
 }
 
-unsafe fn put_pce(
-    mut pb: *mut PutBitContext,
-    mut avctx: *mut AVCodecContext,
-    mut s: &mut AACEncContext,
-) {
+unsafe fn put_pce(avctx: *mut AVCodecContext, s: &mut AACEncContext, pb: &mut BitWriter) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
     let mut pce = &s.pce.unwrap();
@@ -124,36 +118,36 @@ unsafe fn put_pce(
     } else {
         c"Lavc60.33.100"
     };
-    put_bits(pb, 4, 0 as BitBuf);
-    put_bits(pb, 2, (*avctx).profile as BitBuf);
-    put_bits(pb, 4, s.samplerate_index as BitBuf);
-    put_bits(pb, 4, pce.num_ele[0] as BitBuf);
-    put_bits(pb, 4, pce.num_ele[1] as BitBuf);
-    put_bits(pb, 4, pce.num_ele[2] as BitBuf);
-    put_bits(pb, 2, pce.num_ele[3] as BitBuf);
-    put_bits(pb, 3, 0 as BitBuf);
-    put_bits(pb, 4, 0 as BitBuf);
-    put_bits(pb, 1, 0 as BitBuf);
-    put_bits(pb, 1, 0 as BitBuf);
-    put_bits(pb, 1, 0 as BitBuf);
+    pb.put(4, 0);
+    pb.put(2, (*avctx).profile as _);
+    pb.put(4, s.samplerate_index as _);
+    pb.put(4, pce.num_ele[0] as _);
+    pb.put(4, pce.num_ele[1] as _);
+    pb.put(4, pce.num_ele[2] as _);
+    pb.put(2, pce.num_ele[3] as _);
+    pb.put(3, 0);
+    pb.put(4, 0);
+    pb.put(1, 0);
+    pb.put(1, 0);
+    pb.put(1, 0);
     i = 0;
     while i < 4 {
         j = 0;
         while j < pce.num_ele[i as usize] {
             if i < 3 {
-                put_bits(pb, 1, pce.pairing[i as usize][j as usize] as BitBuf);
+                pb.put(1, pce.pairing[i as usize][j as usize] as _);
             }
-            put_bits(pb, 4, pce.index[i as usize][j as usize] as BitBuf);
+            pb.put(4, pce.index[i as usize][j as usize] as _);
             j += 1;
             j;
         }
         i += 1;
         i;
     }
-    align_put_bits(pb);
-    put_bits(pb, 8, aux_data.to_bytes().len() as BitBuf);
+    pb.align();
+    pb.put(8, aux_data.to_bytes().len() as _);
     for c in aux_data.to_bytes() {
-        put_bits(pb, 8, *c as u32);
+        pb.put(8, (*c).into());
     }
 }
 
@@ -161,36 +155,31 @@ unsafe fn put_audio_specific_config(
     mut avctx: *mut AVCodecContext,
     s: &mut AACEncContext,
 ) -> c_int {
-    let mut pb: PutBitContext = PutBitContext {
-        bit_buf: 0,
-        bit_left: 0,
-        buf: null_mut(),
-        buf_ptr: null_mut(),
-        buf_end: null_mut(),
-    };
+    const MAX_SIZE: usize = 32;
 
-    let mut channels: c_int =
+    let channels =
         (s.needs_pce == 0) as c_int * (s.channels - (if s.channels == 8 { 1 } else { 0 }));
-    let max_size: c_int = 32;
-    (*avctx).extradata = av_mallocz(max_size as c_ulong) as *mut c_uchar;
-    if ((*avctx).extradata).is_null() {
-        return -12;
-    }
-    init_put_bits(&mut pb, (*avctx).extradata, max_size);
-    put_bits(&mut pb, 5, (s.profile + 1) as BitBuf);
-    put_bits(&mut pb, 4, s.samplerate_index as BitBuf);
-    put_bits(&mut pb, 4, channels as BitBuf);
-    put_bits(&mut pb, 1, 0 as BitBuf);
-    put_bits(&mut pb, 1, 0 as BitBuf);
-    put_bits(&mut pb, 1, 0 as BitBuf);
+
+    let mut extradata = vec![0; MAX_SIZE].into_boxed_slice();
+    let mut pb = BitWriter::new(&mut extradata);
+
+    pb.put(5, (s.profile + 1) as _);
+    pb.put(4, s.samplerate_index as _);
+    pb.put(4, channels as _);
+    pb.put(1, 0);
+    pb.put(1, 0);
+    pb.put(1, 0);
     if s.needs_pce != 0 {
-        put_pce(&mut pb, avctx, s);
+        put_pce(avctx, s, &mut pb);
     }
-    put_bits(&mut pb, 11, 0x2b7 as c_int as BitBuf);
-    put_bits(&mut pb, 5, AOT_SBR as c_int as BitBuf);
-    put_bits(&mut pb, 1, 0 as BitBuf);
-    flush_put_bits(&mut pb);
-    (*avctx).extradata_size = put_bytes_output(&mut pb);
+    pb.put(11, 0x2b7);
+    pb.put(5, AOT_SBR as _);
+    pb.put(1, 0);
+    pb.flush();
+
+    (*avctx).extradata_size = pb.total_bytes_written() as _;
+    (*avctx).extradata = Box::into_raw(extradata).as_mut_ptr();
+
     0
 }
 
@@ -198,8 +187,7 @@ unsafe fn put_audio_specific_config(
 ///
 /// @see Table 4.6 (syntax of ics_info)
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 491..=510)]
-unsafe extern "C" fn put_ics_info(s: &mut AACEncContext, info: &IndividualChannelStream) {
-    let pb = addr_of_mut!(s.pb);
+fn put_ics_info(pb: &mut BitWriter, info: &IndividualChannelStream) {
     let IndividualChannelStream {
         window_sequence: [window_sequence, _],
         use_kb_window: [use_kb_window, _],
@@ -208,28 +196,29 @@ unsafe extern "C" fn put_ics_info(s: &mut AACEncContext, info: &IndividualChanne
         group_len,
         ..
     } = *info;
-    put_bits(pb, 1, 0); // ics_reserved bit
-    put_bits(pb, 2, (window_sequence as u8).into());
-    put_bits(pb, 1, use_kb_window.into());
+
+    pb.put(1, 0); // ics_reserved bit
+    pb.put(2, (window_sequence as u8).into());
+    pb.put(1, use_kb_window.into());
     if window_sequence != WindowSequence::EightShort {
-        put_bits(pb, 6, max_sfb.into());
-        put_bits(pb, 1, predictor_present.into());
+        pb.put(6, max_sfb.into());
+        pb.put(1, predictor_present.into());
     } else {
-        put_bits(pb, 4, max_sfb.into());
+        pb.put(4, max_sfb.into());
         for &group_len in &group_len[1..] {
-            put_bits(pb, 1, (group_len == 0).into());
+            pb.put(1, (group_len == 0).into());
         }
     };
 }
 
-unsafe extern "C" fn encode_ms_info(mut pb: *mut PutBitContext, mut cpe: *mut ChannelElement) {
+fn encode_ms_info(pb: &mut BitWriter, cpe: &ChannelElement) {
     let mut i: c_int = 0;
-    put_bits(pb, 2, (*cpe).ms_mode as BitBuf);
-    if (*cpe).ms_mode == 1 {
-        for WindowedIteration { w, .. } in (*cpe).ch[0].ics.iter_windows() {
+    pb.put(2, cpe.ms_mode as _);
+    if cpe.ms_mode == 1 {
+        for WindowedIteration { w, .. } in cpe.ch[0].ics.iter_windows() {
             i = 0;
-            while i < (*cpe).ch[0].ics.max_sfb as c_int {
-                put_bits(pb, 1, (*cpe).ms_mask[W(w)][i as usize] as BitBuf);
+            while i < cpe.ch[0].ics.max_sfb as c_int {
+                pb.put(1, cpe.ms_mask[W(w)][i as usize].into());
                 i += 1;
                 i;
             }
@@ -238,7 +227,7 @@ unsafe extern "C" fn encode_ms_info(mut pb: *mut PutBitContext, mut cpe: *mut Ch
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 527..=578)]
-unsafe fn adjust_frame_information(cpe: *mut ChannelElement, chans: c_int) {
+fn adjust_frame_information(cpe: &mut ChannelElement, chans: c_int) {
     let ChannelElement {
         ref mut ch,
         common_window,
@@ -300,17 +289,17 @@ unsafe fn adjust_frame_information(cpe: *mut ChannelElement, chans: c_int) {
     }
 }
 
-unsafe fn encode_band_info(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
+fn encode_band_info(s: &mut AACEncContext, sce: &mut SingleChannelElement, pb: &mut BitWriter) {
     set_special_band_scalefactors(sce);
     for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
-        trellis::codebook_rate(s, sce, w, group_len.into());
+        trellis::codebook_rate(s, sce, pb, w, group_len.into());
     }
 }
 
 /// preamble for [`NOISE_BT`], put in bitstream with the first noise band
 const NOISE_PRE: c_int = 256;
 /// length of preamble
-const NOISE_PRE_BITS: c_int = 9;
+const NOISE_PRE_BITS: u8 = 9;
 /// subtracted from global gain, used as offset for the preamble
 const NOISE_OFFSET: c_int = 90;
 
@@ -318,7 +307,7 @@ const NOISE_OFFSET: c_int = 90;
 const CLIP_AVOIDANCE_FACTOR: c_float = 0.95;
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 655..=689)]
-unsafe fn encode_scale_factors(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
+fn encode_scale_factors(sce: &mut SingleChannelElement, pb: &mut BitWriter) {
     let SingleChannelElement {
         ref sf_idx,
         ics: ref ics @ IndividualChannelStream { max_sfb, .. },
@@ -326,8 +315,6 @@ unsafe fn encode_scale_factors(s: &mut AACEncContext, sce: &mut SingleChannelEle
         ref band_type,
         ..
     } = *sce;
-
-    let pb = addr_of_mut!(s.pb);
 
     let mut diff: c_int = 0;
     let mut off_sf: c_int = (**sf_idx)[0];
@@ -350,15 +337,14 @@ unsafe fn encode_scale_factors(s: &mut AACEncContext, sce: &mut SingleChannelEle
             *offset = sf_idx;
 
             if band_type == NOISE_BT && mem::take(&mut noise_flag) {
-                put_bits(pb, NOISE_PRE_BITS, (diff + NOISE_PRE) as BitBuf);
+                pb.put(NOISE_PRE_BITS, (diff + NOISE_PRE) as _);
                 continue;
             }
 
             diff += SCALE_DIFF_ZERO as c_int;
-            put_bits(
-                pb,
-                SCALEFACTOR_BITS[diff as usize] as c_int,
-                SCALEFACTOR_CODE[diff as usize],
+            pb.put(
+                SCALEFACTOR_BITS[diff as usize],
+                SCALEFACTOR_CODE[diff as usize] as _,
             );
         }
     }
@@ -366,30 +352,29 @@ unsafe fn encode_scale_factors(s: &mut AACEncContext, sce: &mut SingleChannelEle
 
 /// Encode pulse data.
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 691..=708)]
-unsafe fn encode_pulses(s: &mut AACEncContext, pulse: &Pulse) {
-    let pb = addr_of_mut!(s.pb);
+fn encode_pulses(pb: &mut BitWriter, pulse: &Pulse) {
     let Pulse {
         num_pulse,
         start,
         ref pos,
         ref amp,
     } = *pulse;
-    put_bits(pb, 1, (num_pulse != 0) as c_int as BitBuf);
+
+    pb.put(1, (num_pulse != 0).into());
     if num_pulse == 0 {
         return;
     }
-    put_bits(pb, 2, (num_pulse - 1) as BitBuf);
-    put_bits(pb, 6, start as BitBuf);
+    pb.put(2, (num_pulse - 1) as BitBuf);
+    pb.put(6, start as BitBuf);
     for (&pos, &amp) in zip(pos, amp).take(num_pulse as usize) {
-        put_bits(pb, 5, pos as BitBuf);
-        put_bits(pb, 4, amp as BitBuf);
+        pb.put(5, pos as BitBuf);
+        pb.put(4, amp as BitBuf);
     }
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 710..=736)]
-unsafe extern "C" fn encode_spectral_coeffs(s: &mut AACEncContext, sce: &SingleChannelElement) {
+fn encode_spectral_coeffs(s: &mut AACEncContext, sce: &SingleChannelElement, pb: &mut BitWriter) {
     let lambda = s.lambda;
-    let pb = NonNull::new(addr_of_mut!(s.pb)).unwrap();
 
     let SingleChannelElement {
         ics:
@@ -472,60 +457,53 @@ impl SingleChannelElement {
     }
 }
 
-unsafe fn encode_individual_channel(
+fn encode_individual_channel(
     mut s: &mut AACEncContext,
     mut sce: &mut SingleChannelElement,
+    pb: &mut BitWriter,
     mut common_window: c_int,
 ) -> c_int {
-    let pb = addr_of_mut!(s.pb);
-    put_bits(pb, 8, sce.sf_idx[W(0)][0] as BitBuf);
+    pb.put(8, sce.sf_idx[W(0)][0] as _);
     if common_window == 0 {
-        put_ics_info(s, &sce.ics);
+        put_ics_info(pb, &sce.ics);
     }
-    encode_band_info(s, sce);
-    encode_scale_factors(s, sce);
-    encode_pulses(s, &sce.pulse);
-    put_bits(pb, 1, sce.tns.present as BitBuf);
-    tns::encode_info(s, sce);
-    put_bits(pb, 1, 0 as BitBuf);
-    encode_spectral_coeffs(s, sce);
+    encode_band_info(s, sce, pb);
+    encode_scale_factors(sce, pb);
+    encode_pulses(pb, &sce.pulse);
+    pb.put(1, sce.tns.present.into());
+    tns::encode_info(pb, sce);
+    pb.put(1, 0);
+    encode_spectral_coeffs(s, sce, pb);
     0
 }
-unsafe fn put_bitstream_info(s: &mut AACEncContext, mut name: &CStr) {
+
+fn put_bitstream_info(pb: &mut BitWriter, name: &CStr) {
     let mut i: c_int = 0;
     let mut namelen: c_int = 0;
     let mut padbits: c_int = 0;
     namelen = name.to_bytes().len().wrapping_add(2) as c_int;
-    put_bits(
-        &mut s.pb,
-        3,
-        SyntaxElementType::FillElement as c_int as BitBuf,
-    );
-    put_bits(
-        &mut s.pb,
-        4,
-        (if namelen > 15 { 15 } else { namelen }) as BitBuf,
-    );
+    pb.put(3, (SyntaxElementType::FillElement as u8).into());
+    pb.put(4, (if namelen > 15 { 15 } else { namelen }) as _);
     if namelen >= 15 {
-        put_bits(&mut s.pb, 8, (namelen - 14) as BitBuf);
+        pb.put(8, (namelen - 14) as _);
     }
-    put_bits(&mut s.pb, 4, 0 as BitBuf);
-    padbits = -put_bits_count(&mut s.pb) & 7;
-    align_put_bits(&mut s.pb);
+    pb.put(4, 0);
+    padbits = -(pb.bits_written() as c_int) & 7;
+    pb.align();
     i = 0;
     while i < namelen - 2 {
-        put_bits(&mut s.pb, 8, name.to_bytes()[i as usize] as BitBuf);
+        pb.put(8, name.to_bytes()[i as usize].into());
         i += 1;
         i;
     }
-    put_bits(&mut s.pb, 12 - padbits, 0 as BitBuf);
+    pb.put(12 - padbits as u8, 0);
 }
 
 /// Copy input samples.
 ///
 /// Channels are reordered from libavcodec's default order to AAC order.
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 804..=828)]
-unsafe extern "C" fn copy_input_samples(s: &mut AACEncContext, frame: *const AVFrame) {
+unsafe fn copy_input_samples(s: &mut AACEncContext, frame: *const AVFrame) {
     let end: c_int = 2048
         + if !frame.is_null() {
             (*frame).nb_samples
@@ -655,7 +633,7 @@ impl IndividualChannelStream {
     }
 }
 
-unsafe fn analyze_psy_windows(
+fn analyze_psy_windows(
     ctx: &mut AACEncContext,
     cpe: &mut Box<[ChannelElement]>,
     frame: *const AVFrame,
@@ -738,17 +716,11 @@ unsafe fn aac_encode_frame(
 
     let mut avpkt = packet_builder.allocate((8192 * ctx.channels) as c_long);
 
-    let pb = addr_of_mut!(ctx.pb);
+    let mut pb = avpkt.bit_writer();
     for iterations in 0.. {
-        init_put_bits(
-            pb,
-            avpkt.data_mut().as_mut_ptr(),
-            avpkt.data().len() as c_int,
-        );
-        if (*avctx).frame_num & 0xff as c_int as c_long == 1 as c_long
-            && !(*avctx).flags.bit_exact()
-        {
-            put_bitstream_info(ctx, c"Lavc60.33.100");
+        pb.clear();
+        if (*avctx).frame_num & 0xff == 1 && !(*avctx).flags.bit_exact() {
+            put_bitstream_info(&mut pb, c"Lavc60.33.100");
         }
         let mut windows = windows.as_slice();
         let mut start_ch = 0;
@@ -765,9 +737,9 @@ unsafe fn aac_encode_frame(
                 ..*cpe
             };
 
-            put_bits(pb, 3, tag as BitBuf);
+            pb.put(3, tag as _);
             let chan_el_counter = &mut chan_el_counter[tag as usize];
-            put_bits(pb, 4, *chan_el_counter as BitBuf);
+            pb.put(4, *chan_el_counter);
             *chan_el_counter += 1;
 
             for (sce, coeffs) in zip(&mut cpe.ch, &mut coeffs).take(windows.len()) {
@@ -861,11 +833,11 @@ unsafe fn aac_encode_frame(
             adjust_frame_information(cpe, windows.len() as c_int);
 
             if let [_, _] = windows {
-                put_bits(pb, 1, cpe.common_window as BitBuf);
+                pb.put(1, cpe.common_window as _);
                 if cpe.common_window != 0 {
-                    put_ics_info(ctx, &cpe.ch[0].ics);
+                    put_ics_info(&mut pb, &cpe.ch[0].ics);
 
-                    encode_ms_info(pb, cpe);
+                    encode_ms_info(&mut pb, cpe);
                     if cpe.ms_mode != 0 {
                         ms_mode = true;
                     }
@@ -873,7 +845,7 @@ unsafe fn aac_encode_frame(
             }
             for (ch, sce) in cpe.ch.iter_mut().take(windows.len()).enumerate() {
                 ctx.cur_channel = start_ch + ch as c_int;
-                encode_individual_channel(ctx, sce, cpe.common_window);
+                encode_individual_channel(ctx, sce, &mut pb, cpe.common_window);
             }
             start_ch += windows.len() as c_int;
         }
@@ -886,7 +858,7 @@ unsafe fn aac_encode_frame(
         // rate control stuff
         // allow between the nominal bitrate, and what psy's bit reservoir says to
         // target but drift towards the nominal bitrate always
-        let frame_bits = put_bits_count(pb);
+        let frame_bits = pb.bits_written() as c_int;
         let rate_bits = (((*avctx).bit_rate * 1024 / (*avctx).sample_rate as c_long) as c_int)
             .min(6144 * ctx.channels - 3);
         let mut too_many_bits = target_bits.max(rate_bits).min(6144 * ctx.channels - 3);
@@ -956,10 +928,11 @@ unsafe fn aac_encode_frame(
         }
     }
 
-    put_bits(pb, 3, SyntaxElementType::End as BitBuf);
-    flush_put_bits(pb);
-    ctx.last_frame_pb_count = put_bits_count(pb);
-    avpkt.truncate(put_bytes_output(pb) as usize);
+    pb.put(3, (SyntaxElementType::End as u8).into());
+    pb.flush();
+    ctx.last_frame_pb_count = pb.bits_written() as c_int;
+    let bytes_output = pb.total_bytes_written();
+    avpkt.truncate(bytes_output);
     ctx.lambda_sum += ctx.lambda;
     ctx.lambda_count += 1;
 
@@ -1059,7 +1032,6 @@ impl Encoder for AACEncoder {
             let mut res = Box::new((
                 AACEncContext {
                     options: *options,
-                    pb: PutBitContext::zero(),
                     mdct: MdctContext {
                         mdct1024: null_mut(),
                         mdct1024_fn: None,
@@ -1246,6 +1218,12 @@ impl Encoder for AACEncoder {
     }
 
     fn close(avctx: *mut AVCodecContext, mut ctx: Box<Self::Ctx>) {
+        // TODO(yotam): de-dup
+        const MAX_SIZE: usize = 32;
+
+        let _ =
+            unsafe { Box::from_raw(ptr::slice_from_raw_parts_mut((*avctx).extradata, MAX_SIZE)) };
+
         let (ctx, _) = &mut *ctx;
         unsafe {
             av_log(
