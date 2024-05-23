@@ -105,6 +105,8 @@ impl IndividualChannelStream {
             ..
         } = *self;
 
+        debug_assert!(num_windows <= 8, "num_windows: {num_windows}");
+
         let mut w = 0;
         iter::from_fn(move || {
             if w >= num_windows {

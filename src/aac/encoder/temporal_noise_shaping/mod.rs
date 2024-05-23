@@ -75,7 +75,7 @@ pub(crate) struct TemporalNoiseShaping {
 /// Produce LPC coefficients from autocorrelation data.
 #[ffmpeg_src(file = "libavcodec/lpc.h", lines = 163..=212)]
 #[inline]
-fn compute_lpc_coefs(autoc: &[LPC_TYPE; MAX_ORDER], max_order: c_int) -> [LPC_TYPE; MAX_ORDER] {
+fn compute_lpc_coefs(autoc: &[c_float; MAX_ORDER], max_order: c_int) -> [c_float; MAX_ORDER] {
     let mut lpc = [0.; MAX_ORDER];
 
     for (i, mut r) in autoc

@@ -139,10 +139,8 @@ unsafe fn put_pce(avctx: *mut AVCodecContext, s: &mut AACEncContext, pb: &mut Bi
             }
             pb.put(4, pce.index[i as usize][j as usize] as _);
             j += 1;
-            j;
         }
         i += 1;
-        i;
     }
     pb.align();
     pb.put(8, aux_data.to_bytes().len() as _);
@@ -503,7 +501,6 @@ fn put_bitstream_info(pb: &mut BitWriter, name: &CStr) {
     while i < namelen - 2 {
         pb.put(8, name.to_bytes()[i as usize].into());
         i += 1;
-        i;
     }
     pb.put(12 - padbits as u8, 0);
 }
@@ -1230,8 +1227,11 @@ impl Encoder for AACEncoder {
         // TODO(yotam): de-dup
         const MAX_SIZE: usize = 32;
 
-        let _ =
-            unsafe { Box::from_raw(ptr::slice_from_raw_parts_mut((*avctx).extradata, MAX_SIZE)) };
+        unsafe {
+            let _ = Box::from_raw(ptr::slice_from_raw_parts_mut((*avctx).extradata, MAX_SIZE));
+            (*avctx).extradata = null_mut();
+            (*avctx).extradata_size = 0;
+        }
 
         let (ctx, _) = &mut *ctx;
         unsafe {

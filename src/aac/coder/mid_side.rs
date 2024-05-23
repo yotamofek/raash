@@ -7,7 +7,7 @@ use libc::{c_float, c_int};
 use reductor::{Reduce as _, Sum};
 
 use super::{
-    find_min_book, math::bval2bmax, quantize_band_cost, sfdelta_can_replace, SingleChannelElement,
+    find_min_book, math::Float as _, quantize_band_cost, sfdelta_can_replace, SingleChannelElement,
 };
 use crate::{
     aac::{
@@ -80,7 +80,7 @@ pub(crate) unsafe fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
         )
         .enumerate()
         {
-            let bmax = bval2bmax(g as c_float * 17. / sce0.ics.num_swb as c_float) / 0.0045;
+            let bmax = (g as c_float * 17. / sce0.ics.num_swb as c_float).bval2bmax() / 0.0045;
             if !is_mask {
                 *ms_mask = false;
             }

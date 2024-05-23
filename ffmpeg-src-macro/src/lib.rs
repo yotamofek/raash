@@ -6,12 +6,12 @@ use std::{
 };
 
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::ToTokens;
 use syn::{
     meta,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote, Expr, ExprLit, ExprRange, Item, ItemConst, ItemEnum, ItemFn,
-    ItemStatic, ItemStruct, ItemType, ItemUnion, Lit, LitInt, LitStr, RangeLimits,
+    ItemStatic, ItemStruct, ItemType, ItemUnion, Lit, LitInt, LitStr, RangeLimits, TraitItemFn,
 };
 
 struct LinesRange(RangeInclusive<u16>);
@@ -93,34 +93,45 @@ pub fn ffmpeg_src(attr: TokenStream, item: TokenStream) -> TokenStream {
     let lines_frag = lines.as_url_frag();
     let url = format!("https://github.com/FFmpeg/FFmpeg/blob/{ffmpeg_rev}/{file}#{lines_frag}");
 
-    let alias_attr = orig_name.as_ref().map(|name| quote!(#[doc(alias = #name)]));
-
     let orig_name_doc = orig_name
+        .as_ref()
         .map(|name| format!("(`{name}`)"))
         .unwrap_or_default();
     let doc = format!("Ffmpeg source: [{file}]({url}) {orig_name_doc}");
 
     let mut item = parse_macro_input!(item as Item);
-    let attrs = match &mut item {
+    let new_attrs = [
+        Some(parse_quote! {
+            #[doc = ""]
+        }),
+        Some(parse_quote! {
+            #[doc = #doc]
+        }),
+        orig_name
+            .as_ref()
+            .map(|name| parse_quote!(#[doc(alias = #name)])),
+    ]
+    .into_iter()
+    .flatten();
+
+    match &mut item {
         Item::Const(ItemConst { attrs, .. })
         | Item::Enum(ItemEnum { attrs, .. })
         | Item::Fn(ItemFn { attrs, .. })
         | Item::Static(ItemStatic { attrs, .. })
         | Item::Struct(ItemStruct { attrs, .. })
         | Item::Type(ItemType { attrs, .. })
-        | Item::Union(ItemUnion { attrs, .. }) => attrs,
+        | Item::Union(ItemUnion { attrs, .. }) => {
+            attrs.extend(new_attrs);
+        }
+        Item::Verbatim(item) => {
+            let item = item.clone().into();
+            let mut item = parse_macro_input!(item as TraitItemFn);
+            item.attrs.extend(new_attrs);
+            return item.to_token_stream().into();
+        }
         _ => panic!("Proc macro used on invalid item type"),
     };
-    attrs.push(parse_quote! {
-        #[doc = ""]
-    });
-    attrs.push(parse_quote! {
-        #[doc = #doc]
-    });
 
-    quote! {
-        #alias_attr
-        #item
-    }
-    .into()
+    item.to_token_stream().into()
 }

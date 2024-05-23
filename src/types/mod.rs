@@ -15,11 +15,8 @@ use crate::aac::{
     WindowSequence,
 };
 
-// pub(crate) const AVMEDIA_TYPE_AUDIO: AVMediaType = 1;
-
+#[allow(non_camel_case_types)]
 pub(crate) type ptrdiff_t = c_long;
-
-// pub(crate) const AV_CLASS_CATEGORY_NA: AVClassCategory = 0;
 
 pub(crate) const AV_OPT_TYPE_BOOL: AVOptionType = 18;
 pub(crate) const AV_OPT_TYPE_CONST: AVOptionType = 10;
@@ -31,7 +28,6 @@ pub(crate) const AV_CODEC_ID_AAC: AVCodecID = 86018;
 pub(crate) type AudioObjectType = c_uint;
 pub(crate) const AOT_SBR: AudioObjectType = 5;
 
-// pub(crate) type AAC_SIGNE = c_uint;
 pub(crate) type AVTXType = c_uint;
 pub(crate) const AV_TX_NB: AVTXType = 18;
 pub(crate) const AV_TX_INT32_DST_I: AVTXType = 17;
@@ -127,7 +123,7 @@ pub(crate) struct FFPsyWindowInfo {
 
 #[derive(Clone)]
 pub(crate) struct FFPsyContext {
-    pub(crate) avctx: *mut AVCodecContext,
+    pub(crate) avctx: *const AVCodecContext,
     pub(crate) ch: Box<[FFPsyChannel]>,
     pub(crate) group: Box<[FFPsyChannelGroup]>,
     pub(crate) cutoff: c_int,
@@ -190,10 +186,6 @@ pub(crate) struct AACQuantizeBandCostCacheEntry {
     pub(crate) rtz: c_char,
     pub(crate) generation: c_ushort,
 }
-
-pub(crate) static aac_maxval_cb: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
-
-pub(crate) type LPC_TYPE = c_float;
 
 #[derive(Copy, Clone)]
 #[repr(C)]

@@ -33,7 +33,7 @@ pub(crate) struct AudioFrameQueue {
 
 #[ffmpeg_src(file = "libavcodec/encode.h", lines = 84..=91, name = "ff_samples_to_time_base")]
 #[inline(always)]
-fn samples_to_time_base(avctx: &AVCodecContext, samples: c_long) -> c_long {
+unsafe fn samples_to_time_base(avctx: *const AVCodecContext, samples: c_long) -> c_long {
     if samples == c_long::MIN {
         return c_long::MIN;
     }
@@ -42,10 +42,10 @@ fn samples_to_time_base(avctx: &AVCodecContext, samples: c_long) -> c_long {
         {
             AVRational {
                 num: 1,
-                den: avctx.sample_rate,
+                den: (*avctx).sample_rate,
             }
         },
-        avctx.time_base,
+        (*avctx).time_base,
     )
 }
 
@@ -113,7 +113,7 @@ impl AudioFrameQueue {
         let mut removed_samples: c_int = 0;
 
         let pts = samples_to_time_base(
-            &*self.avctx,
+            self.avctx,
             self.frames
                 .first()
                 .map(|&AudioFrame { pts, .. }| pts)
@@ -131,7 +131,6 @@ impl AudioFrameQueue {
                 *fresh0 += n as c_long;
             }
             i += 1;
-            i;
         }
         self.remaining_samples -= removed_samples;
         i -= (i != 0 && self.frames[(i - 1) as usize].duration != 0) as c_int;
@@ -163,7 +162,7 @@ impl AudioFrameQueue {
 
         AudioRemoved {
             pts,
-            duration: samples_to_time_base(&*self.avctx, removed_samples as c_long),
+            duration: samples_to_time_base(self.avctx, removed_samples as c_long),
         }
     }
 

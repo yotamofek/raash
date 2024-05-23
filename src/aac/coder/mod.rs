@@ -21,53 +21,49 @@ use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
 use libc::{c_char, c_float, c_int, c_uchar};
 
-use self::{math::ff_fast_powf, quantize_and_encode_band::quantize_and_encode_band_cost};
+use self::{math::Float as _, quantize_and_encode_band::quantize_and_encode_band_cost};
 use super::{
     encoder::ctx::QuantizeBandCostCache, tables::*, IndividualChannelStream, WindowedIteration,
     SCALE_MAX_DIFF,
 };
-use crate::{common::*, types::*};
+use crate::types::*;
 
-#[derive(Copy, Clone, Debug, Default)]
-#[repr(C)]
-struct BandCodingPath {
-    prev_idx: c_int,
-    cost: c_float,
-    run: c_int,
-}
-
-static run_value_bits_long: [c_uchar; 64] = [
-    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-    10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-    10, 10, 10, 10, 10, 10, 10, 10, 15,
-];
-static run_value_bits_short: [c_uchar; 16] = [3, 3, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 9];
 fn run_value_bits(num_windows: c_int) -> &'static [c_uchar] {
+    static LONG: [c_uchar; 64] = [
+        5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+        5, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+        10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 15,
+    ];
+    static SHORT: [c_uchar; 16] = [3, 3, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 9];
+
     if num_windows == 8 {
-        &run_value_bits_short
+        &SHORT
     } else {
-        &run_value_bits_long
+        &LONG
     }
 }
-static aac_cb_out_map: [c_uchar; 15] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15];
-static aac_cb_in_map: [c_uchar; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14];
+
+static CB_OUT_MAP: [c_uchar; 15] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15];
+static CB_IN_MAP: [c_uchar; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14];
 
 #[ffmpeg_src(file = "libavcodec/aacenctab.h", lines = 119, name = "aac_cb_range")]
 static CB_RANGE: [c_uchar; 12] = [0, 3, 3, 3, 3, 9, 9, 8, 8, 13, 13, 17];
-static aac_cb_maxval: [c_uchar; 12] = [0, 1, 1, 2, 2, 4, 4, 7, 7, 12, 12, 16];
 
-static aac_maxval_cb: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
+static CB_MAXVAL: [c_uchar; 12] = [0, 1, 1, 2, 2, 4, 4, 7, 7, 12, 12, 16];
+
+static MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
+
 #[inline]
-fn quant(mut coef: c_float, Q: c_float, rounding: c_float) -> c_int {
-    let mut a = coef * Q;
-    (sqrtf(a * sqrtf(a)) + rounding) as c_int
+fn quant(coef: c_float, Q: c_float, rounding: c_float) -> c_int {
+    let a = coef * Q;
+    ((a * a.sqrt()).sqrt() + rounding) as c_int
 }
 
 #[inline]
 fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
     let Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
     let qmaxval = (maxval * Q34 + 0.4054) as c_int;
-    aac_maxval_cb.get(qmaxval as usize).copied().unwrap_or(11) as c_int
+    MAXVAL_CB.get(qmaxval as usize).copied().unwrap_or(11) as c_int
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 104..=154)]
@@ -105,7 +101,7 @@ fn find_form_factor(
             } else if nzslope == 2. {
                 (s / thresh).powi(2)
             } else {
-                ff_fast_powf(s / thresh, nzslope)
+                (s / thresh).fast_powf(nzslope)
             };
         }
         if e2 > thresh {

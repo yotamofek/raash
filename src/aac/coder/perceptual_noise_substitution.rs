@@ -14,7 +14,6 @@ use crate::{
         tables::POW_SF_TABLES,
         WindowedIteration,
     },
-    common::*,
     types::*,
 };
 
@@ -216,7 +215,7 @@ pub(crate) unsafe fn search(
             if (!sce.zeroes[W(w)][g as usize]
                 && !sfdelta_can_remove_band(&sce.sf_idx, &nextband, prev_sf, w * 16 + g))
                 || ((sce.zeroes[W(w)][g as usize] || sce.band_alt[W(w)][g as usize] as u64 == 0)
-                    && sfb_energy < threshold * sqrtf(1. / freq_boost))
+                    && sfb_energy < threshold * freq_boost.recip().sqrt())
                 || spread < spread_threshold
                 || (!sce.zeroes[W(w)][g as usize]
                     && sce.band_alt[W(w)][g as usize] as c_uint != 0
@@ -231,7 +230,7 @@ pub(crate) unsafe fn search(
             }
 
             let pns_tgt_energy = sfb_energy * c_float::min(1., spread * spread);
-            let noise_sfi = av_clip_c(roundf(log2f(pns_tgt_energy) * 2.) as c_int, -100, 155);
+            let noise_sfi = ((pns_tgt_energy.log2() * 2.).round() as c_int).clamp(-100, 155);
             let noise_amp = -POW_SF_TABLES.pow2()[(noise_sfi + 200) as usize];
             if prev != -1000 {
                 let mut noise_sfdiff: c_int = noise_sfi - prev + 60;
@@ -255,9 +254,9 @@ pub(crate) unsafe fn search(
                 });
 
                 // (yotam): scalarproduct_float
-                let band_energy = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+                let band_energy: c_float = PNS.iter().map(|PNS| PNS.powi(2)).sum();
 
-                let scale = noise_amp / sqrtf(band_energy);
+                let scale = noise_amp / band_energy.sqrt();
 
                 // (yotam): vector_fmac_scalar
                 PNS.iter_mut().for_each(|PNS| {
@@ -363,7 +362,7 @@ pub(crate) unsafe fn mark(
             // 3. on short window groups, all windows have similar energy (variations in
             //    energy would be destroyed by PNS)
             sce.pns_ener[W(w)][g as usize] = sfb_energy;
-            sce.can_pns[W(w)][g as usize] = !(sfb_energy < threshold * sqrtf(1.5 / freq_boost)
+            sce.can_pns[W(w)][g as usize] = !(sfb_energy < threshold * (1.5 / freq_boost).sqrt()
                 || spread < spread_threshold
                 || min_energy < pns_transient_energy_r * max_energy);
         }

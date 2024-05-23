@@ -17,7 +17,7 @@ impl FFPsyContext {
     #[cold]
     #[ffmpeg_src(file = "libavcodec/psymodel.c", lines = 31..=71, name = "ff_psy_init")]
     pub(crate) unsafe fn init(
-        avctx: *mut AVCodecContext,
+        avctx: *const AVCodecContext,
         bands: &[&'static [c_uchar]],
         num_bands: &[c_int],
         num_groups: c_int,

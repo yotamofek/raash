@@ -9,14 +9,13 @@ use reductor::{Reduce as _, Sum};
 
 use crate::{
     aac::{
-        coder::{find_form_factor, find_min_book, math::coef2minsf, sfdelta_encoding_range},
+        coder::{find_form_factor, find_min_book, math::Float as _, sfdelta_encoding_range},
         encoder::{ctx::AACEncContext, pow::Pow34},
         psy_model::cutoff_from_bitrate,
         tables::SCALEFACTOR_BITS,
         IndividualChannelStream, SyntaxElementType, WindowedIteration, SCALE_DIFF_ZERO,
         SCALE_DIV_512, SCALE_MAX_DIFF, SCALE_MAX_POS, SCALE_ONE_POS,
     },
-    common::*,
     types::*,
 };
 
@@ -381,7 +380,7 @@ pub(crate) unsafe fn search(
                 }
             }
         }
-        nminscaler = av_clip_c(minscaler, 140 - 36, 255 - 36);
+        nminscaler = minscaler.clamp(140 - 36, 255 - 36);
         minscaler = nminscaler;
         prev = -1;
         for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
@@ -499,7 +498,6 @@ pub(crate) unsafe fn search(
                                 break;
                             }
                             i += 1;
-                            i;
                         }
                     } else if tbits > too_few_bits
                         && sce.sf_idx[W(w)][g as usize]
@@ -563,7 +561,6 @@ pub(crate) unsafe fn search(
                                 dists[(w * 16 + g) as usize] = dist_2;
                                 qenergies[(w * 16 + g) as usize] = qenergy_2;
                                 i += 1;
-                                i;
                             } else {
                                 maxsf[(w * 16 + g) as usize] =
                                     sce.sf_idx[W(w)][g as usize].min(maxsf[(w * 16 + g) as usize]);
@@ -572,7 +569,7 @@ pub(crate) unsafe fn search(
                         }
                     }
                     sce.sf_idx[W(w)][g as usize] =
-                        av_clip_c(sce.sf_idx[W(w)][g as usize], mindeltasf, maxdeltasf);
+                        sce.sf_idx[W(w)][g as usize].clamp(mindeltasf, maxdeltasf);
                     prev = sce.sf_idx[W(w)][g as usize];
                     if sce.sf_idx[W(w)][g as usize] != prevsc {
                         fflag = true;
@@ -598,7 +595,7 @@ pub(crate) unsafe fn search(
                         prev = prevsf;
                     }
                     sce.sf_idx[W(w)][g as usize] =
-                        av_clip_c(sce.sf_idx[W(w)][g as usize], prev - 60, prev + 60);
+                        sce.sf_idx[W(w)][g as usize].clamp(prev - 60, prev + 60);
                     sce.band_type[W(w)][g as usize] =
                         find_min_book(maxvals[(w * 16 + g) as usize], sce.sf_idx[W(w)][g as usize])
                             as BandType;
@@ -641,7 +638,7 @@ fn calc_minsf_maxvals(
                 continue;
             }
 
-            let minsfidx = coef2minsf(*maxval) as c_int;
+            let minsfidx = maxval.coef2minsf().into();
             for minsf in minsf[wstart..]
                 .iter_mut()
                 .step_by(16)

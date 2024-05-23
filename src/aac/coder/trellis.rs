@@ -5,7 +5,7 @@ use bit_writer::{BitBuf, BitWriter};
 use itertools::Itertools as _;
 use libc::{c_float, c_int, c_uint};
 
-use super::{aac_cb_in_map, aac_cb_out_map, quantize_band_cost_bits, run_value_bits};
+use super::{quantize_band_cost_bits, run_value_bits, CB_IN_MAP, CB_OUT_MAP};
 use crate::{
     aac::encoder::{ctx::AACEncContext, pow::Pow34 as _},
     types::{BandType, SingleChannelElement},
@@ -83,7 +83,7 @@ pub(crate) fn codebook_rate(
         } else {
             let minbits: c_float = next_minbits;
             let mincb: c_int = next_mincb;
-            let startcb = aac_cb_in_map[sce.band_type[W(win)][swb as usize] as usize] as c_int;
+            let startcb = CB_IN_MAP[sce.band_type[W(win)][swb as usize] as usize] as c_int;
             next_minbits = f32::INFINITY;
             next_mincb = 0;
             path[(swb + 1) as usize].fill(BandCodingPath {
@@ -93,8 +93,7 @@ pub(crate) fn codebook_rate(
             });
             for cb in startcb..15 {
                 if cb >= 12
-                    && sce.band_type[W(win)][swb as usize]
-                        != c_uint::from(aac_cb_out_map[cb as usize])
+                    && sce.band_type[W(win)][swb as usize] != c_uint::from(CB_OUT_MAP[cb as usize])
                 {
                     path[(swb + 1) as usize][cb as usize] = BandCodingPath {
                         prev_idx: -1,
@@ -108,7 +107,7 @@ pub(crate) fn codebook_rate(
                                 &sce.coeffs[W(win + w)][start as usize..][..size as usize],
                                 &s.scaled_coeffs[W(win + w)][start as usize..][..size as usize],
                                 sce.sf_idx[W(win)][swb as usize],
-                                aac_cb_out_map[cb as usize] as c_int,
+                                CB_OUT_MAP[cb as usize] as c_int,
                                 f32::INFINITY,
                             ) as c_float
                         })
@@ -166,7 +165,7 @@ pub(crate) fn codebook_rate(
     }
     let mut start = 0;
     for i in (0..stack_len).rev() {
-        let cb = aac_cb_out_map[stackcb[i as usize] as usize];
+        let cb = CB_OUT_MAP[stackcb[i as usize] as usize];
         pb.put(4, BitBuf::from(cb));
         let mut count = stackrun[i as usize];
         sce.zeroes[W(win)][start as usize..][..count as usize].fill(cb == 0);

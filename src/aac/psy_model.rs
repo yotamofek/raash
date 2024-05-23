@@ -247,7 +247,6 @@ fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
             break;
         } else {
             i += 1;
-            i;
         }
     }
     if upper_range_kbps - bitrate > bitrate - lower_range_kbps {
@@ -257,7 +256,7 @@ fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
 }
 
 #[cold]
-unsafe fn lame_window_init(avctx: *mut AVCodecContext) -> AacPsyChannel {
+unsafe fn lame_window_init(avctx: *const AVCodecContext) -> AacPsyChannel {
     AacPsyChannel {
         attack_threshold: if (*avctx).flags.qscale() {
             VBR_MAP[((*avctx).global_quality / 118).clamp(0, 10) as usize].st_lrm

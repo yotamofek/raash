@@ -2,20 +2,55 @@ use ffmpeg_src_macro::ffmpeg_src;
 use ilog::IntLog;
 use libc::{c_float, c_int, c_uchar, c_uint};
 
-pub(super) fn coef2minsf(mut coef: c_float) -> c_uchar {
-    clip_uint8_c((coef.log2() * 4. - 69. + 140. - 36.) as c_int)
+use crate::aac::{SCALE_DIV_512, SCALE_ONE_POS};
+
+pub(super) trait Float {
+    /// Return the minimum scalefactor where the quantized coef does not clip.
+    #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 156..=160)]
+    fn coef2minsf(self) -> c_uchar;
+
+    /// Compute `x^y`` for floating point `x`, `y`.
+    ///
+    /// Note: this function is faster than the libm variant due to mainly 2
+    /// reasons:
+    /// 1. It does not handle any edge cases. In particular, this is only
+    ///    guaranteed to work correctly for `x > 0`.
+    /// 2. It is not as accurate as a standard nearly "correctly rounded" libm
+    ///    variant.
+    #[ffmpeg_src(file = "libavutil/ffmath.h", lines = 52..=65, name = "ff_fast_powf")]
+    fn fast_powf(self, y: Self) -> Self;
+
+    /// approximates
+    /// `exp10f(-3.0f*(0.5f + 0.5f * cosf(FFMIN(b,15.5f) / 15.5f)))`
+    #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 185..=191)]
+    fn bval2bmax(self) -> Self;
 }
 
-#[inline(always)]
-pub(super) fn ff_fast_powf(mut x: c_float, mut y: c_float) -> c_float {
-    (x.ln() * y).exp()
-}
+impl Float for c_float {
+    #[inline]
+    fn coef2minsf(self) -> c_uchar {
+        /// Clip a signed integer value into the 0-255 range.
+        #[ffmpeg_src(file = "libavutil/common.h", lines = 204..=213, name = "av_clip_uint8_c")]
+        #[inline(always)]
+        fn clip_uint8_c(a: c_int) -> c_uchar {
+            a.clamp(c_uchar::MIN.into(), c_uchar::MAX.into()) as c_uchar
+        }
 
-/// approximates exp10f(-3.0f*(0.5f + 0.5f * cosf(FFMIN(b,15.5f) / 15.5f)))
-#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 161..=167)]
-#[inline(always)]
-pub(super) fn bval2bmax(b: c_float) -> c_float {
-    0.001 + 0.0035 * b.powi(3) / 15.5_f32.powi(3)
+        clip_uint8_c(
+            (self.log2() * 4. - 69. + Self::from(SCALE_ONE_POS) - Self::from(SCALE_DIV_512))
+                as c_int,
+        )
+    }
+
+    #[inline(always)]
+    fn fast_powf(self, y: Self) -> Self {
+        (self.ln() * y).exp()
+    }
+
+    #[inline(always)]
+    fn bval2bmax(self) -> Self {
+        0.001 + 0.0035 * self.powi(3) / 15.5_f32.powi(3)
+    }
 }
 
 #[inline(always)]
@@ -35,30 +70,22 @@ pub(super) fn ff_log2_c(mut v: c_uint) -> c_int {
     // return n;
 }
 
-pub(super) fn clip_uint8_c(mut a: c_int) -> c_uchar {
-    a.clamp(c_uchar::MIN.into(), c_uchar::MAX.into()) as u8
-}
-
-pub(super) fn clip_uintp2_c(mut a: c_int, mut p: c_int) -> c_uint {
-    if a & !(((1) << p) - 1) != 0 {
-        (!a >> 31 & ((1) << p) - 1) as c_uint
-    } else {
-        a as c_uint
-    }
-}
-
+/// Clip a signed integer to an unsigned power of two range.
+#[ffmpeg_src(file = "libavutil/common.h", lines = 273..=283, name = "av_clip_uintp2_c")]
 #[inline(always)]
-pub(super) unsafe fn lcg_random(mut previous_val: c_uint) -> c_int {
-    #[repr(C)]
-    union C2RustUnnamed_2 {
-        u: c_uint,
-        s: c_int,
-    }
+pub(super) fn clip_uintp2_c(a: c_int, p: c_int) -> c_uint {
+    (if a & !((1 << p) - 1) != 0 {
+        !a >> 31 & ((1 << p) - 1)
+    } else {
+        a
+    }) as c_uint
+}
 
-    let mut v: C2RustUnnamed_2 = C2RustUnnamed_2 {
-        u: previous_val
-            .wrapping_mul(1664525 as c_uint)
-            .wrapping_add(1013904223 as c_uint),
-    };
-    v.s
+/// Linear congruential pseudorandom number generator
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 231..=242)]
+#[inline(always)]
+pub(super) fn lcg_random(previous_val: c_uint) -> c_int {
+    previous_val
+        .wrapping_mul(1_664_525)
+        .wrapping_add(1_013_904_223) as c_int
 }
