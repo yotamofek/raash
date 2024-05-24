@@ -20,6 +20,7 @@ use array_util::W;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
 use libc::{c_char, c_float, c_int, c_uchar};
+use reductor::{MaxF, Reduce as _, Reductors, Sum};
 
 use self::{math::Float as _, quantize_and_encode_band::quantize_and_encode_band_cost};
 use super::{
@@ -78,48 +79,58 @@ fn find_form_factor(
     #[cfg(debug_assertions)]
     let _ = scaled[..128 * usize::from(group_len - 1)];
 
-    let iswb_size: c_float = 1. / swb_size as c_float;
-    let iswb_sizem1: c_float = 1. / (swb_size - 1) as c_float;
-    let mut form: c_float = 0.;
-    let mut weight: c_float = 0.;
-    for scaled_window in scaled.chunks(128).take(group_len.into()) {
-        let mut e = 0.;
-        let mut e2 = 0.;
-        let mut maxval = 0.;
-        let mut nzl = 0.;
-        for s in &scaled_window[..swb_size.into()] {
-            let mut s = s.abs();
-            maxval = c_float::max(maxval, s);
-            e += s;
-            s *= s;
-            e2 += s;
-            // We really don't want a hard non-zero-line count, since
-            // even below-threshold lines do add up towards band spectral power.
-            // So, fall steeply towards zero, but smoothly
-            nzl += if s >= thresh {
-                1.
-            } else if nzslope == 2. {
-                (s / thresh).powi(2)
-            } else {
-                (s / thresh).fast_powf(nzslope)
-            };
-        }
-        if e2 > thresh {
-            e *= iswb_size;
+    let iswb_size = c_float::from(swb_size).recip();
+    let iswb_sizem1 = c_float::from(swb_size - 1).recip();
+
+    let (Sum::<c_float>(form), Sum::<c_float>(weight)) = scaled
+        .chunks(128)
+        .take(group_len.into())
+        .filter_map(|scaled_window| {
+            let (
+                Reductors((Sum::<c_float>(e), MaxF::<Option<c_float>>(maxval))),
+                Sum::<c_float>(e2),
+                Sum::<c_float>(nzl),
+            ) = scaled_window
+                .iter()
+                .take(swb_size.into())
+                .copied()
+                .map(c_float::abs)
+                .map(|s| {
+                    let s2 = s.powi(2);
+                    // We really don't want a hard non-zero-line count, since
+                    // even below-threshold lines do add up towards band spectral power.
+                    // So, fall steeply towards zero, but smoothly
+                    let nzl = if s2 >= thresh {
+                        1.
+                    } else if nzslope == 2. {
+                        (s2 / thresh).powi(2)
+                    } else {
+                        (s2 / thresh).fast_powf(nzslope)
+                    };
+                    (s, s2, nzl)
+                })
+                .reduce_with();
+
+            if e2 <= thresh {
+                return None;
+            }
+
+            let e = e * iswb_size;
 
             // compute variance
-            let var = scaled_window[..swb_size.into()]
+            let var = scaled_window
                 .iter()
+                .take(swb_size.into())
                 .map(|s| (s.abs() - e).powi(2))
                 .sum::<c_float>();
             let var = (var * iswb_sizem1).sqrt();
 
-            e2 *= iswb_size;
-            let frm = e / c_float::min(e + 4. * var, maxval);
-            form += e2 * frm.sqrt() / c_float::max(0.5, nzl);
-            weight += e2;
-        }
-    }
+            let e2 = e2 * iswb_size;
+            let form = e / c_float::min(e + 4. * var, maxval.unwrap_or_default());
+            Some((e2 * form.sqrt() / c_float::max(0.5, nzl), e2))
+        })
+        .reduce_with();
+
     if weight > 0. {
         form / weight
     } else {

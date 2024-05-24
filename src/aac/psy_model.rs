@@ -399,7 +399,7 @@ impl AacPsyContext {
                             min_snr: {
                                 let pe_min = bark_pe * bark_width;
                                 let minsnr = (pe_min / c_float::from(band_size)).exp2() - 1.5;
-                                (1. / minsnr).clamp(SNR_25DB, SNR_1DB)
+                                minsnr.recip().clamp(SNR_25DB, SNR_1DB)
                             },
                             ..coeff
                         });
@@ -922,7 +922,7 @@ impl FFPsyContext {
 
             if pe < 1.15 * desired_pe {
                 // 6.6.1.3.6 "Final threshold modification by linearization"
-                norm_fac = if norm_fac != 0. { 1. / norm_fac } else { 0. };
+                norm_fac = if norm_fac != 0. { norm_fac.recip() } else { 0. };
                 for bands in pch
                     .band
                     .as_array_of_cells_deref()

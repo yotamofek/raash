@@ -87,7 +87,6 @@ where
 {
     let mut float_window: [c_float; N] = [0.; N];
     let mut temp: [c_double; N / 2 + 1] = [0.; N / 2 + 1];
-    let mut _i: c_int = 0;
     let mut sum: c_double = 0.;
     let mut scale: c_double = 0.;
     let mut alpha2: c_double =
@@ -99,7 +98,7 @@ where
         scale += *temp * (1 + (i != 0 && i < (N / 2)) as c_int) as c_double;
     }
 
-    scale = 1. / (scale + 1.);
+    scale = (scale + 1.).recip();
 
     let mut i = 0;
     while i <= (N / 2) as c_int {
