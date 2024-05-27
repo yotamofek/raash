@@ -1,7 +1,5 @@
-use ffi::{
-    codec::{frame::AVFrame, AVCodecContext},
-    num::AVRational,
-};
+use encoder::{CodecContext, Frame};
+use ffi::{codec::AVCodecContext, num::AVRational};
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_char, c_int, c_long, c_uint, c_void};
 
@@ -31,48 +29,54 @@ pub(crate) struct AudioFrameQueue {
     last_pts: c_long,
 }
 
-#[ffmpeg_src(file = "libavcodec/encode.h", lines = 84..=91, name = "ff_samples_to_time_base")]
-#[inline(always)]
-unsafe fn samples_to_time_base(avctx: *const AVCodecContext, samples: c_long) -> c_long {
-    if samples == c_long::MIN {
-        return c_long::MIN;
+trait CodecContextExt {
+    /// Rescale from sample rate to [`CodecContext::time_base`].
+    #[ffmpeg_src(file = "libavcodec/encode.h", lines = 84..=91, name = "ff_samples_to_time_base")]
+    fn samples_to_time_base(&self, samples: c_long) -> c_long;
+}
+
+impl CodecContextExt for CodecContext {
+    #[inline(always)]
+    fn samples_to_time_base(&self, samples: c_long) -> c_long {
+        if samples == c_long::MIN {
+            return c_long::MIN;
+        }
+        av_rescale_q(
+            samples,
+            {
+                AVRational {
+                    num: 1,
+                    den: self.sample_rate().get(),
+                }
+            },
+            self.time_base().get(),
+        )
     }
-    av_rescale_q(
-        samples,
-        {
-            AVRational {
-                num: 1,
-                den: (*avctx).sample_rate,
-            }
-        },
-        (*avctx).time_base,
-    )
 }
 
 impl AudioFrameQueue {
     #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 28..=34, name = "ff_af_queue_init")]
-    pub unsafe fn new(avctx: *const AVCodecContext) -> Self {
+    pub fn new(avctx: &CodecContext) -> Self {
         Self {
-            avctx,
-            remaining_delay: (*avctx).initial_padding,
-            remaining_samples: (*avctx).initial_padding,
+            avctx: avctx.as_ptr(),
+            remaining_delay: avctx.initial_padding().get(),
+            remaining_samples: avctx.initial_padding().get(),
             frames: vec![],
             last_pts: c_long::MIN,
         }
     }
 
     #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 44..=73, name = "ff_af_queue_add")]
-    pub unsafe fn add_frame(&mut self, f: *const AVFrame) {
-        let AVFrame {
-            pts, nb_samples, ..
-        } = *f;
+    pub unsafe fn add_frame(&mut self, avctx: &CodecContext, frame: &Frame) {
+        let pts = frame.pts().get();
+        let nb_samples = frame.nb_samples().get();
 
         let new = AudioFrame {
             pts: if pts != c_long::MIN {
-                let pts = av_rescale_q(pts, (*self.avctx).time_base, {
+                let pts = av_rescale_q(pts, avctx.time_base().get(), {
                     AVRational {
                         num: 1,
-                        den: (*self.avctx).sample_rate,
+                        den: avctx.sample_rate().get(),
                     }
                 }) - self.remaining_delay as c_long;
 
@@ -100,7 +104,9 @@ impl AudioFrameQueue {
     }
 
     #[ffmpeg_src(file = "libavcodec/audio_frame_queue.c", lines = 75..=113, name = "ff_af_queue_remove")]
-    pub unsafe fn remove(&mut self, mut nb_samples: c_int) -> AudioRemoved {
+    pub unsafe fn remove(&mut self, avctx: &CodecContext) -> AudioRemoved {
+        let mut nb_samples = avctx.frame_size().get();
+
         if self.frames.is_empty() {
             av_log(
                 self.avctx as *mut c_void,
@@ -112,8 +118,7 @@ impl AudioFrameQueue {
 
         let mut removed_samples: c_int = 0;
 
-        let pts = samples_to_time_base(
-            self.avctx,
+        let pts = avctx.samples_to_time_base(
             self.frames
                 .first()
                 .map(|&AudioFrame { pts, .. }| pts)
@@ -162,7 +167,7 @@ impl AudioFrameQueue {
 
         AudioRemoved {
             pts,
-            duration: samples_to_time_base(self.avctx, removed_samples as c_long),
+            duration: avctx.samples_to_time_base(removed_samples as c_long),
         }
     }
 

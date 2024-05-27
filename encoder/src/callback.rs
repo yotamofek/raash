@@ -4,14 +4,14 @@
 
 use std::{
     mem,
-    ptr::{self, addr_of, null_mut},
+    ptr::{self, addr_of, null_mut, NonNull},
 };
 
 use ffi::codec::{frame::AVFrame, AVCodecContext, AVPacket};
 use libc::c_int;
 
 use super::{Encoder, PrivData};
-use crate::PacketBuilder;
+use crate::{context::CodecContext, Frame, PacketBuilder};
 
 trait CodecContextExt {
     unsafe fn priv_data<'pd, Enc: Encoder>(self: *mut Self) -> &'pd mut PrivData<Enc>;
@@ -27,7 +27,10 @@ pub(super) unsafe extern "C" fn init<Enc: Encoder>(avctx: *mut AVCodecContext) -
     let priv_data = avctx.priv_data::<Enc>();
     debug_assert!(priv_data.ctx.is_null());
 
-    let ctx = Enc::init(&mut *avctx, &priv_data.options);
+    let ctx = Enc::init(
+        &mut CodecContext::from_ptr(NonNull::new_unchecked(avctx)),
+        &priv_data.options,
+    );
     priv_data.ctx = Box::into_raw(ctx);
 
     0
@@ -48,10 +51,12 @@ pub(super) unsafe extern "C" fn encode_frame<Enc: Encoder>(
 
     let mut allocated = false;
     Enc::encode_frame(
-        &mut *avctx,
+        &CodecContext::from_ptr(NonNull::new_unchecked(avctx)),
         ctx,
         options,
-        &*frame,
+        NonNull::new(frame.cast_mut())
+            .map(|ptr| Frame::from_ptr(ptr))
+            .as_ref(),
         PacketBuilder::new(avctx, avpkt, &mut allocated),
     );
 
@@ -67,7 +72,10 @@ pub(super) unsafe extern "C" fn close<Enc: Encoder>(avctx: *mut AVCodecContext) 
     let ctx = mem::replace(&mut priv_data.ctx, null_mut());
     let ctx = Box::from_raw(ctx);
 
-    Enc::close(&mut *avctx, ctx);
+    Enc::close(
+        &mut CodecContext::from_ptr(NonNull::new_unchecked(avctx)),
+        ctx,
+    );
 
     0
 }

@@ -1,11 +1,9 @@
 #![deny(dead_code)]
 
-use std::ptr::null_mut;
-
 use array_util::{Array, WindowedArray};
 use ffi::{
     class::option::AVOptionType,
-    codec::{AVCodecContext, AVCodecID},
+    codec::AVCodecID,
     num::{AVComplexDouble, AVComplexFloat, AVComplexInt32},
 };
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_uint, c_ulong, c_ushort, c_void};
@@ -121,9 +119,8 @@ pub(crate) struct FFPsyWindowInfo {
     pub(crate) grouping: [c_int; 8],
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct FFPsyContext {
-    pub(crate) avctx: *const AVCodecContext,
     pub(crate) ch: Box<[FFPsyChannel]>,
     pub(crate) group: Box<[FFPsyChannelGroup]>,
     pub(crate) cutoff: c_int,
@@ -131,25 +128,6 @@ pub(crate) struct FFPsyContext {
     pub(crate) num_bands: Box<[c_int]>,
     pub(crate) bitres: BitResolution,
     pub(crate) model_priv_data: Box<AacPsyContext>,
-}
-
-impl FFPsyContext {
-    pub(crate) fn zero() -> Self {
-        Self {
-            avctx: null_mut(),
-            ch: Default::default(),
-            group: Default::default(),
-            cutoff: 0,
-            bands: Default::default(),
-            num_bands: Default::default(),
-            bitres: BitResolution {
-                size: 0,
-                bits: 0,
-                alloc: 0,
-            },
-            model_priv_data: Default::default(),
-        }
-    }
 }
 
 #[derive(Copy, Clone, Default)]

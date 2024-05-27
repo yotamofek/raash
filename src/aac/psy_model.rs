@@ -15,7 +15,7 @@ use std::{
 };
 
 use array_util::{Array, WindowedArray};
-use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
+use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
 use libc::{c_double, c_float, c_int, c_long, c_uchar, c_ushort};
@@ -68,13 +68,11 @@ impl Bits for c_float {
 }
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
-// TODO: remove explicit repr and discriminants when `AacPsyBand` has a default impl
-#[repr(u32)]
 enum AvoidHoles {
-    Active = 2,
-    Inactive = 1,
+    Active,
+    Inactive,
     #[default]
-    None = 0,
+    None,
 }
 
 #[derive(Copy, Clone, Default)]
@@ -198,14 +196,14 @@ static FIR_COEFFS: [c_float; 10] = [
 ];
 
 #[ffmpeg_src(file = "libavcodec/psymodel.h", lines = 41..=45, name = "AAC_CUTOFF")]
-unsafe fn cutoff(ctx: *const AVCodecContext) -> c_int {
-    if (*ctx).flags.qscale() {
-        (*ctx).sample_rate / 2
+fn cutoff(ctx: &CodecContext) -> c_int {
+    if ctx.flags().get().qscale() {
+        ctx.sample_rate().get() / 2
     } else {
         cutoff_from_bitrate(
-            (*ctx).bit_rate.try_into().unwrap(),
-            (*ctx).ch_layout.nb_channels,
-            (*ctx).sample_rate,
+            ctx.bit_rate().get().try_into().unwrap(),
+            ctx.ch_layout().get().nb_channels,
+            ctx.sample_rate().get(),
         )
     }
 }
@@ -256,13 +254,14 @@ fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
 }
 
 #[cold]
-unsafe fn lame_window_init(avctx: *const AVCodecContext) -> AacPsyChannel {
+fn lame_window_init(avctx: &CodecContext) -> AacPsyChannel {
     AacPsyChannel {
-        attack_threshold: if (*avctx).flags.qscale() {
-            VBR_MAP[((*avctx).global_quality / 118).clamp(0, 10) as usize].st_lrm
+        attack_threshold: if avctx.flags().get().qscale() {
+            VBR_MAP[(avctx.global_quality().get() / 118).clamp(0, 10) as usize].st_lrm
         } else {
             lame_calc_attack_threshold(
-                ((*avctx).bit_rate / c_long::from((*avctx).ch_layout.nb_channels) / 1000) as c_int,
+                (avctx.bit_rate().get() / c_long::from(avctx.ch_layout().get().nb_channels) / 1000)
+                    as c_int,
             )
         },
         prev_energy_subshort: [10.; _],
@@ -290,19 +289,16 @@ fn ath(mut f: c_float, mut add: c_float) -> c_float {
 }
 
 trait ChannelBitrate {
-    unsafe fn channel_bitrate(self: *const Self) -> c_int;
+    fn channel_bitrate(&self) -> c_int;
 }
 
-impl ChannelBitrate for AVCodecContext {
+impl ChannelBitrate for CodecContext {
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 306)]
-    unsafe fn channel_bitrate(self: *const Self) -> c_int {
-        let Self {
-            bit_rate,
-            flags,
-            ch_layout: AVChannelLayout { nb_channels, .. },
-            global_quality,
-            ..
-        } = *self;
+    fn channel_bitrate(&self) -> c_int {
+        let bit_rate = self.bit_rate().get();
+        let flags = self.flags().get();
+        let nb_channels = self.ch_layout().get().nb_channels;
+        let global_quality = self.global_quality().get();
 
         let mut chan_bitrate = (bit_rate as c_float
             / if flags.qscale() {
@@ -328,17 +324,17 @@ impl ChannelBitrate for AVCodecContext {
 impl AacPsyContext {
     #[cold]
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 301..=382, name = "psy_3gpp_init")]
-    pub(crate) unsafe fn init(ctx: &mut FFPsyContext) -> Self {
+    pub(crate) fn init(avctx: &CodecContext, ctx: &mut FFPsyContext) -> Self {
         let bandwidth = if ctx.cutoff != 0 {
             ctx.cutoff
         } else {
-            cutoff(ctx.avctx)
+            cutoff(avctx)
         };
         assert!(bandwidth > 0);
 
-        let sample_rate = (*ctx.avctx).sample_rate;
+        let sample_rate = avctx.sample_rate().get();
 
-        let chan_bitrate = ctx.avctx.channel_bitrate();
+        let chan_bitrate = avctx.channel_bitrate();
         let frame_bits = 2560.min(chan_bitrate * c_int::from(BLOCK_SIZE_LONG) / sample_rate);
 
         ctx.bitres.size = 6144 - frame_bits;
@@ -442,7 +438,7 @@ impl AacPsyContext {
                 fill_level: ctx.bitres.size,
             },
             psy_coef: psy_coeffs,
-            ch: vec![lame_window_init(ctx.avctx); (*ctx.avctx).ch_layout.nb_channels as usize]
+            ch: vec![lame_window_init(avctx); avctx.ch_layout().get().nb_channels as usize]
                 .into_boxed_slice(),
         }
     }
@@ -570,6 +566,7 @@ fn calc_pe_3gpp(band: &mut AacPsyBand) -> c_float {
     band.pe
 }
 
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 560..=572)]
 fn calc_reduction_3gpp(
     a: c_float,
     desired_pe: c_float,
@@ -582,11 +579,8 @@ fn calc_reduction_3gpp(
 
     let thr_avg = ((a - pe) / (4. * active_lines)).exp2();
     let reduction = ((a - desired_pe) / (4. * active_lines)).exp2() - thr_avg;
-    if reduction > 0. {
-        reduction
-    } else {
-        0.
-    }
+
+    reduction.max(0.)
 }
 
 impl AacPsyBand {
@@ -681,11 +675,12 @@ fn hp_filter(firbuf: &[c_float], psy_fir_coeffs_0: &[c_float; 10]) -> [c_float; 
 impl FFPsyContext {
     /// Calculate band thresholds as suggested in 3GPP TS26.403
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 649..=846, name = "psy_3gpp_analyze_channel")]
-    unsafe fn analyze_channel(
+    fn analyze_channel(
         &mut self,
-        mut channel: c_int,
-        mut coefs: &[c_float],
-        mut wi: &FFPsyWindowInfo,
+        avctx: &CodecContext,
+        channel: c_int,
+        coefs: &[c_float],
+        wi: &FFPsyWindowInfo,
     ) {
         let pctx = &mut *self.model_priv_data;
         let pch = &mut pctx.ch[channel as usize];
@@ -710,9 +705,9 @@ impl FFPsyContext {
         let bandwidth = if self.cutoff != 0 {
             self.cutoff
         } else {
-            cutoff(self.avctx)
+            cutoff(avctx)
         };
-        let cutoff: c_int = bandwidth * 2048 / wi.num_windows / (*self.avctx).sample_rate;
+        let cutoff: c_int = bandwidth * 2048 / wi.num_windows / avctx.sample_rate().get();
 
         // calculate energies, initial thresholds and related values -
         // 5.4.2 "Threshold Calculation"
@@ -801,12 +796,12 @@ impl FFPsyContext {
 
         // 5.6.1.3.2 "Calculation of the desired perceptual entropy"
         ch.entropy = pe;
-        if (*self.avctx).flags.qscale() {
+        if avctx.flags().get().qscale() {
             // (2.5 * 120) achieves almost transparent rate, and we want to give
             // ample room downwards, so we make that equivalent to QSCALE=2.4
             desired_pe =
-                pe * if (*self.avctx).global_quality != 0 {
-                    (*self.avctx).global_quality as c_float
+                pe * if avctx.global_quality().get() != 0 {
+                    avctx.global_quality().get() as c_float
                 } else {
                     120.
                 } / (2. * 2.5 * 120.);
@@ -848,44 +843,47 @@ impl FFPsyContext {
                 .take(wi.num_windows as usize)
             {
                 reduction = calc_reduction_3gpp(a, desired_pe, pe, active_lines);
-                pe = 0.;
-                a = 0.;
-                active_lines = 0.;
-                for (band, coeffs) in zip(bands, &*coeffs).take(num_bands as usize) {
-                    band.update(|mut band| {
-                        band.threshold = band.calc_reduced_threshold(coeffs.min_snr, reduction);
-                        pe += calc_pe_3gpp(&mut band);
-                        a += band.pe_const;
-                        active_lines += band.active_lines;
-                        band
-                    });
-                }
+
+                (Sum(pe), Sum(a), Sum(active_lines)) = zip(bands, &*coeffs)
+                    .take(num_bands as usize)
+                    .map(|(band, coeffs)| {
+                        let AacPsyBand {
+                            active_lines,
+                            pe,
+                            pe_const,
+                            ..
+                        } = band.update(|mut band| {
+                            band.threshold = band.calc_reduced_threshold(coeffs.min_snr, reduction);
+                            calc_pe_3gpp(&mut band);
+                            band
+                        });
+                        (pe, pe_const, active_lines)
+                    })
+                    .reduce_with();
             }
 
             // 5.6.1.3.5 "Second Estimation of the reduction value"
             for _ in 0..2 {
-                let mut pe_no_ah: c_float = 0.;
-                let mut desired_pe_no_ah: c_float = 0.;
-                a = 0.;
-                active_lines = a;
-                for bands in pch
-                    .band
-                    .as_array_of_cells_deref()
-                    .into_iter()
-                    .take(wi.num_windows as usize)
-                {
-                    for band in bands.iter().map(Cell::get).take(num_bands as usize) {
-                        if band.avoid_holes == AvoidHoles::Active {
-                            continue;
-                        }
+                let (Sum::<c_float>(pe_no_ah), Sum::<c_float>(a), Sum::<c_float>(active_lines)) =
+                    pch.band
+                        .as_array_of_cells_deref()
+                        .into_iter()
+                        .take(wi.num_windows as usize)
+                        .flat_map(|bands| bands.iter().take(num_bands as usize))
+                        .map(Cell::get)
+                        .filter(|&AacPsyBand { avoid_holes, .. }| avoid_holes != AvoidHoles::Active)
+                        .map(
+                            |AacPsyBand {
+                                 active_lines,
+                                 pe,
+                                 pe_const,
+                                 ..
+                             }| { (pe, pe_const, active_lines) },
+                        )
+                        .reduce_with();
 
-                        pe_no_ah += band.pe;
-                        a += band.pe_const;
-                        active_lines += band.active_lines;
-                    }
-                }
-                desired_pe_no_ah = c_float::max(desired_pe - (pe - pe_no_ah), 0.);
                 if active_lines > 0. {
+                    let desired_pe_no_ah = c_float::max(desired_pe - (pe - pe_no_ah), 0.);
                     reduction = calc_reduction_3gpp(a, desired_pe_no_ah, pe_no_ah, active_lines);
                 }
 
@@ -1012,15 +1010,16 @@ impl FFPsyContext {
     }
 
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 848..=856, name = "psy_3gpp_analyze")]
-    pub(super) unsafe fn analyze(
+    pub(super) fn analyze(
         &mut self,
+        avctx: &CodecContext,
         channel: c_int,
         coeffs: &[&[c_float]; 2],
         wi: &[FFPsyWindowInfo],
     ) {
         let &FFPsyChannelGroup { num_ch } = self.find_group(channel);
         for (ch, (&coeffs, wi)) in zip(coeffs, wi).take(num_ch.into()).enumerate() {
-            self.analyze_channel(channel + ch as c_int, coeffs, wi);
+            self.analyze_channel(avctx, channel + ch as c_int, coeffs, wi);
         }
     }
 

@@ -13,6 +13,7 @@ use crate::{
     types::{ptrdiff_t, SingleChannelElement},
 };
 
+#[inline(never)]
 fn apply_only_long_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
@@ -33,6 +34,7 @@ fn apply_only_long_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 
     }
 }
 
+#[inline(never)]
 fn apply_long_start_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
@@ -64,6 +66,7 @@ fn apply_long_start_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 *
     out[1024..][576..][..448].fill(0.);
 }
 
+#[inline(never)]
 fn apply_long_stop_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
@@ -99,6 +102,7 @@ fn apply_long_stop_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 
     }
 }
 
+#[inline(never)]
 fn apply_eight_short_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 

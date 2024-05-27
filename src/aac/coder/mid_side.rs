@@ -18,7 +18,7 @@ use crate::{
 };
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 978..=1117, name = "search_for_ms")]
-pub(crate) unsafe fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
+pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
     let ([M, S, L34, R34, M34, S34, ..], []) = s.scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
@@ -234,7 +234,7 @@ pub(crate) unsafe fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 609..=639, name = "apply_mid_side_stereo")]
-pub(crate) unsafe fn apply(cpe: &mut ChannelElement) {
+pub(crate) fn apply(cpe: &mut ChannelElement) {
     let ChannelElement {
         ch:
             [SingleChannelElement {

@@ -1,7 +1,7 @@
 use std::iter::zip;
 
 use array_util::W;
-use ffi::codec::{channel::AVChannelLayout, AVCodecContext};
+use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_double, c_float, c_int, c_long, c_uint};
 use reductor::{MinF, MinMaxF, Reduce, Reductors, Sum};
@@ -35,14 +35,11 @@ fn pns_transient_energy_r(lambda: c_float) -> c_float {
     0.7_f32.min(lambda / 140.)
 }
 
-unsafe fn refbits(avctx: *const AVCodecContext, lambda: c_float) -> c_int {
-    let AVCodecContext {
-        bit_rate,
-        sample_rate,
-        flags,
-        ch_layout: AVChannelLayout { nb_channels, .. },
-        ..
-    } = *avctx;
+fn refbits(avctx: &CodecContext, lambda: c_float) -> c_int {
+    let bit_rate = avctx.bit_rate().get();
+    let sample_rate = avctx.sample_rate().get();
+    let flags = avctx.flags().get();
+    let nb_channels = avctx.ch_layout().get().nb_channels;
 
     (bit_rate as c_double * 1024.
         / sample_rate as c_double
@@ -58,17 +55,14 @@ fn spread_threshold(lambda: c_float) -> c_float {
     0.75_f32.min(NOISE_SPREAD_THRESHOLD * 0.5_f32.max(lambda / 100.))
 }
 
-unsafe fn frame_bit_rate(avctx: *const AVCodecContext, lambda: c_float) -> c_int {
+fn frame_bit_rate(avctx: &CodecContext, lambda: c_float) -> c_int {
     // Keep this in sync with twoloop's cutoff selection
     let rate_bandwidth_multiplier = 1.5;
 
-    let AVCodecContext {
-        bit_rate,
-        sample_rate,
-        flags,
-        ch_layout: AVChannelLayout { nb_channels, .. },
-        ..
-    } = *avctx;
+    let bit_rate = avctx.bit_rate().get();
+    let sample_rate = avctx.sample_rate().get();
+    let flags = avctx.flags().get();
+    let nb_channels = avctx.ch_layout().get().nb_channels;
 
     let mut frame_bit_rate: c_int = (if flags.qscale() {
         refbits(avctx, lambda) as c_float * rate_bandwidth_multiplier * sample_rate as c_float
@@ -80,14 +74,14 @@ unsafe fn frame_bit_rate(avctx: *const AVCodecContext, lambda: c_float) -> c_int
     frame_bit_rate
 }
 
-unsafe fn bandwidth(avctx: *const AVCodecContext, lambda: c_float) -> c_int {
-    if (*avctx).cutoff > 0 {
-        (*avctx).cutoff
+fn bandwidth(avctx: &CodecContext, lambda: c_float) -> c_int {
+    if avctx.cutoff().get() > 0 {
+        avctx.cutoff().get()
     } else {
         3000.max(cutoff_from_bitrate(
             frame_bit_rate(avctx, lambda),
             1,
-            (*avctx).sample_rate,
+            avctx.sample_rate().get(),
         ))
     }
 }
@@ -96,8 +90,8 @@ fn freq_mult(sample_rate: c_int, wlen: c_int) -> c_float {
     sample_rate as c_float * 0.5 / wlen as c_float
 }
 
-unsafe fn cutoff(avctx: *const AVCodecContext, lambda: c_float, wlen: c_int) -> c_int {
-    bandwidth(avctx, lambda) * 2 * wlen / (*avctx).sample_rate
+fn cutoff(avctx: &CodecContext, lambda: c_float, wlen: c_int) -> c_int {
+    bandwidth(avctx, lambda) * 2 * wlen / avctx.sample_rate().get()
 }
 
 fn freq_boost(freq: c_float) -> c_float {
@@ -139,14 +133,10 @@ fn reduce_bands(psy_bands: &[FFPsyBand], group_len: u8) -> ReducedBands {
 }
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 765..=905, name = "search_for_pns")]
-pub(crate) unsafe fn search(
-    mut s: &mut AACEncContext,
-    mut avctx: *const AVCodecContext,
-    mut sce: &mut SingleChannelElement,
-) {
+pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut SingleChannelElement) {
     let mut wlen: c_int = 1024 / sce.ics.num_windows;
 
-    let AVCodecContext { sample_rate, .. } = *avctx;
+    let sample_rate = avctx.sample_rate().get();
 
     let ([PNS, PNS34, _, NOR34, ..], []) = s.scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
@@ -314,14 +304,10 @@ pub(crate) unsafe fn search(
 }
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 907..=976, name = "mark_pns")]
-pub(crate) unsafe fn mark(
-    mut s: &mut AACEncContext,
-    mut avctx: *mut AVCodecContext,
-    mut sce: &mut SingleChannelElement,
-) {
+pub(crate) fn mark(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut SingleChannelElement) {
     let mut wlen: c_int = 1024 / sce.ics.num_windows;
     let lambda: c_float = s.lambda;
-    let freq_mult = freq_mult((*avctx).sample_rate, wlen);
+    let freq_mult = freq_mult(avctx.sample_rate().get(), wlen);
     let spread_threshold = spread_threshold(lambda);
     let pns_transient_energy_r = pns_transient_energy_r(lambda);
     let cutoff = cutoff(avctx, lambda, wlen);

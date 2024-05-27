@@ -9,7 +9,7 @@
 use std::{iter::zip, ops::Mul};
 
 use array_util::{WindowedArray, W};
-use ffi::codec::AVCodecContext;
+use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
 use libc::{c_double, c_float, c_int, c_uchar};
@@ -65,11 +65,7 @@ struct ISError {
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc_is.c", lines = 98..=158, name = "ff_aac_search_for_is")]
-pub(crate) unsafe fn search(
-    s: &mut AACEncContext,
-    avctx: *mut AVCodecContext,
-    cpe: &mut ChannelElement,
-) {
+pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut ChannelElement) {
     let AACEncContext {
         scaled_coeffs,
         mut lambda,
@@ -79,7 +75,7 @@ pub(crate) unsafe fn search(
         mut cur_channel,
         ..
     } = s;
-    let &AVCodecContext { sample_rate, .. } = &*avctx;
+    let sample_rate = avctx.sample_rate().get();
 
     let [FFPsyChannel {
         psy_bands: psy_bands0,

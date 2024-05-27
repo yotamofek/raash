@@ -94,7 +94,7 @@ impl Flags {
     }
 
     /// Use only bitexact stuff (except (I)DCT).
-    #[ffmpeg_src(file = "libavcodec/avcodec.h", lines = 335..=338, name = "AV_CODEC_FLAG_QSCALE")]
+    #[ffmpeg_src(file = "libavcodec/avcodec.h", lines = 335..=338, name = "AV_CODEC_FLAG_BITEXACT")]
     pub const fn bit_exact(&self) -> bool {
         self.0 & (1 << 23) != 0
     }

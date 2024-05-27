@@ -1,7 +1,7 @@
 use std::{cell::Cell, iter::zip, ops::BitOrAssign};
 
 use array_util::W;
-use ffi::codec::AVCodecContext;
+use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_ushort};
@@ -20,20 +20,20 @@ use crate::{
 };
 
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 67..=761, name = "search_for_quantizers_twoloop")]
-pub(crate) unsafe fn search(
-    avctx: *mut AVCodecContext,
+pub(crate) fn search(
+    avctx: &CodecContext,
     s: &mut AACEncContext,
     sce: &mut SingleChannelElement,
     lambda: c_float,
 ) {
     let mut start: c_int = 0;
     let mut g: c_int = 0;
-    let mut dest_bits: c_int = ((*avctx).bit_rate as c_double * 1024.
-        / (*avctx).sample_rate as c_double
-        / (if (*avctx).flags.qscale() {
+    let mut dest_bits: c_int = (avctx.bit_rate().get() as c_double * 1024.
+        / avctx.sample_rate().get() as c_double
+        / (if avctx.flags().get().qscale() {
             2.
         } else {
-            (*avctx).ch_layout.nb_channels as c_float
+            avctx.ch_layout().get().nb_channels as c_float
         }) as c_double
         * (lambda / 120.) as c_double) as c_int;
     let mut refbits: c_int = dest_bits;
@@ -55,14 +55,14 @@ pub(crate) unsafe fn search(
         // adjust for lambda except what psy already did
         dest_bits = (s.psy.bitres.alloc as c_float
             * (lambda
-                / (if (*avctx).global_quality != 0 {
-                    (*avctx).global_quality
+                / (if avctx.global_quality().get() != 0 {
+                    avctx.global_quality().get()
                 } else {
                     120
                 }) as c_float)) as c_int;
     }
 
-    if (*avctx).flags.qscale() {
+    if avctx.flags().get().qscale() {
         // Constant Q-scale doesn't compensate MS coding on its own
         // No need to be overly precise, this only controls RD
         // adjustment CB limits when going overboard
@@ -94,16 +94,16 @@ pub(crate) unsafe fn search(
     }
     let wlen: c_int = 1024 / sce.ics.num_windows;
 
-    let frame_bit_rate = frame_bit_rate(&*avctx, &*s, refbits, 1.5);
-    let bandwidth = if (*avctx).cutoff > 0 {
-        (*avctx).cutoff
+    let frame_bit_rate = frame_bit_rate(avctx, &*s, refbits, 1.5);
+    let bandwidth = if avctx.cutoff().get() > 0 {
+        avctx.cutoff().get()
     } else {
-        cutoff_from_bitrate(frame_bit_rate, 1, (*avctx).sample_rate).max(3000)
+        cutoff_from_bitrate(frame_bit_rate, 1, avctx.sample_rate().get()).max(3000)
     };
     s.psy.cutoff = bandwidth;
 
-    let cutoff = bandwidth * 2 * wlen / (*avctx).sample_rate;
-    let pns_start_pos = 4000 * 2 * wlen / (*avctx).sample_rate;
+    let cutoff = bandwidth * 2 * wlen / avctx.sample_rate().get();
+    let pns_start_pos = 4000 * 2 * wlen / avctx.sample_rate().get();
 
     // for values above this the decoder might end up in an endless loop
     // due to always having more bits than what can be encoded.
@@ -141,7 +141,7 @@ pub(crate) unsafe fn search(
         &nzs,
         cutoff,
         rdlambda,
-        (*avctx).flags.qscale(),
+        avctx.flags().get().qscale(),
     );
     let uplims = uplims;
 
@@ -942,15 +942,16 @@ fn zeroscale(lambda: f32) -> f32 {
 /// AAC_CUTOFF_FROM_BITRATE is calibrated for effective bitrate.
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 187..=193)]
 fn frame_bit_rate(
-    avctx: &AVCodecContext,
+    avctx: &CodecContext,
     s: &AACEncContext,
     refbits: i32,
     rate_bandwidth_multiplier: f32,
 ) -> i32 {
-    let mut frame_bit_rate = if avctx.flags.qscale() {
-        refbits as c_float * rate_bandwidth_multiplier * avctx.sample_rate as c_float / 1024.
+    let mut frame_bit_rate = if avctx.flags().get().qscale() {
+        refbits as c_float * rate_bandwidth_multiplier * avctx.sample_rate().get() as c_float
+            / 1024.
     } else {
-        (avctx.bit_rate / avctx.ch_layout.nb_channels as c_long) as c_float
+        (avctx.bit_rate().get() / c_long::from(avctx.ch_layout().get().nb_channels)) as c_float
     };
 
     // Compensate for extensions that increase efficiency
@@ -963,7 +964,7 @@ fn frame_bit_rate(
 
 /// Scout out next nonzero bands
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 727..=760)]
-unsafe fn find_next_bands(sce: &mut SingleChannelElement, maxvals: [c_float; 128]) {
+fn find_next_bands(sce: &mut SingleChannelElement, maxvals: [c_float; 128]) {
     let mut nextband = sce.init_next_band_map();
 
     let SingleChannelElement {
@@ -1024,7 +1025,7 @@ struct InnerLoopResult {
 
 /// inner loop - quantize spectrum to fit into given number of bits
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 367..=447)]
-unsafe fn quantize_spectrum(
+fn quantize_spectrum(
     sce: &mut SingleChannelElement,
     s: &mut AACEncContext,
     its: c_int,

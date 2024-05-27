@@ -2,6 +2,9 @@
 
 mod callback;
 mod capabilities;
+mod context;
+mod field;
+mod frame;
 mod packet;
 
 use std::{ffi::CStr, mem::size_of, ptr::null};
@@ -9,14 +12,18 @@ use std::{ffi::CStr, mem::size_of, ptr::null};
 use ffi::{
     class::{option::AVOption, AVClass, AVClassCategory},
     codec::{
-        frame::AVFrame, AVCodec, AVCodecContext, AVCodecID, AVMediaType, AVPacket, AVSampleFormat,
-        CodecCallback, FFCodec, FFCodecDefault, FFCodecType,
+        AVCodec, AVCodecContext, AVCodecID, AVMediaType, AVPacket, AVSampleFormat, CodecCallback,
+        FFCodec, FFCodecDefault, FFCodecType,
     },
 };
 use libc::{c_char, c_int, c_long, c_uint, c_void};
 
 use self::capabilities::*;
-pub use self::packet::{Packet, PacketBuilder};
+pub use self::{
+    context::CodecContext,
+    frame::Frame,
+    packet::{Packet, PacketBuilder},
+};
 
 extern "C" {
     fn ff_alloc_packet(avctx: *mut AVCodecContext, avpkt: *mut AVPacket, size: c_long) -> c_int;
@@ -47,15 +54,15 @@ pub trait Encoder: Class {
     type Ctx;
     type Options;
 
-    fn init(avctx: *mut AVCodecContext, options: &Self::Options) -> Box<Self::Ctx>;
+    fn init(avctx: &mut CodecContext, options: &Self::Options) -> Box<Self::Ctx>;
     fn encode_frame(
-        avctx: *mut AVCodecContext,
+        avctx: &CodecContext,
         ctx: &mut Self::Ctx,
         options: &Self::Options,
-        frame: *const AVFrame,
+        frame: Option<&Frame>,
         packet_builder: PacketBuilder<'_>,
     );
-    fn close(avctx: *mut AVCodecContext, ctx: Box<Self::Ctx>);
+    fn close(avctx: &mut CodecContext, ctx: Box<Self::Ctx>);
 }
 
 #[derive(Copy, Clone)]

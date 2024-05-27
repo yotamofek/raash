@@ -116,10 +116,11 @@ fn cost_template(
             *bits = 0;
         }
         if let Some(energy) = energy {
-            *energy = qenergy;
+            *energy = 0.;
         }
         if let Some(out) = out {
-            out.chunks_mut(dim as usize).for_each(|out| out.fill(0.));
+            out.chunks_exact_mut(dim as usize)
+                .for_each(|out| out.fill(0.));
         }
         return cost * lambda;
     }
