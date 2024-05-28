@@ -1,12 +1,18 @@
-use std::iter::zip;
+use std::{
+    cell::Cell,
+    iter::{once, successors, zip},
+};
 
-use array_util::W;
+use array_util::{WindowedArray, W};
 use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
+use izip::izip;
 use libc::{c_double, c_float, c_int, c_long, c_uint};
 use reductor::{MinF, MinMaxF, Reduce, Reductors, Sum};
 
-use super::{math::lcg_random, quantize_band_cost, sfdelta_can_remove_band};
+use super::{
+    math::lcg_random, quantization::QuantizationCost, quantize_band_cost, sfdelta_can_remove_band,
+};
 use crate::{
     aac::{
         encoder::{ctx::AACEncContext, pow::Pow34},
@@ -105,7 +111,7 @@ struct ReducedBands {
     energy: MinMaxF<f32>,
 }
 
-fn reduce_bands(psy_bands: &[FFPsyBand], group_len: u8) -> ReducedBands {
+fn reduce_bands(psy_bands: &[Cell<FFPsyBand>], group_len: u8) -> ReducedBands {
     let (
         Reductors::<(_, Option<MinMaxF<_>>)>((Sum(sfb_energy), energy)),
         MinF::<Option<_>>(spread),
@@ -114,8 +120,9 @@ fn reduce_bands(psy_bands: &[FFPsyBand], group_len: u8) -> ReducedBands {
         .iter()
         .step_by(16)
         .take(group_len.into())
+        .map(Cell::get)
         .map(
-            |&FFPsyBand {
+            |FFPsyBand {
                  energy,
                  threshold,
                  spread,
@@ -134,7 +141,7 @@ fn reduce_bands(psy_bands: &[FFPsyBand], group_len: u8) -> ReducedBands {
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 765..=905, name = "search_for_pns")]
 pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut SingleChannelElement) {
-    let mut wlen: c_int = 1024 / sce.ics.num_windows;
+    let wlen: c_int = 1024 / sce.ics.num_windows;
 
     let sample_rate = avctx.sample_rate().get();
 
@@ -142,36 +149,60 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
         unreachable!();
     };
 
-    let lambda: c_float = s.lambda;
+    let lambda = s.lambda;
     let freq_mult = freq_mult(sample_rate, wlen);
-    let thr_mult: c_float = NOISE_LAMBDA_REPLACE * (100. / lambda);
+    let thr_mult = NOISE_LAMBDA_REPLACE * (100. / lambda);
     let spread_threshold = spread_threshold(lambda);
-    let dist_bias: c_float = (4. * 120. / lambda).clamp(0.25, 4.);
+    let dist_bias = (4. * 120. / lambda).clamp(0.25, 4.);
     let pns_transient_energy_r = pns_transient_energy_r(lambda);
-    let mut prev: c_int = -1000;
-    let mut prev_sf: c_int = -1;
+    let mut prev = None;
+    let mut prev_sf = None;
     let cutoff = cutoff(avctx, lambda, wlen);
     sce.band_alt = sce.band_type;
-    let mut nextband = sce.init_next_band_map();
+    let nextband = WindowedArray::<_, 16>(sce.init_next_band_map());
+    let psy_bands = s.psy.ch[s.cur_channel as usize]
+        .psy_bands
+        .as_array_of_cells_deref();
+    let band_types = sce.band_type.as_array_of_cells_deref();
+    let sf_indices = sce.sf_idx.as_array_of_cells_deref();
     for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
-        let mut wstart: c_int = w * 128;
+        let wstart: c_int = w * 128;
         let num_swb = sce.ics.num_swb as usize;
-        for (g, (&swb_offset, &swb_size)) in zip(
-            &sce.ics.swb_offset[..num_swb],
-            &sce.ics.swb_sizes[..num_swb],
+        for (
+            g,
+            (
+                &swb_offset,
+                &swb_size,
+                zero,
+                sf_idx,
+                &band_alt,
+                pns_ener,
+                &nextband,
+                band_type,
+                prev_band_type,
+                cur_psy_bands,
+            ),
+        ) in izip!(
+            sce.ics.swb_offset,
+            sce.ics.swb_sizes,
+            &mut sce.zeroes[W(w)],
+            &sf_indices[W(w)],
+            &sce.band_alt[W(w)],
+            &mut sce.pns_ener[W(w)],
+            &nextband[W(w)],
+            &band_types[W(w)],
+            once(None).chain(band_types[W(w)].iter().map(Some)),
+            successors(Some(&psy_bands[W(w)]), |bands| bands.get(1..)),
         )
+        .take(num_swb)
         .enumerate()
         {
-            let g = g as c_int;
-            let mut dist1: c_float = 0.;
-            let mut dist2: c_float = 0.;
-            let mut pns_energy: c_float = 0.;
-            let start: c_int = wstart + swb_offset as c_int;
-            let freq: c_float = (start - wstart) as c_float * freq_mult;
+            let start = wstart + swb_offset as c_int;
+            let freq = (start - wstart) as c_float * freq_mult;
             let freq_boost = freq_boost(freq);
             if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
-                if !sce.zeroes[W(w)][g as usize] {
-                    prev_sf = sce.sf_idx[W(w)][g as usize];
+                if !*zero {
+                    prev_sf = Some(sf_idx);
                 }
                 continue;
             }
@@ -185,10 +216,7 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
                         min: min_energy,
                         max: max_energy,
                     },
-            } = reduce_bands(
-                &s.psy.ch[s.cur_channel as usize].psy_bands[W(w)][g as usize..],
-                group_len,
-            );
+            } = reduce_bands(cur_psy_bands, group_len);
 
             // Ramps down at ~8000Hz and loosens the dist threshold
             let dist_thresh = (2.5 * NOISE_LOW_LIMIT / freq).clamp(0.5, 2.5) * dist_bias;
@@ -202,19 +230,18 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
             //
             // At this stage, point 2 is relaxed for zeroed bands near
             // the noise threshold (hole avoidance is more important)
-            if (!sce.zeroes[W(w)][g as usize]
-                && !sfdelta_can_remove_band(&sce.sf_idx, &nextband, prev_sf, w * 16 + g))
-                || ((sce.zeroes[W(w)][g as usize] || sce.band_alt[W(w)][g as usize] as u64 == 0)
-                    && sfb_energy < threshold * freq_boost.recip().sqrt())
+            if (!*zero
+                && !prev_sf.is_some_and(|prev_sf| {
+                    sfdelta_can_remove_band(sf_indices, prev_sf.get(), nextband)
+                }))
+                || ((*zero || band_alt == 0) && sfb_energy < threshold * freq_boost.recip().sqrt())
                 || spread < spread_threshold
-                || (!sce.zeroes[W(w)][g as usize]
-                    && sce.band_alt[W(w)][g as usize] as c_uint != 0
-                    && sfb_energy > threshold * thr_mult * freq_boost)
+                || (!*zero && band_alt != 0 && sfb_energy > threshold * thr_mult * freq_boost)
                 || min_energy < pns_transient_energy_r * max_energy
             {
-                sce.pns_ener[W(w)][g as usize] = sfb_energy;
-                if !sce.zeroes[W(w)][g as usize] {
-                    prev_sf = sce.sf_idx[W(w)][g as usize];
+                *pns_ener = sfb_energy;
+                if !*zero {
+                    prev_sf = Some(sf_idx);
                 }
                 continue;
             }
@@ -222,81 +249,92 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
             let pns_tgt_energy = sfb_energy * c_float::min(1., spread * spread);
             let noise_sfi = ((pns_tgt_energy.log2() * 2.).round() as c_int).clamp(-100, 155);
             let noise_amp = -POW_SF_TABLES.pow2()[(noise_sfi + 200) as usize];
-            if prev != -1000 {
-                let mut noise_sfdiff: c_int = noise_sfi - prev + 60;
+            if let Some(prev) = prev {
+                let noise_sfdiff = noise_sfi - prev + 60;
                 if !(0..=2 * 60).contains(&noise_sfdiff) {
-                    if !sce.zeroes[W(w)][g as usize] {
-                        prev_sf = sce.sf_idx[W(w)][g as usize];
+                    if !*zero {
+                        prev_sf = Some(sf_idx);
                     }
                     continue;
                 }
             }
 
-            for w2 in 0..c_int::from(group_len) {
-                let band = &mut s.psy.ch[s.cur_channel as usize].psy_bands[W(w + w2)][g as usize];
-
-                let [PNS, PNS34, NOR34] =
-                    [&mut *PNS, PNS34, NOR34].map(|arr| &mut arr[..usize::from(swb_size)]);
-
-                PNS.fill_with(|| {
-                    s.random_state = lcg_random(s.random_state as c_uint);
-                    s.random_state as c_float
-                });
-
-                // (yotam): scalarproduct_float
-                let band_energy: c_float = PNS.iter().map(|PNS| PNS.powi(2)).sum();
-
-                let scale = noise_amp / band_energy.sqrt();
-
-                // (yotam): vector_fmac_scalar
-                PNS.iter_mut().for_each(|PNS| {
-                    *PNS *= scale;
-                });
-                // (yotam): scalarproduct_float
-                let pns_senergy: c_float = PNS.iter().map(|PNS| PNS.powi(2)).sum();
-
-                pns_energy += pns_senergy;
-
-                for (NOR34, coeff) in zip(
-                    &mut *NOR34,
-                    &sce.coeffs[W(w + w2)][swb_offset as usize..][..swb_size.into()],
-                ) {
-                    *NOR34 = coeff.abs_pow34();
-                }
-                for (PNS34, PNS) in zip(PNS34, &*PNS) {
-                    *PNS34 = PNS.abs_pow34();
-                }
-
-                dist1 += quantize_band_cost(
-                    &(sce.coeffs)[W(w + w2)][swb_offset as usize..][..swb_size.into()],
-                    &NOR34[..swb_size.into()],
-                    sce.sf_idx[W(w + w2)][g as usize],
-                    sce.band_alt[W(w + w2)][g as usize] as c_int,
-                    lambda / band.threshold,
-                    f32::INFINITY,
+            let (Sum::<c_float>(dist1), Sum::<c_float>(mut dist2), Sum::<c_float>(pns_energy)) =
+                izip!(
+                    WindowedArray::<_, 128>::from_ref(&sce.coeffs[W(w)])
+                        .into_iter()
+                        .map(|coeffs| &coeffs[swb_offset.into()..][..swb_size.into()]),
+                    WindowedArray::<_, 16>::from_ref(&psy_bands[W(w)])
+                        .into_iter()
+                        .map(|bands| bands[g].get()),
+                    WindowedArray::<_, 16>::from_ref(&sf_indices[W(w)])
+                        .into_iter()
+                        .map(|sf_indices| &sf_indices[g]),
+                    WindowedArray::<_, 16>::from_ref(&sce.band_alt[W(w)])
+                        .into_iter()
+                        .map(|band_alt| band_alt[g]),
                 )
-                .distortion;
-                // Estimate rd on average as 5 bits for SF, 4 for the CB, plus spread energy *
-                // lambda/thr
-                dist2 += band.energy / (band.spread * band.spread) * lambda * dist_thresh
-                    / band.threshold;
-            }
-            dist2 += if g != 0 && sce.band_type[W(w)][g as usize - 1] == NOISE_BT {
+                .take(group_len.into())
+                .map(|(coeffs, band, sf_idx, band_alt)| {
+                    let [PNS, PNS34, NOR34] =
+                        [&mut *PNS, PNS34, NOR34].map(|arr| &mut arr[..usize::from(swb_size)]);
+
+                    PNS.fill_with(|| {
+                        s.random_state = lcg_random(s.random_state as c_uint);
+                        s.random_state as c_float
+                    });
+
+                    // (yotam): scalarproduct_float
+                    let band_energy: c_float = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+
+                    let scale = noise_amp / band_energy.sqrt();
+
+                    // (yotam): vector_fmac_scalar
+                    PNS.iter_mut().for_each(|PNS| {
+                        *PNS *= scale;
+                    });
+                    // (yotam): scalarproduct_float
+                    let pns_energy: c_float = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+
+                    for (NOR34, coeff) in zip(&mut *NOR34, coeffs) {
+                        *NOR34 = coeff.abs_pow34();
+                    }
+                    for (PNS34, PNS) in zip(PNS34, &*PNS) {
+                        *PNS34 = PNS.abs_pow34();
+                    }
+
+                    let QuantizationCost {
+                        distortion: dist1, ..
+                    } = quantize_band_cost(
+                        coeffs,
+                        &NOR34[..swb_size.into()],
+                        sf_idx.get(),
+                        band_alt as c_int,
+                        lambda / band.threshold,
+                        f32::INFINITY,
+                    );
+                    // Estimate rd on average as 5 bits for SF, 4 for the CB, plus spread energy *
+                    // lambda/thr
+                    let dist2 =
+                        band.energy / band.spread.powi(2) * lambda * dist_thresh / band.threshold;
+
+                    (dist1, dist2, pns_energy)
+                })
+                .reduce_with();
+            dist2 += if prev_band_type.is_some_and(|band_type| band_type.get() == NOISE_BT) {
                 5.
             } else {
                 9.
             };
             let energy_ratio = pns_tgt_energy / pns_energy; // Compensates for quantization error
-            sce.pns_ener[W(w)][g as usize] = energy_ratio * pns_tgt_energy;
-            if sce.zeroes[W(w)][g as usize]
-                || sce.band_alt[W(w)][g as usize] as u64 == 0
-                || energy_ratio > 0.85 && energy_ratio < 1.25 && dist2 < dist1
+            *pns_ener = energy_ratio * pns_tgt_energy;
+            if *zero || band_alt == 0 || energy_ratio > 0.85 && energy_ratio < 1.25 && dist2 < dist1
             {
-                sce.band_type[W(w)][g as usize] = NOISE_BT;
-                sce.zeroes[W(w)][g as usize] = false;
-                prev = noise_sfi;
-            } else if !sce.zeroes[W(w)][g as usize] {
-                prev_sf = sce.sf_idx[W(w)][g as usize];
+                band_type.set(NOISE_BT);
+                *zero = false;
+                prev = Some(noise_sfi);
+            } else if !*zero {
+                prev_sf = Some(sf_idx);
             }
         }
     }
@@ -304,8 +342,8 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 907..=976, name = "mark_pns")]
 pub(crate) fn mark(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut SingleChannelElement) {
-    let mut wlen: c_int = 1024 / sce.ics.num_windows;
-    let lambda: c_float = s.lambda;
+    let wlen = 1024 / sce.ics.num_windows;
+    let lambda = s.lambda;
     let freq_mult = freq_mult(avctx.sample_rate().get(), wlen);
     let spread_threshold = spread_threshold(lambda);
     let pns_transient_energy_r = pns_transient_energy_r(lambda);
@@ -336,7 +374,8 @@ pub(crate) fn mark(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Single
                         max: max_energy,
                     },
             } = reduce_bands(
-                &s.psy.ch[s.cur_channel as usize].psy_bands[W(w)][g as usize..],
+                Cell::from_mut(&mut s.psy.ch[s.cur_channel as usize].psy_bands[W(w)][g as usize..])
+                    .as_slice_of_cells(),
                 group_len,
             );
 

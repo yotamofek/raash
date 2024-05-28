@@ -152,13 +152,11 @@ pub(super) fn sfdelta_encoding_range(sf: c_int) -> RangeInclusive<c_int> {
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 226..=238, name = "ff_sfdelta_can_remove_band")]
 #[inline]
 pub(super) fn sfdelta_can_remove_band(
-    mut sf_idx: &[c_int; 128],
-    mut nextband: &[c_uchar; 128],
-    mut prev_sf: c_int,
-    mut band: c_int,
+    sf_indices: &[Cell<c_int>; 128],
+    prev_sf: c_int,
+    nextband: c_uchar,
 ) -> bool {
-    prev_sf >= 0
-        && sfdelta_encoding_range(prev_sf).contains(&sf_idx[usize::from(nextband[band as usize])])
+    sfdelta_encoding_range(prev_sf).contains(&sf_indices[usize::from(nextband)].get())
 }
 
 /// Checks whether the specified band's scalefactor could be replaced
@@ -174,7 +172,7 @@ fn sfdelta_can_replace(
     nextband: c_uchar,
 ) -> bool {
     sfdelta_encoding_range(prev_sf).contains(&new_sf)
-        && sfdelta_encoding_range(new_sf).contains(&sf_indices[usize::from(nextband)].get())
+        && sfdelta_can_remove_band(sf_indices, new_sf, nextband)
 }
 
 impl SingleChannelElement {
