@@ -1,5 +1,6 @@
 use arrayvec::ArrayVec;
 use bit_writer::{BitBuf, BitWriter};
+use derive_more::{Add, AddAssign, Sum};
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uint};
 
@@ -12,6 +13,13 @@ use crate::aac::{
     tables::{ff_aac_codebook_vectors, ff_aac_spectral_bits, ff_aac_spectral_codes, POW_SF_TABLES},
     POW_SF2_ZERO, SCALE_DIV_512, SCALE_ONE_POS,
 };
+
+#[derive(Clone, Copy, Debug, Default, Add, AddAssign, Sum)]
+pub(crate) struct QuantizationCost {
+    pub distortion: c_float,
+    pub bits: c_int,
+    pub energy: c_float,
+}
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct CostParams {
@@ -83,6 +91,7 @@ mod flags {
 /// Returns quantization distortion
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 71..=194, name = "quantize_and_encode_band_cost_template")]
 #[inline(always)]
+#[must_use]
 fn cost_template(
     mut pb: Option<&mut BitWriter>,
     in_: &[c_float],
@@ -92,11 +101,9 @@ fn cost_template(
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: Option<&mut c_int>,
-    energy: Option<&mut c_float>,
     flags: CostParams,
     rounding: c_float,
-) -> c_float {
+) -> QuantizationCost {
     let cb = flags.cb.unwrap_or(cb);
     let q_idx = c_int::from(POW_SF2_ZERO) - scale_idx + c_int::from(SCALE_ONE_POS)
         - c_int::from(SCALE_DIV_512);
@@ -112,17 +119,14 @@ fn cost_template(
     let mut resbits: c_int = 0;
     if flags.zero || flags.noise || flags.stereo {
         let cost = in_.iter().map(|in_| in_.powi(2)).sum::<c_float>();
-        if let Some(bits) = bits {
-            *bits = 0;
-        }
-        if let Some(energy) = energy {
-            *energy = 0.;
-        }
         if let Some(out) = out {
             out.chunks_exact_mut(dim as usize)
                 .for_each(|out| out.fill(0.));
         }
-        return cost * lambda;
+        return QuantizationCost {
+            distortion: cost * lambda,
+            ..Default::default()
+        };
     }
     let quantized = quantize_bands(
         in_,
@@ -188,7 +192,10 @@ fn cost_template(
         cost += rd * lambda + curbits as c_float;
         resbits += curbits;
         if cost >= uplim {
-            return uplim;
+            return QuantizationCost {
+                distortion: uplim,
+                ..Default::default()
+            };
         }
         if let Some(pb) = &mut pb {
             pb.put(
@@ -218,13 +225,12 @@ fn cost_template(
             }
         }
     }
-    if let Some(bits) = bits {
-        *bits = resbits;
+
+    QuantizationCost {
+        distortion: cost,
+        bits: resbits,
+        energy: qenergy,
     }
-    if let Some(energy) = energy {
-        *energy = qenergy;
-    }
-    cost
 }
 
 const COST_PARAMS: [Option<CostParams>; 16] = {
@@ -260,14 +266,11 @@ pub(crate) fn quantize_and_encode_band_cost(
     cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: Option<&mut c_int>,
-    energy: Option<&mut c_float>,
-) -> c_float {
+) -> QuantizationCost {
     COST_PARAMS[cb as usize]
         .map(|flags| {
             cost_template(
-                None, in_, quant, scaled, scale_idx, cb, lambda, uplim, bits, energy, flags,
-                ROUNDING,
+                None, in_, quant, scaled, scale_idx, cb, lambda, uplim, flags, ROUNDING,
             )
         })
         .unwrap_or_default()
@@ -293,7 +296,7 @@ pub(crate) fn quantize_and_encode_band(
         ROUNDING
     };
 
-    cost_template(
+    let _ = cost_template(
         Some(pb),
         in_,
         None,
@@ -302,8 +305,6 @@ pub(crate) fn quantize_and_encode_band(
         cb,
         lambda,
         f32::INFINITY,
-        None,
-        None,
         flags,
         rounding,
     );

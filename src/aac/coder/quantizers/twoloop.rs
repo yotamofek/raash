@@ -9,7 +9,10 @@ use reductor::{Reduce as _, Sum};
 
 use crate::{
     aac::{
-        coder::{find_form_factor, find_min_book, math::Float as _, sfdelta_encoding_range},
+        coder::{
+            find_form_factor, find_min_book, math::Float as _, quantization::QuantizationCost,
+            sfdelta_encoding_range,
+        },
         encoder::{ctx::AACEncContext, pow::Pow34},
         psy_model::cutoff_from_bitrate,
         tables::SCALEFACTOR_BITS,
@@ -194,9 +197,7 @@ pub(crate) fn search(
                     .enumerate()
                     {
                         let [coeffs, scaled] = coeffs.map(|arr| &arr[offset.into()..]);
-                        let mut bits_0: c_int = 0;
-                        let mut dist_0: c_float = 0.;
-                        let mut qenergy_0: c_float = 0.;
+                        let mut cost_0 = QuantizationCost::default();
                         if zero || sf_idx >= 218 {
                             if can_pns {
                                 tbits += if let Some(g) = g.checked_sub(1)
@@ -214,9 +215,7 @@ pub(crate) fn search(
                         let cb = find_min_book(maxval, sf_idx);
                         for w2 in 0..group_len {
                             let wstart = usize::from(w2) * 128;
-                            let mut b = 0;
-                            let mut sqenergy = 0.;
-                            dist_0 += s.quantize_band_cost_cache.quantize_band_cost_cached(
+                            cost_0 += s.quantize_band_cost_cache.quantize_band_cost_cached(
                                 w + c_int::from(w2),
                                 g as c_int,
                                 &coeffs[wstart..][..swb_size.into()],
@@ -225,20 +224,16 @@ pub(crate) fn search(
                                 cb,
                                 1.,
                                 f32::INFINITY,
-                                &mut b,
-                                &mut sqenergy,
                                 0,
                             );
-                            bits_0 += b;
-                            qenergy_0 += sqenergy;
                         }
-                        *dist = dist_0 - bits_0 as c_float;
-                        *qenergy = qenergy_0;
+                        *dist = cost_0.distortion - cost_0.bits as c_float;
+                        *qenergy = cost_0.energy;
                         if prev != -1 {
                             let sf_diff = (sf_idx - prev + 60).clamp(0, 2 * 60);
-                            bits_0 += c_int::from(SCALEFACTOR_BITS[sf_diff as usize]);
+                            cost_0.bits += c_int::from(SCALEFACTOR_BITS[sf_diff as usize]);
                         }
-                        tbits += bits_0;
+                        tbits += cost_0.bits;
                         prev = sf_idx;
                     }
                 }
@@ -427,9 +422,7 @@ pub(crate) fn search(
                         let mut i = 0;
                         while i < edepth && sce.sf_idx[W(w)][g as usize] > mindeltasf {
                             let mut cb_1: c_int = 0;
-                            let mut bits_1: c_int = 0;
-                            let mut dist_1: c_float = 0.;
-                            let mut qenergy_1: c_float = 0.;
+                            let mut cost_1 = QuantizationCost::default();
                             let mut mb: c_int = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
                                 sce.sf_idx[W(w)][g as usize] - 1,
@@ -438,9 +431,6 @@ pub(crate) fn search(
                                 maxvals[(w * 16 + g) as usize],
                                 sce.sf_idx[W(w)][g as usize],
                             );
-                            qenergy_1 = 0.;
-                            dist_1 = qenergy_1;
-                            bits_1 = 0;
                             if cb_1 == 0 {
                                 maxsf[(w * 16 + g) as usize] = c_int::min(
                                     sce.sf_idx[W(w)][g as usize] - 1,
@@ -462,9 +452,7 @@ pub(crate) fn search(
                             }
                             for w2 in 0..group_len {
                                 let wstart = usize::from(w2) * 128;
-                                let mut b = 0;
-                                let mut sqenergy = 0.;
-                                dist_1 += s.quantize_band_cost_cache.quantize_band_cost_cached(
+                                cost_1 += s.quantize_band_cost_cache.quantize_band_cost_cached(
                                     w + c_int::from(w2),
                                     g,
                                     &coefs_1[wstart..][..swb_size.into()],
@@ -473,16 +461,13 @@ pub(crate) fn search(
                                     cb_1,
                                     1.,
                                     f32::INFINITY,
-                                    &mut b,
-                                    &mut sqenergy,
                                     0,
                                 );
-                                bits_1 += b;
-                                qenergy_1 += sqenergy;
                             }
                             sce.sf_idx[W(w)][g as usize] -= 1;
-                            dists[(w * 16 + g) as usize] = dist_1 - bits_1 as c_float;
-                            qenergies[(w * 16 + g) as usize] = qenergy_1;
+                            dists[(w * 16 + g) as usize] =
+                                cost_1.distortion - cost_1.bits as c_float;
+                            qenergies[(w * 16 + g) as usize] = cost_1.energy;
                             if mb != 0
                                 && (sce.sf_idx[W(w)][g as usize] < mindeltasf
                                     || dists[(w * 16 + g) as usize]
@@ -519,22 +504,15 @@ pub(crate) fn search(
                         let mut i = 0;
                         while i < depth && sce.sf_idx[W(w)][g as usize] < maxdeltasf {
                             let mut cb_2: c_int = 0;
-                            let mut bits_2: c_int = 0;
-                            let mut dist_2: c_float = 0.;
-                            let mut qenergy_2: c_float = 0.;
+                            let mut cost_2 = QuantizationCost::default();
                             cb_2 = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
                                 sce.sf_idx[W(w)][g as usize] + 1,
                             );
                             if cb_2 > 0 {
-                                qenergy_2 = 0.;
-                                dist_2 = qenergy_2;
-                                bits_2 = 0;
                                 for w2 in 0..group_len {
                                     let wstart = usize::from(w2) * 128;
-                                    let mut b = 0;
-                                    let mut sqenergy = 0.;
-                                    dist_2 += s.quantize_band_cost_cache.quantize_band_cost_cached(
+                                    cost_2 += s.quantize_band_cost_cache.quantize_band_cost_cached(
                                         w + c_int::from(w2),
                                         g,
                                         &coefs_1[wstart..][..swb_size.into()],
@@ -543,23 +521,19 @@ pub(crate) fn search(
                                         cb_2,
                                         1.,
                                         f32::INFINITY,
-                                        &mut b,
-                                        &mut sqenergy,
                                         0,
                                     );
-                                    bits_2 += b;
-                                    qenergy_2 += sqenergy;
                                 }
-                                dist_2 -= bits_2 as c_float;
-                                if !(dist_2
+                                cost_2.distortion -= cost_2.bits as c_float;
+                                if !(cost_2.distortion
                                     < uplims[(w * 16 + g) as usize]
                                         .min(euplims[(w * 16 + g) as usize]))
                                 {
                                     break;
                                 }
                                 sce.sf_idx[W(w)][g as usize] += 1;
-                                dists[(w * 16 + g) as usize] = dist_2;
-                                qenergies[(w * 16 + g) as usize] = qenergy_2;
+                                dists[(w * 16 + g) as usize] = cost_2.distortion;
+                                qenergies[(w * 16 + g) as usize] = cost_2.energy;
                                 i += 1;
                             } else {
                                 maxsf[(w * 16 + g) as usize] =
@@ -1074,13 +1048,10 @@ fn quantize_spectrum(
                 }
 
                 let cb = find_min_book(maxval, sf_idx);
-                let (Sum::<c_float>(dist_), Sum::<c_int>(mut bits), Sum::<c_float>(qenergy_)) = (0
-                    ..group_len)
+                let Sum::<QuantizationCost>(mut cost) = (0..group_len)
                     .map(|w2| {
                         let wstart = usize::from(w2) * 128;
-                        let mut bits: c_int = 0;
-                        let mut qenergy: c_float = 0.;
-                        let dist = s.quantize_band_cost_cache.quantize_band_cost_cached(
+                        s.quantize_band_cost_cache.quantize_band_cost_cached(
                             w + c_int::from(w2),
                             g as c_int,
                             &coeffs[wstart..][..swb_size.into()],
@@ -1089,21 +1060,18 @@ fn quantize_spectrum(
                             cb,
                             1.,
                             f32::INFINITY,
-                            &mut bits,
-                            &mut qenergy,
                             0,
-                        );
-                        (dist, bits, qenergy)
+                        )
                     })
                     .reduce_with();
-                *dist = dist_ - bits as c_float;
-                *qenergy = qenergy_;
+                *dist = cost.distortion - cost.bits as c_float;
+                *qenergy = cost.energy;
                 if let Some(prev) = prev {
                     let sfdiff = (sf_idx - prev + c_int::from(SCALE_DIFF_ZERO))
                         .clamp(0, 2 * c_int::from(SCALE_MAX_DIFF));
-                    bits += c_int::from(SCALEFACTOR_BITS[sfdiff as usize]);
+                    cost.bits += c_int::from(SCALEFACTOR_BITS[sfdiff as usize]);
                 }
-                tbits += bits;
+                tbits += cost.bits;
                 prev = Some(sf_idx);
             }
         }

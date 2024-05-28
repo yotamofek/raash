@@ -18,7 +18,9 @@ use reductor::{Reduce, Sum};
 use super::pow::Pow34;
 use crate::{
     aac::{
-        coder::{quantize_band_cost, sfdelta_encoding_range},
+        coder::{
+            quantization::QuantizationCost, quantize_band_cost, sfdelta_encoding_range,
+        },
         encoder::ctx::AACEncContext,
         tables::POW_SF_TABLES,
         IndividualChannelStream, WindowedIteration,
@@ -240,15 +242,15 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                                 .unwrap();
                             let is_band_type = find_min_book(maxval, is_sf_idx);
 
-                            let dist1 = quantize_band_cost(
+                            let QuantizationCost {
+                                distortion: dist1, ..
+                            } = quantize_band_cost(
                                 &L[..swb_size0.into()],
                                 &L34[..swb_size0.into()],
                                 sf_idx0,
                                 *band_type0 as c_int,
                                 lambda / band0.threshold,
                                 f32::INFINITY,
-                                None,
-                                None,
                             ) + quantize_band_cost(
                                 &R[..swb_size1.into()],
                                 &R34[..swb_size1.into()],
@@ -256,8 +258,6 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                                 *band_type1 as c_int,
                                 lambda / band1.threshold,
                                 f32::INFINITY,
-                                None,
-                                None,
                             );
 
                             let dist2 = quantize_band_cost(
@@ -267,20 +267,20 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                                 is_band_type,
                                 lambda / minthr,
                                 f32::INFINITY,
-                                None,
-                                None,
-                            ) + {
-                                let e01_34: c_float = phase * pos_pow34(ener1 / ener0);
-                                let dist_spec_err = izip!(&*L34, &*R34, &*I34)
-                                    .take(swb_size0.into())
-                                    .map(|(&L34, &R34, &I34)| {
-                                        (L34 - I34) * (L34 - I34)
-                                            + (R34 - I34 * e01_34) * (R34 - I34 * e01_34)
-                                    })
-                                    .sum::<c_float>();
+                            )
+                            .distortion
+                                + {
+                                    let e01_34: c_float = phase * pos_pow34(ener1 / ener0);
+                                    let dist_spec_err = izip!(&*L34, &*R34, &*I34)
+                                        .take(swb_size0.into())
+                                        .map(|(&L34, &R34, &I34)| {
+                                            (L34 - I34) * (L34 - I34)
+                                                + (R34 - I34 * e01_34) * (R34 - I34 * e01_34)
+                                        })
+                                        .sum::<c_float>();
 
-                                dist_spec_err * (lambda / minthr)
-                            };
+                                    dist_spec_err * (lambda / minthr)
+                                };
 
                             (dist1, dist2)
                         })

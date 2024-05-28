@@ -274,9 +274,8 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
                     sce.band_alt[W(w + w2)][g as usize] as c_int,
                     lambda / band.threshold,
                     f32::INFINITY,
-                    None,
-                    None,
-                );
+                )
+                .distortion;
                 // Estimate rd on average as 5 bits for SF, 4 for the CB, plus spread energy *
                 // lambda/thr
                 dist2 += band.energy / (band.spread * band.spread) * lambda * dist_thresh

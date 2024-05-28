@@ -54,8 +54,8 @@ use crate::{
     aac::{
         coder::{
             mid_side as ms, perceptual_noise_substitution as pns,
-            quantize_and_encode_band::quantize_and_encode_band, quantizers,
-            set_special_band_scalefactors, trellis,
+            quantization::quantize_and_encode_band, quantizers, set_special_band_scalefactors,
+            trellis,
         },
         encoder::ctx::MdctContext,
         tables::{

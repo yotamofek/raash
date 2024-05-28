@@ -10,7 +10,7 @@
 mod math;
 pub(super) mod mid_side;
 pub(super) mod perceptual_noise_substitution;
-pub(super) mod quantize_and_encode_band;
+pub(super) mod quantization;
 pub(super) mod quantizers;
 pub(super) mod trellis;
 
@@ -22,7 +22,10 @@ use izip::izip;
 use libc::{c_char, c_float, c_int, c_uchar};
 use reductor::{MaxF, Reduce as _, Reductors, Sum};
 
-use self::{math::Float as _, quantize_and_encode_band::quantize_and_encode_band_cost};
+use self::{
+    math::Float as _,
+    quantization::{quantize_and_encode_band_cost, QuantizationCost},
+};
 use super::{
     encoder::ctx::QuantizeBandCostCache, tables::*, IndividualChannelStream, WindowedIteration,
     SCALE_MAX_DIFF,
@@ -221,32 +224,37 @@ impl QuantizeBandCostCache {
         cb: c_int,
         lambda: c_float,
         uplim: c_float,
-        bits: &mut c_int,
-        energy: &mut c_float,
         rtz: c_int,
-    ) -> c_float {
+    ) -> QuantizationCost {
         let entry = &mut self.cache[scale_idx as usize][(w * 16 + g) as usize];
         if entry.generation != self.cache_generation
             || c_int::from(entry.cb) != cb
             || c_int::from(entry.rtz) != rtz
         {
-            entry.rd = quantize_band_cost(
-                in_,
-                scaled,
-                scale_idx,
-                cb,
-                lambda,
-                uplim,
-                Some(&mut entry.bits),
-                Some(&mut entry.energy),
-            );
-            entry.cb = cb as c_char;
-            entry.rtz = rtz as c_char;
-            entry.generation = self.cache_generation;
+            let cost @ QuantizationCost {
+                distortion,
+                bits,
+                energy,
+            } = quantize_band_cost(in_, scaled, scale_idx, cb, lambda, uplim);
+            *entry = AACQuantizeBandCostCacheEntry {
+                rd: distortion,
+                bits,
+                energy,
+                cb: cb as c_char,
+                rtz: rtz as c_char,
+                generation: self.cache_generation,
+            };
+            cost
+        } else {
+            let AACQuantizeBandCostCacheEntry {
+                rd, energy, bits, ..
+            } = *entry;
+            QuantizationCost {
+                distortion: rd,
+                bits,
+                energy,
+            }
         }
-        *bits = entry.bits;
-        *energy = entry.energy;
-        entry.rd
     }
 }
 
@@ -258,12 +266,8 @@ pub(super) fn quantize_band_cost(
     mut cb: c_int,
     lambda: c_float,
     uplim: c_float,
-    bits: Option<&mut c_int>,
-    energy: Option<&mut c_float>,
-) -> c_float {
-    quantize_and_encode_band_cost(
-        in_, None, scaled, scale_idx, cb, lambda, uplim, bits, energy,
-    )
+) -> QuantizationCost {
+    quantize_and_encode_band_cost(in_, None, scaled, scale_idx, cb, lambda, uplim)
 }
 
 #[inline]
@@ -274,19 +278,7 @@ fn quantize_band_cost_bits(
     mut cb: c_int,
     uplim: c_float,
 ) -> c_int {
-    let mut auxbits: c_int = 0;
-    quantize_and_encode_band_cost(
-        in_,
-        None,
-        scaled,
-        scale_idx,
-        cb,
-        0.,
-        uplim,
-        Some(&mut auxbits),
-        None,
-    );
-    auxbits
+    quantize_and_encode_band_cost(in_, None, scaled, scale_idx, cb, 0., uplim).bits
 }
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 419..=456)]

@@ -4,7 +4,7 @@ use std::ops::{AddAssign, Mul, Neg, RangeInclusive};
 
 use bit_writer::{BitBuf, BitWriter};
 use ffmpeg_src_macro::ffmpeg_src;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use izip::izip;
 use libc::{c_double, c_float, c_int};
 use lpc::RefCoeffs;

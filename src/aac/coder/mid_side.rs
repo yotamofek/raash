@@ -7,7 +7,8 @@ use libc::{c_float, c_int};
 use reductor::{Reduce as _, Sum};
 
 use super::{
-    find_min_book, math::Float as _, quantize_band_cost, sfdelta_can_replace, SingleChannelElement,
+    find_min_book, math::Float as _, quantization::QuantizationCost, quantize_band_cost,
+    sfdelta_can_replace, SingleChannelElement,
 };
 use crate::{
     aac::{
@@ -134,10 +135,6 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                         .map(|(bands0, bands1, coeffs0, coeffs1)| {
                             let [band0, band1] = [bands0, bands1].map(|band| &band[g]);
                             let minthr = c_float::min(band0.threshold, band1.threshold);
-                            let mut b1 = 0;
-                            let mut b2 = 0;
-                            let mut b3 = 0;
-                            let mut b4 = 0;
                             for (M, S, (&coeff0, &coeff1)) in
                                 izip!(&mut *M, &mut *S, zip(coeffs0, coeffs1).skip(offset.into()))
                                     .take(swb_size0.into())
@@ -161,15 +158,17 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                             for (S34, S) in zip(&mut *S34, &*S).take(swb_size0.into()) {
                                 *S34 = S.abs_pow34();
                             }
-                            let dist1 = quantize_band_cost(
+                            let QuantizationCost {
+                                distortion: dist1,
+                                bits: B0,
+                                ..
+                            } = quantize_band_cost(
                                 &coeffs0[offset.into()..][..swb_size0.into()],
                                 &L34[..swb_size0.into()],
                                 sf_idx0.get(),
                                 *band_type0 as c_int,
                                 lambda / (band0.threshold + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
-                                Some(&mut b1),
-                                None,
                             ) + quantize_band_cost(
                                 &coeffs1[offset.into()..][..swb_size1.into()],
                                 &R34[..swb_size1.into()],
@@ -177,18 +176,18 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                                 *band_type1 as c_int,
                                 lambda / (band1.threshold + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
-                                Some(&mut b2),
-                                None,
                             );
-                            let dist2 = quantize_band_cost(
+                            let QuantizationCost {
+                                distortion: dist2,
+                                bits: B1,
+                                ..
+                            } = quantize_band_cost(
                                 &M[..swb_size0.into()],
                                 &M34[..swb_size0.into()],
                                 mididx,
                                 midcb,
                                 lambda / (minthr + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
-                                Some(&mut b3),
-                                None,
                             ) + quantize_band_cost(
                                 &S[..swb_size1.into()],
                                 &S34[..swb_size1.into()],
@@ -196,10 +195,8 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                                 sidcb,
                                 mslambda / (minthr * bmax + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
-                                Some(&mut b4),
-                                None,
                             );
-                            (dist1, dist2, b1 + b2, b3 + b4)
+                            (dist1, dist2, B0, B1)
                         })
                         .map(|(dist1, dist2, B0, B1)| {
                             (dist1 - B0 as c_float, dist2 - B1 as c_float, B0, B1)
