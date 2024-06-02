@@ -8,7 +8,7 @@ use std::{
     slice,
 };
 
-pub use self::windowed::{window_idx as W, WindowIdx, WindowedArray};
+pub use self::windowed::{window_idx as W, windowed_window_idx as W2, WindowIdx, WindowedArray};
 
 /// Array that provides a [`Default`] impl for any `N`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

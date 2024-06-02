@@ -8,10 +8,9 @@ use std::{
 use num_traits::AsPrimitive;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(transparent)]
-pub struct WindowIdx(usize);
+pub struct WindowIdx<T>(T);
 
-pub fn window_idx<T, Err>(t: T) -> WindowIdx
+pub fn window_idx<T, Err>(t: T) -> WindowIdx<usize>
 where
     T: TryInto<usize, Error = Err> + AsPrimitive<usize>,
     Err: Debug,
@@ -21,6 +20,14 @@ where
     } else {
         t.try_into().unwrap()
     })
+}
+
+pub fn windowed_window_idx<T, Err>(t: T) -> WindowIdx<WindowIdx<usize>>
+where
+    T: TryInto<usize, Error = Err> + AsPrimitive<usize>,
+    Err: Debug,
+{
+    WindowIdx(window_idx(t))
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -38,7 +45,7 @@ impl<A: ?Sized, const W_SIZE: usize> WindowedArray<A, W_SIZE> {
         unsafe { transmute(arr) }
     }
 
-    const fn window_range(WindowIdx(idx): WindowIdx) -> RangeFrom<usize> {
+    const fn window_range(WindowIdx(idx): WindowIdx<usize>) -> RangeFrom<usize> {
         idx * W_SIZE..
     }
 }
@@ -87,23 +94,45 @@ impl<A: ?Sized, const W_SIZE: usize> DerefMut for WindowedArray<A, W_SIZE> {
     }
 }
 
-impl<A: ?Sized, T, const W_SIZE: usize> Index<WindowIdx> for WindowedArray<A, W_SIZE>
+impl<A: ?Sized, T, const W_SIZE: usize> Index<WindowIdx<usize>> for WindowedArray<A, W_SIZE>
 where
     A: Index<RangeFrom<usize>, Output = [T]>,
 {
     type Output = [T];
 
-    fn index(&self, index: WindowIdx) -> &Self::Output {
+    fn index(&self, index: WindowIdx<usize>) -> &Self::Output {
         self.0.index(Self::window_range(index))
     }
 }
 
-impl<A: ?Sized, T, const W_SIZE: usize> IndexMut<WindowIdx> for WindowedArray<A, W_SIZE>
+impl<A: ?Sized, T, const W_SIZE: usize> IndexMut<WindowIdx<usize>> for WindowedArray<A, W_SIZE>
 where
     A: IndexMut<RangeFrom<usize>, Output = [T]>,
 {
-    fn index_mut(&mut self, index: WindowIdx) -> &mut Self::Output {
+    fn index_mut(&mut self, index: WindowIdx<usize>) -> &mut Self::Output {
         self.0.index_mut(Self::window_range(index))
+    }
+}
+
+impl<A: ?Sized, T, const W_SIZE: usize> Index<WindowIdx<WindowIdx<usize>>>
+    for WindowedArray<A, W_SIZE>
+where
+    A: Index<RangeFrom<usize>, Output = [T]>,
+{
+    type Output = WindowedArray<[T], W_SIZE>;
+
+    fn index(&self, WindowIdx(index): WindowIdx<WindowIdx<usize>>) -> &Self::Output {
+        WindowedArray::from_ref(self.index(index))
+    }
+}
+
+impl<A: ?Sized, T, const W_SIZE: usize> IndexMut<WindowIdx<WindowIdx<usize>>>
+    for WindowedArray<A, W_SIZE>
+where
+    A: IndexMut<RangeFrom<usize>, Output = [T]>,
+{
+    fn index_mut(&mut self, WindowIdx(index): WindowIdx<WindowIdx<usize>>) -> &mut Self::Output {
+        WindowedArray::from_mut(self.index_mut(index))
     }
 }
 
@@ -124,17 +153,22 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Array;
+    use crate::{Array, W, W2};
 
     #[test]
     fn test_windowed_array() {
         let arr = WindowedArray::<_, 4>(Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
-        assert_eq!(&arr[WindowIdx(0)], &(*arr)[0..]);
-        assert_eq!(&arr[WindowIdx(1)], &(*arr)[4..]);
-        assert_eq!(&arr[WindowIdx(2)], &(*arr)[8..]);
-        // assert_eq!(arr[0], 0);
+        assert_eq!(&arr[W(0)], &(*arr)[0..]);
+        assert_eq!(&arr[W(1)], &(*arr)[4..]);
+        assert_eq!(&arr[W(2)], &(*arr)[8..]);
+        assert!((&arr)
+            .into_iter()
+            .take(3)
+            .eq([&(*arr)[0..], &(*arr)[4..], &(*arr)[8..]]));
 
-        // let arr = Array([0, 1, 2]);
-        // let a = &arr[1..];
+        let arr2 = &arr[W2(1)];
+        assert_eq!(&arr2[W(0)], &(*arr)[4..]);
+        assert_eq!(&arr2[W(1)], &(*arr)[8..]);
+        assert!(arr2.into_iter().take(2).eq([&(*arr)[4..], &(*arr)[8..]]));
     }
 }
