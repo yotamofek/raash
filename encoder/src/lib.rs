@@ -6,6 +6,7 @@ mod context;
 mod field;
 mod frame;
 mod packet;
+mod sample;
 
 use std::{ffi::CStr, mem::size_of, ptr::null};
 

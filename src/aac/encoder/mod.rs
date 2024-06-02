@@ -106,7 +106,7 @@ pub(crate) fn quantize_bands(
         .collect()
 }
 
-unsafe fn put_pce(avctx: &CodecContext, s: &mut AACEncContext, pb: &mut BitWriter) {
+fn put_pce(avctx: &CodecContext, s: &mut AACEncContext, pb: &mut BitWriter) {
     let mut i: c_int = 0;
     let mut j: c_int = 0;
     let mut pce = &s.pce.unwrap();
@@ -146,7 +146,7 @@ unsafe fn put_pce(avctx: &CodecContext, s: &mut AACEncContext, pb: &mut BitWrite
     }
 }
 
-unsafe fn put_audio_specific_config(avctx: &mut CodecContext, s: &mut AACEncContext) -> c_int {
+fn put_audio_specific_config(avctx: &mut CodecContext, s: &mut AACEncContext) -> c_int {
     const MAX_SIZE: usize = 32;
 
     let channels =
@@ -527,7 +527,7 @@ fn copy_input_samples(s: &mut AACEncContext, frame: Option<&Frame>) {
         // copy new samples...
         if let Some(frame) = frame {
             unsafe {
-                let extended_data = frame.get_extended_data::<c_float>(reorder.into());
+                let extended_data = frame.get_extended_data_unchecked::<c_float>(reorder.into());
 
                 let ext;
                 (ext, end) = end.split_at_mut_unchecked(extended_data.len());

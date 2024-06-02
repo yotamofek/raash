@@ -7,3 +7,4 @@ edition = "2021"
 bit-writer = { version = "0.1.0", path = "../bit-writer" }
 ffi = { version = "0.1.0", path = "../ffi" }
 libc = "0.2.150"
+thiserror = "1.0.61"
