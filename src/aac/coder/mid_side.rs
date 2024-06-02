@@ -1,6 +1,6 @@
 use std::iter::zip;
 
-use array_util::{WindowedArray, W};
+use array_util::{WindowedArray, W, W2};
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
 use libc::{c_float, c_int};
@@ -42,13 +42,11 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
     let [sf_indices0, sf_indices1] =
         [&mut sce0.sf_idx, &mut sce1.sf_idx].map(WindowedArray::as_array_of_cells_deref);
     for WindowedIteration { w, group_len } in sce0.ics.iter_windows() {
-        let [coeffs0, coeffs1] = [&sce0.coeffs, &sce1.coeffs]
-            .map(|coeffs| WindowedArray::<_, 128>::from_ref(&coeffs[W(w)]));
-        let [psy_chans0, psy_chans1, ..] = &s.psy.ch[(s.cur_channel) as usize..] else {
+        let [coeffs0, coeffs1] = [&sce0.coeffs, &sce1.coeffs].map(|coeffs| &coeffs[W2(w)]);
+        let [psy_chans0, psy_chans1, ..] = &s.psy.ch[s.cur_channel as usize..] else {
             unreachable!();
         };
-        let [psy_bands0, psy_bands1] = [psy_chans0, psy_chans1]
-            .map(|ch| WindowedArray::<_, 16>::from_ref(&ch.psy_bands[W(w)]));
+        let [psy_bands0, psy_bands1] = [psy_chans0, psy_chans1].map(|ch| &ch.psy_bands[W2(w)]);
         for (
             g,
             (
@@ -257,8 +255,7 @@ pub(crate) fn apply(cpe: &mut ChannelElement) {
     for WindowedIteration { w, group_len } in ics.iter_windows() {
         let [coeffs0, coeffs1] = [&mut *coeffs0, &mut *coeffs1]
             .map(WindowedArray::as_array_of_cells_deref)
-            .map(|coeffs| &coeffs[W(w)])
-            .map(WindowedArray::<_, 128>::from_ref);
+            .map(|coeffs| &coeffs[W2(w)]);
         for (L_coeffs, R_coeffs) in zip(coeffs0, coeffs1).take(group_len.into()) {
             for ((swb_size, offset), ..) in izip!(
                 ics.iter_swb_sizes_sum(),

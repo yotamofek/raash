@@ -8,7 +8,7 @@
 
 use std::{iter::zip, ops::Mul};
 
-use array_util::{WindowedArray, W};
+use array_util::{WindowedArray, W, W2};
 use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
@@ -18,9 +18,7 @@ use reductor::{Reduce, Sum};
 use super::pow::Pow34;
 use crate::{
     aac::{
-        coder::{
-            quantization::QuantizationCost, quantize_band_cost, sfdelta_encoding_range,
-        },
+        coder::{quantization::QuantizationCost, quantize_band_cost, sfdelta_encoding_range},
         encoder::ctx::AACEncContext,
         tables::POW_SF_TABLES,
         IndividualChannelStream, WindowedIteration,
@@ -136,10 +134,8 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
     let freq_mult = sample_rate as c_float / (1024. / num_windows as c_float) / 2.;
 
     for WindowedIteration { w, group_len } in ics0.iter_windows() {
-        let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(|coeffs| &coeffs[W(w)]);
-        let [psy_bands0, psy_bands1] = [psy_bands0, psy_bands1]
-            .map(|bands| &bands[W(w)])
-            .map(WindowedArray::<_, 16>::from_ref);
+        let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(|coeffs| &coeffs[W2(w)]);
+        let [psy_bands0, psy_bands1] = [psy_bands0, psy_bands1].map(|bands| &bands[W2(w)]);
 
         for (
             g,
@@ -182,7 +178,7 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
             {
                 let (Sum::<c_float>(ener0), Sum::<c_float>(ener1), Sum(ener01), Sum(ener01p)) = {
                     let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(|coeffs| {
-                        coeffs[start as usize..][..usize::from(group_len) * 128]
+                        (**coeffs)[start as usize..][..usize::from(group_len) * 128]
                             .array_chunks::<128>()
                             .flat_map(|chunk| &chunk[..swb_size0.into()])
                     });
@@ -205,7 +201,7 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                         return None;
                     }
 
-                    let [L, R] = [coeffs0, coeffs1].map(WindowedArray::<_, 128>::from_ref);
+                    let [L, R] = [coeffs0, coeffs1];
 
                     let ([L34, R34, IS, I34, ..], []) = scaled_coeffs.as_chunks_mut::<256>() else {
                         unreachable!();

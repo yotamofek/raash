@@ -27,7 +27,7 @@ use std::{
     ptr::{self, addr_of, null_mut},
 };
 
-use array_util::{WindowedArray, W};
+use array_util::{WindowedArray, W, W2};
 use arrayvec::ArrayVec;
 use bit_writer::{BitBuf, BitWriter};
 use encoder::{encoder, Class, CodecContext, Encoder, Frame, PacketBuilder};
@@ -259,10 +259,10 @@ fn adjust_frame_information(cpe: &mut ChannelElement, chans: c_int) {
 
         let zeroes = zeroes.as_array_of_cells_deref();
         for WindowedIteration { w, group_len } in ics.iter_windows() {
-            let zeroes = &zeroes[W(w)];
+            let zeroes = &zeroes[W2(w)];
             for (g, zero) in zeroes.iter().take(ics.max_sfb.into()).enumerate() {
                 zero.set(
-                    WindowedArray::<_, 16>::from_ref(zeroes)
+                    zeroes
                         .into_iter()
                         .take(group_len.into())
                         .all(|zeroes| zeroes[g].get()),
@@ -403,7 +403,7 @@ fn encode_spectral_coeffs(s: &mut AACEncContext, sce: &SingleChannelElement, pb:
         .take(max_sfb.into())
         .filter(|&(_, &zero, ..)| !zero)
         {
-            let coeffs = WindowedArray::<_, 128>::from_ref(&coeffs[W(w)]);
+            let coeffs = &coeffs[W2(w)];
             for coeffs in coeffs.into_iter().take(group_len.into()) {
                 quantize_and_encode_band(
                     pb,
