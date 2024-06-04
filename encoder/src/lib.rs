@@ -49,7 +49,7 @@ pub trait Encoder: Class {
     const SUPPORTED_SAMPLERATES: &'static [c_int];
     /// Last element must be `-1`.
     const SAMPLE_FMTS: &'static [AVSampleFormat];
-    /// Last element must be [`FFCodecDefault::zero`].
+    /// Last element must be [`FFCodecDefault::null`].
     const DEFAULTS: &'static [FFCodecDefault];
 
     type Ctx;

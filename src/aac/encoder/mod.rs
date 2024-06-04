@@ -550,13 +550,13 @@ impl IndividualChannelStream {
     fn apply_psy_window_info(
         &mut self,
         tag: SyntaxElementType,
-        &FFPsyWindowInfo {
+        &PsyWindowInfo {
             window_type: [window_type, ..],
             window_shape,
             num_windows,
-            ref grouping,
+            grouping,
             ..
-        }: &FFPsyWindowInfo,
+        }: &PsyWindowInfo,
         psy: &FFPsyContext,
         samplerate_index: c_int,
     ) {
@@ -581,7 +581,7 @@ impl IndividualChannelStream {
             swb_sizes: psy.bands[usize::from(num_windows == WindowCount::Eight)],
             num_swb,
             max_sfb: max_sfb.min(num_swb as c_uchar),
-            group_len: grouping.map(|grouping| grouping as c_uchar),
+            group_len: grouping,
             ..if window_type == WindowSequence::EightShort {
                 IndividualChannelStream {
                     swb_offset: SWB_OFFSET_128[samplerate_index as usize],
@@ -645,7 +645,7 @@ fn analyze_psy_windows(
     ctx: &mut AACEncContext,
     cpe: &mut Box<[ChannelElement]>,
     frame: Option<&Frame>,
-    windows: &mut [FFPsyWindowInfo; 16],
+    windows: &mut [PsyWindowInfo; 16],
 ) {
     let mut windows = windows.as_mut_slice();
     let mut planar_samples = ctx.planar_samples.as_mut();
@@ -707,7 +707,7 @@ unsafe fn aac_encode_frame(
     let mut is_mode = false;
     let mut tns_mode = false;
     let mut pred_mode = false;
-    let mut windows = [FFPsyWindowInfo::default(); 16];
+    let mut windows = [PsyWindowInfo::default(); 16];
 
     if let Some(frame) = frame {
         ctx.afq.add_frame(avctx, frame)

@@ -1,12 +1,3 @@
-#![allow(
-    mutable_transmutes,
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals,
-    unused_assignments,
-    unused_mut
-)]
-
 use std::{
     array,
     cell::Cell,
@@ -75,36 +66,64 @@ enum AvoidHoles {
     None,
 }
 
+/// information for single band used by 3GPP TS26.403-inspired psychoacoustic
+/// model
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 105..=118, name = "AacPsyBand")]
 #[derive(Copy, Clone, Default)]
-pub(crate) struct AacPsyBand {
+struct Band {
+    /// band energy
     energy: c_float,
+    /// energy threshold
     threshold: c_float,
+    /// threshold in quiet
     thr_quiet: c_float,
+    /// number of non-zero spectral lines
     nz_lines: c_float,
+    /// number of active spectral lines
     active_lines: c_float,
+    /// perceptual entropy
     pe: c_float,
+    /// constant part of the PE calculation
     pe_const: c_float,
+    /// normalization factor for linearization
     norm_fac: c_float,
+    /// hole avoidance flag
     avoid_holes: AvoidHoles,
 }
 
+/// single/pair channel context for psychoacoustic model
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 123..=135, name = "AacPsyChannel")]
 #[derive(Copy, Clone, Default)]
-pub(crate) struct AacPsyChannel {
-    band: WindowedArray<Array<AacPsyBand, 128>, 16>,
-    prev_band: WindowedArray<Array<AacPsyBand, 128>, 16>,
+struct Channel {
+    /// bands information
+    band: WindowedArray<Array<Band, 128>, 16>,
+    /// bands information from the previous frame
+    prev_band: WindowedArray<Array<Band, 128>, 16>,
+    /// stored grouping scheme for the next frame (in case of 8 short window
+    /// sequence)
     next_grouping: c_uchar,
+    /// window sequence to be used in the next frame
     next_window_seq: WindowSequence,
+    /// attack threshold for this channel
     attack_threshold: c_float,
     prev_energy_subshort: [c_float; 24],
+    /// attack value for the last short block in the previous sequence
     prev_attack: c_int,
 }
 
+/// psychoacoustic model frame type-dependent coefficients
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 137..=146, name = "AacPsyCoeffs")]
 #[derive(Copy, Clone, Default)]
-pub(crate) struct AacPsyCoeffs {
+struct Coeffs {
+    /// absolute threshold of hearing per bands
     ath: c_float,
+    /// Bark value for each spectral band in long frame
     barks: c_float,
+    /// spreading factor for low-to-high threshold spreading in long frame
     spread_low: [c_float; 2],
+    /// spreading factor for high-to-low threshold spreading in long frame
     spread_hi: [c_float; 2],
+    /// minimal SNR
     min_snr: c_float,
 }
 
@@ -115,8 +134,8 @@ pub(crate) struct AacPsyContext {
     /// bitrate per channel
     chan_bitrate: c_int,
     pe: PEContext,
-    psy_coef: [Array<AacPsyCoeffs, 64>; 2],
-    ch: Box<[AacPsyChannel]>,
+    psy_coef: [Array<Coeffs, 64>; 2],
+    ch: Box<[Channel]>,
 }
 
 /// (yotam): Split out from [`AacPsyContext`] to appease borrow checker
@@ -131,7 +150,7 @@ struct PEContext {
 
 /// Perceptual entropy state
 #[derive(Copy, Clone, Default)]
-pub(crate) struct PEState {
+struct PEState {
     /// minimum allowed PE for bit factor calculation
     min: c_float,
     /// maximum allowed PE for bit factor calculation
@@ -140,48 +159,61 @@ pub(crate) struct PEState {
     previous: c_float,
 }
 
+/// LAME psy model preset struct
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 166..=175, name = "PsyLamePreset")]
 #[derive(Copy, Clone)]
-pub(crate) struct PsyLamePreset {
+struct LamePreset {
+    /// Quality to map the rest of the vaules to.
+    ///
+    /// This is overloaded to be both kbps per channel in ABR mode, and
+    /// requested quality in constant quality mode.
     quality: c_int,
+    /// short threshold for L, R, and M channels
     st_lrm: c_float,
 }
 
-impl PsyLamePreset {
-    pub(crate) const fn new(quality: c_int, st_lrm: c_float) -> Self {
+impl LamePreset {
+    const fn new(quality: c_int, st_lrm: c_float) -> Self {
         Self { quality, st_lrm }
     }
 }
 
-static ABR_MAP: [PsyLamePreset; 13] = [
-    PsyLamePreset::new(8, 6.60),
-    PsyLamePreset::new(16, 6.60),
-    PsyLamePreset::new(24, 6.60),
-    PsyLamePreset::new(32, 6.60),
-    PsyLamePreset::new(40, 6.60),
-    PsyLamePreset::new(48, 6.60),
-    PsyLamePreset::new(56, 6.60),
-    PsyLamePreset::new(64, 6.40),
-    PsyLamePreset::new(80, 6.00),
-    PsyLamePreset::new(96, 5.60),
-    PsyLamePreset::new(112, 5.20),
-    PsyLamePreset::new(128, 5.20),
-    PsyLamePreset::new(160, 5.20),
+/// LAME psy model preset table for ABR
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 177..=196, name = "psy_abr_map")]
+static ABR_MAP: [LamePreset; 13] = [
+    LamePreset::new(8, 6.60),
+    LamePreset::new(16, 6.60),
+    LamePreset::new(24, 6.60),
+    LamePreset::new(32, 6.60),
+    LamePreset::new(40, 6.60),
+    LamePreset::new(48, 6.60),
+    LamePreset::new(56, 6.60),
+    LamePreset::new(64, 6.40),
+    LamePreset::new(80, 6.00),
+    LamePreset::new(96, 5.60),
+    LamePreset::new(112, 5.20),
+    LamePreset::new(128, 5.20),
+    LamePreset::new(160, 5.20),
 ];
 
-static VBR_MAP: [PsyLamePreset; 11] = [
-    PsyLamePreset::new(0, 4.20),
-    PsyLamePreset::new(1, 4.20),
-    PsyLamePreset::new(2, 4.20),
-    PsyLamePreset::new(3, 4.20),
-    PsyLamePreset::new(4, 4.20),
-    PsyLamePreset::new(5, 4.20),
-    PsyLamePreset::new(6, 4.20),
-    PsyLamePreset::new(7, 4.20),
-    PsyLamePreset::new(8, 4.20),
-    PsyLamePreset::new(9, 4.20),
-    PsyLamePreset::new(10, 4.20),
+/// LAME psy model preset table for constant quality
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 198..=214, name = "psy_vbr_map")]
+static VBR_MAP: [LamePreset; 11] = [
+    LamePreset::new(0, 4.20),
+    LamePreset::new(1, 4.20),
+    LamePreset::new(2, 4.20),
+    LamePreset::new(3, 4.20),
+    LamePreset::new(4, 4.20),
+    LamePreset::new(5, 4.20),
+    LamePreset::new(6, 4.20),
+    LamePreset::new(7, 4.20),
+    LamePreset::new(8, 4.20),
+    LamePreset::new(9, 4.20),
+    LamePreset::new(10, 4.20),
 ];
 
+/// LAME psy model FIR coefficient table
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 216..=223, name = "psy_fir_coeffs")]
 static FIR_COEFFS: [c_float; 10] = [
     -8.65163e-18 * 2.,
     -0.00851586 * 2.,
@@ -224,13 +256,14 @@ pub(crate) fn cutoff_from_bitrate(bit_rate: c_int, channels: c_int, sample_rate:
         .min(sample_rate / 2)
 }
 
+/// Calculate the ABR attack threshold from the above LAME psymodel table.
+#[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 229..=257)]
 fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
     let mut lower_range: c_int = 12;
     let mut upper_range: c_int = 12;
     let mut lower_range_kbps: c_int = ABR_MAP[12].quality;
     let mut upper_range_kbps: c_int = ABR_MAP[12].quality;
-    let mut i: c_int = 0;
-    i = 1;
+    let mut i = 1;
     while i < 13 {
         if (if bitrate > ABR_MAP[i as usize].quality {
             bitrate
@@ -254,8 +287,8 @@ fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
 }
 
 #[cold]
-fn lame_window_init(avctx: &CodecContext) -> AacPsyChannel {
-    AacPsyChannel {
+fn lame_window_init(avctx: &CodecContext) -> Channel {
+    Channel {
         attack_threshold: if avctx.flags().get().qscale() {
             VBR_MAP[(avctx.global_quality().get() / 118).clamp(0, 10) as usize].st_lrm
         } else {
@@ -270,7 +303,7 @@ fn lame_window_init(avctx: &CodecContext) -> AacPsyChannel {
 }
 
 #[cold]
-fn calc_bark(mut f: c_float) -> c_float {
+fn calc_bark(f: c_float) -> c_float {
     13.3 * (0.00076 * f).atan() + 3.5 * (f / 7500. * (f / 7500.)).atan()
 }
 
@@ -280,7 +313,7 @@ const ATH_ADD: c_float = 4.;
 #[cold]
 /// Calculate ATH (Absolute Threshold of Hearing) value for given frequency.
 /// Borrowed from Lame.
-fn ath(mut f: c_float, mut add: c_float) -> c_float {
+fn ath(f: c_float, add: c_float) -> c_float {
     let f = c_double::from(f / 1000.);
     let add = c_double::from(add);
     (3.64 * f.powf(-0.8) - 6.8 * (-0.6 * (f - 3.4).powi(2)).exp()
@@ -341,7 +374,7 @@ impl AacPsyContext {
         ctx.bitres.size -= ctx.bitres.size % 8;
 
         let psy_coeffs = {
-            let mut coeffs = [Array([AacPsyCoeffs::default(); 64]); 2];
+            let mut coeffs = [Array([Coeffs::default(); 64]); 2];
             let num_bark = calc_bark(bandwidth as c_float);
 
             let minath = ath((3410. - 0.733 * ATH_ADD) as c_float, ATH_ADD);
@@ -387,7 +420,7 @@ impl AacPsyContext {
                         zip(coeffs.array_windows(), band_sizes).take(num_bands as usize - 1)
                     {
                         let bark_width: c_float = coeff1.get().barks - coeffs[0].get().barks;
-                        coeff0.update(|coeff| AacPsyCoeffs {
+                        coeff0.update(|coeff| Coeffs {
                             spread_low: [-bark_width * 3., -bark_width * en_spread_low]
                                 .map(Exp10::exp10),
                             spread_hi: [-bark_width * 1.5, -bark_width * en_spread_hi]
@@ -407,7 +440,7 @@ impl AacPsyContext {
                     for (coeff, &band_size) in
                         zip(&mut *coeffs, band_sizes).take(num_bands as usize)
                     {
-                        let mut minscale = (0..c_int::from(band_size))
+                        let minscale = (0..c_int::from(band_size))
                             .map(|i| ath((start + i) as c_float * line_to_frequency, 4.))
                             .min_by(c_float::total_cmp)
                             .unwrap();
@@ -547,7 +580,7 @@ impl PEContext {
     }
 }
 
-fn calc_pe_3gpp(band: &mut AacPsyBand) -> c_float {
+fn calc_pe_3gpp(band: &mut Band) -> c_float {
     band.pe = 0.;
     band.pe_const = 0.;
     band.active_lines = 0.;
@@ -583,7 +616,7 @@ fn calc_reduction_3gpp(
     reduction.max(0.)
 }
 
-impl AacPsyBand {
+impl Band {
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 574..=597, name = "calc_reduced_thr_3gpp")]
     fn calc_reduced_threshold(&mut self, min_snr: c_float, reduction: c_float) -> c_float {
         let mut thr = self.threshold;
@@ -607,11 +640,11 @@ impl AacPsyBand {
 
 #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 600..=627)]
 fn calc_thr_3gpp(
-    mut wi: &FFPsyWindowInfo,
+    wi: &PsyWindowInfo,
     num_bands: c_int,
-    mut pch: &mut AacPsyChannel,
-    mut band_sizes: &[c_uchar],
-    mut coefs: &[c_float],
+    pch: &mut Channel,
+    band_sizes: &[c_uchar],
+    coefs: &[c_float],
     cutoff: c_int,
 ) {
     let mut start = 0;
@@ -680,16 +713,16 @@ impl FFPsyContext {
         avctx: &CodecContext,
         channel: c_int,
         coefs: &[c_float],
-        wi: &FFPsyWindowInfo,
+        wi: &PsyWindowInfo,
     ) {
         let pctx = &mut *self.model_priv_data;
         let pch = &mut pctx.ch[channel as usize];
         let ch = &mut self.ch[channel as usize];
-        let mut desired_bits: c_float = 0.;
-        let mut desired_pe: c_float = 0.;
+        let mut desired_bits: c_float;
+        let mut desired_pe: c_float;
         let mut delta_pe: c_float = 0.;
         let mut reduction: c_float = f32::NAN;
-        let mut spread_en = WindowedArray::<_, 16>([const { Cell::new(0.) }; 128]);
+        let spread_en = WindowedArray::<_, 16>([const { Cell::new(0.) }; 128]);
         let mut a: c_float = 0.;
         let mut active_lines: c_float = 0.;
         let mut norm_fac: c_float = 0.;
@@ -735,7 +768,7 @@ impl FFPsyContext {
                 spread_ens.array_windows(),
                 &coeffs[1..num_bands as usize]
             ) {
-                band1.update(|band| AacPsyBand {
+                band1.update(|band| Band {
                     threshold: c_float::max(
                         band.threshold,
                         band0.get().threshold * coeff.spread_hi[0],
@@ -754,7 +787,7 @@ impl FFPsyContext {
             )
             .rev()
             {
-                band0.update(|band| AacPsyBand {
+                band0.update(|band| Band {
                     threshold: c_float::max(
                         band.threshold,
                         band1.get().threshold * coeff.spread_low[0],
@@ -855,7 +888,7 @@ impl FFPsyContext {
                 (Sum(pe), Sum(a), Sum(active_lines)) = zip(bands, &*coeffs)
                     .take(num_bands as usize)
                     .map(|(band, coeffs)| {
-                        let AacPsyBand {
+                        let Band {
                             active_lines,
                             pe,
                             pe_const,
@@ -879,9 +912,9 @@ impl FFPsyContext {
                         .take(c_uchar::from(wi.num_windows).into())
                         .flat_map(|bands| bands.iter().take(num_bands as usize))
                         .map(Cell::get)
-                        .filter(|&AacPsyBand { avoid_holes, .. }| avoid_holes != AvoidHoles::Active)
+                        .filter(|&Band { avoid_holes, .. }| avoid_holes != AvoidHoles::Active)
                         .map(
-                            |AacPsyBand {
+                            |Band {
                                  active_lines,
                                  pe,
                                  pe_const,
@@ -973,7 +1006,7 @@ impl FFPsyContext {
                                 && coeffs.get().min_snr < SNR_1DB
                         })
                     {
-                        coeffs.update(|coeffs| AacPsyCoeffs {
+                        coeffs.update(|coeffs| Coeffs {
                             min_snr: SNR_1DB,
                             ..coeffs
                         });
@@ -997,7 +1030,7 @@ impl FFPsyContext {
         {
             for (
                 psy_band,
-                &AacPsyBand {
+                &Band {
                     threshold,
                     energy,
                     active_lines,
@@ -1023,7 +1056,7 @@ impl FFPsyContext {
         avctx: &CodecContext,
         channel: c_int,
         coeffs: &[&[c_float]; 2],
-        wi: &[FFPsyWindowInfo],
+        wi: &[PsyWindowInfo],
     ) {
         let &FFPsyChannelGroup { num_ch } = self.find_group(channel);
         for (ch, (&coeffs, wi)) in zip(coeffs, wi).take(num_ch.into()).enumerate() {
@@ -1034,10 +1067,10 @@ impl FFPsyContext {
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 884..=1020, name = "psy_lame_window")]
     pub(super) fn window(
         &mut self,
-        mut la: Option<&[c_float]>,
-        mut channel: c_int,
-        mut prev_type: WindowSequence,
-    ) -> FFPsyWindowInfo {
+        la: Option<&[c_float]>,
+        channel: c_int,
+        prev_type: WindowSequence,
+    ) -> PsyWindowInfo {
         let pctx = &mut *self.model_priv_data;
         let pch = &mut pctx.ch[channel as usize];
         let mut use_long_block = true;
@@ -1127,16 +1160,16 @@ impl FFPsyContext {
         }
 
         let window_type = pch.apply_block_type(use_long_block);
-        let wi = FFPsyWindowInfo {
+        let wi = PsyWindowInfo {
             window_type: [window_type, prev_type, Default::default()],
             ..match window_type {
-                WindowSequence::EightShort => FFPsyWindowInfo {
+                WindowSequence::EightShort => PsyWindowInfo {
                     window_shape: WindowShape::Sine,
                     num_windows: WindowCount::Eight,
                     grouping: calc_grouping(pch.next_grouping),
                     ..Default::default()
                 },
-                window_type => FFPsyWindowInfo {
+                window_type => PsyWindowInfo {
                     window_shape: match window_type {
                         WindowSequence::LongStart => WindowShape::Sine,
                         _ => WindowShape::Kbd,
@@ -1159,7 +1192,7 @@ impl FFPsyContext {
     }
 }
 
-impl AacPsyChannel {
+impl Channel {
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 866..=882, name = "lame_apply_block_type")]
     fn apply_block_type(&mut self, use_long_block: bool) -> WindowSequence {
         use WindowSequence::*;
@@ -1178,7 +1211,7 @@ impl AacPsyChannel {
 }
 
 #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 996..=1000)]
-fn calc_grouping(next_grouping: c_uchar) -> [c_int; 8] {
+fn calc_grouping(next_grouping: c_uchar) -> [c_uchar; 8] {
     let mut grouping = [0; 8];
     let mut last = 0;
     for i in 0..8 {

@@ -135,11 +135,11 @@ pub(crate) enum WindowShape {
 }
 
 #[derive(Copy, Clone, Default)]
-pub(crate) struct FFPsyWindowInfo {
+pub(crate) struct PsyWindowInfo {
     pub(crate) window_type: [WindowSequence; 3],
     pub(crate) window_shape: WindowShape,
     pub(crate) num_windows: WindowCount,
-    pub(crate) grouping: [c_int; 8],
+    pub(crate) grouping: [c_uchar; 8],
 }
 
 #[derive(Clone, Default)]
