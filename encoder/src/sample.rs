@@ -53,8 +53,6 @@ pub(super) enum SampleFormat {
 impl SampleFormat {
     /// Size (in bytes) of samples in this format
     pub(super) fn size(self) -> usize {
-        use self::*;
-
         match self {
             Self::U8 | Self::U8P => size_of::<u8>(),
             Self::S16 | Self::S16P => size_of::<i16>(),

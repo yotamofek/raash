@@ -29,6 +29,7 @@ macro_rules! impl_fields {
         impl $struct$(<$lt>)? {
             $(
                 $(#[doc = $lit])*
+                #[inline]
                 $vis fn $field(&self) -> $crate::field::Field<$ty> {
                     unsafe {
                         let ptr = NonNull::new_unchecked(::std::ptr::addr_of_mut!((*self.0.as_ptr()).$field));
