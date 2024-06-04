@@ -259,47 +259,26 @@ pub(crate) fn cutoff_from_bitrate(bit_rate: c_int, channels: c_int, sample_rate:
 /// Calculate the ABR attack threshold from the above LAME psymodel table.
 #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 229..=257)]
 fn lame_calc_attack_threshold(bitrate: c_int) -> c_float {
-    let mut lower_range: c_int = 12;
-    let mut upper_range: c_int = 12;
-    let mut lower_range_kbps: c_int = ABR_MAP[12].quality;
-    let mut upper_range_kbps: c_int = ABR_MAP[12].quality;
-    let mut i = 1;
-    while i < 13 {
-        if (if bitrate > ABR_MAP[i as usize].quality {
-            bitrate
-        } else {
-            ABR_MAP[i as usize].quality
-        }) != bitrate
-        {
-            upper_range = i;
-            upper_range_kbps = ABR_MAP[i as usize].quality;
-            lower_range = i - 1;
-            lower_range_kbps = ABR_MAP[(i - 1) as usize].quality;
-            break;
-        } else {
-            i += 1;
-        }
-    }
-    if upper_range_kbps - bitrate > bitrate - lower_range_kbps {
-        return ABR_MAP[lower_range as usize].st_lrm;
-    }
-    ABR_MAP[upper_range as usize].st_lrm
-}
+    ABR_MAP
+        .array_windows()
+        // Determine which bitrates the value specified falls between.
+        .find_map(|[lower, upper]| {
+            if bitrate.max(upper.quality) == bitrate {
+                return None;
+            }
 
-#[cold]
-fn lame_window_init(avctx: &CodecContext) -> Channel {
-    Channel {
-        attack_threshold: if avctx.flags().get().qscale() {
-            VBR_MAP[(avctx.global_quality().get() / 118).clamp(0, 10) as usize].st_lrm
-        } else {
-            lame_calc_attack_threshold(
-                (avctx.bit_rate().get() / c_long::from(avctx.ch_layout().get().nb_channels) / 1000)
-                    as c_int,
-            )
-        },
-        prev_energy_subshort: [10.; _],
-        ..Default::default()
-    }
+            // Determine which range the value specified is closer to
+            Some(if upper.quality - bitrate > bitrate - lower.quality {
+                lower
+            } else {
+                upper
+            })
+        })
+        .unwrap_or(
+            // If the loop ends without breaking assume max bitrate.
+            &ABR_MAP[12],
+        )
+        .st_lrm
 }
 
 #[cold]
@@ -471,7 +450,7 @@ impl AacPsyContext {
                 fill_level: ctx.bitres.size,
             },
             psy_coef: psy_coeffs,
-            ch: vec![lame_window_init(avctx); avctx.ch_layout().get().nb_channels as usize]
+            ch: vec![Channel::new(avctx); avctx.ch_layout().get().nb_channels as usize]
                 .into_boxed_slice(),
         }
     }
@@ -1193,6 +1172,25 @@ impl FFPsyContext {
 }
 
 impl Channel {
+    /// LAME psy model specific initialization
+    #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 259..=277, name = "lame_window_init")]
+    #[cold]
+    fn new(avctx: &CodecContext) -> Channel {
+        Channel {
+            attack_threshold: if avctx.flags().get().qscale() {
+                VBR_MAP[(avctx.global_quality().get() / 118).clamp(0, 10) as usize].st_lrm
+            } else {
+                lame_calc_attack_threshold(
+                    (avctx.bit_rate().get()
+                        / c_long::from(avctx.ch_layout().get().nb_channels)
+                        / 1000) as c_int,
+                )
+            },
+            prev_energy_subshort: [10.; _],
+            ..Default::default()
+        }
+    }
+
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 866..=882, name = "lame_apply_block_type")]
     fn apply_block_type(&mut self, use_long_block: bool) -> WindowSequence {
         use WindowSequence::*;
