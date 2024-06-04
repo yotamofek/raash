@@ -5,7 +5,7 @@ use bit_writer::{BitBuf, BitWriter};
 use itertools::Itertools as _;
 use libc::{c_float, c_int, c_uint};
 
-use super::{quantize_band_cost_bits, run_value_bits, CB_IN_MAP, CB_OUT_MAP};
+use super::{quantize_band_cost_bits, run_value_bits, WindowCount, CB_IN_MAP, CB_OUT_MAP};
 use crate::{
     aac::encoder::{ctx::AACEncContext, pow::Pow34 as _},
     types::{BandType, SingleChannelElement},
@@ -36,7 +36,11 @@ pub(crate) fn codebook_rate(
 ) {
     let mut path = [[BandCodingPath::default(); 15]; 120];
     let max_sfb = c_int::from(sce.ics.max_sfb);
-    let run_bits = if sce.ics.num_windows == 1 { 5 } else { 3 };
+    let run_bits = if sce.ics.num_windows == WindowCount::One {
+        5
+    } else {
+        3
+    };
     let run_esc = (1 << run_bits) - 1;
     let mut next_minbits = c_float::INFINITY;
     let mut next_mincb = 0;

@@ -4,7 +4,7 @@ use array_util::W;
 use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
-use libc::{c_char, c_double, c_float, c_int, c_long, c_ushort};
+use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_ushort};
 use reductor::{Reduce as _, Sum};
 
 use crate::{
@@ -79,7 +79,7 @@ pub(crate) fn search(
         too_few_bits = dest_bits / 16;
 
         // Don't offset scalers, just RD
-        sfoffs = (sce.ics.num_windows - 1) as c_float;
+        sfoffs = c_float::from(c_uchar::from(sce.ics.num_windows) - 1);
         rdlambda = rdlambda.sqrt();
 
         // search further
@@ -95,7 +95,7 @@ pub(crate) fn search(
         sfoffs = 0.;
         rdlambda = rdlambda.sqrt();
     }
-    let wlen: c_int = 1024 / sce.ics.num_windows;
+    let wlen: c_int = 1024 / c_int::from(c_uchar::from(sce.ics.num_windows));
 
     let frame_bit_rate = frame_bit_rate(avctx, &*s, refbits, 1.5);
     let bandwidth = if avctx.cutoff().get() > 0 {
@@ -442,7 +442,7 @@ pub(crate) fn search(
                                 break;
                             }
                             if g == 0
-                                && sce.ics.num_windows > 1
+                                && sce.ics.num_windows == WindowCount::Eight
                                 && dists[(w * 16 + g) as usize] >= euplims[(w * 16 + g) as usize]
                             {
                                 maxsf[(w * 16 + g) as usize] = c_int::min(
@@ -714,7 +714,7 @@ fn scale_uplims(
     let mut euplims = *uplims;
     for WindowedIteration { w, group_len } in ics.iter_windows() {
         // psy already priorizes transients to some extent
-        let de_psy_factor = if ics.num_windows > 1 {
+        let de_psy_factor = if ics.num_windows == WindowCount::Eight {
             8. / c_float::from(group_len)
         } else {
             1.

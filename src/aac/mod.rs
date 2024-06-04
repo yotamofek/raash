@@ -3,6 +3,8 @@ use std::iter;
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_int, c_uchar, c_ushort};
 
+use crate::types::WindowCount;
+
 pub mod coder;
 pub mod encoder;
 pub mod psy_model;
@@ -81,7 +83,7 @@ pub(crate) struct IndividualChannelStream {
     swb_sizes: &'static [c_uchar],
     /// number of scalefactor window bands
     num_swb: c_int,
-    num_windows: c_int,
+    num_windows: WindowCount,
     tns_max_bands: c_int,
     predictor_present: bool,
     /// set if a certain window is near clipping
@@ -105,11 +107,9 @@ impl IndividualChannelStream {
             ..
         } = *self;
 
-        debug_assert!(num_windows <= 8, "num_windows: {num_windows}");
-
         let mut w = 0;
         iter::from_fn(move || {
-            if w >= num_windows {
+            if w >= c_int::from(c_uchar::from(num_windows)) {
                 return None;
             }
 

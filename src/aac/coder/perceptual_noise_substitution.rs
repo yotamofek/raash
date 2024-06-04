@@ -7,7 +7,7 @@ use array_util::{WindowedArray, W, W2};
 use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
-use libc::{c_double, c_float, c_int, c_long, c_uint};
+use libc::{c_double, c_float, c_int, c_long, c_uchar, c_uint};
 use reductor::{MinF, MinMaxF, Reduce, Reductors, Sum};
 
 use super::{
@@ -141,7 +141,7 @@ fn reduce_bands(psy_bands: &[Cell<FFPsyBand>], group_len: u8) -> ReducedBands {
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 765..=905, name = "search_for_pns")]
 pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut SingleChannelElement) {
-    let wlen: c_int = 1024 / sce.ics.num_windows;
+    let wlen: c_int = 1024 / c_int::from(c_uchar::from(sce.ics.num_windows));
 
     let sample_rate = avctx.sample_rate().get();
 
@@ -342,7 +342,7 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 907..=976, name = "mark_pns")]
 pub(crate) fn mark(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut SingleChannelElement) {
-    let wlen = 1024 / sce.ics.num_windows;
+    let wlen = 1024 / c_int::from(c_uchar::from(sce.ics.num_windows));
     let lambda = s.lambda;
     let freq_mult = freq_mult(avctx.sample_rate().get(), wlen);
     let spread_threshold = spread_threshold(lambda);

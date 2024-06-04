@@ -32,7 +32,7 @@ use super::{
 };
 use crate::types::*;
 
-fn run_value_bits(num_windows: c_int) -> &'static [c_uchar] {
+fn run_value_bits(num_windows: WindowCount) -> &'static [c_uchar] {
     static LONG: [c_uchar; 64] = [
         5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
         5, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
@@ -40,10 +40,9 @@ fn run_value_bits(num_windows: c_int) -> &'static [c_uchar] {
     ];
     static SHORT: [c_uchar; 16] = [3, 3, 3, 3, 3, 3, 3, 6, 6, 6, 6, 6, 6, 6, 6, 9];
 
-    if num_windows == 8 {
-        &SHORT
-    } else {
-        &LONG
+    match num_windows {
+        WindowCount::One => &LONG,
+        WindowCount::Eight => &SHORT,
     }
 }
 

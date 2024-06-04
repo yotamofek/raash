@@ -276,13 +276,13 @@ fn adjust_frame_information(cpe: &mut ChannelElement, chans: c_int) {
         ics1.max_sfb = ics0.max_sfb;
         let msc = ms_mask
             .into_iter()
-            .take(ics0.num_windows as usize)
+            .take(c_uchar::from(ics0.num_windows).into())
             .flat_map(|ms_masks| &ms_masks[..ics0.max_sfb.into()])
             .filter(|&&ms_mask| ms_mask)
             .count();
         *ms_mode = if msc == 0 || ics0.max_sfb == 0 {
             0
-        } else if msc < usize::from(ics0.max_sfb) * ics0.num_windows as usize {
+        } else if msc < usize::from(ics0.max_sfb) * usize::from(c_uchar::from(ics0.num_windows)) {
             1
         } else {
             2
@@ -443,7 +443,7 @@ impl SingleChannelElement {
         for coeffs in coeffs
             .as_array_of_cells_deref()
             .into_iter()
-            .take(num_windows as usize)
+            .take(c_uchar::from(num_windows).into())
         {
             let mut start = 0;
 
@@ -571,14 +571,14 @@ impl IndividualChannelStream {
         let num_swb = if tag == SyntaxElementType::LowFrequencyEffects {
             num_swb
         } else {
-            psy.num_bands[usize::from(num_windows == 8)]
+            psy.num_bands[usize::from(num_windows == WindowCount::Eight)]
         };
 
         *self = IndividualChannelStream {
             window_sequence: [window_type as WindowSequence, window_sequence],
-            use_kb_window: [window_shape != 0, use_kb_window],
+            use_kb_window: [window_shape == WindowShape::Kbd, use_kb_window],
             num_windows,
-            swb_sizes: psy.bands[usize::from(num_windows == 8)],
+            swb_sizes: psy.bands[usize::from(num_windows == WindowCount::Eight)],
             num_swb,
             max_sfb: max_sfb.min(num_swb as c_uchar),
             group_len: grouping.map(|grouping| grouping as c_uchar),
@@ -602,13 +602,13 @@ impl IndividualChannelStream {
     #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 911..=935)]
     fn calc_clip_avoidance_factor(&mut self, overlap: &[c_float]) {
         let mut clipping = MaybeUninit::uninit_array::<8>();
-        let wlen = 2048 / self.num_windows;
+        let wlen = 2048 / c_int::from(c_uchar::from(self.num_windows));
 
         let (clipping, _) = MaybeUninit::fill_from(
             &mut clipping,
             WindowedArray::<_, 128>::from_ref(overlap)
                 .into_iter()
-                .take(self.num_windows as usize)
+                .take(c_uchar::from(self.num_windows).into())
                 .map(|wbuf| {
                     // mdct input is 2 * output
                     wbuf[..wlen as usize]
@@ -665,8 +665,8 @@ fn analyze_psy_windows(
             if tag == SyntaxElementType::LowFrequencyEffects {
                 wi.window_type[0] = WindowSequence::OnlyLong;
                 wi.window_type[1] = WindowSequence::OnlyLong;
-                wi.window_shape = 0;
-                wi.num_windows = 1;
+                wi.window_shape = WindowShape::Sine;
+                wi.num_windows = WindowCount::One;
                 wi.grouping[0] = 1;
 
                 // Only the lowest 12 coefficients are used in a LFE channel.
@@ -790,7 +790,7 @@ unsafe fn aac_encode_frame(
                 && wi0.window_shape == wi1.window_shape
             {
                 cpe.common_window = zip(&wi0.grouping, &wi1.grouping)
-                    .take(wi0.num_windows as usize)
+                    .take(c_uchar::from(wi0.num_windows).into())
                     .all(|(grouping0, grouping1)| grouping0 == grouping1)
                     .into();
             }

@@ -6,7 +6,7 @@ use bit_writer::{BitBuf, BitWriter};
 use ffmpeg_src_macro::ffmpeg_src;
 use itertools::Itertools as _;
 use izip::izip;
-use libc::{c_double, c_float, c_int};
+use libc::{c_double, c_float, c_int, c_uchar};
 use lpc::RefCoeffs;
 
 use self::tables::{tns_min_sfb, tns_tmp2_map};
@@ -160,7 +160,7 @@ pub(super) fn encode_info(pb: &mut BitWriter, sce: &mut SingleChannelElement) {
         &tns.direction,
         &mut tns.coef_idx
     )
-    .take(num_windows as usize)
+    .take(c_uchar::from(num_windows).into())
     {
         pb.put(2 - u8::from(is8), n_filt as BitBuf);
 
@@ -303,7 +303,7 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
         &mut tns.coef_idx,
         &mut tns.coef,
     )
-    .take(sce.ics.num_windows as usize)
+    .take(c_uchar::from(sce.ics.num_windows).into())
     {
         let mut oc_start = 0;
         let coef_start = sce.ics.swb_offset[sfb_start as usize];

@@ -619,7 +619,7 @@ fn calc_thr_3gpp(
         .band
         .as_array_of_cells_deref()
         .into_iter()
-        .take(wi.num_windows as usize)
+        .take(c_uchar::from(wi.num_windows).into())
     {
         let mut wstart = 0;
         for (band, &band_size) in zip(bands, band_sizes).take(num_bands as usize) {
@@ -698,16 +698,22 @@ impl FFPsyContext {
         } else {
             c_float::max(50., 100. - pctx.chan_bitrate as c_float * 100. / 32000.)
         };
-        let num_bands = self.num_bands[usize::from(wi.num_windows == 8)];
-        let band_sizes = self.bands[usize::from(wi.num_windows == 8)];
-        let coeffs = &mut pctx.psy_coef[usize::from(wi.num_windows == 8)];
-        let avoid_hole_thr = if wi.num_windows == 8 { 0.63 } else { 0.5 };
+        let num_bands = self.num_bands[usize::from(wi.num_windows == WindowCount::Eight)];
+        let band_sizes = self.bands[usize::from(wi.num_windows == WindowCount::Eight)];
+        let coeffs = &mut pctx.psy_coef[usize::from(wi.num_windows == WindowCount::Eight)];
+        let avoid_hole_thr = if wi.num_windows == WindowCount::Eight {
+            0.63
+        } else {
+            0.5
+        };
         let bandwidth = if self.cutoff != 0 {
             self.cutoff
         } else {
             cutoff(avctx)
         };
-        let cutoff: c_int = bandwidth * 2048 / wi.num_windows / avctx.sample_rate().get();
+        let cutoff: c_int = bandwidth * 2048
+            / c_int::from(c_uchar::from(wi.num_windows))
+            / avctx.sample_rate().get();
 
         // calculate energies, initial thresholds and related values -
         // 5.4.2 "Threshold Calculation"
@@ -719,7 +725,7 @@ impl FFPsyContext {
             &spread_en,
             &pch.prev_band
         )
-        .take(wi.num_windows as usize)
+        .take(c_uchar::from(wi.num_windows).into())
         .enumerate()
         {
             // 5.4.2.3 "Spreading" & 5.4.3 "Spread Energy Calculation"
@@ -817,10 +823,12 @@ impl FFPsyContext {
             pctx.pe.pe.max = pe.max(pctx.pe.pe.max);
             pctx.pe.pe.min = pe.min(pctx.pe.pe.min);
         } else {
-            desired_bits =
-                pctx.pe
-                    .calc_bit_demand(pe, self.bitres.bits, self.bitres.size, wi.num_windows == 8)
-                    as c_float;
+            desired_bits = pctx.pe.calc_bit_demand(
+                pe,
+                self.bitres.bits,
+                self.bitres.size,
+                wi.num_windows == WindowCount::Eight,
+            ) as c_float;
             desired_pe = desired_bits.bits_to_pe();
 
             // NOTE: PE correction is kept simple. During initial testing it had very
@@ -840,7 +848,7 @@ impl FFPsyContext {
                 .band
                 .as_array_of_cells_deref()
                 .into_iter()
-                .take(wi.num_windows as usize)
+                .take(c_uchar::from(wi.num_windows).into())
             {
                 reduction = calc_reduction_3gpp(a, desired_pe, pe, active_lines);
 
@@ -868,7 +876,7 @@ impl FFPsyContext {
                     pch.band
                         .as_array_of_cells_deref()
                         .into_iter()
-                        .take(wi.num_windows as usize)
+                        .take(c_uchar::from(wi.num_windows).into())
                         .flat_map(|bands| bands.iter().take(num_bands as usize))
                         .map(Cell::get)
                         .filter(|&AacPsyBand { avoid_holes, .. }| avoid_holes != AvoidHoles::Active)
@@ -892,7 +900,7 @@ impl FFPsyContext {
                     .band
                     .as_array_of_cells_deref()
                     .into_iter()
-                    .take(wi.num_windows as usize)
+                    .take(c_uchar::from(wi.num_windows).into())
                 {
                     for (band, coeffs) in zip(bands, &*coeffs).take(num_bands as usize) {
                         band.update(|mut band| {
@@ -925,7 +933,7 @@ impl FFPsyContext {
                     .band
                     .as_array_of_cells_deref()
                     .into_iter()
-                    .take(wi.num_windows as usize)
+                    .take(c_uchar::from(wi.num_windows).into())
                 {
                     for (band, coeffs) in zip(bands, &*coeffs)
                         .take(num_bands as usize)
@@ -958,7 +966,7 @@ impl FFPsyContext {
                         .band
                         .as_array_of_cells_deref()
                         .into_iter()
-                        .take(wi.num_windows as usize)
+                        .take(c_uchar::from(wi.num_windows).into())
                         .map(|bands| &bands[g])
                         .filter(|band| {
                             band.get().avoid_holes != AvoidHoles::None
@@ -984,8 +992,8 @@ impl FFPsyContext {
             }
         }
 
-        for (psy_bands, aac_bands) in
-            zip(ch.psy_bands.as_array_of_cells_deref(), &pch.band).take(wi.num_windows as usize)
+        for (psy_bands, aac_bands) in zip(ch.psy_bands.as_array_of_cells_deref(), &pch.band)
+            .take(c_uchar::from(wi.num_windows).into())
         {
             for (
                 psy_band,
@@ -1123,14 +1131,17 @@ impl FFPsyContext {
             window_type: [window_type, prev_type, Default::default()],
             ..match window_type {
                 WindowSequence::EightShort => FFPsyWindowInfo {
-                    window_shape: 0,
-                    num_windows: 8,
+                    window_shape: WindowShape::Sine,
+                    num_windows: WindowCount::Eight,
                     grouping: calc_grouping(pch.next_grouping),
                     ..Default::default()
                 },
                 window_type => FFPsyWindowInfo {
-                    window_shape: (window_type != WindowSequence::LongStart).into(),
-                    num_windows: 1,
+                    window_shape: match window_type {
+                        WindowSequence::LongStart => WindowShape::Sine,
+                        _ => WindowShape::Kbd,
+                    },
+                    num_windows: WindowCount::One,
                     grouping: [1, 0, 0, 0, 0, 0, 0, 0],
                     ..Default::default()
                 },

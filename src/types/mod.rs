@@ -110,12 +110,35 @@ pub(crate) struct FFPsyChannelGroup {
     pub(crate) num_ch: c_uchar,
 }
 
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum WindowCount {
+    #[default]
+    One,
+    Eight,
+}
+
+impl From<WindowCount> for c_uchar {
+    fn from(value: WindowCount) -> Self {
+        match value {
+            WindowCount::One => 1,
+            WindowCount::Eight => 8,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Default, PartialEq, Eq)]
+pub(crate) enum WindowShape {
+    #[default]
+    Sine,
+    /// Kaiser–Bessel-derived
+    Kbd,
+}
+
 #[derive(Copy, Clone, Default)]
-#[repr(C)]
 pub(crate) struct FFPsyWindowInfo {
     pub(crate) window_type: [WindowSequence; 3],
-    pub(crate) window_shape: c_int,
-    pub(crate) num_windows: c_int,
+    pub(crate) window_shape: WindowShape,
+    pub(crate) num_windows: WindowCount,
     pub(crate) grouping: [c_int; 8],
 }
 
