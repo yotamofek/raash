@@ -69,7 +69,7 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
     let AACEncContext {
         scaled_coeffs,
         mut lambda,
-        psy: FFPsyContext {
+        psy: PsyContext {
             ch: psy_channels, ..
         },
         mut cur_channel,
@@ -131,7 +131,8 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
         ..
     }] = [sce0, sce1];
 
-    let freq_mult = sample_rate as c_float / (1024. / c_float::from(c_uchar::from(num_windows))) / 2.;
+    let freq_mult =
+        sample_rate as c_float / (1024. / c_float::from(c_uchar::from(num_windows))) / 2.;
 
     for WindowedIteration { w, group_len } in ics0.iter_windows() {
         let [coeffs0, coeffs1] = [coeffs0, coeffs1].map(|coeffs| &coeffs[W2(w)]);

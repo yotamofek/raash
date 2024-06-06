@@ -59,8 +59,8 @@ use crate::{
         },
         encoder::ctx::MdctContext,
         tables::{
-            ff_aac_num_swb_1024, ff_aac_num_swb_128, SCALEFACTOR_BITS, SCALEFACTOR_CODE,
-            SWB_OFFSET_1024, SWB_OFFSET_128, TNS_MAX_BANDS_1024, TNS_MAX_BANDS_128,
+            NUM_SWB_1024, NUM_SWB_128, SCALEFACTOR_BITS, SCALEFACTOR_CODE, SWB_OFFSET_1024,
+            SWB_OFFSET_128, TNS_MAX_BANDS_1024, TNS_MAX_BANDS_128,
         },
         SCALE_DIFF_ZERO,
     },
@@ -146,7 +146,7 @@ fn put_pce(avctx: &CodecContext, s: &mut AACEncContext, pb: &mut BitWriter) {
     }
 }
 
-fn put_audio_specific_config(avctx: &mut CodecContext, s: &mut AACEncContext) -> c_int {
+fn put_audio_specific_config(avctx: &mut CodecContext, s: &mut AACEncContext) {
     const MAX_SIZE: usize = 32;
 
     let channels =
@@ -171,8 +171,6 @@ fn put_audio_specific_config(avctx: &mut CodecContext, s: &mut AACEncContext) ->
 
     avctx.extradata_size().set(pb.total_bytes_written() as _);
     avctx.extradata().set(Box::into_raw(extradata).as_mut_ptr());
-
-    0
 }
 
 /// Encode ics_info element.
@@ -557,7 +555,7 @@ impl IndividualChannelStream {
             grouping,
             ..
         }: &PsyWindowInfo,
-        psy: &FFPsyContext,
+        psy: &PsyContext,
         samplerate_index: c_int,
     ) {
         let Self {
@@ -1057,7 +1055,7 @@ impl Encoder for AACEncoder {
                     channels: (*ch_layout).nb_channels,
                     reorder_map,
                     chan_map,
-                    psy: FFPsyContext::default(),
+                    psy: PsyContext::default(),
                     cur_channel: 0,
                     random_state: 0x1f2e3d4c,
                     lambda: if avctx.global_quality().get() > 0 {
@@ -1076,8 +1074,6 @@ impl Encoder for AACEncoder {
                 vec![ChannelElement::default(); chan_map.len()].into_boxed_slice(),
             ));
             let (ctx, _) = &mut *res;
-
-            let mut ret: c_int = 0;
 
             if avctx.bit_rate().get() == 0 {
                 avctx.bit_rate().set(
@@ -1189,26 +1185,25 @@ impl Encoder for AACEncoder {
                 ctx.options.mid_side = 0;
             }
 
-            ret = dsp::init(ctx);
-            assert!(ret >= 0, "dsp::init failed");
-            ret = put_audio_specific_config(avctx, ctx);
-            assert!(ret >= 0, "put_audio_specific_config failed");
+            dsp::init(ctx).expect("dsp::init failed");
+            put_audio_specific_config(avctx, ctx);
+
             let mut sizes = [
                 SWB_SIZE_1024[ctx.samplerate_index as usize],
                 SWB_SIZE_128[ctx.samplerate_index as usize],
             ];
             let mut lengths = [
-                ff_aac_num_swb_1024[ctx.samplerate_index as usize] as c_int,
-                ff_aac_num_swb_128[ctx.samplerate_index as usize] as c_int,
+                c_int::from(NUM_SWB_1024[ctx.samplerate_index as usize]),
+                c_int::from(NUM_SWB_128[ctx.samplerate_index as usize]),
             ];
-            let grouping = array::from_fn::<c_uchar, 16, _>(|i| {
+            let grouping = array::from_fn(|i| {
                 ctx.chan_map
                     .get(i)
                     .map(|&tag| (tag == SyntaxElementType::ChannelPairElement).into())
                     .unwrap_or_default()
             });
 
-            ctx.psy = FFPsyContext::init(
+            ctx.psy = PsyContext::init(
                 avctx,
                 &sizes,
                 &lengths,

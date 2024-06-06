@@ -13,10 +13,10 @@ use libc::{c_int, c_uchar};
 
 use crate::{aac::psy_model::AacPsyContext, types::*};
 
-impl FFPsyContext {
+impl PsyContext {
     #[cold]
     #[ffmpeg_src(file = "libavcodec/psymodel.c", lines = 31..=71, name = "ff_psy_init")]
-    pub(crate) unsafe fn init(
+    pub(crate) fn init(
         avctx: &CodecContext,
         bands: &[&'static [c_uchar]],
         num_bands: &[c_int],
@@ -24,7 +24,7 @@ impl FFPsyContext {
         group_map: &[c_uchar; 16],
     ) -> Self {
         assert_eq!(bands.len(), num_bands.len());
-        let mut ctx = FFPsyContext {
+        let mut ctx = PsyContext {
             ch: vec![FFPsyChannel::default(); avctx.ch_layout().get().nb_channels as usize * 2]
                 .into_boxed_slice(),
             group: group_map[..num_groups as usize]

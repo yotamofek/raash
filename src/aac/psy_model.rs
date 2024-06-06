@@ -336,7 +336,7 @@ impl ChannelBitrate for CodecContext {
 impl AacPsyContext {
     #[cold]
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 301..=382, name = "psy_3gpp_init")]
-    pub(crate) fn init(avctx: &CodecContext, ctx: &mut FFPsyContext) -> Self {
+    pub(crate) fn init(avctx: &CodecContext, ctx: &mut PsyContext) -> Self {
         let bandwidth = if ctx.cutoff != 0 {
             ctx.cutoff
         } else {
@@ -559,25 +559,6 @@ impl PEContext {
     }
 }
 
-fn calc_pe_3gpp(band: &mut Band) -> c_float {
-    band.pe = 0.;
-    band.pe_const = 0.;
-    band.active_lines = 0.;
-    if band.energy > band.threshold {
-        let mut a = band.energy.log2();
-        let mut pe = a - band.threshold.log2();
-        band.active_lines = band.nz_lines;
-        if pe < 3. {
-            pe = pe * 0.559_357_3_f32 + 1.3219281;
-            a = a * 0.559_357_3_f32 + 1.3219281;
-            band.active_lines *= 0.559_357_3_f32;
-        }
-        band.pe = pe * band.nz_lines;
-        band.pe_const = a * band.nz_lines;
-    }
-    band.pe
-}
-
 #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 560..=572)]
 fn calc_reduction_3gpp(
     a: c_float,
@@ -596,6 +577,26 @@ fn calc_reduction_3gpp(
 }
 
 impl Band {
+    #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 537..=558)]
+    fn calc_pe_3gpp(&mut self) -> c_float {
+        self.pe = 0.;
+        self.pe_const = 0.;
+        self.active_lines = 0.;
+        if self.energy > self.threshold {
+            let mut a = self.energy.log2();
+            let mut pe = a - self.threshold.log2();
+            self.active_lines = self.nz_lines;
+            if pe < 3. {
+                pe = pe * 0.559_357_3_f32 + 1.3219281;
+                a = a * 0.559_357_3_f32 + 1.3219281;
+                self.active_lines *= 0.559_357_3_f32;
+            }
+            self.pe = pe * self.nz_lines;
+            self.pe_const = a * self.nz_lines;
+        }
+        self.pe
+    }
+
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 574..=597, name = "calc_reduced_thr_3gpp")]
     fn calc_reduced_threshold(&mut self, min_snr: c_float, reduction: c_float) -> c_float {
         let mut thr = self.threshold;
@@ -684,7 +685,7 @@ fn hp_filter(firbuf: &[c_float], psy_fir_coeffs_0: &[c_float; 10]) -> [c_float; 
     })
 }
 
-impl FFPsyContext {
+impl PsyContext {
     /// Calculate band thresholds as suggested in 3GPP TS26.403
     #[ffmpeg_src(file = "libavcodec/aacpsy.c", lines = 649..=846, name = "psy_3gpp_analyze_channel")]
     fn analyze_channel(
@@ -795,7 +796,7 @@ impl FFPsyContext {
                     }
 
                     // 5.6.1.3.1 "Preparatory steps of the perceptual entropy calculation"
-                    pe += calc_pe_3gpp(&mut band);
+                    pe += band.calc_pe_3gpp();
                     a += band.pe_const;
                     active_lines += band.active_lines;
 
@@ -874,7 +875,7 @@ impl FFPsyContext {
                             ..
                         } = band.update(|mut band| {
                             band.threshold = band.calc_reduced_threshold(coeffs.min_snr, reduction);
-                            calc_pe_3gpp(&mut band);
+                            band.calc_pe_3gpp();
                             band
                         });
                         (pe, pe_const, active_lines)
@@ -920,7 +921,7 @@ impl FFPsyContext {
                                 band.threshold =
                                     band.calc_reduced_threshold(coeffs.min_snr, reduction);
                             }
-                            pe += calc_pe_3gpp(&mut band);
+                            pe += band.calc_pe_3gpp();
                             band.norm_fac = if band.threshold > 0. {
                                 band.active_lines / band.threshold
                             } else {

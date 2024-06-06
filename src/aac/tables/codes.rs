@@ -3,11 +3,11 @@
 use ffmpeg_src_macro::ffmpeg_src;
 use libc::{c_float, c_uchar, c_uint, c_ushort};
 
-pub(crate) const ff_aac_num_swb_1024: [c_uchar; 13] =
-    [41, 41, 47, 49, 49, 51, 47, 47, 43, 43, 43, 40, 40];
+#[ffmpeg_src(file = "libavcodec/aactab.c", lines = 110..=112, name = "ff_aac_num_swb_1024")]
+pub(crate) const NUM_SWB_1024: [c_uchar; 13] = [41, 41, 47, 49, 49, 51, 47, 47, 43, 43, 43, 40, 40];
 
-pub(crate) const ff_aac_num_swb_128: [c_uchar; 13] =
-    [12, 12, 12, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15];
+#[ffmpeg_src(file = "libavcodec/aactab.c", lines = 126..=128, name = "ff_aac_num_swb_128")]
+pub(crate) const NUM_SWB_128: [c_uchar; 13] = [12, 12, 12, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15];
 
 #[ffmpeg_src(file = "libavcodec/aactab.c", lines = 138..=155, name = "ff_aac_scalefactor_code")]
 pub(crate) const SCALEFACTOR_CODE: [c_uint; 121] = [

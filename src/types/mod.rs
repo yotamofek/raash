@@ -143,7 +143,7 @@ pub(crate) struct PsyWindowInfo {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct FFPsyContext {
+pub(crate) struct PsyContext {
     pub(crate) ch: Box<[FFPsyChannel]>,
     pub(crate) group: Box<[FFPsyChannelGroup]>,
     pub(crate) cutoff: c_int,

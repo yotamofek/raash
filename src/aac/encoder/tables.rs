@@ -1,3 +1,4 @@
+use ffmpeg_src_macro::ffmpeg_src;
 use libc::c_uchar;
 
 const SWB_SIZE_128_96: [c_uchar; 12] = [4, 4, 4, 4, 4, 4, 8, 8, 8, 16, 28, 36];
@@ -35,6 +36,7 @@ const SWB_SIZE_1024_8: [c_uchar; 40] = [
     24, 24, 24, 28, 28, 32, 36, 36, 40, 44, 48, 52, 56, 60, 64, 80,
 ];
 
+#[ffmpeg_src(file = "libavcodec/aacenctab.c", lines = 91..=97, name = "ff_aac_swb_size_128")]
 pub(crate) const SWB_SIZE_128: [&[c_uchar]; 13] = {
     [
         &SWB_SIZE_128_96,
@@ -53,6 +55,7 @@ pub(crate) const SWB_SIZE_128: [&[c_uchar]; 13] = {
     ]
 };
 
+#[ffmpeg_src(file = "libavcodec/aacenctab.c", lines = 99..=105, name = "ff_aac_swb_size_1024")]
 pub(crate) const SWB_SIZE_1024: [&[c_uchar]; 13] = {
     [
         &SWB_SIZE_1024_96,
