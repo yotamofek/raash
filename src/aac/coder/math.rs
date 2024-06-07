@@ -54,7 +54,7 @@ impl Float for c_float {
 }
 
 #[inline(always)]
-pub(super) fn ff_log2_c(mut v: c_uint) -> c_int {
+pub(super) fn ff_log2_c(v: c_uint) -> c_int {
     // TODO: is this (the cast) correct??
     v.log2() as c_int
     // let mut n: c_int = 0;

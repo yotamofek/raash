@@ -78,7 +78,7 @@ pub(crate) struct TemporalNoiseShaping {
 fn compute_lpc_coefs(autoc: &[c_float; MAX_ORDER], max_order: c_int) -> [c_float; MAX_ORDER] {
     let mut lpc = [0.; MAX_ORDER];
 
-    for (i, mut r) in autoc
+    for (i, r) in autoc
         .iter()
         .map(Neg::neg)
         .take(max_order as usize)
@@ -113,7 +113,7 @@ enum Compressed {
 }
 
 #[inline]
-fn compress_coeffs(mut coef: &mut [c_int], mut c_bits: c_int) -> Compressed {
+fn compress_coeffs(coef: &mut [c_int], c_bits: c_int) -> Compressed {
     let low_idx: c_int = if c_bits != 0 { 4 } else { 2 };
     let shift_val: c_int = if c_bits != 0 { 8 } else { 4 };
     let high_idx: c_int = if c_bits != 0 { 11 } else { 5 };
@@ -257,7 +257,7 @@ fn quantize_coefs(
     order: c_int,
     c_bits: bool,
 ) {
-    let mut quant_arr = tns_tmp2_map[usize::from(c_bits)];
+    let quant_arr = tns_tmp2_map[usize::from(c_bits)];
     for (idx, lpc, &coef) in izip!(idx, lpc, coef).take(order as usize) {
         *idx = quant_array_idx(coef as c_float, quant_arr);
         *lpc = quant_arr[*idx as usize];

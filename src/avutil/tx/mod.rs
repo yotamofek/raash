@@ -1,18 +1,13 @@
-#![warn(dead_code)]
-#![allow(unused_assignments, unused_unsafe, clippy::identity_op)]
 #![allow(
-    clippy::eq_op,
-    clippy::precedence,
-    clippy::nonminimal_bool,
-    clippy::no_effect,
-    clippy::single_match,
+    unused_assignments,
+    unused_unsafe,
+    non_upper_case_globals,
     path_statements,
-    clippy::unnecessary_mut_passed,
-    clippy::too_many_arguments,
-    non_camel_case_types,
+    unused_variables,
     non_snake_case,
-    non_upper_case_globals
+    non_camel_case_types
 )]
+#![allow(clippy::all)]
 
 mod tx_double;
 mod tx_float;

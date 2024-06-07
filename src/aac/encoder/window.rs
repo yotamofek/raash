@@ -38,12 +38,12 @@ fn apply_only_long_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 
 fn apply_long_start_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
-    let mut lwindow = if sce.ics.use_kb_window[1] {
+    let lwindow = if sce.ics.use_kb_window[1] {
         &*KBD_LONG
     } else {
         &SINE_WIN_1024
     };
-    let mut swindow = if sce.ics.use_kb_window[0] {
+    let swindow = if sce.ics.use_kb_window[0] {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128
@@ -70,12 +70,12 @@ fn apply_long_start_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 *
 fn apply_long_stop_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
-    let mut lwindow = if sce.ics.use_kb_window[0] {
+    let lwindow = if sce.ics.use_kb_window[0] {
         &*KBD_LONG
     } else {
         &SINE_WIN_1024
     };
-    let mut swindow = if sce.ics.use_kb_window[1] {
+    let swindow = if sce.ics.use_kb_window[1] {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128
@@ -106,12 +106,12 @@ fn apply_long_stop_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 
 fn apply_eight_short_window(sce: &mut SingleChannelElement, audio: &[c_float; 3 * 1024]) {
     let out = &mut *sce.ret_buf;
 
-    let mut swindow = if sce.ics.use_kb_window[0] {
+    let swindow = if sce.ics.use_kb_window[0] {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128
     };
-    let mut pwindow = if sce.ics.use_kb_window[1] {
+    let pwindow = if sce.ics.use_kb_window[1] {
         &*KBD_SHORT
     } else {
         &SINE_WIN_128

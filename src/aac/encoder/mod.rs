@@ -1,12 +1,3 @@
-#![allow(
-    mutable_transmutes,
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals,
-    unused_assignments,
-    unused_mut
-)]
-
 mod channel_layout;
 pub(super) mod ctx;
 mod dsp;
@@ -107,10 +98,8 @@ pub(crate) fn quantize_bands(
 }
 
 fn put_pce(avctx: &CodecContext, s: &mut AACEncContext, pb: &mut BitWriter) {
-    let mut i: c_int = 0;
-    let mut j: c_int = 0;
-    let mut pce = &s.pce.unwrap();
-    let mut aux_data = if avctx.flags().get().bit_exact() {
+    let pce = &s.pce.unwrap();
+    let aux_data = if avctx.flags().get().bit_exact() {
         c"Lavc"
     } else {
         c"Lavc60.33.100"
@@ -127,9 +116,9 @@ fn put_pce(avctx: &CodecContext, s: &mut AACEncContext, pb: &mut BitWriter) {
     pb.put(1, 0);
     pb.put(1, 0);
     pb.put(1, 0);
-    i = 0;
+    let mut i = 0;
     while i < 4 {
-        j = 0;
+        let mut j = 0;
         while j < pce.num_ele[i as usize] {
             if i < 3 {
                 pb.put(1, pce.pairing[i as usize][j as usize] as _);
@@ -315,7 +304,6 @@ fn encode_scale_factors(sce: &mut SingleChannelElement, pb: &mut BitWriter) {
         ..
     } = *sce;
 
-    let mut diff: c_int = 0;
     let mut off_sf: c_int = (**sf_idx)[0];
     let mut off_pns: c_int = (**sf_idx)[0] - NOISE_OFFSET;
     let mut off_is: c_int = 0;
@@ -332,7 +320,7 @@ fn encode_scale_factors(sce: &mut SingleChannelElement, pb: &mut BitWriter) {
                 _ => &mut off_sf,
             };
 
-            diff = sf_idx - *offset;
+            let mut diff = sf_idx - *offset;
             *offset = sf_idx;
 
             if band_type == NOISE_BT && mem::take(&mut noise_flag) {
@@ -457,10 +445,10 @@ impl SingleChannelElement {
 }
 
 fn encode_individual_channel(
-    mut s: &mut AACEncContext,
-    mut sce: &mut SingleChannelElement,
+    s: &mut AACEncContext,
+    sce: &mut SingleChannelElement,
     pb: &mut BitWriter,
-    mut common_window: c_int,
+    common_window: c_int,
 ) -> c_int {
     pb.put(8, sce.sf_idx[W(0)][0] as _);
     if common_window == 0 {
@@ -477,19 +465,16 @@ fn encode_individual_channel(
 }
 
 fn put_bitstream_info(pb: &mut BitWriter, name: &CStr) {
-    let mut i: c_int = 0;
-    let mut namelen: c_int = 0;
-    let mut padbits: c_int = 0;
-    namelen = name.to_bytes().len().wrapping_add(2) as c_int;
+    let namelen = name.to_bytes().len().wrapping_add(2) as c_int;
     pb.put(3, (SyntaxElementType::FillElement as u8).into());
     pb.put(4, (if namelen > 15 { 15 } else { namelen }) as _);
     if namelen >= 15 {
         pb.put(8, (namelen - 14) as _);
     }
     pb.put(4, 0);
-    padbits = -(pb.bits_written() as c_int) & 7;
+    let padbits = -(pb.bits_written() as c_int) & 7;
     pb.align();
-    i = 0;
+    let mut i = 0;
     while i < namelen - 2 {
         pb.put(8, name.to_bytes()[i as usize].into());
         i += 1;
@@ -695,11 +680,11 @@ fn analyze_psy_windows(
 
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 830..=1183)]
 unsafe fn aac_encode_frame(
-    mut avctx: &CodecContext,
-    mut ctx: &mut AACEncContext,
-    mut cpe: &mut Box<[ChannelElement]>,
-    mut frame: Option<&Frame>,
-    mut packet_builder: PacketBuilder,
+    avctx: &CodecContext,
+    ctx: &mut AACEncContext,
+    cpe: &mut Box<[ChannelElement]>,
+    frame: Option<&Frame>,
+    packet_builder: PacketBuilder,
 ) -> c_int {
     let mut ms_mode = false;
     let mut is_mode = false;
@@ -876,7 +861,7 @@ unsafe fn aac_encode_frame(
         // When strict bit-rate control is demanded
         if avctx.bit_rate_tolerance().get() == 0 {
             if rate_bits < frame_bits {
-                let mut ratio = rate_bits as c_float / frame_bits as c_float;
+                let ratio = rate_bits as c_float / frame_bits as c_float;
                 ctx.lambda *= ratio.min(0.9);
             }
 
@@ -952,7 +937,7 @@ unsafe fn aac_encode_frame(
     0
 }
 
-const aac_encode_defaults: [FFCodecDefault; 2] =
+const ENCODE_DEFAULTS: [FFCodecDefault; 2] =
     [FFCodecDefault::new(c"b", c"0"), FFCodecDefault::null()];
 
 struct AACEncoder();
@@ -971,7 +956,7 @@ impl Encoder for AACEncoder {
 
     const SUPPORTED_SAMPLERATES: &'static [c_int] = &ff_mpeg4audio_sample_rates;
     const SAMPLE_FMTS: &'static [ffi::codec::AVSampleFormat] = &[8, -1];
-    const DEFAULTS: &'static [FFCodecDefault] = &aac_encode_defaults;
+    const DEFAULTS: &'static [FFCodecDefault] = &ENCODE_DEFAULTS;
 
     type Ctx = (AACEncContext, Box<[ChannelElement]>);
     type Options = AACEncOptions;
@@ -1188,11 +1173,11 @@ impl Encoder for AACEncoder {
             dsp::init(ctx).expect("dsp::init failed");
             put_audio_specific_config(avctx, ctx);
 
-            let mut sizes = [
+            let sizes = [
                 SWB_SIZE_1024[ctx.samplerate_index as usize],
                 SWB_SIZE_128[ctx.samplerate_index as usize],
             ];
-            let mut lengths = [
+            let lengths = [
                 c_int::from(NUM_SWB_1024[ctx.samplerate_index as usize]),
                 c_int::from(NUM_SWB_128[ctx.samplerate_index as usize]),
             ];

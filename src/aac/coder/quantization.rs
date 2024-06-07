@@ -6,7 +6,7 @@ use libc::{c_float, c_int, c_uint};
 
 use super::{
     math::{clip_uintp2_c, ff_log2_c},
-    quant, CB_MAXVAL, CB_RANGE,
+    quant, CB_MAXVAL, CB_RANGE, ESC_BT,
 };
 use crate::aac::{
     encoder::{pow::Pow34, quantize_bands},
@@ -36,8 +36,7 @@ struct CostParams {
 mod flags {
     use libc::c_int;
 
-    use super::CostParams as Params;
-    use crate::aac::coder::ESC_BT;
+    use super::{CostParams as Params, ESC_BT};
 
     const fn default() -> Params {
         Params {

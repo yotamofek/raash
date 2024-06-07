@@ -29,8 +29,8 @@ pub(crate) fn search(
     sce: &mut SingleChannelElement,
     lambda: c_float,
 ) {
-    let mut start: c_int = 0;
-    let mut g: c_int = 0;
+    let mut start;
+    let mut g;
     let mut dest_bits: c_int = (avctx.bit_rate().get() as c_double * 1024.
         / avctx.sample_rate().get() as c_double
         / (if avctx.flags().get().qscale() {
@@ -39,18 +39,18 @@ pub(crate) fn search(
             avctx.ch_layout().get().nb_channels as c_float
         }) as c_double
         * (lambda / 120.) as c_double) as c_int;
-    let mut refbits: c_int = dest_bits;
-    let mut too_many_bits: c_int = 0;
-    let mut too_few_bits: c_int = 0;
+    let refbits = dest_bits;
+    let too_many_bits;
+    let too_few_bits;
     let mut dists: [c_float; 128] = [0.; 128];
     let mut qenergies: [c_float; 128] = [0.; 128];
     let mut rdlambda: c_float = (2. * 120. / lambda).clamp(0.0625, 16.);
-    let mut sfoffs: c_float = ((120. / lambda).log2() * 4.).clamp(-5., 10.);
-    let mut maxscaler: c_int = 0;
-    let mut nminscaler: c_int = 0;
+    let sfoffs;
+    let mut maxscaler;
+    let mut nminscaler;
     let mut its: c_int = 0;
     let mut maxits: c_int = 30;
-    let mut prev: c_int = 0;
+    let mut prev;
     let zeroscale = zeroscale(lambda);
 
     if s.psy.bitres.alloc >= 0 {
@@ -240,8 +240,7 @@ pub(crate) fn search(
             }
             if i == 0 && s.options.pns != 0 && its > maxits / 2 && tbits > too_few_bits {
                 let mut maxoverdist: c_float = 0.;
-                let mut ovrfactor: c_float =
-                    1. + (maxits - its) as c_float * 16. / maxits as c_float;
+                let ovrfactor: c_float = 1. + (maxits - its) as c_float * 16. / maxits as c_float;
                 recomprd = false;
                 overdist = false;
                 for WindowedIteration { w, .. } in sce.ics.iter_windows() {
@@ -253,7 +252,7 @@ pub(crate) fn search(
                             && dists[(w * 16 + g) as usize]
                                 > uplims[(w * 16 + g) as usize] * ovrfactor
                         {
-                            let mut ovrdist: c_float = dists[(w * 16 + g) as usize]
+                            let ovrdist: c_float = dists[(w * 16 + g) as usize]
                                 / c_float::max(
                                     uplims[(w * 16 + g) as usize],
                                     euplims[(w * 16 + g) as usize],
@@ -268,10 +267,9 @@ pub(crate) fn search(
                 if overdist {
                     let mut minspread: c_float = max_spread_thr_r;
                     let mut maxspread: c_float = min_spread_thr_r;
-                    let mut zspread: c_float = 0.;
+                    let mut zspread;
                     let mut zeroable: c_int = 0;
                     let mut zeroed: c_int = 0;
-                    let mut maxzeroed: c_int = 0;
                     for WindowedIteration { w, .. } in sce.ics.iter_windows() {
                         start = 0;
                         g = start;
@@ -299,7 +297,8 @@ pub(crate) fn search(
                             + (tbits - too_few_bits) as c_float * max_spread_thr_r)
                             / (too_many_bits - too_few_bits + 1) as c_float,
                     );
-                    maxzeroed = zeroable.min(1.max((zeroable * its + maxits - 1) / (2 * maxits)));
+                    let maxzeroed =
+                        zeroable.min(1.max((zeroable * its + maxits - 1) / (2 * maxits)));
                     for zloop in 0..2 {
                         // Two passes: first distorted stuff - two birds in one shot and all that,
                         // then anything viable. Viable means not zero, but either CB=zero-able
@@ -376,10 +375,9 @@ pub(crate) fn search(
             }
         }
         nminscaler = minscaler.clamp(140 - 36, 255 - 36);
-        minscaler = nminscaler;
         prev = -1;
         for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
-            let mut depth: c_int = if its > maxits / 2 {
+            let depth: c_int = if its > maxits / 2 {
                 if its > maxits * 2 / 3 {
                     1
                 } else {
@@ -388,7 +386,7 @@ pub(crate) fn search(
             } else {
                 10
             };
-            let mut edepth: c_int = depth + 2;
+            let edepth: c_int = depth + 2;
             let mut uplmax: c_float = its as c_float / (maxits as c_float * 0.25) + 1.;
             if tbits > dest_bits {
                 uplmax *= c_float::min(2., tbits as c_float / dest_bits.max(1) as c_float);
@@ -396,17 +394,17 @@ pub(crate) fn search(
             start = 0;
             for g in 0..sce.ics.num_swb {
                 let swb_size = sce.ics.swb_sizes[g as usize];
-                let mut prevsc: c_int = sce.sf_idx[W(w)][g as usize];
+                let prevsc: c_int = sce.sf_idx[W(w)][g as usize];
                 if prev < 0 && !sce.zeroes[W(w)][g as usize] {
                     prev = sce.sf_idx[W(0)][0];
                 }
                 if !sce.zeroes[W(w)][g as usize] {
                     let coefs_1 = &sce.coeffs[W(w)][start as usize..];
                     let scaled_2 = &s.scaled_coeffs[W(w)][start as usize..];
-                    let mut cmb: c_int =
+                    let cmb =
                         find_min_book(maxvals[(w * 16 + g) as usize], sce.sf_idx[W(w)][g as usize]);
-                    let mut mindeltasf = c_int::max(0, prev - c_int::from(SCALE_MAX_DIFF));
-                    let mut maxdeltasf = c_int::min(
+                    let mindeltasf = c_int::max(0, prev - c_int::from(SCALE_MAX_DIFF));
+                    let maxdeltasf = c_int::min(
                         (SCALE_MAX_POS - SCALE_DIV_512).into(),
                         prev + c_int::from(SCALE_MAX_DIFF),
                     );
@@ -421,13 +419,12 @@ pub(crate) fn search(
                         //  on the opposite direction to compensate for extra bits)
                         let mut i = 0;
                         while i < edepth && sce.sf_idx[W(w)][g as usize] > mindeltasf {
-                            let mut cb_1: c_int = 0;
                             let mut cost_1 = QuantizationCost::default();
-                            let mut mb: c_int = find_min_book(
+                            let mb = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
                                 sce.sf_idx[W(w)][g as usize] - 1,
                             );
-                            cb_1 = find_min_book(
+                            let cb_1 = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
                                 sce.sf_idx[W(w)][g as usize],
                             );
@@ -503,9 +500,8 @@ pub(crate) fn search(
                     {
                         let mut i = 0;
                         while i < depth && sce.sf_idx[W(w)][g as usize] < maxdeltasf {
-                            let mut cb_2: c_int = 0;
                             let mut cost_2 = QuantizationCost::default();
-                            cb_2 = find_min_book(
+                            let cb_2 = find_min_book(
                                 maxvals[(w * 16 + g) as usize],
                                 sce.sf_idx[W(w)][g as usize] + 1,
                             );
@@ -564,7 +560,7 @@ pub(crate) fn search(
         for WindowedIteration { w, .. } in sce.ics.iter_windows() {
             for g in 0..sce.ics.num_swb {
                 if !sce.zeroes[W(w)][g as usize] {
-                    let mut prevsf: c_int = sce.sf_idx[W(w)][g as usize];
+                    let prevsf: c_int = sce.sf_idx[W(w)][g as usize];
                     if prev < 0 {
                         prev = prevsf;
                     }
@@ -828,16 +824,13 @@ fn loop1(
     } = &mut res;
 
     let SingleChannelElement {
-        ics:
-            ref ics @ IndividualChannelStream {
-                mut num_swb,
-                mut swb_sizes,
-                ..
-            },
+        ics: ref ics @ IndividualChannelStream {
+            num_swb, swb_sizes, ..
+        },
         ref can_pns,
-        zeroes,
+        ref mut zeroes,
         ..
-    } = sce;
+    } = *sce;
 
     let swb_sizes = &swb_sizes[..num_swb as usize];
     let FFPsyChannel { psy_bands, .. } = &s.psy.ch[s.cur_channel as usize];
@@ -939,15 +932,15 @@ fn frame_bit_rate(
 /// Scout out next nonzero bands
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 727..=760)]
 fn find_next_bands(sce: &mut SingleChannelElement, maxvals: [c_float; 128]) {
-    let mut nextband = sce.init_next_band_map();
+    let nextband = sce.init_next_band_map();
 
     let SingleChannelElement {
-        ics: ref ics @ IndividualChannelStream { mut num_swb, .. },
-        zeroes,
-        band_type,
-        sf_idx: sf_indices,
+        ics: ref ics @ IndividualChannelStream { num_swb, .. },
+        ref mut zeroes,
+        ref mut band_type,
+        sf_idx: ref mut sf_indices,
         ..
-    } = sce;
+    } = *sce;
     let zeroes = Cell::from_mut(&mut ***zeroes).as_array_of_cells();
     let sf_indices = Cell::from_mut(&mut ***sf_indices).as_array_of_cells();
 

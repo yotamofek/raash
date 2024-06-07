@@ -1,11 +1,3 @@
-#![allow(
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals,
-    unused_assignments,
-    unused_mut
-)]
-
 use std::{iter::zip, ops::Mul};
 
 use array_util::{WindowedArray, W, W2};
@@ -35,7 +27,7 @@ fn pos_pow34(a: c_float) -> c_float {
 fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
     const MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
 
-    let mut Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
+    let Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
     let qmaxval = (maxval * Q34 + 0.405_4_f32) as usize;
     MAXVAL_CB.get(qmaxval).copied().unwrap_or(11) as c_int
 }
@@ -67,14 +59,15 @@ struct ISError {
 #[ffmpeg_src(file = "libavcodec/aacenc_is.c", lines = 98..=158, name = "ff_aac_search_for_is")]
 pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut ChannelElement) {
     let AACEncContext {
-        scaled_coeffs,
-        mut lambda,
+        ref mut scaled_coeffs,
+        lambda,
         psy: PsyContext {
-            ch: psy_channels, ..
+            ch: ref mut psy_channels,
+            ..
         },
-        mut cur_channel,
+        cur_channel,
         ..
-    } = s;
+    } = *s;
     let sample_rate = avctx.sample_rate().get();
 
     let [FFPsyChannel {
@@ -89,13 +82,13 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
     };
 
     let ChannelElement {
-        mut common_window,
-        is_mode,
-        ms_mask,
-        is_mask,
-        ch: [sce0, sce1],
+        common_window,
+        ref mut is_mode,
+        ref mut ms_mask,
+        ref mut is_mask,
+        ch: [ref mut sce0, ref mut sce1],
         ..
-    } = cpe;
+    } = *cpe;
 
     if common_window == 0 {
         return;
@@ -107,26 +100,23 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
 
     let nextband1 = WindowedArray::<_, 16>(sce1.init_next_band_map());
 
-    let [SingleChannelElement {
-        ics: ref ics0 @ IndividualChannelStream {
-            mut num_windows, ..
-        },
+    let [&mut SingleChannelElement {
+        ics: ref ics0 @ IndividualChannelStream { num_windows, .. },
         coeffs: ref coeffs0,
         zeroes: ref zeroes0,
-        band_type: band_types0,
-        is_ener: is_ener0,
+        band_type: ref mut band_types0,
+        is_ener: ref mut is_ener0,
         sf_idx: ref sf_indices0,
         ..
-    }, SingleChannelElement {
-        ics:
-            IndividualChannelStream {
-                swb_sizes: mut swb_sizes1,
-                ..
-            },
+    }, &mut SingleChannelElement {
+        ics: IndividualChannelStream {
+            swb_sizes: swb_sizes1,
+            ..
+        },
         coeffs: ref coeffs1,
         zeroes: ref zeroes1,
-        band_type: band_types1,
-        is_ener: is_ener1,
+        band_type: ref mut band_types1,
+        is_ener: ref mut is_ener1,
         sf_idx: ref sf_indices1,
         ..
     }] = [sce0, sce1];
@@ -332,22 +322,22 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
 #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 580..=607, name = "apply_intensity_stereo")]
 pub(super) fn apply(cpe: &mut ChannelElement) {
     let ChannelElement {
-        mut common_window,
+        common_window,
         ref ms_mask,
         ref is_mask,
         ch:
             [SingleChannelElement {
                 ref ics,
                 ref is_ener,
-                coeffs: coeffs0,
+                coeffs: ref mut coeffs0,
                 ..
             }, SingleChannelElement {
                 ref band_type,
-                coeffs: coeffs1,
+                coeffs: ref mut coeffs1,
                 ..
             }],
         ..
-    } = cpe;
+    } = *cpe;
 
     if common_window == 0 {
         return;

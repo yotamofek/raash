@@ -1,12 +1,3 @@
-#![allow(
-    mutable_transmutes,
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals,
-    unused_assignments,
-    unused_mut
-)]
-
 mod math;
 pub(super) mod mid_side;
 pub(super) mod perceptual_noise_substitution;
@@ -56,6 +47,12 @@ static CB_MAXVAL: [c_uchar; 12] = [0, 1, 1, 2, 2, 4, 4, 7, 7, 12, 12, 16];
 
 static MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
 
+/// Quantize one coefficient.
+///
+/// Return absolute value of the quantized coefficient.
+///
+/// See 3GPP TS26.403 5.6.2 "Scalefactor determination"
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 54..=63)]
 #[inline]
 fn quant(coef: c_float, Q: c_float, rounding: c_float) -> c_int {
     let a = coef * Q;
@@ -257,10 +254,10 @@ impl QuantizeBandCostCache {
 
 #[inline]
 pub(super) fn quantize_band_cost(
-    mut in_: &[c_float],
-    mut scaled: &[c_float],
-    mut scale_idx: c_int,
-    mut cb: c_int,
+    in_: &[c_float],
+    scaled: &[c_float],
+    scale_idx: c_int,
+    cb: c_int,
     lambda: c_float,
     uplim: c_float,
 ) -> QuantizationCost {
@@ -269,10 +266,10 @@ pub(super) fn quantize_band_cost(
 
 #[inline]
 fn quantize_band_cost_bits(
-    mut in_: &[c_float],
-    mut scaled: &[c_float],
-    mut scale_idx: c_int,
-    mut cb: c_int,
+    in_: &[c_float],
+    scaled: &[c_float],
+    scale_idx: c_int,
+    cb: c_int,
     uplim: c_float,
 ) -> c_int {
     quantize_and_encode_band_cost(in_, None, scaled, scale_idx, cb, 0., uplim).bits
@@ -283,14 +280,14 @@ pub(crate) fn set_special_band_scalefactors(sce: &mut SingleChannelElement) {
     let mut prevscaler_n: c_int = -255;
 
     let SingleChannelElement {
-        ics: ref ics @ IndividualChannelStream { mut num_swb, .. },
+        ics: ref ics @ IndividualChannelStream { num_swb, .. },
         ref zeroes,
         ref band_type,
-        sf_idx,
+        ref mut sf_idx,
         ref is_ener,
         ref pns_ener,
         ..
-    } = sce;
+    } = *sce;
 
     let found = {
         let sf_idx = sf_idx.as_array_of_cells_deref();
