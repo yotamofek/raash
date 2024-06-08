@@ -47,18 +47,6 @@ static CB_MAXVAL: [c_uchar; 12] = [0, 1, 1, 2, 2, 4, 4, 7, 7, 12, 12, 16];
 
 static MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
 
-/// Quantize one coefficient.
-///
-/// Return absolute value of the quantized coefficient.
-///
-/// See 3GPP TS26.403 5.6.2 "Scalefactor determination"
-#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 54..=63)]
-#[inline]
-fn quant(coef: c_float, Q: c_float, rounding: c_float) -> c_int {
-    let a = coef * Q;
-    ((a * a.sqrt()).sqrt() + rounding) as c_int
-}
-
 #[inline]
 fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
     let Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];

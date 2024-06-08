@@ -6,13 +6,25 @@ use libc::{c_float, c_int, c_uint};
 
 use super::{
     math::{clip_uintp2_c, ff_log2_c},
-    quant, CB_MAXVAL, CB_RANGE, ESC_BT,
+    CB_MAXVAL, CB_RANGE, ESC_BT,
 };
 use crate::aac::{
     encoder::{pow::Pow34, quantize_bands},
     tables::{ff_aac_codebook_vectors, ff_aac_spectral_bits, ff_aac_spectral_codes, POW_SF_TABLES},
     POW_SF2_ZERO, SCALE_DIV_512, SCALE_ONE_POS,
 };
+
+/// Quantize one coefficient.
+///
+/// Return absolute value of the quantized coefficient.
+///
+/// See 3GPP TS26.403 5.6.2 "Scalefactor determination"
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 54..=63)]
+#[inline]
+fn quant(coef: c_float, Q: c_float, rounding: c_float) -> c_int {
+    let a = coef * Q;
+    ((a * a.sqrt()).sqrt() + rounding) as c_int
+}
 
 #[derive(Clone, Copy, Debug, Default, Add, AddAssign, Sum)]
 pub(crate) struct QuantizationCost {
