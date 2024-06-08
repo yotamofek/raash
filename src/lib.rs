@@ -14,12 +14,7 @@
     slice_take,
     split_array
 )]
-#![allow(
-    clippy::too_many_arguments,
-    incomplete_features,
-    non_snake_case,
-    non_upper_case_globals
-)]
+#![allow(clippy::too_many_arguments, incomplete_features, non_snake_case)]
 #![warn(clippy::approx_constant)]
 #![deny(dead_code)]
 

@@ -9,7 +9,7 @@ use izip::izip;
 use libc::{c_double, c_float, c_int, c_uchar};
 use lpc::RefCoeffs;
 
-use self::tables::{tns_min_sfb, tns_tmp2_map};
+use self::tables::{MIN_SFB, TMP2_MAP};
 use crate::{
     aac::{encoder::ctx::AACEncContext, IndividualChannelStream, WindowSequence},
     types::*,
@@ -257,7 +257,7 @@ fn quantize_coefs(
     order: c_int,
     c_bits: bool,
 ) {
-    let quant_arr = tns_tmp2_map[usize::from(c_bits)];
+    let quant_arr = TMP2_MAP[usize::from(c_bits)];
     for (idx, lpc, &coef) in izip!(idx, lpc, coef).take(order as usize) {
         *idx = quant_array_idx(coef as c_float, quant_arr);
         *lpc = quant_arr[*idx as usize];
@@ -271,8 +271,7 @@ pub(crate) fn search(s: &mut AACEncContext, sce: &mut SingleChannelElement) {
     let mmm = sce.ics.tns_max_bands.min(sce.ics.max_sfb.into());
     let is8 = sce.ics.window_sequence[0] == WindowSequence::EightShort;
     let c_bits = if is8 { Q_BITS_IS8 == 4 } else { Q_BITS == 4 };
-    let sfb_start =
-        (tns_min_sfb[usize::from(is8)][s.samplerate_index as usize] as c_int).clamp(0, mmm);
+    let sfb_start = (MIN_SFB[usize::from(is8)][s.samplerate_index as usize] as c_int).clamp(0, mmm);
     let sfb_end = sce.ics.num_swb.clamp(0, mmm);
     let order = if is8 {
         7
