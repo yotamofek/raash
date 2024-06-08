@@ -463,20 +463,20 @@ fn encode_individual_channel(
     0
 }
 
+/// Write some auxiliary information about the created AAC file.
+#[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 784..=802)]
 fn put_bitstream_info(pb: &mut BitWriter, name: &CStr) {
     let namelen = name.to_bytes().len().wrapping_add(2) as c_int;
     pb.put(3, (SyntaxElementType::FillElement as u8).into());
-    pb.put(4, (if namelen > 15 { 15 } else { namelen }) as _);
+    pb.put(4, namelen.min(15) as _);
     if namelen >= 15 {
         pb.put(8, (namelen - 14) as _);
     }
-    pb.put(4, 0);
+    pb.put(4, 0); //extension type - filler
     let padbits = -(pb.bits_written() as c_int) & 7;
     pb.align();
-    let mut i = 0;
-    while i < namelen - 2 {
-        pb.put(8, name.to_bytes()[i as usize].into());
-        i += 1;
+    for &byte in name.to_bytes() {
+        pb.put(8, byte.into());
     }
     pb.put(12 - padbits as u8, 0);
 }
@@ -866,10 +866,10 @@ unsafe fn aac_encode_frame(
 
             // reset lambda when solution is found
             ctx.lambda = if avctx.global_quality().get() > 0 {
-                avctx.global_quality().get()
+                avctx.global_quality().get() as c_float
             } else {
-                120
-            } as c_float;
+                120.
+            };
             break;
         }
 
@@ -1219,9 +1219,9 @@ impl Encoder for AACEncoder {
                 avctx.extradata().get(),
                 MAX_SIZE,
             ));
-            avctx.extradata().set(null_mut());
-            avctx.extradata_size().set(0);
         }
+        avctx.extradata().set(null_mut());
+        avctx.extradata_size().set(0);
 
         let (ctx, _) = &mut *ctx;
         unsafe {
