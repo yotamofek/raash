@@ -37,7 +37,6 @@ pub(crate) struct AACEncContext {
     pub pce: Option<pce::Info>,
     pub planar_samples: Box<[[c_float; 3 * 1024]]>,
     pub profile: c_int,
-    pub needs_pce: c_int,
     pub lpc: LPCContext,
     pub samplerate_index: c_int,
     pub channels: c_int,

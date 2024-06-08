@@ -97,8 +97,7 @@ pub(crate) fn quantize_bands(
         .collect()
 }
 
-fn put_pce(avctx: &CodecContext, s: &mut AACEncContext, pb: &mut BitWriter) {
-    let pce = &s.pce.unwrap();
+fn put_pce(avctx: &CodecContext, s: &AACEncContext, pce: &pce::Info, pb: &mut BitWriter) {
     let aux_data = if avctx.flags().get().bit_exact() {
         c"Lavc"
     } else {
@@ -139,7 +138,7 @@ fn put_audio_specific_config(avctx: &mut CodecContext, s: &mut AACEncContext) {
     const MAX_SIZE: usize = 32;
 
     let channels =
-        (s.needs_pce == 0) as c_int * (s.channels - (if s.channels == 8 { 1 } else { 0 }));
+        c_int::from(s.pce.is_none()) * (s.channels - (if s.channels == 8 { 1 } else { 0 }));
 
     let mut extradata = vec![0; MAX_SIZE].into_boxed_slice();
     let mut pb = BitWriter::new(&mut extradata);
@@ -150,8 +149,8 @@ fn put_audio_specific_config(avctx: &mut CodecContext, s: &mut AACEncContext) {
     pb.put(1, 0);
     pb.put(1, 0);
     pb.put(1, 0);
-    if s.needs_pce != 0 {
-        put_pce(avctx, s, &mut pb);
+    if let Some(pce) = &s.pce {
+        put_pce(avctx, s, pce, &mut pb);
     }
     pb.put(11, 0x2b7);
     pb.put(5, AOT_SBR as _);
@@ -971,9 +970,9 @@ impl Encoder for AACEncoder {
                 .iter()
                 .any(|layout| av_channel_layout_compare(ch_layout, layout) == 0)
             {
-                options.pce
+                options.pce != 0
             } else {
-                1
+                true
             };
 
             let channels = (*ch_layout).nb_channels;
@@ -986,7 +985,7 @@ impl Encoder for AACEncoder {
                 .unwrap_or_else(|| panic!("Unsupported sample rate {}", avctx.sample_rate().get()))
                 as c_int;
 
-            let (pce, reorder_map, chan_map) = if needs_pce != 0 {
+            let (pce, reorder_map, chan_map) = if needs_pce {
                 let mut buf: [c_char; 64] = [0; 64];
                 av_channel_layout_describe(ch_layout, buf.as_mut_ptr(), buf.len() as c_ulong);
 
@@ -1034,7 +1033,6 @@ impl Encoder for AACEncoder {
                     planar_samples: vec![[0.; _]; (*ch_layout).nb_channels as usize]
                         .into_boxed_slice(),
                     profile: 0,
-                    needs_pce,
                     lpc: LPCContext::new(2 * avctx.frame_size().get(), 20, lpc::Type::Levinson),
                     samplerate_index,
                     channels: (*ch_layout).nb_channels,
