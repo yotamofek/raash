@@ -145,7 +145,7 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
 
     let sample_rate = avctx.sample_rate().get();
 
-    let ([PNS, PNS34, _, NOR34, ..], []) = s.scaled_coeffs.as_chunks_mut::<128>() else {
+    let ([pns, pns34, _, nor34, ..], []) = s.scaled_coeffs.as_chunks_mut::<128>() else {
         unreachable!();
     };
 
@@ -259,8 +259,8 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
                 }
             }
 
-            let [PNS, PNS34, NOR34] =
-                [&mut *PNS, PNS34, NOR34].map(|arr| &mut arr[..usize::from(swb_size)]);
+            let [pns, pns34, nor34] =
+                [&mut *pns, pns34, nor34].map(|arr| &mut arr[..usize::from(swb_size)]);
 
             let (Sum::<c_float>(dist1), Sum::<c_float>(mut dist2), Sum::<c_float>(pns_energy)) =
                 izip!(
@@ -279,35 +279,35 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
                     )
                 })
                 .map(|(coeffs, band, sf_idx, band_alt)| {
-                    PNS.fill_with(|| {
+                    pns.fill_with(|| {
                         s.random_state = lcg_random(s.random_state as c_uint);
                         s.random_state as c_float
                     });
 
                     // (yotam): scalarproduct_float
-                    let band_energy: c_float = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+                    let band_energy: c_float = pns.iter().map(|pns| pns.powi(2)).sum();
 
                     let scale = noise_amp / band_energy.sqrt();
 
                     // (yotam): vector_fmac_scalar
-                    PNS.iter_mut().for_each(|PNS| {
-                        *PNS *= scale;
+                    pns.iter_mut().for_each(|pns| {
+                        *pns *= scale;
                     });
                     // (yotam): scalarproduct_float
-                    let pns_energy: c_float = PNS.iter().map(|PNS| PNS.powi(2)).sum();
+                    let pns_energy: c_float = pns.iter().map(|pns| pns.powi(2)).sum();
 
-                    for (NOR34, coeff) in zip(&mut *NOR34, coeffs) {
-                        *NOR34 = coeff.abs_pow34();
+                    for (nor34, coeff) in zip(&mut *nor34, coeffs) {
+                        *nor34 = coeff.abs_pow34();
                     }
-                    for (PNS34, PNS) in zip(&mut *PNS34, &*PNS) {
-                        *PNS34 = PNS.abs_pow34();
+                    for (pns34, pns) in zip(&mut *pns34, &*pns) {
+                        *pns34 = pns.abs_pow34();
                     }
 
                     let QuantizationCost {
                         distortion: dist1, ..
                     } = quantize_band_cost(
                         coeffs,
-                        NOR34,
+                        nor34,
                         sf_idx.get(),
                         band_alt as c_int,
                         lambda / band.threshold,

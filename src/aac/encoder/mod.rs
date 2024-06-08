@@ -80,14 +80,14 @@ pub(crate) fn quantize_bands(
     scaled: &[c_float],
     is_signed: bool,
     maxval: c_int,
-    Q34: c_float,
+    q34: c_float,
     rounding: c_float,
 ) -> ArrayVec<c_int, 96> {
     debug_assert_eq!(in_.len(), scaled.len());
 
     zip(in_, scaled)
         .map(|(&in_0, &scaled)| {
-            let qc = scaled * Q34;
+            let qc = scaled * q34;
             let mut out = (qc + rounding).min(maxval as c_float) as c_int;
             if is_signed && in_0 < 0. {
                 out = -out;

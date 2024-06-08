@@ -27,8 +27,8 @@ fn pos_pow34(a: c_float) -> c_float {
 fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
     const MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
 
-    let Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
-    let qmaxval = (maxval * Q34 + 0.405_4_f32) as usize;
+    let q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
+    let qmaxval = (maxval * q34 + 0.405_4_f32) as usize;
     MAXVAL_CB.get(qmaxval).copied().unwrap_or(11) as c_int
 }
 
@@ -192,36 +192,42 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                         return None;
                     }
 
-                    let [L, R] = [coeffs0, coeffs1];
+                    let [left, right] = [coeffs0, coeffs1];
 
-                    let ([L34, R34, IS, I34, ..], []) = scaled_coeffs.as_chunks_mut::<256>() else {
+                    let ([left34, right34, is, i34, ..], []) = scaled_coeffs.as_chunks_mut::<256>()
+                    else {
                         unreachable!();
                     };
 
                     let (Sum::<c_float>(dist1), Sum::<c_float>(dist2)) = (0..group_len)
                         .map(|w| {
                             (
-                                [L, R].map(|C| &C[W(w)][start as usize..]),
+                                [left, right].map(|coeffs| &coeffs[W(w)][start as usize..]),
                                 [psy_bands0, psy_bands1].map(|bands| &bands[W(w)][g]),
                             )
                         })
-                        .map(|([L, R], [band0, band1])| {
+                        .map(|([left, right], [band0, band1])| {
                             let is_sf_idx: c_int = 1.max(sf_idx0 - 4);
                             let minthr = c_float::min(band0.threshold, band1.threshold);
 
-                            for (IS, &L, &R) in izip!(&mut *IS, L, R).take(swb_size0.into()) {
-                                *IS = ((L + phase * R) as c_double
+                            for (is, &left, &right) in
+                                izip!(&mut *is, left, right).take(swb_size0.into())
+                            {
+                                *is = ((left + phase * right) as c_double
                                     * ((ener0 / ener01) as c_double).sqrt())
                                     as c_float;
                             }
-                            for (C34, C) in [(&mut *L34, L), (R34, R), (I34, IS)]
-                                .into_iter()
-                                .flat_map(|(C34, C)| zip(&mut *C34, C).take(swb_size0.into()))
+                            for (coeff34, coeff) in
+                                [(&mut *left34, left), (right34, right), (i34, is)]
+                                    .into_iter()
+                                    .flat_map(|(coeff34, coeff)| {
+                                        zip(&mut *coeff34, coeff).take(swb_size0.into())
+                                    })
                             {
-                                *C34 = C.abs_pow34();
+                                *coeff34 = coeff.abs_pow34();
                             }
 
-                            let maxval = I34
+                            let maxval = i34
                                 .iter()
                                 .take(swb_size0.into())
                                 .copied()
@@ -232,15 +238,15 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                             let QuantizationCost {
                                 distortion: dist1, ..
                             } = quantize_band_cost(
-                                &L[..swb_size0.into()],
-                                &L34[..swb_size0.into()],
+                                &left[..swb_size0.into()],
+                                &left34[..swb_size0.into()],
                                 sf_idx0,
                                 *band_type0 as c_int,
                                 lambda / band0.threshold,
                                 f32::INFINITY,
                             ) + quantize_band_cost(
-                                &R[..swb_size1.into()],
-                                &R34[..swb_size1.into()],
+                                &right[..swb_size1.into()],
+                                &right34[..swb_size1.into()],
                                 sf_idx1,
                                 *band_type1 as c_int,
                                 lambda / band1.threshold,
@@ -248,8 +254,8 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                             );
 
                             let dist2 = quantize_band_cost(
-                                &IS[..swb_size0.into()],
-                                &I34[..swb_size0.into()],
+                                &is[..swb_size0.into()],
+                                &i34[..swb_size0.into()],
                                 is_sf_idx,
                                 is_band_type,
                                 lambda / minthr,
@@ -258,11 +264,11 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                             .distortion
                                 + {
                                     let e01_34: c_float = phase * pos_pow34(ener1 / ener0);
-                                    let dist_spec_err = izip!(&*L34, &*R34, &*I34)
+                                    let dist_spec_err = izip!(&*left34, &*right34, &*i34)
                                         .take(swb_size0.into())
-                                        .map(|(&L34, &R34, &I34)| {
-                                            (L34 - I34) * (L34 - I34)
-                                                + (R34 - I34 * e01_34) * (R34 - I34 * e01_34)
+                                        .map(|(&left34, &right34, &i34)| {
+                                            (left34 - i34).powi(2)
+                                                + (right34 - i34 * e01_34).powi(2)
                                         })
                                         .sum::<c_float>();
 

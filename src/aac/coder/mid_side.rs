@@ -20,7 +20,9 @@ use crate::{
 
 #[ffmpeg_src(file = "libavcodec/aaccoder.c", lines = 978..=1117, name = "search_for_ms")]
 pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
-    let ([M, S, L34, R34, M34, S34, ..], []) = s.scaled_coeffs.as_chunks_mut::<128>() else {
+    let ([mid, side, left34, right34, mid34, side34, ..], []) =
+        s.scaled_coeffs.as_chunks_mut::<128>()
+    else {
         unreachable!();
     };
 
@@ -84,24 +86,26 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                 *ms_mask = false;
             }
             if !zeroes0 && !zeroes1 && !is_mask {
-                let mut Mmax: c_float = 0.;
-                let mut Smax: c_float = 0.;
+                let mut mid_max: c_float = 0.;
+                let mut side_max: c_float = 0.;
                 for (coeffs0, coeffs1) in zip(coeffs0, coeffs1).take(group_len.into()) {
-                    for (M, S, (&coeff0, &coeff1)) in
-                        izip!(&mut *M, &mut *S, zip(coeffs0, coeffs1).skip(offset.into()),)
-                    {
-                        *M = (coeff0 + coeff1) * 0.5;
-                        *S = *M - coeff1;
+                    for (mid, side, (&coeff0, &coeff1)) in izip!(
+                        &mut *mid,
+                        &mut *side,
+                        zip(coeffs0, coeffs1).skip(offset.into()),
+                    ) {
+                        *mid = (coeff0 + coeff1) * 0.5;
+                        *side = *mid - coeff1;
                     }
-                    for (M34, M) in zip(&mut *M34, &*M).take(swb_size0.into()) {
-                        *M34 = M.abs_pow34();
+                    for (mid34, mid) in zip(&mut *mid34, &*mid).take(swb_size0.into()) {
+                        *mid34 = mid.abs_pow34();
                     }
-                    for (S34, S) in zip(&mut *S34, &*S).take(swb_size0.into()) {
-                        *S34 = S.abs_pow34();
+                    for (side34, side) in zip(&mut *side34, &*side).take(swb_size0.into()) {
+                        *side34 = side.abs_pow34();
                     }
-                    for (&M, &S) in zip(&*M34, &*S34).take(swb_size0.into()) {
-                        Mmax = Mmax.max(M);
-                        Smax = Smax.max(S);
+                    for (&mid, &side) in zip(&*mid34, &*side34).take(swb_size0.into()) {
+                        mid_max = mid_max.max(mid);
+                        side_max = side_max.max(side);
                     }
                 }
                 for sid_sf_boost in 0..4 {
@@ -117,59 +121,67 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                         continue;
                     }
 
-                    let [midcb, sidcb] = [find_min_book(Mmax, mididx), find_min_book(Smax, sididx)]
-                        .map(|cb| {
-                            // No CB can be zero
-                            cb.max(1)
-                        });
+                    let [midcb, sidcb] = [
+                        find_min_book(mid_max, mididx),
+                        find_min_book(side_max, sididx),
+                    ]
+                    .map(|cb| {
+                        // No CB can be zero
+                        cb.max(1)
+                    });
 
                     let (
                         Sum::<c_float>(dist1),
                         Sum::<c_float>(dist2),
-                        Sum::<c_int>(B0),
-                        Sum::<c_int>(B1),
+                        Sum::<c_int>(bits0),
+                        Sum::<c_int>(bits1),
                     ) = izip!(psy_bands0, psy_bands1, coeffs0, coeffs1)
                         .take(group_len.into())
                         .map(|(bands0, bands1, coeffs0, coeffs1)| {
                             let [band0, band1] = [bands0, bands1].map(|band| &band[g]);
                             let minthr = c_float::min(band0.threshold, band1.threshold);
-                            for (M, S, (&coeff0, &coeff1)) in
-                                izip!(&mut *M, &mut *S, zip(coeffs0, coeffs1).skip(offset.into()))
+                            for (mid, side, (&coeff0, &coeff1)) in izip!(
+                                &mut *mid,
+                                &mut *side,
+                                zip(coeffs0, coeffs1).skip(offset.into())
+                            )
+                            .take(swb_size0.into())
+                            {
+                                *mid = (coeff0 + coeff1) * 0.5;
+                                *side = *mid - coeff1;
+                            }
+                            for (left34, coeff) in
+                                zip(&mut *left34, coeffs0.iter().skip(offset.into()))
                                     .take(swb_size0.into())
                             {
-                                *M = (coeff0 + coeff1) * 0.5;
-                                *S = *M - coeff1;
+                                *left34 = coeff.abs_pow34();
                             }
-                            for (L34, coeff) in zip(&mut *L34, coeffs0.iter().skip(offset.into()))
-                                .take(swb_size0.into())
+                            for (right34, coeff) in
+                                zip(&mut *right34, coeffs1.iter().skip(offset.into()))
+                                    .take(swb_size0.into())
                             {
-                                *L34 = coeff.abs_pow34();
+                                *right34 = coeff.abs_pow34();
                             }
-                            for (R34, coeff) in zip(&mut *R34, coeffs1.iter().skip(offset.into()))
-                                .take(swb_size0.into())
-                            {
-                                *R34 = coeff.abs_pow34();
+                            for (mid34, mid) in zip(&mut *mid34, &*mid).take(swb_size0.into()) {
+                                *mid34 = mid.abs_pow34();
                             }
-                            for (M34, M) in zip(&mut *M34, &*M).take(swb_size0.into()) {
-                                *M34 = M.abs_pow34();
-                            }
-                            for (S34, S) in zip(&mut *S34, &*S).take(swb_size0.into()) {
-                                *S34 = S.abs_pow34();
+                            for (side34, side) in zip(&mut *side34, &*side).take(swb_size0.into()) {
+                                *side34 = side.abs_pow34();
                             }
                             let QuantizationCost {
                                 distortion: dist1,
-                                bits: B0,
+                                bits: bits0,
                                 ..
                             } = quantize_band_cost(
                                 &coeffs0[offset.into()..][..swb_size0.into()],
-                                &L34[..swb_size0.into()],
+                                &left34[..swb_size0.into()],
                                 sf_idx0.get(),
                                 *band_type0 as c_int,
                                 lambda / (band0.threshold + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
                             ) + quantize_band_cost(
                                 &coeffs1[offset.into()..][..swb_size1.into()],
-                                &R34[..swb_size1.into()],
+                                &right34[..swb_size1.into()],
                                 sf_idx1.get(),
                                 *band_type1 as c_int,
                                 lambda / (band1.threshold + c_float::MIN_POSITIVE),
@@ -177,30 +189,35 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                             );
                             let QuantizationCost {
                                 distortion: dist2,
-                                bits: B1,
+                                bits: bits1,
                                 ..
                             } = quantize_band_cost(
-                                &M[..swb_size0.into()],
-                                &M34[..swb_size0.into()],
+                                &mid[..swb_size0.into()],
+                                &mid34[..swb_size0.into()],
                                 mididx,
                                 midcb,
                                 lambda / (minthr + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
                             ) + quantize_band_cost(
-                                &S[..swb_size1.into()],
-                                &S34[..swb_size1.into()],
+                                &side[..swb_size1.into()],
+                                &side34[..swb_size1.into()],
                                 sididx,
                                 sidcb,
                                 mslambda / (minthr * bmax + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
                             );
-                            (dist1, dist2, B0, B1)
+                            (dist1, dist2, bits0, bits1)
                         })
-                        .map(|(dist1, dist2, B0, B1)| {
-                            (dist1 - B0 as c_float, dist2 - B1 as c_float, B0, B1)
+                        .map(|(dist1, dist2, bits0, bits1)| {
+                            (
+                                dist1 - bits0 as c_float,
+                                dist2 - bits1 as c_float,
+                                bits0,
+                                bits1,
+                            )
                         })
                         .reduce_with();
-                    *ms_mask = dist2 <= dist1 && B1 < B0;
+                    *ms_mask = dist2 <= dist1 && bits1 < bits0;
                     if *ms_mask {
                         if ![*band_type0, *band_type1].contains(&NOISE_BT) {
                             sf_idx0.set(mididx);
@@ -212,7 +229,7 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                             *ms_mask = false;
                         }
                         break;
-                    } else if B1 > B0 {
+                    } else if bits1 > bits0 {
                         // More boost won't fix this
                         break;
                     }
@@ -256,7 +273,7 @@ pub(crate) fn apply(cpe: &mut ChannelElement) {
         let [coeffs0, coeffs1] = [&mut *coeffs0, &mut *coeffs1]
             .map(WindowedArray::as_array_of_cells_deref)
             .map(|coeffs| &coeffs[W2(w)]);
-        for (L_coeffs, R_coeffs) in zip(coeffs0, coeffs1).take(group_len.into()) {
+        for (left_coeffs, right_coeffs) in zip(coeffs0, coeffs1).take(group_len.into()) {
             for ((swb_size, offset), ..) in izip!(
                 ics.iter_swb_sizes_sum(),
                 &ms_mask[W(w)],
@@ -270,12 +287,12 @@ pub(crate) fn apply(cpe: &mut ChannelElement) {
                 // ms_mask is set.
                 ms_mask && !is_mask && band_type0 < NOISE_BT && band_type1 < NOISE_BT
             }) {
-                for (L, R) in zip(L_coeffs, R_coeffs)
+                for (left, right) in zip(left_coeffs, right_coeffs)
                     .skip(offset.into())
                     .take(swb_size.into())
                 {
-                    L.update(|L| (L + R.get()) * 0.5);
-                    R.update(|R| L.get() - R);
+                    left.update(|left| (left + right.get()) * 0.5);
+                    right.update(|right| left.get() - right);
                 }
             }
         }

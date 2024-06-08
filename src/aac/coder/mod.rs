@@ -49,8 +49,8 @@ static MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
 
 #[inline]
 fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
-    let Q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
-    let qmaxval = (maxval * Q34 + 0.4054) as c_int;
+    let q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
+    let qmaxval = (maxval * q34 + 0.4054) as c_int;
     MAXVAL_CB.get(qmaxval as usize).copied().unwrap_or(11) as c_int
 }
 

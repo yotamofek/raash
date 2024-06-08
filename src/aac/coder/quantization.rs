@@ -21,8 +21,8 @@ use crate::aac::{
 /// See 3GPP TS26.403 5.6.2 "Scalefactor determination"
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 54..=63)]
 #[inline]
-fn quant(coef: c_float, Q: c_float, rounding: c_float) -> c_int {
-    let a = coef * Q;
+fn quant(coef: c_float, q: c_float, rounding: c_float) -> c_int {
+    let a = coef * q;
     ((a * a.sqrt()).sqrt() + rounding) as c_int
 }
 
@@ -118,12 +118,12 @@ fn cost_template(
     let cb = flags.cb.unwrap_or(cb);
     let q_idx = c_int::from(POW_SF2_ZERO) - scale_idx + c_int::from(SCALE_ONE_POS)
         - c_int::from(SCALE_DIV_512);
-    let Q: c_float = POW_SF_TABLES.pow2()[q_idx as usize];
-    let Q34: c_float = POW_SF_TABLES.pow34()[q_idx as usize];
-    let IQ: c_float = POW_SF_TABLES.pow2()[(c_int::from(POW_SF2_ZERO) + scale_idx
+    let q: c_float = POW_SF_TABLES.pow2()[q_idx as usize];
+    let q34: c_float = POW_SF_TABLES.pow34()[q_idx as usize];
+    let iq: c_float = POW_SF_TABLES.pow2()[(c_int::from(POW_SF2_ZERO) + scale_idx
         - c_int::from(SCALE_ONE_POS)
         + c_int::from(SCALE_DIV_512)) as usize];
-    let CLIPPED_ESCAPE: c_float = 165140. * IQ;
+    let clipped_escape: c_float = 165140. * iq;
     let dim = if flags.pair { 2 } else { 4 };
     let mut cost: c_float = 0.;
     let mut qenergy: c_float = 0.;
@@ -144,7 +144,7 @@ fn cost_template(
         scaled,
         !flags.unsigned,
         CB_MAXVAL[cb as usize] as c_int,
-        Q34,
+        q34,
         rounding,
     );
     let off = if flags.unsigned {
@@ -165,16 +165,16 @@ fn cost_template(
             for j in 0..dim {
                 let t = in_[(i + j) as usize].abs();
                 let quantized = if flags.esc && vec[j as usize] == 64. {
-                    if t >= CLIPPED_ESCAPE {
+                    if t >= clipped_escape {
                         curbits += 21;
-                        CLIPPED_ESCAPE
+                        clipped_escape
                     } else {
-                        let c = clip_uintp2_c(quant(t, Q, rounding), 13) as c_int;
+                        let c = clip_uintp2_c(quant(t, q, rounding), 13) as c_int;
                         curbits += ff_log2_c(c as c_uint) * 2 - 4 + 1;
-                        c as c_float * (c as c_float).cbrt() * IQ
+                        c as c_float * (c as c_float).cbrt() * iq
                     }
                 } else {
-                    vec[j as usize] * IQ
+                    vec[j as usize] * iq
                 };
                 let di = t - quantized;
                 if let Some(out) = &mut out {
@@ -192,7 +192,7 @@ fn cost_template(
             }
         } else {
             for j in 0..dim {
-                let quantized = vec[j as usize] * IQ;
+                let quantized = vec[j as usize] * iq;
                 qenergy += quantized.powi(2);
                 if let Some(out) = &mut out {
                     out[(i + j) as usize] = quantized;
@@ -226,7 +226,7 @@ fn cost_template(
                     if ff_aac_codebook_vectors[(cb - 1) as usize][(curidx * 2 + j) as usize] == 64.
                     {
                         let coef =
-                            clip_uintp2_c(quant(in_[(i + j) as usize].abs(), Q, rounding), 13)
+                            clip_uintp2_c(quant(in_[(i + j) as usize].abs(), q, rounding), 13)
                                 as c_int;
                         let len: c_int = ff_log2_c(coef as c_uint);
                         pb.put((len - 4 + 1) as u8, ((1 << (len - 4 + 1)) - 2) as BitBuf);
