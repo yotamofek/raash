@@ -19,7 +19,7 @@ use self::{
 };
 use super::{
     encoder::ctx::QuantizeBandCostCache, tables::*, IndividualChannelStream, WindowedIteration,
-    SCALE_MAX_DIFF,
+    POW_SF2_ZERO, SCALE_DIV_512, SCALE_MAX_DIFF, SCALE_ONE_POS,
 };
 use crate::types::*;
 
@@ -45,13 +45,20 @@ static CB_RANGE: [c_uchar; 12] = [0, 3, 3, 3, 3, 9, 9, 8, 8, 13, 13, 17];
 
 static CB_MAXVAL: [c_uchar; 12] = [0, 1, 1, 2, 2, 4, 4, 7, 7, 12, 12, 16];
 
-static MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
-
+#[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 92..=102)]
 #[inline]
-fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
-    let q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
-    let qmaxval = (maxval * q34 + 0.4054) as c_int;
-    MAXVAL_CB.get(qmaxval as usize).copied().unwrap_or(11) as c_int
+pub(super) fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
+    #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 38)]
+    const C_QUANT: c_float = 0.405_4;
+
+    #[ffmpeg_src(file = "libavcodec/aacenctab.h", lines = 122..=124, name = "aac_maxval_cb")]
+    const MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
+
+    let sf_idx =
+        c_int::from(POW_SF2_ZERO) - sf + c_int::from(SCALE_ONE_POS) - c_int::from(SCALE_DIV_512);
+    let q34: c_float = POW_SF_TABLES.pow34()[sf_idx as usize];
+    let qmaxval = (maxval * q34 + C_QUANT) as usize;
+    MAXVAL_CB.get(qmaxval).copied().unwrap_or(11).into()
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 104..=154)]

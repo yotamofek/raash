@@ -10,9 +10,11 @@ use reductor::{Reduce, Sum};
 use super::pow::Pow34;
 use crate::{
     aac::{
-        coder::{quantization::QuantizationCost, quantize_band_cost, sfdelta_encoding_range},
+        coder::{
+            find_min_book, quantization::QuantizationCost, quantize_band_cost,
+            sfdelta_encoding_range,
+        },
         encoder::ctx::AACEncContext,
-        tables::POW_SF_TABLES,
         IndividualChannelStream, WindowedIteration,
     },
     types::*,
@@ -21,15 +23,6 @@ use crate::{
 #[inline]
 fn pos_pow34(a: c_float) -> c_float {
     (a * a.sqrt()).sqrt()
-}
-
-#[inline]
-fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
-    const MAXVAL_CB: [c_uchar; 14] = [0, 1, 3, 5, 5, 7, 7, 7, 9, 9, 9, 9, 9, 11];
-
-    let q34: c_float = POW_SF_TABLES.pow34()[(200 - sf + 140 - 36) as usize];
-    let qmaxval = (maxval * q34 + 0.405_4_f32) as usize;
-    MAXVAL_CB.get(qmaxval).copied().unwrap_or(11) as c_int
 }
 
 #[derive(Clone, Copy)]
