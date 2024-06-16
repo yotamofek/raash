@@ -29,7 +29,6 @@ pub(crate) fn search(
     sce: &mut SingleChannelElement,
     lambda: c_float,
 ) {
-    let mut start;
     let mut dest_bits: c_int = (avctx.bit_rate().get() as c_double * 1024.
         / avctx.sample_rate().get() as c_double
         / (if avctx.flags().get().qscale() {
@@ -42,8 +41,8 @@ pub(crate) fn search(
     let too_many_bits;
     let too_few_bits;
     let mut dists = WindowedArray::<_, 16>([0.; 128]);
-    let mut qenergies: [c_float; 128] = [0.; 128];
-    let mut rdlambda: c_float = (2. * 120. / lambda).clamp(0.0625, 16.);
+    let mut qenergies = WindowedArray::<_, 16>([0.; 128]);
+    let mut rdlambda = (2. * 120. / lambda).clamp(0.0625, 16.);
     let sfoffs;
     let mut nminscaler;
     let mut its: c_int = 0;
@@ -92,7 +91,7 @@ pub(crate) fn search(
         sfoffs = 0.;
         rdlambda = rdlambda.sqrt();
     }
-    let wlen: c_int = 1024 / c_int::from(c_uchar::from(sce.ics.num_windows));
+    let wlen = 1024 / c_int::from(c_uchar::from(sce.ics.num_windows));
 
     let frame_bit_rate = frame_bit_rate(avctx, &*s, refbits, 1.5);
     let bandwidth = if avctx.cutoff().get() > 0 {
@@ -121,6 +120,7 @@ pub(crate) fn search(
         allz,
     } = loop1(&mut *sce, &*s, cutoff, zeroscale);
 
+    let energies = WindowedArray::<_, 16>(energies);
     let minscaler = find_min_scaler(&mut *sce, &uplims, sfoffs);
     let spread_thr_r = WindowedArray::<_, 16>(spread_thr_r);
 
@@ -144,10 +144,11 @@ pub(crate) fn search(
         rdlambda,
         avctx.flags().get().qscale(),
     ));
-    let uplims = WindowedArray::<_, 16>(uplims);
 
+    let uplims = WindowedArray::<_, 16>(uplims);
+    let minsf = WindowedArray::<_, 16>(minsf);
     let maxvals = WindowedArray::<_, 16>(maxvals);
-    let mut maxsf = [c_int::from(SCALE_MAX_POS); 128];
+    let mut maxsf = WindowedArray::<_, 16>([c_int::from(SCALE_MAX_POS); 128]);
 
     // perform two-loop search
     // outer loop - improve quality
@@ -180,7 +181,6 @@ pub(crate) fn search(
                 tbits = 0;
                 for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
                     let coeffs = [&sce.coeffs, &s.scaled_coeffs].map(|arr| &arr[W(w)]);
-                    let wstart = w as usize * 16;
                     for (
                         g,
                         (&zero, &sf_idx, &can_pns, &maxval, dist, qenergy, (swb_size, offset)),
@@ -190,7 +190,7 @@ pub(crate) fn search(
                         &sce.can_pns[W(w)],
                         &maxvals[W(w)],
                         &mut dists[W(w)],
-                        &mut qenergies[wstart..],
+                        &mut qenergies[W(w)],
                         sce.ics.iter_swb_sizes_sum(),
                     )
                     .enumerate()
@@ -382,6 +382,7 @@ pub(crate) fn search(
             .unwrap_or((SCALE_MAX_POS - SCALE_DIV_512).into());
 
         let mut prev = -1;
+        let sf_indices = sce.sf_idx.as_array_of_cells_deref();
         for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
             // Start with big steps, end up fine-tunning
             let depth = if its > maxits / 2 {
@@ -399,156 +400,143 @@ pub(crate) fn search(
                 uplmax *= c_float::min(2., tbits as c_float / dest_bits.max(1) as c_float);
             };
 
-            start = 0;
-            for g in 0..sce.ics.num_swb {
-                let swb_size = sce.ics.swb_sizes[g as usize];
-                let prevsc: c_int = sce.sf_idx[W(w)][g as usize];
-                if prev < 0 && !sce.zeroes[W(w)][g as usize] {
-                    prev = sce.sf_idx[W(0)][0];
+            for (
+                g,
+                (
+                    (swb_size, start),
+                    sf_idx,
+                    &zero,
+                    &maxval,
+                    dist,
+                    &uplim,
+                    &euplim,
+                    &minsf,
+                    maxsf,
+                    &energy,
+                    qenergy,
+                    band_type,
+                ),
+            ) in izip!(
+                sce.ics.iter_swb_sizes_sum(),
+                &sf_indices[W(w)],
+                &sce.zeroes[W(w)],
+                &maxvals[W(w)],
+                &mut dists[W(w)],
+                &uplims[W(w)],
+                &euplims[W(w)],
+                &minsf[W(w)],
+                &mut maxsf[W(w)],
+                &energies[W(w)],
+                &mut qenergies[W(w)],
+                &mut sce.band_type[W(w)],
+            )
+            .enumerate()
+            {
+                let prevsc = sf_idx.get();
+                if prev < 0 && !zero {
+                    prev = sf_indices[W(0)][0].get();
                 }
-                if !sce.zeroes[W(w)][g as usize] {
-                    let coefs_1 = &sce.coeffs[W(w)][start as usize..];
-                    let scaled_2 = &s.scaled_coeffs[W(w)][start as usize..];
-                    let cmb =
-                        find_min_book(maxvals[W(w)][g as usize], sce.sf_idx[W(w)][g as usize]);
-                    let mindeltasf = c_int::max(0, prev - c_int::from(SCALE_MAX_DIFF));
-                    let maxdeltasf = c_int::min(
-                        (SCALE_MAX_POS - SCALE_DIV_512).into(),
-                        prev + c_int::from(SCALE_MAX_DIFF),
-                    );
-                    if (cmb == 0 || dists[W(w)][g as usize] > uplims[W(w)][g as usize])
-                        && sce.sf_idx[W(w)][g as usize]
-                            > mindeltasf.max(minsf[(w * 16 + g) as usize])
-                    {
-                        // Try to make sure there is some energy in every nonzero band
-                        // NOTE: This algorithm must be forcibly imbalanced, pushing harder
-                        //  on holes or more distorted bands at first, otherwise there's
-                        //  no net gain (since the next iteration will offset all bands
-                        //  on the opposite direction to compensate for extra bits)
-                        let mut i = 0;
-                        while i < edepth && sce.sf_idx[W(w)][g as usize] > mindeltasf {
-                            let mut cost = QuantizationCost::default();
-                            let mb = find_min_book(
-                                maxvals[W(w)][g as usize],
-                                sce.sf_idx[W(w)][g as usize] - 1,
+                if zero {
+                    continue;
+                }
+                let coefs_1 = &sce.coeffs[W(w)][start.into()..];
+                let scaled_2 = &s.scaled_coeffs[W(w)][start.into()..];
+                let cmb = find_min_book(maxval, sf_idx.get());
+                let mindeltasf = c_int::max(0, prev - c_int::from(SCALE_MAX_DIFF));
+                let maxdeltasf = c_int::min(
+                    (SCALE_MAX_POS - SCALE_DIV_512).into(),
+                    prev + c_int::from(SCALE_MAX_DIFF),
+                );
+                if (cmb == 0 || *dist > uplim) && sf_idx.get() > mindeltasf.max(minsf) {
+                    // Try to make sure there is some energy in every nonzero band
+                    // NOTE: This algorithm must be forcibly imbalanced, pushing harder
+                    //  on holes or more distorted bands at first, otherwise there's
+                    //  no net gain (since the next iteration will offset all bands
+                    //  on the opposite direction to compensate for extra bits)
+                    let mut i = 0;
+                    while i < edepth && sf_idx.get() > mindeltasf {
+                        let mut cost = QuantizationCost::default();
+                        let mb = find_min_book(maxval, sf_idx.get() - 1);
+                        let cb = find_min_book(maxval, sf_idx.get());
+                        if cb == 0 {
+                            *maxsf = c_int::min(sf_idx.get() - 1, *maxsf);
+                        } else if i >= depth && *dist < euplim {
+                            break;
+                        }
+                        if g == 0 && sce.ics.num_windows == WindowCount::Eight && *dist >= euplim {
+                            *maxsf = c_int::min(*maxsf, sf_idx.get());
+                        }
+                        for w2 in 0..group_len {
+                            let wstart = usize::from(w2) * 128;
+                            cost += s.quantize_band_cost_cache.quantize_band_cost_cached(
+                                w + c_int::from(w2),
+                                g as c_int,
+                                &coefs_1[wstart..][..swb_size.into()],
+                                &scaled_2[wstart..][..swb_size.into()],
+                                sf_idx.get() - 1,
+                                cb,
+                                1.,
+                                f32::INFINITY,
+                                0,
                             );
-                            let cb = find_min_book(
-                                maxvals[W(w)][g as usize],
-                                sce.sf_idx[W(w)][g as usize],
-                            );
-                            if cb == 0 {
-                                maxsf[(w * 16 + g) as usize] = c_int::min(
-                                    sce.sf_idx[W(w)][g as usize] - 1,
-                                    maxsf[(w * 16 + g) as usize],
-                                );
-                            } else if i >= depth
-                                && dists[W(w)][g as usize] < euplims[W(w)][g as usize]
-                            {
-                                break;
-                            }
-                            if g == 0
-                                && sce.ics.num_windows == WindowCount::Eight
-                                && dists[W(w)][g as usize] >= euplims[W(w)][g as usize]
-                            {
-                                maxsf[(w * 16 + g) as usize] = c_int::min(
-                                    maxsf[(w * 16 + g) as usize],
-                                    sce.sf_idx[W(w)][g as usize],
-                                );
-                            }
+                        }
+                        sf_idx.update(|idx| idx - 1);
+                        *dist = cost.distortion - cost.bits as c_float;
+                        *qenergy = cost.energy;
+                        if mb != 0
+                            && (sf_idx.get() < mindeltasf
+                                || *dist < c_float::min(uplmax * uplim, euplim)
+                                    && (*qenergy - energy).abs() < euplim)
+                        {
+                            break;
+                        }
+                        i += 1;
+                    }
+                } else if tbits > too_few_bits
+                    && sf_idx.get() < maxdeltasf.min(*maxsf)
+                    && *dist < uplim.min(euplim)
+                    && (*qenergy - energy).abs() < euplim
+                {
+                    // Um... over target. Save bits for more important stuff.
+                    let mut i = 0;
+                    while i < depth && sf_idx.get() < maxdeltasf {
+                        let mut cost = QuantizationCost::default();
+                        let cb = find_min_book(maxval, sf_idx.get() + 1);
+                        if cb > 0 {
                             for w2 in 0..group_len {
                                 let wstart = usize::from(w2) * 128;
                                 cost += s.quantize_band_cost_cache.quantize_band_cost_cached(
                                     w + c_int::from(w2),
-                                    g,
+                                    g as c_int,
                                     &coefs_1[wstart..][..swb_size.into()],
                                     &scaled_2[wstart..][..swb_size.into()],
-                                    sce.sf_idx[W(w)][g as usize] - 1,
+                                    sf_idx.get() + 1,
                                     cb,
                                     1.,
                                     f32::INFINITY,
                                     0,
                                 );
                             }
-                            sce.sf_idx[W(w)][g as usize] -= 1;
-                            dists[W(w)][g as usize] = cost.distortion - cost.bits as c_float;
-                            qenergies[(w * 16 + g) as usize] = cost.energy;
-                            if mb != 0
-                                && (sce.sf_idx[W(w)][g as usize] < mindeltasf
-                                    || dists[W(w)][g as usize]
-                                        < c_float::min(
-                                            uplmax * uplims[W(w)][g as usize],
-                                            euplims[W(w)][g as usize],
-                                        )
-                                        && (qenergies[(w * 16 + g) as usize]
-                                            - energies[(w * 16 + g) as usize])
-                                            .abs()
-                                            < euplims[W(w)][g as usize])
-                            {
+                            cost.distortion -= cost.bits as c_float;
+                            if cost.distortion >= uplim.min(euplim) {
                                 break;
                             }
+                            sf_idx.update(|idx| idx + 1);
+                            *dist = cost.distortion;
+                            *qenergy = cost.energy;
                             i += 1;
-                        }
-                    } else if tbits > too_few_bits
-                        && sce.sf_idx[W(w)][g as usize]
-                            < maxdeltasf.min(maxsf[(w * 16 + g) as usize])
-                        && dists[W(w)][g as usize]
-                            < uplims[W(w)][g as usize].min(euplims[W(w)][g as usize])
-                        && (qenergies[(w * 16 + g) as usize] - energies[(w * 16 + g) as usize])
-                            .abs()
-                            < euplims[W(w)][g as usize]
-                    {
-                        // Um... over target. Save bits for more important stuff.
-                        let mut i = 0;
-                        while i < depth && sce.sf_idx[W(w)][g as usize] < maxdeltasf {
-                            let mut cost = QuantizationCost::default();
-                            let cb = find_min_book(
-                                maxvals[W(w)][g as usize],
-                                sce.sf_idx[W(w)][g as usize] + 1,
-                            );
-                            if cb > 0 {
-                                for w2 in 0..group_len {
-                                    let wstart = usize::from(w2) * 128;
-                                    cost += s.quantize_band_cost_cache.quantize_band_cost_cached(
-                                        w + c_int::from(w2),
-                                        g,
-                                        &coefs_1[wstart..][..swb_size.into()],
-                                        &scaled_2[wstart..][..swb_size.into()],
-                                        sce.sf_idx[W(w)][g as usize] + 1,
-                                        cb,
-                                        1.,
-                                        f32::INFINITY,
-                                        0,
-                                    );
-                                }
-                                cost.distortion -= cost.bits as c_float;
-                                if cost.distortion
-                                    >= uplims[W(w)][g as usize].min(euplims[W(w)][g as usize])
-                                {
-                                    break;
-                                }
-                                sce.sf_idx[W(w)][g as usize] += 1;
-                                dists[W(w)][g as usize] = cost.distortion;
-                                qenergies[(w * 16 + g) as usize] = cost.energy;
-                                i += 1;
-                            } else {
-                                maxsf[(w * 16 + g) as usize] =
-                                    sce.sf_idx[W(w)][g as usize].min(maxsf[(w * 16 + g) as usize]);
-                                break;
-                            }
+                        } else {
+                            *maxsf = sf_idx.get().min(*maxsf);
+                            break;
                         }
                     }
-                    sce.sf_idx[W(w)][g as usize] =
-                        sce.sf_idx[W(w)][g as usize].clamp(mindeltasf, maxdeltasf);
-                    prev = sce.sf_idx[W(w)][g as usize];
-                    if sce.sf_idx[W(w)][g as usize] != prevsc {
-                        fflag = true;
-                    }
-                    nminscaler = nminscaler.min(sce.sf_idx[W(w)][g as usize]);
-                    sce.band_type[W(w)][g as usize] =
-                        find_min_book(maxvals[W(w)][g as usize], sce.sf_idx[W(w)][g as usize])
-                            as BandType;
                 }
-                start += sce.ics.swb_sizes[g as usize] as c_int;
+                prev = sf_idx.update(|idx| idx.clamp(mindeltasf, maxdeltasf));
+                if prev != prevsc {
+                    fflag = true;
+                }
+                nminscaler = nminscaler.min(prev);
+                *band_type = find_min_book(maxval, prev) as BandType;
             }
         }
 
