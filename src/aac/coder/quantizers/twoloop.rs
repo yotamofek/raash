@@ -147,6 +147,7 @@ pub(crate) fn search(
     ));
     let uplims = WindowedArray::<_, 16>(uplims);
 
+    let maxvals = WindowedArray::<_, 16>(maxvals);
     let mut maxsf = [c_int::from(SCALE_MAX_POS); 128];
 
     // perform two-loop search
@@ -188,7 +189,7 @@ pub(crate) fn search(
                         &sce.zeroes[W(w)],
                         &sce.sf_idx[W(w)],
                         &sce.can_pns[W(w)],
-                        &maxvals[wstart..],
+                        &maxvals[W(w)],
                         &mut dists[W(w)],
                         &mut qenergies[wstart..],
                         sce.ics.iter_swb_sizes_sum(),
@@ -327,21 +328,22 @@ pub(crate) fn search(
                         ref ics,
                         ..
                     } = sce;
-                    let zeroes = Cell::from_mut(&mut ***zeroes).as_array_of_cells();
+                    let zeroes = zeroes.as_array_of_cells_deref();
 
                     zeroed += ics
                         .iter_windows()
                         .filter(|&WindowedIteration { w, .. }| {
-                            let i = (w * 16 + g) as usize;
-                            !zeroes[i].get()
+                            !zeroes[W(w)][g as usize].get()
                                 && can_pns[W(w)][g as usize]
                                 && spread_thr_r[W(w)][g as usize] <= zspread
                                 && sf_idx[W(w)][g as usize] > loopminsf
                                 && (dists[W(w)][g as usize]
                                     > loopovrfactor * uplims[W(w)][g as usize]
                                     || {
-                                        let mcb =
-                                            find_min_book(maxvals[i], sf_idx[W(w)][g as usize]);
+                                        let mcb = find_min_book(
+                                            maxvals[W(w)][g as usize],
+                                            sf_idx[W(w)][g as usize],
+                                        );
                                         mcb == 0
                                             || mcb <= 1
                                                 && dists[W(w)][g as usize]
@@ -352,8 +354,7 @@ pub(crate) fn search(
                                     })
                         })
                         .map(|WindowedIteration { w, .. }| {
-                            let i = (w * 16 + g) as usize;
-                            zeroes[i].set(true);
+                            zeroes[W(w)][g as usize].set(true);
                             band_type[W(w)][g as usize] = ZERO_BT;
                         })
                         .count() as c_int;
@@ -409,7 +410,7 @@ pub(crate) fn search(
                     let coefs_1 = &sce.coeffs[W(w)][start as usize..];
                     let scaled_2 = &s.scaled_coeffs[W(w)][start as usize..];
                     let cmb =
-                        find_min_book(maxvals[(w * 16 + g) as usize], sce.sf_idx[W(w)][g as usize]);
+                        find_min_book(maxvals[W(w)][g as usize], sce.sf_idx[W(w)][g as usize]);
                     let mindeltasf = c_int::max(0, prev - c_int::from(SCALE_MAX_DIFF));
                     let maxdeltasf = c_int::min(
                         (SCALE_MAX_POS - SCALE_DIV_512).into(),
@@ -428,11 +429,11 @@ pub(crate) fn search(
                         while i < edepth && sce.sf_idx[W(w)][g as usize] > mindeltasf {
                             let mut cost = QuantizationCost::default();
                             let mb = find_min_book(
-                                maxvals[(w * 16 + g) as usize],
+                                maxvals[W(w)][g as usize],
                                 sce.sf_idx[W(w)][g as usize] - 1,
                             );
                             let cb = find_min_book(
-                                maxvals[(w * 16 + g) as usize],
+                                maxvals[W(w)][g as usize],
                                 sce.sf_idx[W(w)][g as usize],
                             );
                             if cb == 0 {
@@ -501,7 +502,7 @@ pub(crate) fn search(
                         while i < depth && sce.sf_idx[W(w)][g as usize] < maxdeltasf {
                             let mut cost = QuantizationCost::default();
                             let cb = find_min_book(
-                                maxvals[(w * 16 + g) as usize],
+                                maxvals[W(w)][g as usize],
                                 sce.sf_idx[W(w)][g as usize] + 1,
                             );
                             if cb > 0 {
@@ -544,7 +545,7 @@ pub(crate) fn search(
                     }
                     nminscaler = nminscaler.min(sce.sf_idx[W(w)][g as usize]);
                     sce.band_type[W(w)][g as usize] =
-                        find_min_book(maxvals[(w * 16 + g) as usize], sce.sf_idx[W(w)][g as usize])
+                        find_min_book(maxvals[W(w)][g as usize], sce.sf_idx[W(w)][g as usize])
                             as BandType;
                 }
                 start += sce.ics.swb_sizes[g as usize] as c_int;
@@ -552,23 +553,24 @@ pub(crate) fn search(
         }
 
         // SF difference limit violation risk. Must re-clamp.
-        prev = -1;
+        let mut prev = None;
         for WindowedIteration { w, .. } in sce.ics.iter_windows() {
-            for g in 0..sce.ics.num_swb {
-                if !sce.zeroes[W(w)][g as usize] {
-                    let prevsf: c_int = sce.sf_idx[W(w)][g as usize];
-                    if prev < 0 {
-                        prev = prevsf;
-                    }
-                    sce.sf_idx[W(w)][g as usize] =
-                        sce.sf_idx[W(w)][g as usize].clamp(prev - 60, prev + 60);
-                    sce.band_type[W(w)][g as usize] =
-                        find_min_book(maxvals[(w * 16 + g) as usize], sce.sf_idx[W(w)][g as usize])
-                            as BandType;
-                    prev = sce.sf_idx[W(w)][g as usize];
-                    if !fflag && prevsf != sce.sf_idx[W(w)][g as usize] {
-                        fflag = true;
-                    }
+            for (.., &maxval, sf_idx, band_type) in izip!(
+                &sce.zeroes[W(w)],
+                &maxvals[W(w)],
+                &mut sce.sf_idx[W(w)],
+                &mut sce.band_type[W(w)],
+            )
+            .take(sce.ics.num_swb as usize)
+            .filter(|(&zero, ..)| !zero)
+            {
+                let prevsf = *sf_idx;
+                let prev = prev.get_or_insert(prevsf);
+                *sf_idx = (*sf_idx).clamp(*prev - 60, *prev + 60);
+                *band_type = find_min_book(maxval, *sf_idx) as BandType;
+                *prev = *sf_idx;
+                if !fflag && prevsf != *sf_idx {
+                    fflag = true;
                 }
             }
         }
@@ -580,7 +582,7 @@ pub(crate) fn search(
         }
     }
 
-    find_next_bands(sce, maxvals);
+    find_next_bands(sce, *maxvals);
 }
 
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 297..=312)]
