@@ -196,7 +196,7 @@ pub(crate) fn search(
                     .enumerate()
                     {
                         let [coeffs, scaled] = coeffs.map(|arr| &arr[offset.into()..]);
-                        let mut cost_0 = QuantizationCost::default();
+                        let mut cost = QuantizationCost::default();
                         if zero || sf_idx >= 218 {
                             if can_pns {
                                 tbits += if let Some(g) = g.checked_sub(1)
@@ -214,7 +214,7 @@ pub(crate) fn search(
                         let cb = find_min_book(maxval, sf_idx);
                         for w2 in 0..group_len {
                             let wstart = usize::from(w2) * 128;
-                            cost_0 += s.quantize_band_cost_cache.quantize_band_cost_cached(
+                            cost += s.quantize_band_cost_cache.quantize_band_cost_cached(
                                 w + c_int::from(w2),
                                 g as c_int,
                                 &coeffs[wstart..][..swb_size.into()],
@@ -226,13 +226,13 @@ pub(crate) fn search(
                                 0,
                             );
                         }
-                        *dist = cost_0.distortion - cost_0.bits as c_float;
-                        *qenergy = cost_0.energy;
+                        *dist = cost.distortion - cost.bits as c_float;
+                        *qenergy = cost.energy;
                         if let Some(prev) = prev {
                             let sf_diff = (sf_idx - prev + 60).clamp(0, 2 * 60);
-                            cost_0.bits += c_int::from(SCALEFACTOR_BITS[sf_diff as usize]);
+                            cost.bits += c_int::from(SCALEFACTOR_BITS[sf_diff as usize]);
                         }
-                        tbits += cost_0.bits;
+                        tbits += cost.bits;
                         prev = Some(sf_idx);
                     }
                 }
@@ -439,8 +439,9 @@ pub(crate) fn search(
                 if zero {
                     continue;
                 }
-                let coefs_1 = &sce.coeffs[W(w)][start.into()..];
-                let scaled_2 = &s.scaled_coeffs[W(w)][start.into()..];
+                let coefs = WindowedArray::<_, 128>::from_ref(&sce.coeffs[W(w)][start.into()..]);
+                let scaled =
+                    WindowedArray::<_, 128>::from_ref(&s.scaled_coeffs[W(w)][start.into()..]);
                 let cmb = find_min_book(maxval, sf_idx.get());
                 let mindeltasf = c_int::max(0, prev - c_int::from(SCALE_MAX_DIFF));
                 let maxdeltasf = c_int::min(
@@ -453,9 +454,10 @@ pub(crate) fn search(
                     //  on holes or more distorted bands at first, otherwise there's
                     //  no net gain (since the next iteration will offset all bands
                     //  on the opposite direction to compensate for extra bits)
-                    let mut i = 0;
-                    while i < edepth && sf_idx.get() > mindeltasf {
-                        let mut cost = QuantizationCost::default();
+                    let mut i = 0..edepth;
+                    while let Some(i) = i.next()
+                        && sf_idx.get() > mindeltasf
+                    {
                         let mb = find_min_book(maxval, sf_idx.get() - 1);
                         let cb = find_min_book(maxval, sf_idx.get());
                         if cb == 0 {
@@ -466,20 +468,21 @@ pub(crate) fn search(
                         if g == 0 && sce.ics.num_windows == WindowCount::Eight && *dist >= euplim {
                             *maxsf = c_int::min(*maxsf, sf_idx.get());
                         }
-                        for w2 in 0..group_len {
-                            let wstart = usize::from(w2) * 128;
-                            cost += s.quantize_band_cost_cache.quantize_band_cost_cached(
-                                w + c_int::from(w2),
-                                g as c_int,
-                                &coefs_1[wstart..][..swb_size.into()],
-                                &scaled_2[wstart..][..swb_size.into()],
-                                sf_idx.get() - 1,
-                                cb,
-                                1.,
-                                f32::INFINITY,
-                                0,
-                            );
-                        }
+                        let cost = (0..group_len)
+                            .map(|w2| {
+                                s.quantize_band_cost_cache.quantize_band_cost_cached(
+                                    w + c_int::from(w2),
+                                    g as c_int,
+                                    &coefs[W(w2)][..swb_size.into()],
+                                    &scaled[W(w2)][..swb_size.into()],
+                                    sf_idx.get() - 1,
+                                    cb,
+                                    1.,
+                                    f32::INFINITY,
+                                    0,
+                                )
+                            })
+                            .sum::<QuantizationCost>();
                         sf_idx.update(|idx| idx - 1);
                         *dist = cost.distortion - cost.bits as c_float;
                         *qenergy = cost.energy;
@@ -490,7 +493,6 @@ pub(crate) fn search(
                         {
                             break;
                         }
-                        i += 1;
                     }
                 } else if tbits > too_few_bits
                     && sf_idx.get() < maxdeltasf.min(*maxsf)
@@ -498,37 +500,38 @@ pub(crate) fn search(
                     && (*qenergy - energy).abs() < euplim
                 {
                     // Um... over target. Save bits for more important stuff.
-                    let mut i = 0;
-                    while i < depth && sf_idx.get() < maxdeltasf {
-                        let mut cost = QuantizationCost::default();
+                    let mut i = 0..depth;
+                    while let Some(_) = i.next()
+                        && sf_idx.get() < maxdeltasf
+                    {
                         let cb = find_min_book(maxval, sf_idx.get() + 1);
-                        if cb > 0 {
-                            for w2 in 0..group_len {
-                                let wstart = usize::from(w2) * 128;
-                                cost += s.quantize_band_cost_cache.quantize_band_cost_cached(
+                        if cb <= 0 {
+                            *maxsf = sf_idx.get().min(*maxsf);
+                            break;
+                        }
+
+                        let mut cost = (0..group_len)
+                            .map(|w2| {
+                                s.quantize_band_cost_cache.quantize_band_cost_cached(
                                     w + c_int::from(w2),
                                     g as c_int,
-                                    &coefs_1[wstart..][..swb_size.into()],
-                                    &scaled_2[wstart..][..swb_size.into()],
+                                    &coefs[W(w2)][..swb_size.into()],
+                                    &scaled[W(w2)][..swb_size.into()],
                                     sf_idx.get() + 1,
                                     cb,
                                     1.,
                                     f32::INFINITY,
                                     0,
-                                );
-                            }
-                            cost.distortion -= cost.bits as c_float;
-                            if cost.distortion >= uplim.min(euplim) {
-                                break;
-                            }
-                            sf_idx.update(|idx| idx + 1);
-                            *dist = cost.distortion;
-                            *qenergy = cost.energy;
-                            i += 1;
-                        } else {
-                            *maxsf = sf_idx.get().min(*maxsf);
+                                )
+                            })
+                            .sum::<QuantizationCost>();
+                        cost.distortion -= cost.bits as c_float;
+                        if cost.distortion >= uplim.min(euplim) {
                             break;
                         }
+                        sf_idx.update(|idx| idx + 1);
+                        *dist = cost.distortion;
+                        *qenergy = cost.energy;
                     }
                 }
                 prev = sf_idx.update(|idx| idx.clamp(mindeltasf, maxdeltasf));
