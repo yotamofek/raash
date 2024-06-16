@@ -48,7 +48,6 @@ pub(crate) fn search(
     let mut nminscaler;
     let mut its: c_int = 0;
     let mut maxits: c_int = 30;
-    let mut prev;
     let zeroscale = zeroscale(lambda);
 
     if s.psy.bitres.alloc >= 0 {
@@ -177,7 +176,7 @@ pub(crate) fn search(
             && (overdist || recomprd)
         {
             if recomprd {
-                prev = -1;
+                let mut prev = None::<c_int>;
                 tbits = 0;
                 for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
                     let coeffs = [&sce.coeffs, &s.scaled_coeffs].map(|arr| &arr[W(w)]);
@@ -229,12 +228,12 @@ pub(crate) fn search(
                         }
                         *dist = cost_0.distortion - cost_0.bits as c_float;
                         *qenergy = cost_0.energy;
-                        if prev != -1 {
+                        if let Some(prev) = prev {
                             let sf_diff = (sf_idx - prev + 60).clamp(0, 2 * 60);
                             cost_0.bits += c_int::from(SCALEFACTOR_BITS[sf_diff as usize]);
                         }
                         tbits += cost_0.bits;
-                        prev = sf_idx;
+                        prev = Some(sf_idx);
                     }
                 }
             }
@@ -382,7 +381,7 @@ pub(crate) fn search(
             })
             .unwrap_or((SCALE_MAX_POS - SCALE_DIV_512).into());
 
-        prev = -1;
+        let mut prev = -1;
         for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
             // Start with big steps, end up fine-tunning
             let depth = if its > maxits / 2 {
@@ -399,6 +398,7 @@ pub(crate) fn search(
             if tbits > dest_bits {
                 uplmax *= c_float::min(2., tbits as c_float / dest_bits.max(1) as c_float);
             };
+
             start = 0;
             for g in 0..sce.ics.num_swb {
                 let swb_size = sce.ics.swb_sizes[g as usize];
