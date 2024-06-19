@@ -1,4 +1,8 @@
-use std::{cell::Cell, iter::zip, ops::BitOrAssign};
+use std::{
+    cell::Cell,
+    iter::{successors, zip},
+    ops::BitOrAssign,
+};
 
 use array_util::{WindowedArray, W};
 use encoder::CodecContext;
@@ -814,53 +818,57 @@ fn loop1(
         allz,
     } = &mut res;
 
+    let uplims = WindowedArray::<_, 16>::from_mut(uplims);
+    let energies = WindowedArray::<_, 16>::from_mut(energies);
+    let nzs = WindowedArray::<_, 16>::from_mut(nzs);
+    let spread_thr_r = WindowedArray::<_, 16>::from_mut(spread_thr_r);
+
     let SingleChannelElement {
-        ics: ref ics @ IndividualChannelStream {
-            num_swb, swb_sizes, ..
-        },
+        ref ics,
         ref can_pns,
         ref mut zeroes,
         ..
     } = *sce;
 
-    let swb_sizes = &swb_sizes[..num_swb as usize];
     let FFPsyChannel { psy_bands, .. } = &s.psy.ch[s.cur_channel as usize];
-    let zeroes = Cell::from_mut(&mut ***zeroes).as_array_of_cells();
+    let zeroes = zeroes.as_array_of_cells_deref();
 
     for WindowedIteration { w, group_len } in ics.iter_windows() {
-        let mut start = 0;
-        let mut g = start;
-        while g < ics.num_swb {
-            let wstart = (w * 16 + g) as usize;
-            let mut uplim: c_float = 0.;
-            let mut energy: c_float = 0.;
+        for ((_, start), uplim, energy, nz, spread_thr_r, &can_pns, psy_bands, zeroes) in izip!(
+            ics.iter_swb_sizes_sum(),
+            &mut uplims[W(w)],
+            &mut energies[W(w)],
+            &mut nzs[W(w)],
+            &mut spread_thr_r[W(w)],
+            &can_pns[W(w)],
+            successors(Some(&psy_bands[W(w)]), |psy_bands| psy_bands.get(1..)),
+            successors(Some(&zeroes[W(w)]), |zeroes| zeroes.get(1..)),
+        ) {
             let mut spread: c_float = 0.;
-            let nz = zip(&psy_bands[W(w)][g as usize..], &zeroes[wstart..])
+            *uplim = 0.;
+            *energy = 0.;
+            *nz = zip(psy_bands, zeroes)
                 .step_by(16)
                 .take(group_len.into())
                 .filter(|(band, zero)| {
-                    if start >= cutoff
+                    if c_int::from(start) >= cutoff
                         || band.energy <= band.threshold * zeroscale
                         || band.threshold == 0.
                     {
                         zero.set(true);
                         false
                     } else {
-                        uplim += band.threshold;
-                        energy += band.energy;
+                        *uplim += band.threshold;
+                        *energy += band.energy;
                         spread += band.spread;
                         true
                     }
                 })
-                .count();
-            uplims[wstart] = uplim;
-            energies[wstart] = energy;
-            nzs[wstart] = nz as c_char;
-            zeroes[wstart].set(nz == 0);
-            *allz |= nz > 0;
-            if nz > 0 && can_pns[W(w)][g as usize] {
-                let spread_thr_r = &mut spread_thr_r[wstart];
-                *spread_thr_r = energy * nz as c_float / (uplim * spread);
+                .count() as c_char;
+            zeroes[0].set(*nz == 0);
+            *allz |= *nz > 0;
+            if *nz > 0 && can_pns {
+                *spread_thr_r = *energy * *nz as c_float / (*uplim * spread);
                 (*min_spread_thr_r, *max_spread_thr_r) = if *min_spread_thr_r < 0. {
                     (*spread_thr_r, *spread_thr_r)
                 } else {
@@ -870,8 +878,6 @@ fn loop1(
                     )
                 }
             }
-            start += swb_sizes[g as usize] as c_int;
-            g += 1;
         }
     }
 
