@@ -166,7 +166,6 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
     let band_types = sce.band_type.as_array_of_cells_deref();
     let sf_indices = sce.sf_idx.as_array_of_cells_deref();
     for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
-        let wstart: c_int = w * 128;
         let num_swb = sce.ics.num_swb as usize;
         for (
             g,
@@ -197,10 +196,9 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Sing
         .take(num_swb)
         .enumerate()
         {
-            let start = wstart + swb_offset as c_int;
-            let freq = (start - wstart) as c_float * freq_mult;
+            let freq = c_float::from(swb_offset) * freq_mult;
             let freq_boost = freq_boost(freq);
-            if freq < NOISE_LOW_LIMIT || start - wstart >= cutoff {
+            if freq < NOISE_LOW_LIMIT || c_int::from(swb_offset) >= cutoff {
                 if !*zero {
                     prev_sf = Some(sf_idx);
                 }
@@ -361,11 +359,10 @@ pub(crate) fn mark(s: &mut AACEncContext, avctx: &CodecContext, sce: &mut Single
         )
         .take(sce.ics.num_swb as usize)
         {
-            let start = c_int::from(swb_offset);
-            let freq: c_float = start as c_float * freq_mult;
+            let freq = c_float::from(swb_offset) * freq_mult;
             let freq_boost = freq_boost(freq);
 
-            if freq < NOISE_LOW_LIMIT || start >= cutoff {
+            if freq < NOISE_LOW_LIMIT || c_int::from(swb_offset) >= cutoff {
                 *can_pns = false;
                 continue;
             }
