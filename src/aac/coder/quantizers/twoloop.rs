@@ -4,7 +4,7 @@ use std::{
     ops::BitOrAssign,
 };
 
-use array_util::{WindowedArray, W};
+use array_util::{WindowedArray, W, W2};
 use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
@@ -138,7 +138,7 @@ pub(crate) fn search(
 
     s.quantize_band_cost_cache.init();
 
-    let (minsf, maxvals) = calc_minsf_maxvals(&sce.ics, &s.scaled_coeffs);
+    let (minsf, maxvals) = calc_minsf_maxvals(&sce.ics, WindowedArray::from_ref(&s.scaled_coeffs));
     let euplims = WindowedArray::<_, 16>(scale_uplims(
         &sce.ics,
         &mut uplims,
@@ -149,9 +149,7 @@ pub(crate) fn search(
         avctx.flags().get().qscale(),
     ));
 
-    let uplims = WindowedArray::<_, 16>(uplims);
-    let minsf = WindowedArray::<_, 16>(minsf);
-    let maxvals = WindowedArray::<_, 16>(maxvals);
+    let uplims = WindowedArray::<_, 16>::from_ref(&uplims);
     let mut maxsf = WindowedArray::<_, 16>([c_int::from(SCALE_MAX_POS); 128]);
 
     // perform two-loop search
@@ -579,19 +577,26 @@ pub(crate) fn search(
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 297..=312)]
 fn calc_minsf_maxvals(
     ics: &IndividualChannelStream,
-    scaled_coeffs: &[c_float; 1024], // TODO(yotam): make windowed
-) -> ([c_int; 128], [c_float; 128]) {
-    let mut minsf = [0; 128];
-    let mut maxvals = [0.; 128];
+    scaled_coeffs: &WindowedArray<[c_float; 1024], 128>,
+) -> (
+    WindowedArray<[c_int; 128], 16>,
+    WindowedArray<[c_float; 128], 16>,
+) {
+    let mut minsf = WindowedArray([0; 128]);
+    let mut maxvals = WindowedArray([0.; 128]);
     for WindowedIteration { w, group_len } in ics.iter_windows() {
-        let start = w * 128;
-        for (g, (swb_size, offset)) in ics.iter_swb_sizes_sum().enumerate() {
-            let wstart = (w * 16) as usize + g;
-            let maxval = &mut maxvals[wstart];
-            let scaled = &scaled_coeffs[(start + c_int::from(offset)) as usize..];
+        let minsf = &minsf.as_array_of_cells()[W(w)];
+        for ((swb_size, offset), maxval, minsf) in izip!(
+            ics.iter_swb_sizes_sum(),
+            &mut maxvals[W(w)],
+            successors(Some(minsf), |minsf| minsf.get(1..)),
+        ) {
+            let scaled = &scaled_coeffs[W2(w)];
 
-            *maxval = (0..usize::from(group_len))
-                .flat_map(|w2| &scaled[(w2 * 128)..][..swb_size.into()])
+            *maxval = scaled
+                .into_iter()
+                .take(group_len.into())
+                .flat_map(|scaled| scaled.iter().skip(offset.into()).take(swb_size.into()))
                 .copied()
                 .max_by(c_float::total_cmp)
                 .unwrap_or_default();
@@ -600,12 +605,8 @@ fn calc_minsf_maxvals(
             }
 
             let minsfidx = maxval.coef2minsf().into();
-            for minsf in minsf[wstart..]
-                .iter_mut()
-                .step_by(16)
-                .take(group_len.into())
-            {
-                *minsf = minsfidx;
+            for minsf in minsf.iter().step_by(16).take(group_len.into()) {
+                minsf.set(minsfidx);
             }
         }
     }
