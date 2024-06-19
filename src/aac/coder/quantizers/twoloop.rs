@@ -989,13 +989,13 @@ fn quantize_spectrum(
     sce: &mut SingleChannelElement,
     s: &mut AACEncContext,
     its: c_int,
-    maxvals: &[c_float; 128],
+    maxvals: &WindowedArray<[c_float; 128], 16>,
     maxsf: &[c_int; 128],
     minsf: &[c_int; 128],
     too_many_bits: c_int,
     too_few_bits: c_int,
-    dists: &mut [c_float; 128],
-    qenergies: &mut [c_float; 128],
+    dists: &mut WindowedArray<[c_float; 128], 16>,
+    qenergies: &mut WindowedArray<[c_float; 128], 16>,
 ) -> InnerLoopResult {
     let mut qstep: c_int = if its != 0 { 1 } else { 32 };
     loop {
@@ -1003,15 +1003,14 @@ fn quantize_spectrum(
         let mut tbits = 0;
         for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
             let [coeffs, scaled] = [&sce.coeffs, &s.scaled_coeffs].map(|c| &c[W(w)]);
-            let wstart = w as usize * 16;
             for (g, (&zero, &sf_idx, &can_pns, &maxval, dist, qenergy, (swb_size, offset))) in
                 izip!(
                     &sce.zeroes[W(w)],
                     &sce.sf_idx[W(w)],
                     &sce.can_pns[W(w)],
-                    &maxvals[wstart..],
-                    &mut dists[wstart..],
-                    &mut qenergies[wstart..],
+                    &maxvals[W(w)],
+                    &mut dists[W(w)],
+                    &mut qenergies[W(w)],
                     sce.ics.iter_swb_sizes_sum(),
                 )
                 .enumerate()
