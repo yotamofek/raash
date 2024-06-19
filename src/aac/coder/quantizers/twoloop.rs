@@ -366,21 +366,17 @@ pub(crate) fn search(
                                 && can_pns[W(w)][g as usize]
                                 && spread_thr_r[W(w)][g as usize] <= zspread
                                 && sf_idx[W(w)][g as usize] > loopminsf
-                                && (dists[W(w)][g as usize]
-                                    > loopovrfactor * uplims[W(w)][g as usize]
-                                    || {
-                                        let mcb = find_min_book(
-                                            maxvals[W(w)][g as usize],
-                                            sf_idx[W(w)][g as usize],
-                                        );
-                                        mcb == 0
-                                            || mcb <= 1
-                                                && dists[W(w)][g as usize]
-                                                    > c_float::min(
-                                                        uplims[W(w)][g as usize],
-                                                        euplims[W(w)][g as usize],
-                                                    )
-                                    })
+                                && {
+                                    let dist = dists[W(w)][g as usize];
+                                    dist > loopovrfactor * uplims[W(w)][g as usize]
+                                        || (dist
+                                            > uplims[W(w)][g as usize]
+                                                .min(euplims[W(w)][g as usize])
+                                            && find_min_book(
+                                                maxvals[W(w)][g as usize],
+                                                sf_idx[W(w)][g as usize],
+                                            ) <= 1)
+                                }
                         })
                         .map(|WindowedIteration { w, .. }| {
                             zeroes[W(w)][g as usize].set(true);
