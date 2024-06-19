@@ -9,7 +9,6 @@ use encoder::CodecContext;
 use ffmpeg_src_macro::ffmpeg_src;
 use izip::izip;
 use libc::{c_char, c_double, c_float, c_int, c_long, c_uchar, c_ushort};
-use reductor::{Reduce as _, Sum};
 
 use crate::{
     aac::{
@@ -17,7 +16,10 @@ use crate::{
             find_form_factor, find_min_book, math::Float as _, quantization::QuantizationCost,
             sfdelta_encoding_range,
         },
-        encoder::{ctx::AACEncContext, pow::Pow34},
+        encoder::{
+            ctx::{AACEncContext, QuantizeBandCostCache},
+            pow::Pow34,
+        },
         psy_model::cutoff_from_bitrate,
         tables::SCALEFACTOR_BITS,
         IndividualChannelStream, SyntaxElementType, WindowedIteration, SCALE_DIFF_ZERO,
@@ -25,6 +27,36 @@ use crate::{
     },
     types::*,
 };
+
+impl WindowedIteration {
+    fn calc_quantization_cost_sum(
+        &self,
+        quantize_band_cost_cache: &mut QuantizeBandCostCache,
+        g: c_int,
+        coeffs: &WindowedArray<[c_float], 128>,
+        scaled_coeffs: &WindowedArray<[c_float], 128>,
+        swb_size: c_uchar,
+        sf_idx: c_int,
+        cb: c_int,
+    ) -> QuantizationCost {
+        izip!(self.w.., coeffs, scaled_coeffs)
+            .take(self.group_len.into())
+            .map(|(w, coeffs, scaled)| {
+                quantize_band_cost_cache.quantize_band_cost_cached(
+                    w,
+                    g as c_int,
+                    &coeffs[..swb_size.into()],
+                    &scaled[..swb_size.into()],
+                    sf_idx,
+                    cb,
+                    1.,
+                    f32::INFINITY,
+                    0,
+                )
+            })
+            .sum()
+    }
+}
 
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 67..=761, name = "search_for_quantizers_twoloop")]
 pub(crate) fn search(
@@ -1007,7 +1039,7 @@ fn quantize_spectrum(
     loop {
         let mut prev: Option<c_int> = None;
         let mut tbits = 0;
-        for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
+        for wi @ WindowedIteration { w, .. } in sce.ics.iter_windows() {
             let [coeffs, scaled] = [&sce.coeffs, &s.scaled_coeffs].map(|c| &c[W(w)]);
             for (g, (&zero, &sf_idx, &can_pns, &maxval, dist, qenergy, (swb_size, offset))) in
                 izip!(
@@ -1021,8 +1053,8 @@ fn quantize_spectrum(
                 )
                 .enumerate()
             {
-                let [coeffs, scaled] =
-                    [coeffs, scaled].map(|coeffs| &coeffs[usize::from(offset)..]);
+                let [coeffs, scaled] = [coeffs, scaled]
+                    .map(|coeffs| WindowedArray::from_ref(&coeffs[offset.into()..]));
                 if zero || sf_idx >= 218 {
                     if can_pns {
                         // PNS isn't free
@@ -1039,30 +1071,23 @@ fn quantize_spectrum(
                 }
 
                 let cb = find_min_book(maxval, sf_idx);
-                let Sum::<QuantizationCost>(mut cost) = (0..group_len)
-                    .map(|w2| {
-                        let wstart = usize::from(w2) * 128;
-                        s.quantize_band_cost_cache.quantize_band_cost_cached(
-                            w + c_int::from(w2),
-                            g as c_int,
-                            &coeffs[wstart..][..swb_size.into()],
-                            &scaled[wstart..][..swb_size.into()],
-                            sf_idx,
-                            cb,
-                            1.,
-                            f32::INFINITY,
-                            0,
-                        )
-                    })
-                    .reduce_with();
+                let cost = wi.calc_quantization_cost_sum(
+                    &mut s.quantize_band_cost_cache,
+                    g as c_int,
+                    coeffs,
+                    scaled,
+                    swb_size,
+                    sf_idx,
+                    cb,
+                );
                 *dist = cost.distortion - cost.bits as c_float;
                 *qenergy = cost.energy;
+                tbits += cost.bits;
                 if let Some(prev) = prev {
                     let sfdiff = (sf_idx - prev + c_int::from(SCALE_DIFF_ZERO))
                         .clamp(0, 2 * c_int::from(SCALE_MAX_DIFF));
-                    cost.bits += c_int::from(SCALEFACTOR_BITS[sfdiff as usize]);
+                    tbits += c_int::from(SCALEFACTOR_BITS[sfdiff as usize]);
                 }
-                tbits += cost.bits;
                 prev = Some(sf_idx);
             }
         }
