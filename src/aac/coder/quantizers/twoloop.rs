@@ -385,7 +385,7 @@ pub(crate) fn search(
             })
             .unwrap_or((SCALE_MAX_POS - SCALE_DIV_512).into());
 
-        let mut prev = -1;
+        let mut prev = None;
         let sf_indices = sce.sf_idx.as_array_of_cells_deref();
         for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
             // Start with big steps, end up fine-tunning
@@ -409,7 +409,7 @@ pub(crate) fn search(
                 (
                     (swb_size, start),
                     sf_idx,
-                    &zero,
+                    _,
                     &maxval,
                     dist,
                     &uplim,
@@ -435,22 +435,18 @@ pub(crate) fn search(
                 &mut sce.band_type[W(w)],
             )
             .enumerate()
+            .filter(|(_, (_, _, &zero, ..))| !zero)
             {
                 let prevsc = sf_idx.get();
-                if prev < 0 && !zero {
-                    prev = sf_indices[W(0)][0].get();
-                }
-                if zero {
-                    continue;
-                }
+                let prev = prev.get_or_insert_with(|| sf_indices[W(0)][0].get());
                 let coefs = WindowedArray::<_, 128>::from_ref(&sce.coeffs[W(w)][start.into()..]);
                 let scaled =
                     WindowedArray::<_, 128>::from_ref(&s.scaled_coeffs[W(w)][start.into()..]);
                 let cmb = find_min_book(maxval, sf_idx.get());
-                let mindeltasf = c_int::max(0, prev - c_int::from(SCALE_MAX_DIFF));
+                let mindeltasf = c_int::max(0, *prev - c_int::from(SCALE_MAX_DIFF));
                 let maxdeltasf = c_int::min(
                     (SCALE_MAX_POS - SCALE_DIV_512).into(),
-                    prev + c_int::from(SCALE_MAX_DIFF),
+                    *prev + c_int::from(SCALE_MAX_DIFF),
                 );
                 if (cmb == 0 || *dist > uplim) && sf_idx.get() > mindeltasf.max(minsf) {
                     // Try to make sure there is some energy in every nonzero band
@@ -538,12 +534,12 @@ pub(crate) fn search(
                         *qenergy = cost.energy;
                     }
                 }
-                prev = sf_idx.update(|idx| idx.clamp(mindeltasf, maxdeltasf));
-                if prev != prevsc {
+                *prev = sf_idx.update(|idx| idx.clamp(mindeltasf, maxdeltasf));
+                if *prev != prevsc {
                     fflag = true;
                 }
-                nminscaler = nminscaler.min(prev);
-                *band_type = find_min_book(maxval, prev) as BandType;
+                nminscaler = nminscaler.min(*prev);
+                *band_type = find_min_book(maxval, *prev) as BandType;
             }
         }
 
