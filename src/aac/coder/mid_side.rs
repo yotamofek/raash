@@ -195,14 +195,14 @@ pub(crate) fn search(s: &mut AACEncContext, cpe: &mut ChannelElement) {
                                 &mid[..swb_size0.into()],
                                 &mid34[..swb_size0.into()],
                                 mididx,
-                                midcb,
+                                midcb.into(),
                                 lambda / (minthr + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
                             ) + quantize_band_cost(
                                 &side[..swb_size1.into()],
                                 &side34[..swb_size1.into()],
                                 sididx,
-                                sidcb,
+                                sidcb.into(),
                                 mslambda / (minthr * bmax + c_float::MIN_POSITIVE),
                                 f32::INFINITY,
                             );

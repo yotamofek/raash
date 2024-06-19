@@ -250,7 +250,7 @@ pub(crate) fn search(s: &mut AACEncContext, avctx: &CodecContext, cpe: &mut Chan
                                 &is[..swb_size0.into()],
                                 &i34[..swb_size0.into()],
                                 is_sf_idx,
-                                is_band_type,
+                                is_band_type.into(),
                                 lambda / minthr,
                                 f32::INFINITY,
                             )

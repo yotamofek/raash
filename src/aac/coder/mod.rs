@@ -47,7 +47,7 @@ static CB_MAXVAL: [c_uchar; 12] = [0, 1, 1, 2, 2, 4, 4, 7, 7, 12, 12, 16];
 
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 92..=102)]
 #[inline]
-pub(super) fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
+pub(super) fn find_min_book(maxval: c_float, sf: c_int) -> c_uchar {
     #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 38)]
     const C_QUANT: c_float = 0.405_4;
 
@@ -58,7 +58,7 @@ pub(super) fn find_min_book(maxval: c_float, sf: c_int) -> c_int {
         c_int::from(POW_SF2_ZERO) - sf + c_int::from(SCALE_ONE_POS) - c_int::from(SCALE_DIV_512);
     let q34: c_float = POW_SF_TABLES.pow34()[sf_idx as usize];
     let qmaxval = (maxval * q34 + C_QUANT) as usize;
-    MAXVAL_CB.get(qmaxval).copied().unwrap_or(11).into()
+    MAXVAL_CB.get(qmaxval).copied().unwrap_or(11)
 }
 
 #[ffmpeg_src(file = "libavcodec/aacenc_utils.h", lines = 104..=154)]

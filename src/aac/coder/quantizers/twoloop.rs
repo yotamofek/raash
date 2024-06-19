@@ -37,7 +37,7 @@ impl WindowedIteration {
         scaled_coeffs: &WindowedArray<[c_float], 128>,
         swb_size: c_uchar,
         sf_idx: c_int,
-        cb: c_int,
+        cb: c_uchar,
     ) -> QuantizationCost {
         izip!(self.w.., coeffs, scaled_coeffs)
             .take(self.group_len.into())
@@ -48,7 +48,7 @@ impl WindowedIteration {
                     &coeffs[..swb_size.into()],
                     &scaled[..swb_size.into()],
                     sf_idx,
-                    cb,
+                    cb.into(),
                     1.,
                     f32::INFINITY,
                     0,
@@ -521,7 +521,7 @@ pub(crate) fn search(
                         && sf_idx.get() < maxdeltasf
                     {
                         let cb = find_min_book(maxval, sf_idx.get() + 1);
-                        if cb <= 0 {
+                        if cb == 0 {
                             *maxsf = sf_idx.get().min(*maxsf);
                             break;
                         }
