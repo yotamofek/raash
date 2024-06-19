@@ -146,7 +146,7 @@ pub(crate) fn search(
     let too_many_bits = too_many_bits.min(5800);
     let too_few_bits = too_few_bits.min(5800);
 
-    let Loop1Result {
+    let InitialQuantizers {
         mut uplims,
         energies,
         nzs,
@@ -154,11 +154,12 @@ pub(crate) fn search(
         min_spread_thr_r,
         max_spread_thr_r,
         allz,
-    } = loop1(&mut *sce, &*s, cutoff, zeroscale);
+    } = calc_initial_quantizers(&mut *sce, &*s, cutoff, zeroscale);
 
     let energies = WindowedArray::<_, 16>(energies);
-    let minscaler = find_min_scaler(&mut *sce, &uplims, sfoffs);
     let spread_thr_r = WindowedArray::<_, 16>(spread_thr_r);
+
+    let minscaler = find_min_scaler(&mut *sce, &uplims, sfoffs);
 
     clip_non_zeros(&mut *sce, minscaler);
 
@@ -213,7 +214,7 @@ pub(crate) fn search(
             if recomprd {
                 let mut prev = None::<c_int>;
                 tbits = 0;
-                for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
+                for wi @ WindowedIteration { w, .. } in sce.ics.iter_windows() {
                     let coeffs = [&sce.coeffs, &s.scaled_coeffs].map(|arr| &arr[W(w)]);
                     for (
                         g,
@@ -229,8 +230,8 @@ pub(crate) fn search(
                     )
                     .enumerate()
                     {
-                        let [coeffs, scaled] = coeffs.map(|arr| &arr[offset.into()..]);
-                        let mut cost = QuantizationCost::default();
+                        let [coeffs, scaled] =
+                            coeffs.map(|arr| WindowedArray::from_ref(&arr[offset.into()..]));
                         if zero || sf_idx >= 218 {
                             if can_pns {
                                 tbits += if let Some(g) = g.checked_sub(1)
@@ -246,25 +247,20 @@ pub(crate) fn search(
                         }
 
                         let cb = find_min_book(maxval, sf_idx);
-                        for w2 in 0..group_len {
-                            let wstart = usize::from(w2) * 128;
-                            cost += s.quantize_band_cost_cache.quantize_band_cost_cached(
-                                w + c_int::from(w2),
-                                g as c_int,
-                                &coeffs[wstart..][..swb_size.into()],
-                                &scaled[wstart..][..swb_size.into()],
-                                sf_idx,
-                                cb,
-                                1.,
-                                f32::INFINITY,
-                                0,
-                            );
-                        }
+                        let cost = wi.calc_quantization_cost_sum(
+                            &mut s.quantize_band_cost_cache,
+                            g as c_int,
+                            coeffs,
+                            scaled,
+                            swb_size,
+                            sf_idx,
+                            cb,
+                        );
                         *dist = cost.distortion - cost.bits as c_float;
                         *qenergy = cost.energy;
                         if let Some(prev) = prev {
                             let sf_diff = (sf_idx - prev + 60).clamp(0, 2 * 60);
-                            cost.bits += c_int::from(SCALEFACTOR_BITS[sf_diff as usize]);
+                            tbits += c_int::from(SCALEFACTOR_BITS[sf_diff as usize]);
                         }
                         tbits += cost.bits;
                         prev = Some(sf_idx);
@@ -417,7 +413,7 @@ pub(crate) fn search(
 
         let mut prev = None;
         let sf_indices = sce.sf_idx.as_array_of_cells_deref();
-        for WindowedIteration { w, group_len } in sce.ics.iter_windows() {
+        for wi @ WindowedIteration { w, .. } in sce.ics.iter_windows() {
             // Start with big steps, end up fine-tunning
             let depth = if its > maxits / 2 {
                 if its > maxits * 2 / 3 {
@@ -469,7 +465,7 @@ pub(crate) fn search(
             {
                 let prevsc = sf_idx.get();
                 let prev = prev.get_or_insert_with(|| sf_indices[W(0)][0].get());
-                let coefs = WindowedArray::<_, 128>::from_ref(&sce.coeffs[W(w)][start.into()..]);
+                let coeffs = WindowedArray::<_, 128>::from_ref(&sce.coeffs[W(w)][start.into()..]);
                 let scaled =
                     WindowedArray::<_, 128>::from_ref(&s.scaled_coeffs[W(w)][start.into()..]);
                 let cmb = find_min_book(maxval, sf_idx.get());
@@ -498,27 +494,21 @@ pub(crate) fn search(
                         if g == 0 && sce.ics.num_windows == WindowCount::Eight && *dist >= euplim {
                             *maxsf = c_int::min(*maxsf, sf_idx.get());
                         }
-                        let cost = (0..group_len)
-                            .map(|w2| {
-                                s.quantize_band_cost_cache.quantize_band_cost_cached(
-                                    w + c_int::from(w2),
-                                    g as c_int,
-                                    &coefs[W(w2)][..swb_size.into()],
-                                    &scaled[W(w2)][..swb_size.into()],
-                                    sf_idx.get() - 1,
-                                    cb,
-                                    1.,
-                                    f32::INFINITY,
-                                    0,
-                                )
-                            })
-                            .sum::<QuantizationCost>();
+                        let cost = wi.calc_quantization_cost_sum(
+                            &mut s.quantize_band_cost_cache,
+                            g as c_int,
+                            coeffs,
+                            scaled,
+                            swb_size,
+                            sf_idx.get() - 1,
+                            cb,
+                        );
                         sf_idx.update(|idx| idx - 1);
                         *dist = cost.distortion - cost.bits as c_float;
                         *qenergy = cost.energy;
                         if mb != 0
                             && (sf_idx.get() < mindeltasf
-                                || *dist < c_float::min(uplmax * uplim, euplim)
+                                || *dist < (uplmax * uplim).min(euplim)
                                     && (*qenergy - energy).abs() < euplim)
                         {
                             break;
@@ -540,21 +530,15 @@ pub(crate) fn search(
                             break;
                         }
 
-                        let mut cost = (0..group_len)
-                            .map(|w2| {
-                                s.quantize_band_cost_cache.quantize_band_cost_cached(
-                                    w + c_int::from(w2),
-                                    g as c_int,
-                                    &coefs[W(w2)][..swb_size.into()],
-                                    &scaled[W(w2)][..swb_size.into()],
-                                    sf_idx.get() + 1,
-                                    cb,
-                                    1.,
-                                    f32::INFINITY,
-                                    0,
-                                )
-                            })
-                            .sum::<QuantizationCost>();
+                        let mut cost = wi.calc_quantization_cost_sum(
+                            &mut s.quantize_band_cost_cache,
+                            g as c_int,
+                            coeffs,
+                            scaled,
+                            swb_size,
+                            sf_idx.get() + 1,
+                            cb,
+                        );
                         cost.distortion -= cost.bits as c_float;
                         if cost.distortion >= uplim.min(euplim) {
                             break;
@@ -808,7 +792,7 @@ impl BitOrAssign<bool> for AllZ {
     }
 }
 
-struct Loop1Result {
+struct InitialQuantizers {
     uplims: [f32; 128],
     energies: [f32; 128],
     nzs: [i8; 128],
@@ -818,7 +802,7 @@ struct Loop1Result {
     allz: AllZ,
 }
 
-impl Default for Loop1Result {
+impl Default for InitialQuantizers {
     fn default() -> Self {
         Self {
             uplims: [0.; 128],
@@ -835,14 +819,14 @@ impl Default for Loop1Result {
 /// XXX: some heuristic to determine initial quantizers will reduce search time
 /// determine zero bands and upper distortion limits
 #[ffmpeg_src(file = "libavcodec/aaccoder_twoloop.h", lines = 217..=260)]
-fn loop1(
+fn calc_initial_quantizers(
     sce: &mut SingleChannelElement,
     s: &AACEncContext,
     cutoff: i32,
     zeroscale: f32,
-) -> Loop1Result {
-    let mut res = Loop1Result::default();
-    let Loop1Result {
+) -> InitialQuantizers {
+    let mut res = InitialQuantizers::default();
+    let InitialQuantizers {
         uplims,
         energies,
         nzs,
