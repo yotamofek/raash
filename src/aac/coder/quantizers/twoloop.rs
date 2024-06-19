@@ -698,6 +698,8 @@ fn scale_uplims(
     const RDMIN: c_float = 0.03125;
     const RDMAX: c_float = 1.;
 
+    let coeffs = WindowedArray::<_, 128>::from_ref(coeffs);
+    let uplims = WindowedArray::<_, 16>::from_mut(uplims);
     let mut euplims = *uplims;
     for WindowedIteration { w, group_len } in ics.iter_windows() {
         // psy already priorizes transients to some extent
@@ -707,23 +709,25 @@ fn scale_uplims(
             1.
         };
 
+        let coeffs = &coeffs[W(w)];
+
         for ((swb_size, offset), &nz, uplim, euplim) in izip!(
             ics.iter_swb_sizes_sum(),
             nzs,
-            &mut uplims[(w * 16) as usize..],
-            &mut euplims[(w * 16) as usize..],
+            &mut uplims[W(w)],
+            &mut euplims[W(w)],
         )
         .filter(|(_, &nz, ..)| nz > 0)
         {
             let start = w * 128 + c_int::from(offset);
-            let coeffs = &coeffs[start as usize..];
+            let coeffs = &coeffs[offset.into()..];
             let cleanup_factor = (start as c_float / (cutoff as c_float * 0.75))
                 .clamp(1., 2.)
                 .powi(2);
             let mut energy2uplim = find_form_factor(
                 group_len,
                 swb_size,
-                *uplim / (nz as c_int * ics.swb_sizes[w as usize] as c_int) as c_float,
+                *uplim / (c_int::from(nz) * c_int::from(ics.swb_sizes[w as usize])) as c_float,
                 coeffs,
                 NZ_SLOPE * cleanup_factor,
             );
@@ -738,7 +742,7 @@ fn scale_uplims(
             let mut energy2uplim = find_form_factor(
                 group_len,
                 swb_size,
-                *uplim / (nz as c_int * ics.swb_sizes[w as usize] as c_int) as c_float,
+                *uplim / (c_int::from(nz) * c_int::from(ics.swb_sizes[w as usize])) as c_float,
                 coeffs,
                 2.,
             );
@@ -752,7 +756,8 @@ fn scale_uplims(
                 (rdlambda * energy2uplim * c_float::from(ics.group_len[w as usize])).clamp(0.5, 1.);
         }
     }
-    euplims
+
+    *euplims
 }
 
 #[derive(Default, PartialEq, Eq)]
