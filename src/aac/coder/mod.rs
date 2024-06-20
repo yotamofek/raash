@@ -23,7 +23,7 @@ use super::{
 };
 use crate::types::*;
 
-fn run_value_bits(num_windows: WindowCount) -> &'static [c_uchar] {
+const fn run_value_bits(num_windows: WindowCount) -> &'static [c_uchar] {
     static LONG: [c_uchar; 64] = [
         5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
         5, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,

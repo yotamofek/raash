@@ -4,6 +4,7 @@
     array_windows,
     as_array_of_cells,
     cell_update,
+    const_refs_to_static,
     generic_arg_infer,
     generic_const_exprs,
     let_chains,
