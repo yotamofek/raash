@@ -407,11 +407,10 @@ impl SingleChannelElement {
     /// Downscale spectral coefficients for near-clipping windows to avoid
     /// artifacts
     #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 738..=756)]
-    fn avoid_clipping(&mut self) {
+    fn avoid_clipping(&mut self, avoidance_factor: c_float) {
         let Self {
             ics:
                 IndividualChannelStream {
-                    clip_avoidance_factor,
                     max_sfb,
                     num_windows,
                     swb_sizes,
@@ -421,23 +420,24 @@ impl SingleChannelElement {
             ..
         } = *self;
 
-        if clip_avoidance_factor >= 1. {
+        if avoidance_factor >= 1. {
             return;
         }
+
+        let total_swb_size = swb_sizes
+            .iter()
+            .copied()
+            .take(max_sfb.into())
+            .map(usize::from)
+            .sum();
 
         for coeffs in coeffs
             .as_array_of_cells_deref()
             .into_iter()
             .take(c_uchar::from(num_windows).into())
         {
-            let mut start = 0;
-
-            for &swb_size in swb_sizes.iter().take(max_sfb.into()) {
-                for coeff in &coeffs[start..][..swb_size.into()] {
-                    coeff.update(|coeff| coeff * clip_avoidance_factor);
-                }
-
-                start += usize::from(swb_size);
+            for coeff in &coeffs[..total_swb_size] {
+                coeff.update(|coeff| coeff * avoidance_factor);
             }
         }
     }
@@ -582,7 +582,7 @@ impl IndividualChannelStream {
 
     /// Calculate input sample maximums and evaluate clipping risk
     #[ffmpeg_src(file = "libavcodec/aacenc.c", lines = 911..=935)]
-    fn calc_clip_avoidance_factor(&mut self, overlap: &[c_float]) {
+    fn calc_clip_avoidance_factor(&mut self, overlap: &[c_float]) -> Option<c_float> {
         let mut clipping = MaybeUninit::uninit_array::<8>();
         let wlen = 2048 / c_int::from(c_uchar::from(self.num_windows));
 
@@ -615,11 +615,8 @@ impl IndividualChannelStream {
             .max_by(c_float::total_cmp)
             .unwrap_or_default();
 
-        self.clip_avoidance_factor = if clip_avoidance_factor > CLIP_AVOIDANCE_FACTOR {
-            CLIP_AVOIDANCE_FACTOR / clip_avoidance_factor
-        } else {
-            1.
-        };
+        (clip_avoidance_factor > CLIP_AVOIDANCE_FACTOR)
+            .then(|| CLIP_AVOIDANCE_FACTOR / clip_avoidance_factor)
     }
 }
 
@@ -660,7 +657,7 @@ fn analyze_psy_windows(
             }
 
             ics.apply_psy_window_info(tag, wi, &ctx.psy, ctx.samplerate_index);
-            ics.calc_clip_avoidance_factor(overlap);
+            let clip_avoidance_factor = ics.calc_clip_avoidance_factor(overlap);
 
             sce.apply_window_and_mdct(&ctx.mdct, overlap);
 
@@ -671,7 +668,9 @@ fn analyze_psy_windows(
                 "Input contains (near) NaN/+-Inf"
             );
 
-            sce.avoid_clipping();
+            if let Some(factor) = clip_avoidance_factor {
+                sce.avoid_clipping(factor);
+            }
         }
         start_ch += chans;
     }

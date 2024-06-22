@@ -1,7 +1,7 @@
 use std::iter;
 
 use ffmpeg_src_macro::ffmpeg_src;
-use libc::{c_float, c_int, c_uchar, c_ushort};
+use libc::{c_int, c_uchar, c_ushort};
 
 use crate::types::WindowCount;
 
@@ -88,9 +88,6 @@ pub(crate) struct IndividualChannelStream {
     predictor_present: bool,
     /// set if a certain window is near clipping
     window_clipping: [bool; 8],
-    /// set if any window is near clipping to the necessary atennuation factor
-    /// to avoid it
-    clip_avoidance_factor: c_float,
 }
 
 #[derive(Clone, Copy)]
